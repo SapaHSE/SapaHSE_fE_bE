@@ -1,16 +1,14 @@
-# sapahse
+# Sapa HSE
 
-A new Flutter project.
+**Sapa HSE** adalah aplikasi berbasis Flutter yang dirancang untuk mendukung penerapan *Health, Safety, and Environment* (HSE) di berbagai organisasi.  
+Aplikasi ini membantu pengguna menyapa, mencatat, dan mengelola aspek kesehatan, keselamatan kerja, serta lingkungan dengan cara yang lebih praktis dan terintegrasi.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## ✨ Fitur Utama
+- 📋 **Pencatatan Insiden**: Memudahkan laporan insiden HSE secara cepat dan terstruktur.  
+- 📊 **Monitoring & Pelaporan**: Menyediakan data visual untuk memantau tren kesehatan, keselamatan, dan lingkungan.  
+- 🔔 **Notifikasi & Pengingat**: Memberikan pengingat terkait aktivitas HSE.  
+- 🌱 **Integrasi Lingkungan**: Mendukung budaya kerja aman dan berkelanjutan.  
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
