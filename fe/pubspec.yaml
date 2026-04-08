@@ -1,0 +1,41 @@
+name: sapahse
+description: SapaHse - PT. Bukit Baiduri Energi HSE Reporting App
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+ 
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+  cached_network_image: ^3.3.1
+  image_picker: ^1.0.7
+  mobile_scanner: ^5.2.3
+  csv: ^6.0.0
+  path_provider: ^2.1.2
+  share_plus: ^10.0.0
+  # ── API & Storage (newly added) ───────────────────────────────────────────
+  http: ^1.2.1                    # HTTP requests to Laravel API
+  shared_preferences: ^2.2.3     # Persist token & user data locally
+ 
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+ 
+flutter:
+  uses-material-design: true
+ 
+  assets:
+    - assets/logo.png
+    - assets/icon/
+ 
+# ── App Icon Config ───────────────────────────────────────────────────────────
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
