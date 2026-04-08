@@ -5,7 +5,7 @@ import 'storage_service.dart';
 
 class ApiService {
   // ── Base URL ─────────────────────────────────────────────────────────────
-  static const String baseUrl = 'http://192.168.1.93:8000/api';
+  static const String baseUrl = 'https://sapahseon-production.up.railway.app/api';
 
   // ── Headers ───────────────────────────────────────────────────────────────
   static Future<Map<String, String>> _headers({bool auth = true}) async {
