@@ -41,7 +41,7 @@ class AuthService {
   // ── Register ──────────────────────────────────────────────────────────────
 static Future<AuthResult> register({
   required String nik,
-  required String employeeId,
+  String? employeeId,
   required String fullName,
   required String email,
   required String password,
