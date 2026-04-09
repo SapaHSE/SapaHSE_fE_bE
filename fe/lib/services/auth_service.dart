@@ -64,6 +64,7 @@ static Future<AuthResult> register({
     auth: false,
   );
 
+
   if (!response.success) {
     return AuthResult.error(response.errorMessage ?? 'Registrasi gagal.');
   }

@@ -101,46 +101,44 @@ class _RegisterScreenState extends State<RegisterScreen>
     setState(() => _isLoading = true);
 
     final result = await AuthService.register(
-      nik:         _nikCtrl.text.trim(),
-      employeeId:  null,
-      fullName:    _namaCtrl.text.trim(),
-      email:       _emailCtrl.text.trim(),
-      password:    _passCtrl.text,
-      phoneNumber: _teleponCtrl.text.trim().isEmpty
-          ? null
-          : _teleponCtrl.text.trim(),
-      department:  _selectedDivisi,
+      nik: _nikCtrl.text.trim(),
+      employeeId: null,
+      fullName: _namaCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
+      password: _passCtrl.text,
+      phoneNumber:
+          _teleponCtrl.text.trim().isEmpty ? null : _teleponCtrl.text.trim(),
+      department: _selectedDivisi,
     );
 
     if (!mounted) return;
-    setState(() => _isLoading = false);
 
     if (result.success) {
-      // Navigate ke LoginScreen dan tampilkan snackbar sukses
+        setState(() => _isLoading = false); // ← ADD THIS
+
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
       );
-      // Snackbar ditampilkan setelah navigasi selesai
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Expanded(child: Text('Registrasi berhasil! Silakan login.')),
-              ],
-            ),
-            backgroundColor: const Color(0xFF1A56C4),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            margin: const EdgeInsets.all(16),
-            duration: const Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Expanded(child: Text('Registrasi berhasil! Silakan login.')),
+            ],
           ),
-        );
-      });
+          backgroundColor: const Color(0xFF1A56C4),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 3),
+        ),
+      );
     } else {
+      setState(() => _isLoading = false);
       _showSnackbar(result.errorMessage ?? 'Registrasi gagal.', Colors.red);
     }
   }
@@ -397,11 +395,15 @@ class _RegisterScreenState extends State<RegisterScreen>
         TextFormField(
           controller: _teleponCtrl,
           keyboardType: TextInputType.phone,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(13),
+          ],
           decoration: _deco(hint: 'Contoh: 081234567890', icon: Icons.phone_outlined),
           validator: (v) {
             if (v!.isEmpty) return 'Wajib diisi';
-            if (v.length < 10) return 'Nomor telepon tidak valid';
+            if (v.length < 12) return 'Nomor telepon tidak valid';
+            if (v.length > 13) return 'Nomor telepon tidak valid';
             return null;
           },
         ),
