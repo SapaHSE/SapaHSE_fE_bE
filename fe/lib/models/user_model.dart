@@ -27,20 +27,20 @@ class UserModel {
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    return UserModel(
-      id:           json['id'] as String,
-      nik:          json['nik'] as String,
-      employeeId:   json['employee_id'] as String,
-      fullName:     json['full_name'] as String,
-      email:        json['email'] as String,
-      phoneNumber:  json['phone_number'] as String?,
-      position:     json['position'] as String?,
-      department:   json['department'] as String?,
-      profilePhoto: json['profile_photo'] as String?,
-      role:         json['role'] as String,
-      isActive:     json['is_active'] == true || json['is_active'] == 1,
-    );
-  }
+  return UserModel(
+    id:           json['id']?.toString() ?? '',
+    nik:          json['nik']?.toString() ?? '',
+    employeeId:   json['employee_id']?.toString() ?? '',
+    fullName:     json['full_name']?.toString() ?? '',
+    email:        json['email']?.toString() ?? '',
+    phoneNumber:  json['phone_number']?.toString(),
+    position:     json['position']?.toString(),
+    department:   json['department']?.toString(),
+    profilePhoto: json['profile_photo']?.toString(),
+    role:         json['role']?.toString() ?? 'user',
+    isActive:     json['is_active'] == true || json['is_active'] == 1,
+  );
+}
 
   Map<String, dynamic> toJson() => {
     'id':            id,
