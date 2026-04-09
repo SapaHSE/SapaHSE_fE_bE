@@ -17,7 +17,7 @@ class AuthController extends Controller
             'employee_id'  => 'required|string|max:20|unique:users',
             'full_name'    => 'required|string|max:100',
             'email'        => 'required|email|unique:users',
-            'password'     => 'required|min:6',
+            'password'     => 'required|min:8',
             'phone_number' => 'nullable|string|max:20',
             'position'     => 'nullable|string|max:100',
             'department'   => 'nullable|string|max:100',
@@ -25,7 +25,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'nik'           => $request->nik,
-            'employee_id'   => $request->employee_id,
+            'employee_id'   => $request->employee_id ?? null,
             'full_name'     => $request->full_name,
             'email'         => $request->email,
             'password' => Hash::make($request->password),
@@ -47,7 +47,7 @@ class AuthController extends Controller
     }
 
     // POST /api/login
-    // Field 'login' bisa diisi NIK, employee_id, atau email
+    // Field 'login' diisi NIK
     public function login(Request $request)
     {
         $request->validate([
