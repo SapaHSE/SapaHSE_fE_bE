@@ -1,44 +1,17 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\Controller;
 use App\Models\Notification;
-use App\Models\User;
-use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
-    public function __construct(protected NotificationService $notificationService)
-    {
-    }
-
     /**
-     * Register FCM token dari mobile app
-     */
-    public function registerFcmToken(Request $request): JsonResponse
-    {
-        $request->validate([
-            'fcm_token' => 'required|string',
-        ]);
-
-        $user = $request->user();
-        $user->update([
-            'fcm_token' => $request->fcm_token,
-        ]);
-
-        return response()->json([
-            'message' => 'FCM token berhasil didaftarkan',
-            'data' => [
-                'user_id' => $user->id,
-                'fcm_token' => substr($user->fcm_token, 0, 20) . '...',
-            ],
-        ]);
-    }
-
-    /**
-     * Get notifikasi user
+     * GET /api/notifications — daftar notifikasi user yang login
      */
     public function getNotifications(Request $request): JsonResponse
     {
@@ -46,88 +19,100 @@ class NotificationController extends Controller
 
         $notifications = Notification::where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate((int) $request->input('per_page', 20));
 
         return response()->json([
-            'message' => 'Notifikasi berhasil diambil',
-            'data' => $notifications,
+            'status'       => 'success',
+            'unread_count' => Notification::where('user_id', $user->id)
+                ->where('status', '!=', 'read')
+                ->count(),
+            'meta' => [
+                'total'        => $notifications->total(),
+                'per_page'     => $notifications->perPage(),
+                'current_page' => $notifications->currentPage(),
+                'last_page'    => $notifications->lastPage(),
+                'has_more'     => $notifications->hasMorePages(),
+            ],
+            'data' => $notifications->items(),
         ]);
     }
 
     /**
-     * Get single notification
+     * GET /api/notifications/{id}
      */
     public function getNotification(Notification $notification): JsonResponse
     {
-        $user = auth('sanctum')->user();
-
-        if ($notification->user_id !== $user->id) {
-            return response()->json([
-                'message' => 'Unauthorized',
-            ], 403);
+        if ($notification->user_id !== Auth::id()) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
         }
 
         return response()->json([
-            'message' => 'Notifikasi berhasil diambil',
-            'data' => $notification,
+            'status' => 'success',
+            'data'   => $notification,
         ]);
     }
 
     /**
-     * Mark notification as read
+     * POST /api/notifications/{id}/read
      */
     public function markAsRead(Notification $notification): JsonResponse
     {
-        $user = auth('sanctum')->user();
-
-        if ($notification->user_id !== $user->id) {
-            return response()->json([
-                'message' => 'Unauthorized',
-            ], 403);
+        if ($notification->user_id !== Auth::id()) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
         }
 
-        $this->notificationService->markAsRead($notification);
+        $notification->update(['status' => 'read', 'read_at' => now()]);
 
         return response()->json([
+            'status'  => 'success',
             'message' => 'Notifikasi berhasil ditandai sebagai dibaca',
-            'data' => $notification,
+            'data'    => $notification,
         ]);
     }
 
     /**
-     * Update last activity user
+     * POST /api/notifications/read-all — tandai semua sebagai dibaca
      */
-    public function updateActivity(Request $request): JsonResponse
+    public function markAllAsRead(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $this->notificationService->updateLastActivity($user);
+        Notification::where('user_id', $request->user()->id)
+            ->where('status', '!=', 'read')
+            ->update(['status' => 'read', 'read_at' => now()]);
 
         return response()->json([
-            'message' => 'Activity berhasil diupdate',
-            'data' => [
-                'user_id' => $user->id,
-                'last_activity_at' => $user->last_activity_at,
-            ],
+            'status'  => 'success',
+            'message' => 'Semua notifikasi telah ditandai sebagai dibaca',
         ]);
     }
 
     /**
-     * Get notifikasi yang belum dibaca
+     * GET /api/notifications/unread/count
      */
     public function getUnreadCount(): JsonResponse
     {
-        $user = auth('sanctum')->user();
-
-        $unreadCount = Notification::where('user_id', $user->id)
+        $unreadCount = Notification::where('user_id', Auth::id())
             ->where('status', '!=', 'read')
             ->count();
 
         return response()->json([
-            'message' => 'Unread count berhasil diambil',
-            'data' => [
-                'unread_count' => $unreadCount,
-            ],
+            'status' => 'success',
+            'data'   => ['unread_count' => $unreadCount],
+        ]);
+    }
+
+    /**
+     * POST /api/notifications/register-fcm
+     */
+    public function registerFcmToken(Request $request): JsonResponse
+    {
+        $request->validate(['fcm_token' => 'required|string']);
+
+        $user = $request->user();
+        $user->update(['fcm_token' => $request->fcm_token]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'FCM token berhasil didaftarkan',
         ]);
     }
 }
-

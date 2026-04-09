@@ -3,12 +3,16 @@
 namespace Database\Seeders;
 
 use App\Models\Announcement;
-use App\Models\Inspection;
 use App\Models\ChecklistItem;
 use App\Models\News;
+use App\Models\Notification;
 use App\Models\QrAsset;
 use App\Models\Report;
+use App\Models\ReportLog;
 use App\Models\User;
+use App\Models\UserCertification;
+use App\Models\UserLicense;
+use App\Models\UserMedical;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -16,234 +20,622 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // ── Users ─────────────────────────────────────────────────────────────
-        // Catatan PDF: NIK = 123 | Password = 123 (untuk demo)
+        // ══════════════════════════════════════════════════════════════════
+        // USERS
+        // Kolom login: staff_id + password
+        // Role: superadmin | admin | user
+        //
+        // Demo login: staff_id = "1" | password = "123"
+        // ══════════════════════════════════════════════════════════════════
+
+        $superadmin = User::create([
+            'staff_id'       => 'BBE-SA-01',
+            'full_name'      => 'Ahmad Fauzan',
+            'personal_email' => 'superadmin@bbe.com',
+            'work_email'     => 'a.fauzan@bbe.co.id',
+            'phone_number'   => '+62811000001',
+            'position'       => 'System Administrator',
+            'department'     => 'IT',
+            'password'  => Hash::make('password'),
+            'is_active'      => true,
+            'role'           => 'superadmin',
+            'email_verified_at' => now(),
+        ]);
 
         $admin = User::create([
-            'nik'           => '1234567890000001',
-            'employee_id'   => 'BBE-ADM-001',
-            'full_name'     => 'System Administrator',
-            'email'         => 'admin@bbe.com',
-            'password' => Hash::make('password'),
-            'phone_number'  => '+62811000001',
-            'position'      => 'System Administrator',
-            'department'    => 'IT',
-            'role'          => 'admin',
-            'is_active'     => true,
+            'staff_id'       => 'BBE-AD-01',
+            'full_name'      => 'Budi Santoso',
+            'personal_email' => 'budi@bbe.com',
+            'work_email'     => 'b.santoso@bbe.co.id',
+            'phone_number'   => '+62811000002',
+            'position'       => 'HSE Manager',
+            'department'     => 'K3 / HSE',
+            'password'  => Hash::make('password'),
+            'is_active'      => true,
+            'role'           => 'admin',
+            'email_verified_at' => now(),
         ]);
 
-        $supervisor = User::create([
-            'nik'           => '1234567890000002',
-            'employee_id'   => 'BBE-SPV-001',
-            'full_name'     => 'Budi Santoso',
-            'email'         => 'budi@bbe.com',
-            'password' => Hash::make('password'),
-            'phone_number'  => '+62811000002',
-            'position'      => 'HSE Supervisor',
-            'department'    => 'K3 / HSE',
-            'role'          => 'supervisor',
-            'is_active'     => true,
+        $admin2 = User::create([
+            'staff_id'       => 'BBE-AD-02',
+            'full_name'      => 'Sari Dewi Rahayu',
+            'personal_email' => 'sari@bbe.com',
+            'work_email'     => 's.dewi@bbe.co.id',
+            'phone_number'   => '+62811000003',
+            'position'       => 'Mine Safety Inspector',
+            'department'     => 'K3 / HSE',
+            'password'  => Hash::make('password'),
+            'is_active'      => true,
+            'role'           => 'admin',
+            'email_verified_at' => now(),
         ]);
 
-        // Demo user sesuai PDF — NIK=123, password=123
-        $demoUser = User::create([
-            'nik'           => '123',
-            'employee_id'   => 'BBE-DEMO-001',
-            'full_name'     => 'Demo User',
-            'email'         => 'demo@bbe.com',
-            'password' => Hash::make('123'),
-            'phone_number'  => '+62811000099',
-            'position'      => 'IT Intern',
-            'department'    => 'IT',
-            'role'          => 'user',
-            'is_active'     => true,
+        // Demo user — staff_id = "1", password = "123"
+        $demo = User::create([
+            'staff_id'       => '1',
+            'full_name'      => 'Demo User',
+            'personal_email' => 'demo@bbe.com',
+            'work_email'     => null,
+            'phone_number'   => '+62811000099',
+            'position'       => 'IT Intern',
+            'department'     => 'IT',
+            'password'  => Hash::make('123'),
+            'is_active'      => true,
+            'role'           => 'user',
+            'email_verified_at' => now(),
         ]);
 
         $faiz = User::create([
-            'nik'           => '1234567890000003',
-            'employee_id'   => 'BBE-OPS-001',
-            'full_name'     => 'Muhammad Faiz',
-            'email'         => 'faiz@bbe.com',
-            'password' => Hash::make('password'),
-            'phone_number'  => '+62811000003',
-            'position'      => 'Heavy Equipment Operator',
-            'department'    => 'Operational',
-            'role'          => 'user',
-            'is_active'     => true,
+            'staff_id'       => 'BBE-OP-01',
+            'full_name'      => 'Muhammad Faiz',
+            'personal_email' => 'faiz@bbe.com',
+            'work_email'     => 'm.faiz@bbe.co.id',
+            'phone_number'   => '+62811000004',
+            'position'       => 'Heavy Equipment Operator',
+            'department'     => 'Operational',
+            'password'  => Hash::make('password'),
+            'is_active'      => true,
+            'role'           => 'user',
+            'email_verified_at' => now(),
         ]);
 
         $lintang = User::create([
-            'nik'           => '1234567890000004',
-            'employee_id'   => 'BBE-OPS-002',
-            'full_name'     => 'Noor Lintang Bhaskara',
-            'email'         => 'lintang@bbe.com',
-            'password' => Hash::make('password'),
-            'phone_number'  => '+62811000004',
-            'position'      => 'Workshop Technician',
-            'department'    => 'Operational',
-            'role'          => 'user',
-            'is_active'     => true,
+            'staff_id'       => 'BBE-OP-02',
+            'full_name'      => 'Noor Lintang Bhaskara',
+            'personal_email' => 'lintang@bbe.com',
+            'work_email'     => 'n.lintang@bbe.co.id',
+            'phone_number'   => '+62811000005',
+            'position'       => 'Workshop Technician',
+            'department'     => 'Operational',
+            'password'  => Hash::make('password'),
+            'is_active'      => true,
+            'role'           => 'user',
+            'email_verified_at' => now(),
         ]);
 
-        // ── Reports ───────────────────────────────────────────────────────────
+        $rudi = User::create([
+            'staff_id'       => 'BBE-MN-01',
+            'full_name'      => 'Rudi Hartono',
+            'personal_email' => 'rudi@bbe.com',
+            'work_email'     => 'r.hartono@bbe.co.id',
+            'phone_number'   => '+62811000006',
+            'position'       => 'Electrical Maintenance',
+            'department'     => 'Maintenance',
+            'password'  => Hash::make('password'),
+            'is_active'      => true,
+            'role'           => 'user',
+            'email_verified_at' => now(),
+        ]);
 
-        Report::create([
+        $putri = User::create([
+            'staff_id'       => 'BBE-EV-01',
+            'full_name'      => 'Putri Handayani',
+            'personal_email' => 'putri@bbe.com',
+            'work_email'     => 'p.handayani@bbe.co.id',
+            'phone_number'   => '+62811000007',
+            'position'       => 'Environmental Officer',
+            'department'     => 'Environmental',
+            'password'  => Hash::make('password'),
+            'is_active'      => true,
+            'role'           => 'user',
+            'email_verified_at' => now(),
+        ]);
+
+        // ══════════════════════════════════════════════════════════════════
+        // USER LICENSES
+        // ══════════════════════════════════════════════════════════════════
+
+        UserLicense::create([
+            'user_id'        => $faiz->id,
+            'name'           => 'SIM B2 Umum (Alat Berat)',
+            'license_number' => 'SIM-B2-2021-001234',
+            'expired_at'     => now()->addYears(2)->toDateString(),
+            'status'         => 'active',
+        ]);
+        UserLicense::create([
+            'user_id'        => $faiz->id,
+            'name'           => 'Lisensi Operator Excavator K3',
+            'license_number' => 'LOP-EXC-2022-00456',
+            'expired_at'     => now()->addYear()->toDateString(),
+            'status'         => 'active',
+        ]);
+        UserLicense::create([
+            'user_id'        => $lintang->id,
+            'name'           => 'Sertifikat Ahli K3 Umum',
+            'license_number' => 'AK3U-2020-007811',
+            'expired_at'     => now()->subMonths(4)->toDateString(),
+            'status'         => 'expired',
+        ]);
+        UserLicense::create([
+            'user_id'        => $lintang->id,
+            'name'           => 'Lisensi Las SMAW (BNSP)',
+            'license_number' => 'LAS-SMAW-2023-00099',
+            'expired_at'     => now()->addYears(3)->toDateString(),
+            'status'         => 'active',
+        ]);
+        UserLicense::create([
+            'user_id'        => $rudi->id,
+            'name'           => 'Sertifikat Instalatir Listrik Madya',
+            'license_number' => 'INST-MAD-2021-00532',
+            'expired_at'     => now()->addYear()->toDateString(),
+            'status'         => 'active',
+        ]);
+        UserLicense::create([
+            'user_id'        => $admin->id,
+            'name'           => 'Ahli K3 Madya Pertambangan',
+            'license_number' => 'AK3-MADYA-2020-00188',
+            'expired_at'     => now()->addMonths(8)->toDateString(),
+            'status'         => 'active',
+        ]);
+        UserLicense::create([
+            'user_id'        => $putri->id,
+            'name'           => 'AMDAL Dasar (Kementerian LHK)',
+            'license_number' => 'AMDAL-D-2022-00341',
+            'expired_at'     => now()->addYears(4)->toDateString(),
+            'status'         => 'active',
+        ]);
+
+        // ══════════════════════════════════════════════════════════════════
+        // USER CERTIFICATIONS
+        // ══════════════════════════════════════════════════════════════════
+
+        UserCertification::create([
+            'user_id' => $faiz->id,
+            'name'    => 'Pelatihan Operator Alat Berat Tingkat Dasar',
+            'issuer'  => 'Kemnaker RI',
+            'year'    => 2021,
+            'status'  => 'active',
+        ]);
+        UserCertification::create([
+            'user_id' => $faiz->id,
+            'name'    => 'Basic Safety Training (BST)',
+            'issuer'  => 'BNSP',
+            'year'    => 2022,
+            'status'  => 'active',
+        ]);
+        UserCertification::create([
+            'user_id' => $lintang->id,
+            'name'    => 'Welding Inspector Level 1',
+            'issuer'  => 'BNSP',
+            'year'    => 2023,
+            'status'  => 'active',
+        ]);
+        UserCertification::create([
+            'user_id' => $rudi->id,
+            'name'    => 'Hazardous Area Installation (HAI)',
+            'issuer'  => 'PLN Pusdiklat',
+            'year'    => 2021,
+            'status'  => 'active',
+        ]);
+        UserCertification::create([
+            'user_id' => $rudi->id,
+            'name'    => 'Pelatihan Keselamatan Listrik',
+            'issuer'  => 'Kemnaker RI',
+            'year'    => 2019,
+            'status'  => 'expired',
+        ]);
+        UserCertification::create([
+            'user_id' => $admin->id,
+            'name'    => 'OHSE Management System (ISO 45001)',
+            'issuer'  => 'SGS Indonesia',
+            'year'    => 2022,
+            'status'  => 'active',
+        ]);
+        UserCertification::create([
+            'user_id' => $admin2->id,
+            'name'    => 'Incident Investigation & Root Cause Analysis',
+            'issuer'  => 'IOSH',
+            'year'    => 2023,
+            'status'  => 'active',
+        ]);
+        UserCertification::create([
+            'user_id' => $putri->id,
+            'name'    => 'Environmental Compliance Auditor',
+            'issuer'  => 'KLHK',
+            'year'    => 2022,
+            'status'  => 'active',
+        ]);
+
+        // ══════════════════════════════════════════════════════════════════
+        // USER MEDICALS
+        // ══════════════════════════════════════════════════════════════════
+
+        UserMedical::create([
+            'user_id'           => $faiz->id,
+            'checkup_date'      => now()->subMonths(6)->toDateString(),
+            'blood_type'        => 'O+',
+            'height'            => '172 cm',
+            'weight'            => '70 kg',
+            'blood_pressure'    => '118/76 mmHg',
+            'allergies'         => 'Tidak ada',
+            'result'            => 'Fit to Work',
+            'next_checkup_date' => now()->addMonths(6)->toDateString(),
+        ]);
+        UserMedical::create([
+            'user_id'           => $faiz->id,
+            'checkup_date'      => now()->subYear()->toDateString(),
+            'blood_type'        => 'O+',
+            'height'            => '172 cm',
+            'weight'            => '68 kg',
+            'blood_pressure'    => '120/78 mmHg',
+            'allergies'         => 'Tidak ada',
+            'result'            => 'Fit to Work',
+            'next_checkup_date' => now()->subMonths(6)->toDateString(),
+        ]);
+        UserMedical::create([
+            'user_id'           => $lintang->id,
+            'checkup_date'      => now()->subMonths(3)->toDateString(),
+            'blood_type'        => 'A+',
+            'height'            => '168 cm',
+            'weight'            => '65 kg',
+            'blood_pressure'    => '122/80 mmHg',
+            'allergies'         => 'Debu logam',
+            'result'            => 'Fit with Restriction',
+            'next_checkup_date' => now()->addMonths(9)->toDateString(),
+        ]);
+        UserMedical::create([
+            'user_id'           => $rudi->id,
+            'checkup_date'      => now()->subMonths(5)->toDateString(),
+            'blood_type'        => 'B+',
+            'height'            => '175 cm',
+            'weight'            => '78 kg',
+            'blood_pressure'    => '130/85 mmHg',
+            'allergies'         => 'Tidak ada',
+            'result'            => 'Fit to Work',
+            'next_checkup_date' => now()->addMonths(7)->toDateString(),
+        ]);
+        UserMedical::create([
+            'user_id'           => $admin->id,
+            'checkup_date'      => now()->subMonths(4)->toDateString(),
+            'blood_type'        => 'AB+',
+            'height'            => '170 cm',
+            'weight'            => '72 kg',
+            'blood_pressure'    => '115/75 mmHg',
+            'allergies'         => 'Tidak ada',
+            'result'            => 'Fit to Work',
+            'next_checkup_date' => now()->addMonths(8)->toDateString(),
+        ]);
+        UserMedical::create([
+            'user_id'           => $putri->id,
+            'checkup_date'      => now()->subMonths(2)->toDateString(),
+            'blood_type'        => 'A-',
+            'height'            => '160 cm',
+            'weight'            => '55 kg',
+            'blood_pressure'    => '110/70 mmHg',
+            'allergies'         => 'Polutan kimia',
+            'result'            => 'Fit to Work',
+            'next_checkup_date' => now()->addMonths(10)->toDateString(),
+        ]);
+
+        // ══════════════════════════════════════════════════════════════════
+        // REPORTS  (type: hazard | inspection)
+        // ══════════════════════════════════════════════════════════════════
+
+        $r1 = Report::create([
             'user_id'             => $faiz->id,
-            'title'               => 'Dirty Safety Sign',
-            'description'         => 'Safety signs in the mining area are dirty and unreadable. Immediate cleaning is required.',
             'type'                => 'hazard',
+            'title'               => 'Rambu Keselamatan Kotor & Tidak Terbaca',
+            'description'         => 'Rambu keselamatan di area hauling road KM 3 sudah kotor dan warna pudar sehingga sulit dibaca oleh pengemudi dump truck, berpotensi menyebabkan kecelakaan lalu lintas tambang.',
             'severity'            => 'medium',
             'status'              => 'in_progress',
-            'location'            => 'Hauling Road - KM 3',
+            'location'            => 'Hauling Road KM 3',
             'name_pja'            => 'Budi Santoso',
             'reported_department' => 'Operational',
         ]);
 
-        Report::create([
+        $r2 = Report::create([
             'user_id'             => $lintang->id,
-            'title'               => 'Scattered Workshop Materials',
-            'description'         => 'Workshop materials are scattered in front of the workshop area and blocking the evacuation route.',
             'type'                => 'hazard',
+            'title'               => 'Material Workshop Berserakan di Jalur Evakuasi',
+            'description'         => 'Material workshop berupa pipa besi dan suku cadang berserakan di depan pintu keluar workshop, menghalangi jalur evakuasi darurat yang seharusnya selalu bersih.',
             'severity'            => 'low',
             'status'              => 'open',
-            'location'            => 'Front of Workshop',
+            'location'            => 'Depan Workshop Utama',
             'name_pja'            => 'Hendra Wijaya',
             'reported_department' => 'Operational',
         ]);
 
-        Report::create([
-            'user_id'             => $faiz->id,
-            'title'               => 'Exposed Electrical Cable',
-            'description'         => 'An electrical cable in the server room is exposed and poses a risk of electric shock.',
+        $r3 = Report::create([
+            'user_id'             => $rudi->id,
             'type'                => 'hazard',
+            'title'               => 'Kabel Listrik Terbuka di Ruang Server',
+            'description'         => 'Kabel listrik bertegangan 220V di sudut ruang server lantai 3 terkelupas isolasinya, berpotensi menyebabkan sengatan listrik atau kebakaran pada perangkat server.',
             'severity'            => 'high',
             'status'              => 'open',
-            'location'            => 'Server Room - 3rd Floor',
+            'location'            => 'Ruang Server - Lantai 3',
             'name_pja'            => 'Rudi Hartono',
             'reported_department' => 'IT',
         ]);
 
-        // ── Inspections ───────────────────────────────────────────────────────
-
-        $inspection = Inspection::create([
-            'user_id'        => $supervisor->id,
-            'title'          => 'Routine Heavy Equipment Inspection',
-            'area'           => 'Mining Area Sector B',
-            'location'       => 'Excavator Parking Bay - Sector B',
-            'inspector_name' => 'Budi Santoso',
-            'result'         => 'needs_follow_up',
-            'notes'          => 'Excavator unit 03 shows signs of hydraulic oil leakage. Scheduled for immediate service.',
+        $r4 = Report::create([
+            'user_id'             => $demo->id,
+            'type'                => 'hazard',
+            'title'               => 'Tumpahan Oli Hydraulic di Area Parkir Alat Berat',
+            'description'         => 'Terdapat tumpahan oli hydraulic dari excavator PC200 Unit 03 di area parkir Sektor B. Genangan oli licin dapat menyebabkan karyawan terpeleset.',
+            'severity'            => 'medium',
+            'status'              => 'closed',
+            'location'            => 'Parkir Alat Berat - Sektor B',
+            'name_pja'            => 'Budi Santoso',
+            'reported_department' => 'Operational',
         ]);
 
-        $checklistItems = [
-            ['label' => 'Engine oil level check', 'is_checked' => true],
-            ['label' => 'Hydraulic oil level check', 'is_checked' => false],
-            ['label' => 'Tire/track condition check', 'is_checked' => true],
-            ['label' => 'Brake system test', 'is_checked' => true],
-            ['label' => 'Safety equipment availability', 'is_checked' => true],
-            ['label' => 'Lights and signals check', 'is_checked' => false],
-        ];
+        $r5 = Report::create([
+            'user_id'             => $putri->id,
+            'type'                => 'hazard',
+            'title'               => 'Pembuangan Limbah B3 Tidak Sesuai SOP',
+            'description'         => 'Ditemukan wadah limbah B3 berupa bekas cat dan thinner yang dibuang sembarangan di area belakang gudang, tidak sesuai prosedur pengelolaan limbah B3 KLHK.',
+            'severity'            => 'high',
+            'status'              => 'in_progress',
+            'location'            => 'Belakang Gudang Material',
+            'name_pja'            => 'Sari Dewi Rahayu',
+            'reported_department' => 'Environmental',
+        ]);
 
-        foreach ($checklistItems as $i => $item) {
-            ChecklistItem::create([
-                'inspection_id' => $inspection->id,
-                'label'         => $item['label'],
-                'is_checked'    => $item['is_checked'],
-                'sort_order'    => $i,
-            ]);
+        $r6 = Report::create([
+            'user_id'     => $admin->id,
+            'type'        => 'inspection',
+            'title'       => 'Inspeksi Rutin Alat Berat - Excavator Sektor B',
+            'description' => 'Inspeksi berkala bulanan excavator di area pertambangan Sektor B untuk memastikan kondisi operasional dan keselamatan.',
+            'status'      => 'closed',
+            'location'    => 'Area Parkir Excavator - Sektor B',
+            'area'        => 'Mining Area Sektor B',
+            'result'      => 'needs_follow_up',
+            'notes'       => 'Excavator Unit 03 menunjukkan tanda kebocoran oli hydraulic. Dijadwalkan service segera.',
+        ]);
+
+        $r7 = Report::create([
+            'user_id'     => $admin2->id,
+            'type'        => 'inspection',
+            'title'       => 'Inspeksi APAR Seluruh Gedung Kantor',
+            'description' => 'Pemeriksaan kondisi dan kelengkapan APAR di seluruh gedung kantor pusat BBE untuk memastikan kesiapan menghadapi darurat kebakaran.',
+            'status'      => 'open',
+            'location'    => 'Gedung Kantor Pusat BBE',
+            'area'        => 'Gedung Kantor',
+            'result'      => 'compliant',
+            'notes'       => 'Semua APAR dalam kondisi baik. Segel utuh, tekanan normal.',
+        ]);
+
+        $r8 = Report::create([
+            'user_id'     => $admin->id,
+            'type'        => 'inspection',
+            'title'       => 'Inspeksi Pemakaian APD Karyawan Area Tambang',
+            'description' => 'Inspeksi pemakaian Alat Pelindung Diri karyawan di area pertambangan aktif untuk memastikan kepatuhan terhadap standar K3.',
+            'status'      => 'in_progress',
+            'location'    => 'Area Tambang Aktif Sektor A',
+            'area'        => 'Mining Area Sektor A',
+            'result'      => 'non_compliant',
+            'notes'       => '3 dari 12 karyawan tidak menggunakan safety glasses. Diberikan teguran dan APD pengganti.',
+        ]);
+
+        // Checklist items
+        foreach ([
+            ['label' => 'Cek level oli mesin',         'is_checked' => true,  'sort_order' => 0],
+            ['label' => 'Cek level oli hydraulic',      'is_checked' => false, 'sort_order' => 1],
+            ['label' => 'Cek kondisi track/roda',       'is_checked' => true,  'sort_order' => 2],
+            ['label' => 'Uji sistem rem',               'is_checked' => true,  'sort_order' => 3],
+            ['label' => 'Ketersediaan APAR di kabin',   'is_checked' => true,  'sort_order' => 4],
+            ['label' => 'Cek lampu dan sinyal',         'is_checked' => false, 'sort_order' => 5],
+        ] as $item) {
+            ChecklistItem::create(array_merge($item, ['report_id' => $r6->id]));
         }
 
-        // ── Announcements ─────────────────────────────────────────────────────
+        foreach ([
+            ['label' => 'Segel APAR masih utuh',         'is_checked' => true,  'sort_order' => 0],
+            ['label' => 'Tekanan manometer dalam range',  'is_checked' => true,  'sort_order' => 1],
+            ['label' => 'Label identifikasi terbaca',     'is_checked' => true,  'sort_order' => 2],
+            ['label' => 'Pin pengaman terpasang',         'is_checked' => true,  'sort_order' => 3],
+            ['label' => 'Tabung tidak berkarat/bocor',    'is_checked' => true,  'sort_order' => 4],
+            ['label' => 'Lokasi APAR sesuai denah',       'is_checked' => true,  'sort_order' => 5],
+        ] as $item) {
+            ChecklistItem::create(array_merge($item, ['report_id' => $r7->id]));
+        }
+
+        foreach ([
+            ['label' => 'Helm keselamatan dipakai',  'is_checked' => true,  'sort_order' => 0],
+            ['label' => 'Safety vest terpasang',      'is_checked' => true,  'sort_order' => 1],
+            ['label' => 'Safety glasses dipakai',     'is_checked' => false, 'sort_order' => 2],
+            ['label' => 'Safety shoes dipakai',       'is_checked' => true,  'sort_order' => 3],
+            ['label' => 'Safety gloves tersedia',     'is_checked' => true,  'sort_order' => 4],
+        ] as $item) {
+            ChecklistItem::create(array_merge($item, ['report_id' => $r8->id]));
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // REPORT LOGS
+        // ══════════════════════════════════════════════════════════════════
+
+        ReportLog::create(['report_id' => $r1->id, 'user_id' => $faiz->id,   'status' => 'open',        'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(5)]);
+        ReportLog::create(['report_id' => $r1->id, 'user_id' => $admin->id,  'status' => 'in_progress', 'message' => 'Laporan divalidasi dan tim cleaning dijadwalkan.',                             'created_at' => now()->subDays(4)]);
+
+        ReportLog::create(['report_id' => $r2->id, 'user_id' => $lintang->id,'status' => 'open',        'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(3)]);
+
+        ReportLog::create(['report_id' => $r3->id, 'user_id' => $rudi->id,   'status' => 'open',        'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(2)]);
+
+        ReportLog::create(['report_id' => $r4->id, 'user_id' => $demo->id,   'status' => 'open',        'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(10)]);
+        ReportLog::create(['report_id' => $r4->id, 'user_id' => $admin->id,  'status' => 'in_progress', 'message' => 'Tim maintenance ditugaskan untuk pembersihan area.',                            'created_at' => now()->subDays(8)]);
+        ReportLog::create(['report_id' => $r4->id, 'user_id' => $admin->id,  'status' => 'closed',      'message' => 'Area telah dibersihkan dan oil absorber dipasang. Laporan ditutup.',            'created_at' => now()->subDays(7)]);
+
+        ReportLog::create(['report_id' => $r5->id, 'user_id' => $putri->id,  'status' => 'open',        'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(6)]);
+        ReportLog::create(['report_id' => $r5->id, 'user_id' => $admin2->id, 'status' => 'in_progress', 'message' => 'Limbah dipindahkan sementara, koordinasi dengan tim environmental dimulai.',    'created_at' => now()->subDays(5)]);
+
+        ReportLog::create(['report_id' => $r6->id, 'user_id' => $admin->id,  'status' => 'open',        'message' => 'Laporan inspeksi baru dibuat.',                                                  'created_at' => now()->subDays(14)]);
+        ReportLog::create(['report_id' => $r6->id, 'user_id' => $admin->id,  'status' => 'in_progress', 'message' => 'Inspeksi sedang berjalan di lapangan.',                                         'created_at' => now()->subDays(14)]);
+        ReportLog::create(['report_id' => $r6->id, 'user_id' => $admin->id,  'status' => 'closed',      'message' => 'Inspeksi selesai. Excavator Unit 03 dijadwalkan service.',                      'created_at' => now()->subDays(13)]);
+
+        ReportLog::create(['report_id' => $r7->id, 'user_id' => $admin2->id, 'status' => 'open',        'message' => 'Laporan inspeksi baru dibuat.',                                                  'created_at' => now()->subDay()]);
+        ReportLog::create(['report_id' => $r8->id, 'user_id' => $admin->id,  'status' => 'open',        'message' => 'Laporan inspeksi baru dibuat.',                                                  'created_at' => now()->subDays(2)]);
+        ReportLog::create(['report_id' => $r8->id, 'user_id' => $admin->id,  'status' => 'in_progress', 'message' => 'Teguran diberikan, pemantauan lanjutan dijadwalkan.',                           'created_at' => now()->subDay()]);
+
+        // ══════════════════════════════════════════════════════════════════
+        // ANNOUNCEMENTS  (dibuat oleh admin/superadmin)
+        // ══════════════════════════════════════════════════════════════════
+
+        Announcement::create([
+            'created_by' => $superadmin->id,
+            'title'      => 'Pelatihan K3 Wajib — April 2026',
+            'body'       => 'Seluruh karyawan diwajibkan mengikuti pelatihan K3 yang dijadwalkan pada 15 April 2026. Pelatihan mencakup prosedur tanggap darurat, keselamatan kebakaran, dan penggunaan APD yang benar. Kehadiran bersifat wajib. Konfirmasi kehadiran kepada supervisor masing-masing paling lambat 10 April 2026.',
+            'is_active'  => true,
+        ]);
 
         Announcement::create([
             'created_by' => $admin->id,
-            'title'      => 'Mandatory HSE Training — April 2026',
-            'body'       => 'All employees are required to attend the HSE refresher training scheduled for April 15, 2026. The training will cover emergency response procedures, fire safety, and proper PPE usage. Attendance is mandatory. Please confirm your availability with your supervisor by April 10, 2026.',
+            'title'      => 'Kebijakan APD Baru Berlaku Mei 2026',
+            'body'       => 'Mulai 1 Mei 2026, seluruh personel yang memasuki area pertambangan wajib menggunakan set APD terbaru termasuk rompi high-visibility dan sepatu keselamatan sesuai ISO 20345:2022. Pengadaan akan mendistribusikan perlengkapan baru sebelum 25 April 2026.',
             'is_active'  => true,
         ]);
 
         Announcement::create([
-            'created_by' => $supervisor->id,
-            'title'      => 'New PPE Policy Effective May 2026',
-            'body'       => 'Effective May 1, 2026, all personnel entering the mining area must wear the updated PPE set including the new high-visibility vest and steel-toed boots compliant with ISO 20345:2022. Procurement will distribute the new equipment by April 25, 2026.',
+            'created_by' => $superadmin->id,
+            'title'      => 'Pemeliharaan Sistem SapaHSE — 5 April 2026',
+            'body'       => 'Sistem SapaHSE akan menjalani pemeliharaan terjadwal pada 5 April 2026 pukul 22.00–23.00 WIB. Selama jendela ini, aplikasi mungkin tidak dapat diakses sementara. Harap simpan pekerjaan yang sedang berlangsung sebelum pemeliharaan dimulai.',
             'is_active'  => true,
         ]);
 
         Announcement::create([
-            'created_by' => $admin->id,
-            'title'      => 'System Maintenance — April 5, 2026',
-            'body'       => 'The SapaHSE system will undergo scheduled maintenance on April 5, 2026 from 22:00 to 23:00 WIB. During this window, the application may be temporarily unavailable. Please save any ongoing work before the maintenance window.',
+            'created_by' => $admin2->id,
+            'title'      => 'Simulasi Evakuasi Darurat — 20 April 2026',
+            'body'       => 'Departemen HSE akan mengadakan simulasi evakuasi darurat menyeluruh pada 20 April 2026 pukul 09.00 WIB. Seluruh karyawan diwajibkan hadir. Simulasi bertujuan menguji kesiapan prosedur evakuasi dan memperbarui pemahaman tentang titik kumpul.',
             'is_active'  => true,
         ]);
 
-        // ── News ──────────────────────────────────────────────────────────────
-
-        News::create([
-            'created_by'  => $supervisor->id,
-            'title'       => 'APAR Socialization in Mining Area',
-            'excerpt'     => 'BBE conducted a fire extinguisher socialization session for all mining area employees.',
-            'content'     => 'PT. Bukit Baiduri Energi held a comprehensive APAR (Fire Extinguisher) socialization for over 150 employees across all divisions. The session covered how to identify different types of fire extinguishers, proper usage techniques, and emergency evacuation procedures. The training was led by the experienced HSE team and included live demonstrations.',
-            'category'    => 'K3 / HSE',
-            'author_name' => 'HSE Team BBE',
-            'is_featured' => true,
-            'is_active'   => true,
+        Announcement::create([
+            'created_by' => $superadmin->id,
+            'title'      => 'Kebijakan Zero Tolerance Terhadap Pelanggaran K3',
+            'body'       => 'Manajemen PT Bukit Baiduri Energi menegaskan kembali kebijakan zero tolerance terhadap pelanggaran keselamatan kerja. Setiap pelanggaran akan ditindak sesuai prosedur disiplin perusahaan. Seluruh karyawan diminta untuk segera melaporkan potensi bahaya melalui aplikasi SapaHSE.',
+            'is_active'  => true,
         ]);
+
+        // ══════════════════════════════════════════════════════════════════
+        // NEWS & ARTICLES
+        // ══════════════════════════════════════════════════════════════════
 
         News::create([
             'created_by'  => $admin->id,
-            'title'       => 'Q1 2026 Production Capacity Increase',
-            'excerpt'     => 'BBE successfully increased coal production capacity by 15% in Q1 2026.',
-            'content'     => 'PT. Bukit Baiduri Energi achieved a 15% increase in coal production capacity during the first quarter of 2026 compared to the same period last year. This achievement was supported by the addition of heavy equipment and optimized operational schedules. Management expressed appreciation to all employees for their dedication and hard work.',
-            'category'    => 'Operational',
-            'author_name' => 'Operational Division',
+            'title'       => 'Sosialisasi APAR di Area Pertambangan',
+            'excerpt'     => 'BBE mengadakan sesi sosialisasi alat pemadam api ringan bagi seluruh karyawan area tambang.',
+            'content'     => 'PT. Bukit Baiduri Energi mengadakan sosialisasi APAR komprehensif untuk lebih dari 150 karyawan di seluruh divisi. Sesi ini mencakup cara mengidentifikasi jenis APAR, teknik penggunaan yang tepat, dan prosedur evakuasi darurat. Pelatihan dipimpin oleh tim HSE berpengalaman dan disertai demonstrasi langsung menggunakan api sungguhan di ruang terbuka.',
+            'category'    => 'K3 / HSE',
+            'author_name' => 'Tim HSE BBE',
+            'is_featured' => true,
+            'is_active'   => true,
+            'image_url'   => 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+        ]);
+
+        News::create([
+            'created_by'  => $superadmin->id,
+            'title'       => 'Peningkatan Kapasitas Produksi Q1 2026 Capai 15%',
+            'excerpt'     => 'BBE berhasil meningkatkan kapasitas produksi batubara sebesar 15% pada Q1 2026.',
+            'content'     => 'PT. Bukit Baiduri Energi mencatat peningkatan kapasitas produksi batubara sebesar 15% pada kuartal pertama tahun 2026 dibandingkan periode yang sama tahun lalu. Pencapaian ini didukung oleh penambahan alat berat dan optimalisasi jadwal operasional.',
+            'category'    => 'Operasional',
+            'author_name' => 'Divisi Operational BBE',
             'is_featured' => false,
             'is_active'   => true,
+            'image_url'   => 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=80',
+        ]);
+
+        News::create([
+            'created_by'  => $superadmin->id,
+            'title'       => 'BBE Terima Penghargaan Zero Accident 2025',
+            'excerpt'     => 'BBE mendapat penghargaan dari Kemnaker RI atas pencapaian zero accident sepanjang 2025.',
+            'content'     => 'PT. Bukit Baiduri Energi dengan bangga menerima Penghargaan Zero Accident dari Kementerian Ketenagakerjaan Republik Indonesia atas catatan nol kecelakaan sepanjang tahun 2025. Penghargaan ini merupakan bukti komitmen seluruh karyawan BBE dalam menjunjung budaya keselamatan kerja.',
+            'category'    => 'Prestasi',
+            'author_name' => 'Humas BBE',
+            'is_featured' => true,
+            'is_active'   => true,
+            'image_url'   => 'https://images.unsplash.com/photo-1567427017947-545c5f8d16ad?w=800&q=80',
+        ]);
+
+        News::create([
+            'created_by'  => $admin2->id,
+            'title'       => 'Update SOP Pengelolaan Limbah B3 Sesuai Regulasi KLHK',
+            'excerpt'     => 'KLHK menerbitkan regulasi baru terkait limbah B3 dan BBE segera merespons.',
+            'content'     => 'Kementerian Lingkungan Hidup dan Kehutanan (KLHK) menerbitkan regulasi terbaru terkait pengelolaan limbah bahan berbahaya dan beracun (B3). BBE langsung memperbarui seluruh SOP yang berkaitan dan menjadwalkan pelatihan untuk tim environmental.',
+            'category'    => 'Regulasi',
+            'author_name' => 'Tim Environmental BBE',
+            'is_featured' => false,
+            'is_active'   => true,
+            'image_url'   => 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=800&q=80',
         ]);
 
         News::create([
             'created_by'  => $admin->id,
-            'title'       => 'BBE Receives Zero Accident Award 2025',
-            'excerpt'     => 'BBE was recognized by the Ministry of Manpower for achieving zero accidents throughout 2025.',
-            'content'     => 'PT. Bukit Baiduri Energi proudly received the Zero Accident Award from the Ministry of Manpower of the Republic of Indonesia for maintaining a zero-accident record throughout 2025. This award is a testament to the commitment of every BBE employee in upholding a strong safety culture in the workplace.',
-            'category'    => 'Achievement',
-            'author_name' => 'BBE Public Relations',
-            'is_featured' => true,
+            'title'       => 'Jadwal Inspeksi Rutin Area Tambang April 2026',
+            'excerpt'     => 'Tim K3 BBE akan melaksanakan inspeksi rutin di seluruh area tambang sepanjang April 2026.',
+            'content'     => 'Tim K3 PT. Bukit Baiduri Energi akan melaksanakan program inspeksi rutin menyeluruh di seluruh area tambang sepanjang bulan April 2026. Inspeksi mencakup kondisi alat berat, instalasi listrik, fasilitas K3, dan kepatuhan prosedur kerja para operator.',
+            'category'    => 'Operasional',
+            'author_name' => 'Tim K3 BBE',
+            'is_featured' => false,
             'is_active'   => true,
+            'image_url'   => 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&q=80',
         ]);
 
-        // ── QR Assets ─────────────────────────────────────────────────────────
+        News::create([
+            'created_by'  => $superadmin->id,
+            'title'       => 'BBE Terima PROPER Emas dari KLHK 2026',
+            'excerpt'     => 'Penghargaan lingkungan tertinggi diraih BBE untuk ketiga kalinya secara berturut-turut.',
+            'content'     => 'PT. Bukit Baiduri Energi kembali mendapatkan penghargaan tertinggi Program Penilaian Peringkat Kinerja Perusahaan (PROPER) Emas dari KLHK. Penghargaan ini merupakan yang ketiga kalinya diraih BBE secara berturut-turut.',
+            'category'    => 'Prestasi',
+            'author_name' => 'Humas BBE',
+            'is_featured' => true,
+            'is_active'   => true,
+            'image_url'   => 'https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?w=800&q=80',
+        ]);
+
+        // ══════════════════════════════════════════════════════════════════
+        // QR ASSETS
+        // ══════════════════════════════════════════════════════════════════
 
         QrAsset::create([
             'qr_code'      => 'BBE-APAR-2024-001234',
-            'asset_name'   => 'Fire Extinguisher - Dry Powder 6kg',
+            'asset_name'   => 'APAR Dry Powder 6kg',
             'asset_type'   => 'Fire Extinguisher',
-            'location'     => 'Building A - 1st Floor',
+            'location'     => 'Gedung A - Lantai 1',
             'last_checked' => now()->subMonths(3),
             'next_check'   => now()->addMonths(9),
             'condition'    => 'good',
-            'notes'        => 'Last inspection passed. Pressure gauge normal.',
+            'notes'        => 'Inspeksi terakhir lulus. Manometer menunjukkan tekanan normal.',
         ]);
 
         QrAsset::create([
             'qr_code'      => 'BBE-APAR-2024-001235',
-            'asset_name'   => 'Fire Extinguisher - CO2 5kg',
+            'asset_name'   => 'APAR CO2 5kg',
             'asset_type'   => 'Fire Extinguisher',
-            'location'     => 'Server Room - 3rd Floor',
+            'location'     => 'Ruang Server - Lantai 3',
             'last_checked' => now()->subMonths(2),
             'next_check'   => now()->addMonths(10),
             'condition'    => 'good',
-            'notes'        => 'Suitable for electrical fires. Do not use in confined spaces.',
+            'notes'        => 'Cocok untuk kebakaran listrik. Jangan gunakan di ruang tertutup.',
         ]);
 
         QrAsset::create([
             'qr_code'      => 'BBE-EXC-2023-000003',
             'asset_name'   => 'Excavator PC200 - Unit 03',
             'asset_type'   => 'Heavy Equipment',
-            'location'     => 'Mining Area Sector B',
+            'location'     => 'Area Parkir Alat Berat - Sektor B',
             'last_checked' => now()->subMonths(1),
             'next_check'   => now()->addMonths(2),
             'condition'    => 'needs_attention',
-            'notes'        => 'Hydraulic oil leak detected. Scheduled for service on April 10, 2026.',
+            'notes'        => 'Kebocoran oli hydraulic terdeteksi. Dijadwalkan service 10 April 2026.',
         ]);
 
         QrAsset::create([
@@ -254,18 +646,98 @@ class DatabaseSeeder extends Seeder
             'last_checked' => now()->subDays(30),
             'next_check'   => now()->addMonths(3),
             'condition'    => 'good',
-            'notes'        => 'All systems operational. Last inspection passed.',
+            'notes'        => 'Semua sistem operasional. Inspeksi terakhir lulus.',
         ]);
 
         QrAsset::create([
             'qr_code'      => 'BBE-PLT-2022-000001',
-            'asset_name'   => 'Main Electrical Panel',
+            'asset_name'   => 'Panel Listrik Utama Workshop',
             'asset_type'   => 'Electrical',
-            'location'     => 'Workshop Electrical Room',
+            'location'     => 'Ruang Listrik Workshop',
             'last_checked' => now()->subMonths(5),
-            'next_check'   => now()->subMonths(1), // overdue!
+            'next_check'   => now()->subMonths(1),
             'condition'    => 'unfit',
-            'notes'        => 'Inspection overdue. Do not operate until cleared by electrical team.',
+            'notes'        => 'Inspeksi terlambat. Jangan dioperasikan sebelum diizinkan tim listrik.',
+        ]);
+
+        QrAsset::create([
+            'qr_code'      => 'BBE-HYDRANT-2022-000012',
+            'asset_name'   => 'Fire Hydrant Post - Masuk Sektor A',
+            'asset_type'   => 'Fire Hydrant',
+            'location'     => 'Jalan Tambang Masuk Sektor A',
+            'last_checked' => now()->subMonths(1),
+            'next_check'   => now()->addMonths(5),
+            'condition'    => 'good',
+            'notes'        => 'Tekanan air normal. Selang dalam kondisi baik.',
+        ]);
+
+        QrAsset::create([
+            'qr_code'      => 'BBE-BULDZ-2021-000005',
+            'asset_name'   => 'Bulldozer D85 - Unit 05',
+            'asset_type'   => 'Heavy Equipment',
+            'location'     => 'Area Tambang Aktif Sektor C',
+            'last_checked' => now()->subDays(15),
+            'next_check'   => now()->addMonths(2),
+            'condition'    => 'good',
+            'notes'        => 'Unit beroperasi normal. Blade dan ripper dalam kondisi baik.',
+        ]);
+
+        // ══════════════════════════════════════════════════════════════════
+        // NOTIFICATIONS
+        // ══════════════════════════════════════════════════════════════════
+
+        Notification::create([
+            'user_id' => $faiz->id,
+            'type'    => 'hazard',
+            'title'   => 'Status Laporan Diperbarui',
+            'body'    => 'Laporan "Rambu Keselamatan Kotor" Anda telah diubah menjadi "In Progress" oleh HSE Manager.',
+            'data'    => ['report_id' => $r1->id, 'status' => 'in_progress'],
+            'status'  => 'read',
+        ]);
+
+        Notification::create([
+            'user_id' => $demo->id,
+            'type'    => 'hazard',
+            'title'   => 'Laporan Anda Ditutup',
+            'body'    => 'Laporan "Tumpahan Oli Hydraulic" telah ditangani dan ditutup oleh tim maintenance.',
+            'data'    => ['report_id' => $r4->id, 'status' => 'closed'],
+            'status'  => 'read',
+        ]);
+
+        Notification::create([
+            'user_id' => $rudi->id,
+            'type'    => 'system',
+            'title'   => 'Pengingat: Laporan Belum Ditindaklanjuti',
+            'body'    => 'Laporan hazard "Kabel Listrik Terbuka" yang Anda buat masih berstatus Open selama 2 hari. Harap hubungi HSE Manager.',
+            'data'    => ['report_id' => $r3->id],
+            'status'  => 'pending',
+        ]);
+
+        Notification::create([
+            'user_id' => $faiz->id,
+            'type'    => 'announcement',
+            'title'   => 'Pengumuman Baru: Pelatihan K3 Wajib',
+            'body'    => 'Ada pengumuman baru: Pelatihan K3 Wajib dijadwalkan pada 15 April 2026.',
+            'data'    => [],
+            'status'  => 'pending',
+        ]);
+
+        Notification::create([
+            'user_id' => $putri->id,
+            'type'    => 'hazard',
+            'title'   => 'Status Laporan Diperbarui',
+            'body'    => 'Laporan "Pembuangan Limbah B3" Anda sedang ditangani oleh Tim Environmental.',
+            'data'    => ['report_id' => $r5->id, 'status' => 'in_progress'],
+            'status'  => 'pending',
+        ]);
+
+        Notification::create([
+            'user_id' => $lintang->id,
+            'type'    => 'system',
+            'title'   => 'Lisensi Telah Kadaluarsa',
+            'body'    => 'Lisensi "Sertifikat Ahli K3 Umum" Anda telah kadaluarsa. Segera perbarui untuk memenuhi syarat operasional.',
+            'data'    => ['license_type' => 'Sertifikat Ahli K3 Umum'],
+            'status'  => 'pending',
         ]);
     }
 }

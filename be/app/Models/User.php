@@ -15,10 +15,12 @@ class User extends Authenticatable
     use HasFactory, Notifiable, HasApiTokens, HasUuids;
 
     protected $fillable = [
-        'nik',
-        'employee_id',
+        'staff_id',
         'full_name',
-        'email',
+        'personal_email',
+        'work_email',
+        'email_verified_at',
+        'email_verification_token',
         'phone_number',
         'position',
         'department',
@@ -33,26 +35,27 @@ class User extends Authenticatable
 
     protected $hidden = [
         'password',
+        'email_verification_token',
         'remember_token',
     ];
+
+    public function getAuthPassword(): string{
+        return $this->password_hash;
+    }
 
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
-            'last_activity_at' => 'datetime',
+            'is_active'                 => 'boolean',
+            'email_verified_at'         => 'datetime',
+            'last_activity_at'          => 'datetime',
             'last_notification_sent_at' => 'datetime',
         ];
     }
 
-    public function reports()
+     public function reports()
     {
         return $this->hasMany(Report::class, 'user_id');
-    }
-
-    public function inspections()
-    {
-        return $this->hasMany(Inspection::class, 'user_id');
     }
 
     public function announcements()
@@ -73,5 +76,20 @@ class User extends Authenticatable
     public function notifications()
     {
         return $this->hasMany(Notification::class, 'user_id');
+    }
+
+    public function licenses()
+    {
+        return $this->hasMany(UserLicense::class, 'user_id');
+    }
+
+    public function certifications()
+    {
+        return $this->hasMany(UserCertification::class, 'user_id');
+    }
+
+    public function medicals()
+    {
+        return $this->hasMany(UserMedical::class, 'user_id');
     }
 }

@@ -15,7 +15,7 @@ class AnnouncementController extends Controller
     public function index(Request $request)
     {
         $userId       = Auth::id();
-        $perPage      = (int) $request->get('per_page', 10);
+        $perPage      = (int) $request->input('per_page', 10);
         $announcements = Announcement::active()->with('creator')->latest()->paginate($perPage);
 
         return response()->json([

@@ -11,17 +11,26 @@ return new class extends Migration
         Schema::create('reports', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(\Illuminate\Support\Facades\DB::raw('(UUID())'));
             $table->uuid('user_id');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->enum('type', ['hazard', 'inspection'])->default('hazard');
             $table->string('title', 200);
             $table->text('description');
-            $table->enum('type', ['hazard', 'inspection'])->default('hazard');
-            $table->enum('severity', ['low', 'medium', 'high'])->default('low');
             $table->enum('status', ['open', 'in_progress', 'closed'])->default('open');
             $table->string('location', 200);
-            $table->string('name_pja', 100)->nullable();         // Penanggung Jawab Area
-            $table->string('reported_department', 100)->nullable(); // Department yang dilaporkan
             $table->text('image_url')->nullable();
+
+            // ── Hazard-only (nullable when type=inspection) ────────────────────
+            $table->enum('severity', ['low', 'medium', 'high'])->nullable();
+            $table->string('name_pja', 100)->nullable();
+            $table->string('reported_department', 100)->nullable();
+
+            // ── Inspection-only (nullable when type=hazard) ────────────────────
+            $table->string('area', 100)->nullable();
+            $table->string('notes', 100)->nullable();
+            $table->enum('result', ['compliant', 'non_compliant', 'needs_follow_up'])->nullable();
+
             $table->timestamps();
+
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
     }
 

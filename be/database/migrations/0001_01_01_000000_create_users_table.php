@@ -10,17 +10,17 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(\Illuminate\Support\Facades\DB::raw('(UUID())'));
-            $table->string('nik', 16)->unique();                 // National ID number
-            $table->string('employee_id', 20)->unique();         // Company employee ID (e.g. BBE-IT-001)
+            $table->string('staff_id', 50)->unique();                // Staff / Employee ID (free format, e.g. BBE-IT-001)
             $table->string('full_name', 100);
-            $table->string('email', 100)->unique();
+            $table->string('personal_email', 150)->unique();         // Personal email — used for login & email verification
+            $table->string('work_email', 150)->nullable()->unique();  // Work / office email (optional)
             $table->string('phone_number', 20)->nullable();
-            $table->string('position', 100)->nullable();         // Job title / jabatan
-            $table->string('department', 100)->nullable();       // Division / divisi
+            $table->string('position', 100)->nullable();              // Job title / jabatan
+            $table->string('department', 100)->nullable();            // Division / divisi
             $table->string('password', 255);
             $table->text('profile_photo')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->enum('role', ['admin', 'supervisor', 'user'])->default('user');
+            $table->enum('role', ['superadmin', 'admin', 'user'])->default('user');
             $table->rememberToken();
             $table->timestamps();
         });

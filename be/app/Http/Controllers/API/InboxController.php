@@ -11,118 +11,88 @@ use Illuminate\Support\Facades\Auth;
 
 class InboxController extends Controller
 {
-    // GET /api/inbox
-    // Menggabungkan reports + announcements dalam satu feed
-    // Filter: ?type=report|announcement &is_read=0|1
-    // Paginate: ?page=1&per_page=15
     public function index(Request $request)
     {
         $userId  = Auth::id();
-        $type    = $request->get('type');      // filter by type
-        $isRead  = $request->filled('is_read') ? (bool) $request->is_read : null;
-        $perPage = (int) $request->get('per_page', 15);
-        $page    = (int) $request->get('page', 1);
+        $type    = $request->input('type', 'report'); // default ke report
+        $isRead  = $request->filled('is_read') ? filter_var($request->is_read, FILTER_VALIDATE_BOOLEAN) : null;
+        $search  = $request->input('search');
+        $perPage = (int) $request->input('per_page', 15);
 
-        $items = collect();
+        // ── 1. Hitung Unread Badges (selalu dihitung agar UI bisa render badge) ──
+        $readReportIds = ReadStatus::where('user_id', $userId)
+            ->where('item_type', 'report')
+            ->pluck('item_id');
+        $unreadReportsCount = Report::whereNotIn('id', $readReportIds)->count();
 
-        // ── Ambil Reports ─────────────────────────────────────────────────────
-        if (! $type || $type === 'report') {
-            $reports = Report::with('user')->get()->map(function ($report) use ($userId) {
-                $isRead = $report->isReadBy($userId);
-                return [
-                    'id'          => $report->id,
-                    'item_type'   => 'report',
-                    'title'       => $report->title,
-                    'subtitle'    => $report->location,
-                    'type'        => $report->type,        // hazard | inspection
-                    'severity'    => $report->severity,
-                    'status'      => $report->status,
-                    'name_pja'    => $report->name_pja,
-                    'reported_department' => $report->reported_department,
-                    'is_read'     => $isRead,
-                    'reported_by' => $report->user ? [
-                        'full_name'   => $report->user->full_name,
-                        'employee_id' => $report->user->employee_id,
-                        'department'  => $report->user->department,
-                    ] : null,
-                    'created_at'  => $report->created_at,
-                    'time_ago'    => $report->created_at?->diffForHumans(),
-                ];
-            });
-            $items = $items->merge($reports);
-        }
-
-        // ── Ambil Announcements ───────────────────────────────────────────────
-        if (! $type || $type === 'announcement') {
-            $announcements = Announcement::active()->with('creator')->get()->map(function ($a) use ($userId) {
-                $isRead = $a->isReadBy($userId);
-                return [
-                    'id'        => $a->id,
-                    'item_type' => 'announcement',
-                    'title'     => $a->title,
-                    'subtitle'  => $a->creator?->full_name ?? 'Admin',
-                    'is_read'   => $isRead,
-                    'created_by'=> $a->creator ? [
-                        'full_name' => $a->creator->full_name,
-                        'position'  => $a->creator->position,
-                    ] : null,
-                    'created_at' => $a->created_at,
-                    'time_ago'   => $a->created_at?->diffForHumans(),
-                ];
-            });
-            $items = $items->merge($announcements);
-        }
-
-        // ── Filter is_read ────────────────────────────────────────────────────
-        if (! is_null($isRead)) {
-            $items = $items->filter(fn($i) => $i['is_read'] === $isRead);
-        }
-
-        // ── Sort by latest ────────────────────────────────────────────────────
-        $items = $items->sortByDesc('created_at')->values();
-
-        // ── Hitung unread ─────────────────────────────────────────────────────
-        $unreadReports       = Report::all()->filter(fn($r) => ! $r->isReadBy($userId))->count();
-        $allAnnouncementIds  = Announcement::active()->pluck('id');
         $readAnnouncementIds = ReadStatus::where('user_id', $userId)
             ->where('item_type', 'announcement')
             ->pluck('item_id');
-        $unreadAnnouncements = $allAnnouncementIds->diff($readAnnouncementIds)->count();
+        $unreadAnnouncementsCount = Announcement::active()->whereNotIn('id', $readAnnouncementIds)->count();
 
-        // ── Manual Pagination ─────────────────────────────────────────────────
-        $total   = $items->count();
-        $offset  = ($page - 1) * $perPage;
-        $paged   = $items->slice($offset, $perPage)->values();
+        // ── 2. Fetch Data Sesuai Tab (Sangat efisien via DB Pagination) ──
+        if ($type === 'announcement') {
+            $query = Announcement::active()->with('creator');
+            
+            if ($isRead !== null) {
+                if ($isRead) {
+                    $query->whereIn('id', $readAnnouncementIds);
+                } else {
+                    $query->whereNotIn('id', $readAnnouncementIds);
+                }
+            }
 
-        // Format created_at jadi string sebelum return
-        $paged = $paged->map(function ($item) {
-            $item['created_at'] = isset($item['created_at'])
-                ? \Carbon\Carbon::parse($item['created_at'])->toDateTimeString()
-                : null;
-            return $item;
-        });
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                      ->orWhere('body', 'like', "%{$search}%");
+                });
+            }
+            
+            $paged = $query->latest()->paginate($perPage);
+            $data = $paged->map(fn($a) => $this->formatAnnouncement($a, $userId));
+
+        } else { // type = report
+            $query = Report::with(['user', 'checklistItems']);
+            
+            if ($isRead !== null) {
+                if ($isRead) {
+                    $query->whereIn('id', $readReportIds);
+                } else {
+                    $query->whereNotIn('id', $readReportIds);
+                }
+            }
+
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%")
+                      ->orWhere('location', 'like', "%{$search}%");
+                });
+            }
+            
+            $paged = $query->latest()->paginate($perPage);
+            $data = $paged->map(fn($r) => $this->formatReport($r, $userId));
+        }
 
         return response()->json([
             'status'       => 'success',
             'unread_count' => [
-                'total'         => $unreadReports + $unreadAnnouncements,
-                'reports'       => $unreadReports,
-                'announcements' => $unreadAnnouncements,
+                'total'         => $unreadReportsCount + $unreadAnnouncementsCount,
+                'reports'       => $unreadReportsCount,
+                'announcements' => $unreadAnnouncementsCount,
             ],
             'meta' => [
-                'total'        => $total,
-                'per_page'     => $perPage,
-                'current_page' => $page,
-                'last_page'    => (int) ceil($total / $perPage),
-                'has_more'     => ($offset + $perPage) < $total,
+                'total'        => $paged->total(),
+                'per_page'     => $paged->perPage(),
+                'current_page' => $paged->currentPage(),
+                'last_page'    => $paged->lastPage(),
+                'has_more'     => $paged->hasMorePages(),
             ],
-            'data' => $paged,
+            'data' => $data,
         ]);
     }
 
-    // POST /api/inbox/read
-    // Mark satu item sebagai sudah dibaca
-    // Body: { "item_id": "uuid", "item_type": "report|announcement" }
     public function markAsRead(Request $request)
     {
         $request->validate([
@@ -142,13 +112,11 @@ class InboxController extends Controller
         ]);
     }
 
-    // POST /api/inbox/read-all
-    // Mark semua reports & announcements sebagai sudah dibaca
     public function markAllAsRead()
     {
         $userId = Auth::id();
 
-        // Mark semua reports
+        // Mark all reports
         $reportIds = Report::pluck('id');
         foreach ($reportIds as $id) {
             ReadStatus::firstOrCreate([
@@ -158,7 +126,7 @@ class InboxController extends Controller
             ], ['read_at' => now()]);
         }
 
-        // Mark semua announcements
+        // Mark all announcements
         $announcementIds = Announcement::active()->pluck('id');
         foreach ($announcementIds as $id) {
             ReadStatus::firstOrCreate([
@@ -172,5 +140,63 @@ class InboxController extends Controller
             'status'  => 'success',
             'message' => 'All items marked as read',
         ]);
+    }
+
+    private function formatReport(Report $report, ?string $userId): array
+    {
+        $base = [
+            'id'          => $report->id,
+            'item_type'   => 'report',
+            'type'        => $report->type,
+            'title'       => $report->title,
+            'description' => $report->description,
+            'status'      => $report->status,
+            'location'    => $report->location,
+            'image_url'   => $report->image_url,
+            'is_read'     => $userId ? $report->isReadBy($userId) : false,
+            'reported_by' => $report->user ? [
+                'full_name'  => $report->user->full_name,
+                'staff_id'   => $report->user->staff_id,
+                'department' => $report->user->department,
+            ] : null,
+            'created_at'  => $report->created_at?->toIso8601String(),
+            'time_ago'    => $report->created_at?->diffForHumans(),
+        ];
+
+        if ($report->type === 'hazard') {
+            $base['severity']            = $report->severity;
+            $base['name_pja']            = $report->name_pja;
+            $base['reported_department'] = $report->reported_department;
+        } else {
+            $base['area']            = $report->area;
+            $base['result']          = $report->result;
+            $base['notes']           = $report->notes;
+            $base['checklist_items'] = $report->checklistItems->map(fn($item) => [
+                'id'         => $item->id,
+                'label'      => $item->label,
+                'is_checked' => $item->is_checked,
+                'sort_order' => $item->sort_order,
+            ])->values();
+        }
+
+        return $base;
+    }
+
+    private function formatAnnouncement(Announcement $a, ?string $userId): array
+    {
+        return [
+            'id'        => $a->id,
+            'item_type' => 'announcement',
+            'title'     => $a->title,
+            'body'      => $a->body,
+            'subtitle'  => $a->creator?->full_name ?? 'Admin',
+            'is_read'   => $userId ? $a->isReadBy($userId) : false,
+            'created_by'=> $a->creator ? [
+                'full_name' => $a->creator->full_name,
+                'position'  => $a->creator->position,
+            ] : null,
+            'created_at' => $a->created_at?->toIso8601String(),
+            'time_ago'   => $a->created_at?->diffForHumans(),
+        ];
     }
 }

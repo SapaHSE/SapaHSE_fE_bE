@@ -12,15 +12,20 @@ class Report extends Model
 
     protected $fillable = [
         'user_id',
+        'type',
         'title',
         'description',
-        'type',
-        'severity',
         'status',
         'location',
+        'image_url',
+        // Hazard-only
+        'severity',
         'name_pja',
         'reported_department',
-        'image_url',
+        // Inspection-only
+        'area',
+        'notes',
+        'result',
     ];
 
     public function user()
@@ -28,8 +33,25 @@ class Report extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function isReadBy(string $userId): bool
+    /** Checklist items — only relevant when type = inspection */
+    public function checklistItems()
     {
+        return $this->hasMany(ChecklistItem::class, 'report_id')->orderBy('sort_order');
+    }
+
+    public function readStatuses()
+    {
+        return $this->hasMany(ReadStatus::class);
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(ReportLog::class)->orderBy('created_at', 'desc');
+    }
+
+    public function isReadBy(?string $userId): bool
+    {
+        if (!$userId) return false;
         return ReadStatus::where('user_id', $userId)
             ->where('item_id', $this->id)
             ->where('item_type', 'report')
