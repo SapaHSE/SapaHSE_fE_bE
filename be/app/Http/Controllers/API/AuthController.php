@@ -28,7 +28,7 @@ class AuthController extends Controller
             'employee_id'   => $request->employee_id ?? null,
             'full_name'     => $request->full_name,
             'email'         => $request->email,
-            'password_hash' => Hash::make($request->password),
+            'password' => Hash::make($request->password),
             'phone_number'  => $request->phone_number,
             'position'      => $request->position,
             'department'    => $request->department,
