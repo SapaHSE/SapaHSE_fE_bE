@@ -14,7 +14,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'nik'          => 'required|string|size:16|unique:users',
-            'employee_id'  => 'required|string|max:20|unique:users',
+            'employee_id'  => 'nullable|string|max:20|unique:users,employee_id,NULL,id,employee_id,NULL',
             'full_name'    => 'required|string|max:100',
             'email'        => 'required|email|unique:users',
             'password'     => 'required|min:8',
@@ -28,7 +28,7 @@ class AuthController extends Controller
             'employee_id'   => $request->employee_id ?? null,
             'full_name'     => $request->full_name,
             'email'         => $request->email,
-            'password' => Hash::make($request->password),
+            'password_hash' => Hash::make($request->password),
             'phone_number'  => $request->phone_number,
             'position'      => $request->position,
             'department'    => $request->department,
