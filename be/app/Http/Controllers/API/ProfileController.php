@@ -64,7 +64,7 @@ class ProfileController extends Controller
 
         $request->validate([
             'current_password' => 'required',
-            'new_password'     => 'required|min:6|confirmed',
+            'new_password'     => 'required|min:8|confirmed',
         ]);
 
         if (! Hash::check($request->current_password, $user->password)) {

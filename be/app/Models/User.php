@@ -22,7 +22,7 @@ class User extends Authenticatable
         'phone_number',
         'position',
         'department',
-        'password_hash',
+        'password',
         'profile_photo',
         'is_active',
         'role',
@@ -32,15 +32,9 @@ class User extends Authenticatable
     ];
 
     protected $hidden = [
-        'password_hash',
+        'password',
         'remember_token',
     ];
-
-    // Map Laravel Auth ke kolom password_hash
-    public function getAuthPassword(): string
-    {
-        return $this->password_hash;
-    }
 
     protected function casts(): array
     {
