@@ -19,8 +19,8 @@ class StorageService {
     final prefs = await _getPrefs();
 
     final duration = rememberMe
-        ? const Duration(days: 3) 
-        : const Duration(hours: 8);  
+        ? const Duration(days: 7) 
+        : const Duration(hours: 0);  
 
     final expiry = DateTime.now().add(duration).toIso8601String();
 
