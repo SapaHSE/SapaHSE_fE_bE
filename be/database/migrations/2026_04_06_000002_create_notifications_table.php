@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('notifications', function (Blueprint $table) {
-            $table->ulid('id')->primary(); // atau uuid
+            $table->uuid('id')->primary(); // atau uuid
             
             // Referensi user
-            $table->ulid('user_id');
+            $table->uuid('user_id');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             
             // Tipe notifikasi (inspection, announcement, report, dll)
