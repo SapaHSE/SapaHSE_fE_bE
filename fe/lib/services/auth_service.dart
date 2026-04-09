@@ -4,92 +4,72 @@ import '../models/user_model.dart';
 
 class AuthService {
   // ── Login ─────────────────────────────────────────────────────────────────
-  /// [login] can be NIK, employee_id, or email — matches Laravel's AuthController
+  /// [login] With NIK — matches Laravel's AuthController
   static Future<AuthResult> login({
     required String login,
     required String password,
+    bool rememberMe = false,
   }) async {
     final response = await ApiService.post(
       '/login',
       {'login': login, 'password': password},
       auth: false,
     );
-    
-    print(response.data);
 
     if (!response.success) {
       return AuthResult.error(response.errorMessage ?? 'Login gagal.');
     }
 
-    final token    = response.data['token'] as String?;
+    final token = response.data['token'] as String?;
     final userData = response.data['data'] as Map<String, dynamic>?;
 
     if (token == null || userData == null) {
       return AuthResult.error('Respons server tidak valid.');
     }
 
-    // Save token and user in parallel with a timeout
-    // If storage is slow/fails, we still let the user in
     try {
       await Future.wait([
-        StorageService.saveToken(token),
+        StorageService.saveToken(token,
+            rememberMe: rememberMe),
         StorageService.saveUser(userData),
       ]).timeout(const Duration(seconds: 3));
-    } catch (_) {
-      // Storage failed or timed out — navigation still proceeds
-    }
+    } catch (_) {}
 
     return AuthResult.success(UserModel.fromJson(userData));
   }
 
   // ── Register ──────────────────────────────────────────────────────────────
-  static Future<AuthResult> register({
-    required String nik,
-    required String employeeId,
-    required String fullName,
-    required String email,
-    required String password,
-    String? phoneNumber,
-    String? position,
-    String? department,
-  }) async {
-    final response = await ApiService.post(
-      '/register',
-      {
-        'nik':         nik,
-        'employee_id': employeeId,
-        'full_name':   fullName,
-        'email':       email,
-        'password':    password,
-        if (phoneNumber != null) 'phone_number': phoneNumber,
-        if (position    != null) 'position':     position,
-        if (department  != null) 'department':   department,
-      },
-      auth: false,
-    );
+static Future<AuthResult> register({
+  required String nik,
+  required String employeeId,
+  required String fullName,
+  required String email,
+  required String password,
+  String? phoneNumber,
+  String? position,
+  String? department,
+}) async {
+  final response = await ApiService.post(
+    '/register',
+    {
+      'nik':         nik,
+      'employee_id': employeeId,
+      'full_name':   fullName,
+      'email':       email,
+      'password':    password,
+      if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (position    != null) 'position':     position,
+      if (department  != null) 'department':   department,
+    },
+    auth: false,
+  );
 
-    if (!response.success) {
-      return AuthResult.error(response.errorMessage ?? 'Registrasi gagal.');
-    }
-
-    final token    = response.data['token'] as String?;
-    final userData = response.data['data'] as Map<String, dynamic>?;
-
-    if (token == null || userData == null) {
-      return AuthResult.error('Respons server tidak valid.');
-    }
-
-    try {
-      await Future.wait([
-        StorageService.saveToken(token),
-        StorageService.saveUser(userData),
-      ]).timeout(const Duration(seconds: 3));
-    } catch (_) {
-      // Storage failed or timed out — navigation still proceeds
-    }
-
-    return AuthResult.success(UserModel.fromJson(userData));
+  if (!response.success) {
+    return AuthResult.error(response.errorMessage ?? 'Registrasi gagal.');
   }
+
+    return AuthResult.success(UserModel.fromJson(response.data['data']));
+}
 
   // ── Logout ────────────────────────────────────────────────────────────────
   static Future<void> logout() async {

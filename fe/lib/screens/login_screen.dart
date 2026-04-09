@@ -57,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen>
     final result = await AuthService.login(
       login: _nikCtrl.text.trim(),
       password: _passCtrl.text,
+      rememberMe: _rememberMe,
     );
 
     if (!mounted) return;
