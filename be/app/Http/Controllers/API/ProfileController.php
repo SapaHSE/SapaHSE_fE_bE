@@ -192,7 +192,7 @@ class ProfileController extends Controller
     }
 
 
-    private function formatUser($user): array
+private function formatUser($user): array
     {
         return [
             'id'             => $user->id,
@@ -208,33 +208,46 @@ class ProfileController extends Controller
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,
-            'licenses'       => $user->relationLoaded('licenses') ? $user->licenses->map(fn($l) => [
-                'id'             => $l->id,
-                'user_id'        => $l->user_id,
-                'name'           => $l->name,
-                'license_number' => $l->license_number,
-                'expiry_date'     => $l->expired_at?->format('Y-m-d'),
-                'status'         => $l->status,
-            ]) : [],
-            'certifications' => $user->relationLoaded('certifications') ? $user->certifications->map(fn($c) => [
-                'id'     => $c->id,
-                'user_id'       => $c->user_id,
-                'name'   => $c->name,
-                'issuer' => $c->issuer,
-                'year'   => $c->year,
-                'status' => $c->status,
-            ]) : [],
-            'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
-                'id'               => $m->id,
-                'examination_date' => $m->checkup_date?->format('Y-m-d'), 
-                'blood_type'       => $m->blood_type,
-                'height_cm'        => $m->height,       
-                'weight_kg'        => $m->weight,       
-                'blood_pressure'   => $m->blood_pressure,
-                'allergy'          => $m->allergies,    
-                'mcu_status'       => $m->result,      
-                'next_mcu_date'    => $m->next_checkup_date?->format('Y-m-d'),
-            ]) : [],
+
+            // ── WAJIB pakai ->values() ──────────────────────────────────────
+            // Tanpa ->values(), Laravel Collection bisa serialize sebagai
+            // JSON object {"0":{...},"1":{...}} bukan array [{...},{...}].
+            // Flutter jsonDecode akan parsing sebagai Map bukan List → kosong.
+            'licenses' => $user->relationLoaded('licenses')
+                ? $user->licenses->map(fn($l) => [
+                    'id'             => $l->id,
+                    'user_id'        => $l->user_id,
+                    'name'           => $l->name,
+                    'license_number' => $l->license_number,
+                    'expiry_date'    => $l->expired_at?->format('Y-m-d'),
+                    'status'         => $l->status,
+                ])->values()->all()  // ← ->values()->all() pastikan JSON array
+                : [],
+
+            'certifications' => $user->relationLoaded('certifications')
+                ? $user->certifications->map(fn($c) => [
+                    'id'      => $c->id,
+                    'user_id' => $c->user_id,
+                    'name'    => $c->name,
+                    'issuer'  => $c->issuer,
+                    'year'    => $c->year,
+                    'status'  => $c->status,
+                ])->values()->all()  // ← fix
+                : [],
+
+            'medicals' => $user->relationLoaded('medicals')
+                ? $user->medicals->map(fn($m) => [
+                    'id'               => $m->id,
+                    'examination_date' => $m->checkup_date?->format('Y-m-d'),
+                    'blood_type'       => $m->blood_type,
+                    'height_cm'        => $m->height,
+                    'weight_kg'        => $m->weight,
+                    'blood_pressure'   => $m->blood_pressure,
+                    'allergy'          => $m->allergies,
+                    'mcu_status'       => $m->result,
+                    'next_mcu_date'    => $m->next_checkup_date?->format('Y-m-d'),
+                ])->values()->all()  // ← fix
+                : [],
         ];
     }
 }
