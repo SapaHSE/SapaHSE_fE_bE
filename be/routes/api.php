@@ -11,7 +11,6 @@ use App\Http\Controllers\API\InboxController;
 use App\Http\Controllers\API\ForgotPasswordController;
 use App\Http\Controllers\API\NotificationController;
 
-
 // ── Public Routes ─────────────────────────────────────────────────────────────
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -43,7 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile/license',         [ProfileController::class, 'storeLicense']);
     Route::post('/profile/certification',   [ProfileController::class, 'storeCertification']);
     Route::post('/profile/medical',         [ProfileController::class, 'storeMedical']);
-    
+
     // ── Reports (Hazard) ──────────────────────────────────────────────────────
     // GET    /api/reports              → list all reports (filter, search, paginate)
     // POST   /api/reports              → create new report
