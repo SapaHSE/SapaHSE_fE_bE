@@ -9,6 +9,7 @@ class ReadStatus extends Model
 {
     use HasUuids;
 
+    protected $table = 'read_status';
     public $timestamps = false;
 
     protected $fillable = [

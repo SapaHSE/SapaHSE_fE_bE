@@ -14,19 +14,17 @@ use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
 {
-    // GET /api/reports
-    // Filter  : ?type=hazard|inspection &severity=low|medium|high &status=open|in_progress|closed
-    // Search  : ?search=keyword
-    // Sort    : ?sort=oldest
-    // Paginate: ?page=1&per_page=10
-
     protected $notificationService;
 
     public function __construct(NotificationService $notificationService)
     {
         $this->notificationService = $notificationService;
     }
-
+    // GET /api/reports
+    // Filter  : ?type=hazard|inspection &severity=low|medium|high &status=open|in_progress|closed
+    // Search  : ?search=keyword
+    // Sort    : ?sort=oldest
+    // Paginate: ?page=1&per_page=10
     public function index(Request $request)
     {
         $query  = Report::with(['user', 'checklistItems'])->latest();
@@ -188,7 +186,6 @@ class ReportController extends Controller
 
         $report->load(['user', 'checklistItems']);
 
-
         // ── Notifikasi otomatis ke Admin & Superadmin ──────────────────────
         try {
             $admins = User::whereIn('role', ['admin', 'superadmin'])->get();
@@ -278,6 +275,7 @@ class ReportController extends Controller
         }
 
         $report = Report::findOrFail($id);
+        
         // Prevent backward status transitions
         $statusLevels = [
             'open'        => 0,
@@ -378,6 +376,7 @@ class ReportController extends Controller
                 'full_name'  => $report->user->full_name,
                 'employee_id'   => $report->user->employee_id,
                 'department' => $report->user->department,
+                'company'    => $report->user->company,
             ] : null,
             'created_at'  => $report->created_at,
             'time_ago'    => $report->created_at?->diffForHumans(),

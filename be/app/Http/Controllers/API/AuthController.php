@@ -20,10 +20,11 @@ class AuthController extends Controller
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email:rfc,dns|max:150|unique:users',
             'work_email'     => 'nullable|email:rfc,dns|max:150|unique:users',
-            'password'       => 'required|string|min:8|confirmed',
+            'password'       => 'required|string|min:6',
             'phone_number'   => 'required|string|max:20',
             'position'       => 'required|string|max:100',
             'department'     => 'required|string|max:100',
+            'company'        => 'required|string|max:100',
         ], [
             'employee_id.unique'         => 'NIK sudah terdaftar. Gunakan NIK lain.',
             'employee_id.min'            => 'NIK minimal 10 digit.',
@@ -32,7 +33,7 @@ class AuthController extends Controller
             'personal_email.unique'      => 'Email ini sudah terdaftar. Gunakan email lain atau login.',
             'work_email.email'           => 'Format email kerja tidak valid atau domain tidak ditemukan.',
             'work_email.unique'          => 'Email kerja ini sudah terdaftar.',
-            'password.min'               => 'Password minimal 8 karakter.',
+            'password.min'               => 'Password minimal 6 karakter.',
         ]);
 
         $verificationToken = Str::random(64);
@@ -42,10 +43,11 @@ class AuthController extends Controller
             'full_name'                 => $request->full_name,
             'personal_email'            => $request->personal_email,
             'work_email'                => $request->work_email,
-            'password'                  => Hash::make($request->password),
+            'password_hash'             => Hash::make($request->password),
             'phone_number'              => $request->phone_number,
             'position'                  => $request->position,
             'department'                => $request->department,
+            'company'                   => $request->company,
             'role'                      => 'user',
             'email_verification_token'  => $verificationToken,
         ]);
@@ -54,14 +56,10 @@ class AuthController extends Controller
         $verificationUrl = url("/api/email/verify/{$user->id}/{$verificationToken}");
         Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
 
-        $token = $user->createToken('mobile-token')->plainTextToken;
-
         return response()->json([
             'status'  => 'success',
-            'message' => 'Registrasi berhasil. Link verifikasi telah dikirim ke email pribadi Anda. Silakan cek inbox dan verifikasi sebelum login',
-            'token'   => $token,
-            'user' => $user,
-            'data'    => $this->formatUser($user) + ['personal_email' => $user->personal_email],
+            'message' => 'Registrasi berhasil. Link verifikasi telah dikirim ke email pribadi Anda. Silakan cek inbox dan verifikasi sebelum login.',
+            'data'    => ['personal_email' => $user->personal_email],
         ], 201);
     }
 
@@ -81,7 +79,7 @@ class AuthController extends Controller
         if ($user->email_verified_at) {
             return response()->view('auth.email-verify-result', [
                 'success' => true,
-                'message' => 'Email Anda sudah diverifikasi sebelumnya. Silakan login di Aplikasi SapaHSE.',
+                'message' => 'Email Anda sudah diverifikasi sebelumnya. Silakan login Aplikasi SapaHSE.',
             ]);
         }
 
@@ -92,7 +90,7 @@ class AuthController extends Controller
 
         return response()->view('auth.email-verify-result', [
             'success' => true,
-            'message' => 'Email berhasil diverifikasi! Silakan kembali ke Aplikasi SapaHSE dan login.',
+            'message' => 'Email berhasil diverifikasi! Silakan kembali ke aplikasi SapaHSE dan login.',
         ]);
     }
 
@@ -132,8 +130,8 @@ class AuthController extends Controller
         ]);
     }
 
-
     // POST /api/login
+    // Field 'login' bisa diisi employee_id, personal_email, atau work_email
     public function login(Request $request)
     {
         $request->validate([
@@ -141,10 +139,12 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::where('employee_id', $request->login)
+        $user = User::where('personal_email', $request->login)
+            ->orWhere('work_email', $request->login)
+            ->orWhere('employee_id', $request->login)
             ->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password_hash)) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Kredensial tidak valid. Periksa kembali NIK / Email dan password Anda.',
@@ -168,7 +168,6 @@ class AuthController extends Controller
             ], 403);
         }
 
-
         $user->tokens()->delete();
         $token = $user->createToken('mobile-token')->plainTextToken;
 
@@ -180,7 +179,7 @@ class AuthController extends Controller
         ]);
     }
 
-     // GET /api/me
+    // GET /api/me
     public function me(Request $request)
     {
         return response()->json([
@@ -195,7 +194,7 @@ class AuthController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Logged out successfully',
+            'message' => 'Logout berhasil.',
         ]);
     }
 
@@ -211,6 +210,7 @@ class AuthController extends Controller
             'phone_number'   => $user->phone_number,
             'position'       => $user->position,
             'department'     => $user->department,
+            'company'        => $user->company,
             'profile_photo'  => $user->profile_photo
                 ? asset('storage/' . $user->profile_photo)
                 : null,

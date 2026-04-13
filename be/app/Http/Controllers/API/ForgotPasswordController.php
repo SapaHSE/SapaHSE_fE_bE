@@ -66,7 +66,7 @@ class ForgotPasswordController extends Controller
         $request->validate([
             'email'    => 'required|email',
             'token'    => 'required|string',
-            'password' => 'required|min:8|confirmed',
+            'password' => 'required|min:6|confirmed',
         ]);
 
         $record = DB::table('password_reset_tokens')
@@ -75,7 +75,7 @@ class ForgotPasswordController extends Controller
 
         if (! $record || ! Hash::check($request->token, $record->token)) {
             return back()->withInput($request->only('email'))
-            ->withErrors(['email' => 'Tautan reset password tidak valid atau sudah kadaluarsa.']);
+                         ->withErrors(['email' => 'Tautan reset password tidak valid atau sudah kadaluarsa.']);
         }
 
         // Cek expiry 15 menit
@@ -91,7 +91,7 @@ class ForgotPasswordController extends Controller
         }
 
         // Update password
-        $user->update(['password' => Hash::make($request->password)]);
+        $user->update(['password_hash' => Hash::make($request->password)]);
 
         // Hapus token
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();

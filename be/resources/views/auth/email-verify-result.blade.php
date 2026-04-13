@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $success ? 'Email Terverifikasi' : 'Verifikasi Gagal' }} - Hazard App</title>
+    <title>{{ $success ? 'Email Terverifikasi' : 'Verifikasi Gagal' }} - SapaHSE</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -76,7 +76,7 @@
 </head>
 <body>
     <div class="card">
-        <div class="logo">Hazard<span>App</span></div>
+        <div class="logo">Sapa<span>HSE</span></div>
 
         @if($success)
             <div class="icon success">✅</div>

@@ -8,8 +8,6 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-
-
 class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens, HasUuids;
@@ -24,7 +22,8 @@ class User extends Authenticatable
         'phone_number',
         'position',
         'department',
-        'password',
+        'company',
+        'password_hash',
         'profile_photo',
         'is_active',
         'role',
@@ -34,12 +33,14 @@ class User extends Authenticatable
     ];
 
     protected $hidden = [
-        'password',
+        'password_hash',
         'email_verification_token',
         'remember_token',
     ];
 
-    public function getAuthPassword(): string{
+    // Map Laravel Auth ke kolom password_hash
+    public function getAuthPassword(): string
+    {
         return $this->password_hash;
     }
 
@@ -53,7 +54,7 @@ class User extends Authenticatable
         ];
     }
 
-     public function reports()
+    public function reports()
     {
         return $this->hasMany(Report::class, 'user_id');
     }

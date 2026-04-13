@@ -37,6 +37,7 @@ class ProfileController extends Controller
             'phone_number'  => 'nullable|string|max:20',
             'position'      => 'nullable|string|max:100',
             'department'    => 'nullable|string|max:100',
+            'company'       => 'nullable|string|max:100',
             'profile_photo' => 'nullable|image|max:2048',
         ]);
 
@@ -45,6 +46,7 @@ class ProfileController extends Controller
         if ($request->filled('phone_number')) $user->phone_number = $request->phone_number;
         if ($request->filled('position'))     $user->position     = $request->position;
         if ($request->filled('department'))   $user->department   = $request->department;
+        if ($request->filled('company'))      $user->company      = $request->company;
 
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo) {
@@ -70,34 +72,34 @@ class ProfileController extends Controller
 
         $request->validate([
             'current_password' => 'required',
-            'new_password'     => 'required|min:8|confirmed',
+            'new_password'     => 'required|min:6|confirmed',
         ]);
 
-        if (! Hash::check($request->current_password, $user->password)) {
+        if (! Hash::check($request->current_password, $user->password_hash)) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Password saat ini tidak benar. Silakan coba lagi.',
+                'message' => 'Current password is incorrect',
             ], 422);
         }
 
-        if (Hash::check($request->new_password, $user->password)) {
+        if (Hash::check($request->new_password, $user->password_hash)) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Password baru harus berbeda dari password saat ini',
+                'message' => 'New password must be different from current password',
             ], 422);
         }
 
-        $user->password = Hash::make($request->new_password);
+        $user->password_hash = Hash::make($request->new_password);
         $user->save();
         $user->tokens()->delete();
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Password berhasil diubah. Silakan Login kembali.',
+            'message' => 'Password changed successfully. Please log in again.',
         ]);
     }
 
- // DELETE /api/profile
+    // DELETE /api/profile
     public function destroyAccount()
     {
         /** @var \App\Models\User $user */
@@ -106,7 +108,7 @@ class ProfileController extends Controller
         // Hapus token session
         $user->tokens()->delete();
         
-        // Hapus data
+        // Hapus data (Soft delete jika mau atau hard delete). Model saat ini tdk pakai softDelete
         $user->delete();
 
         return response()->json([
@@ -118,11 +120,26 @@ class ProfileController extends Controller
     // POST /api/profile/license
     public function storeLicense(Request $request)
     {
+        $input = $request->all();
+        // Map Indonesian status to DB enum
+        if (isset($input['status'])) {
+            $statusMap = [
+                'Aktif' => 'active',
+                'Kadaluarsa' => 'expired',
+                'Expired' => 'expired',
+                'active' => 'active',
+                'expired' => 'expired',
+                'suspended' => 'suspended'
+            ];
+            $input['status'] = $statusMap[$input['status']] ?? 'active';
+        }
+        $request->merge($input);
+
         $request->validate([
-            'name'           => 'required|string|max:150',
+            'name'           => 'required|string|max:150', 
             'license_number' => 'required|string|max:100',
-            'expired_at'     => 'nullable|date',
-            'status'         => 'required|string|max:50',
+            'expired_at'     => 'nullable|date', 
+            'status'         => 'required|string|in:active,expired,suspended',
         ]);
 
         /** @var \App\Models\User $user */
@@ -139,14 +156,79 @@ class ProfileController extends Controller
         ]);
     }
 
+    // PUT /api/profile/license/{id}
+    public function updateLicense(Request $request, $id)
+    {
+        $input = $request->all();
+        if (isset($input['status'])) {
+            $statusMap = [
+                'Aktif' => 'active',
+                'Kadaluarsa' => 'expired',
+                'Expired' => 'expired',
+                'active' => 'active',
+                'expired' => 'expired',
+                'suspended' => 'suspended'
+            ];
+            $input['status'] = $statusMap[$input['status']] ?? 'active';
+        }
+        $request->merge($input);
+
+        $request->validate([
+            'name'           => 'required|string|max:150',
+            'license_number' => 'required|string|max:100',
+            'expired_at'     => 'nullable|date',
+            'status'         => 'required|string|in:active,expired,suspended',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $license = $user->licenses()->findOrFail($id);
+
+        $license->update($request->only(
+            'name', 'license_number', 'expired_at', 'status'
+        ));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'License updated successfully.',
+            'data'    => $license,
+        ]);
+    }
+
+    // DELETE /api/profile/license/{id}
+    public function destroyLicense($id)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $license = $user->licenses()->findOrFail($id);
+        $license->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'License deleted successfully.',
+        ]);
+    }
+
     // POST /api/profile/certification
     public function storeCertification(Request $request)
     {
+        $input = $request->all();
+        if (isset($input['status'])) {
+            $statusMap = [
+                'Aktif' => 'active',
+                'Kadaluarsa' => 'expired',
+                'active' => 'active',
+                'expired' => 'expired'
+            ];
+            $input['status'] = $statusMap[$input['status']] ?? 'active';
+        }
+        $request->merge($input);
+
         $request->validate([
             'name'   => 'required|string|max:150',
             'issuer' => 'required|string|max:150',
             'year'   => 'nullable|integer',
-            'status' => 'required|string|max:50',
+            'status' => 'required|string|in:active,expired',
         ]);
 
         /** @var \App\Models\User $user */
@@ -163,17 +245,70 @@ class ProfileController extends Controller
         ]);
     }
 
+    // PUT /api/profile/certification/{id}
+    public function updateCertification(Request $request, $id)
+    {
+        $input = $request->all();
+        if (isset($input['status'])) {
+            $statusMap = [
+                'Aktif' => 'active',
+                'Kadaluarsa' => 'expired',
+                'active' => 'active',
+                'expired' => 'expired'
+            ];
+            $input['status'] = $statusMap[$input['status']] ?? 'active';
+        }
+        $request->merge($input);
+
+        $request->validate([
+            'name'   => 'required|string|max:150',
+            'issuer' => 'required|string|max:150',
+            'year'   => 'nullable|integer',
+            'status' => 'required|string|in:active,expired',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $cert = $user->certifications()->findOrFail($id);
+
+        $cert->update($request->only(
+            'name', 'issuer', 'year', 'status'
+        ));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Certification updated successfully.',
+            'data'    => $cert,
+        ]);
+    }
+
+    // DELETE /api/profile/certification/{id}
+    public function destroyCertification($id)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $cert = $user->certifications()->findOrFail($id);
+        $cert->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Certification deleted successfully.',
+        ]);
+    }
+
     // POST /api/profile/medical
     public function storeMedical(Request $request)
     {
+        file_put_contents(storage_path('logs/debug_medical.log'), '['.date('Y-m-d H:i:s').'] storeMedical: ' . json_encode($request->all()) . PHP_EOL, FILE_APPEND);
+
         $request->validate([
             'checkup_date'      => 'nullable|date',
-            'blood_type'        => 'nullable|string|max:10',
-            'height'            => 'nullable|numeric',
-            'weight'            => 'nullable|numeric',
-            'blood_pressure'    => 'nullable|string|max:20',
+            'blood_type'        => 'nullable|string|max:20',
+            'height'            => 'nullable', // Allow numeric or string
+            'weight'            => 'nullable', // Allow numeric or string
+            'blood_pressure'    => 'nullable|string|max:30',
             'allergies'         => 'nullable|string',
-            'result'            => 'nullable|string|max:200',
+            'result'            => 'nullable|string|max:255',
             'next_checkup_date' => 'nullable|date',
         ]);
 
@@ -191,8 +326,50 @@ class ProfileController extends Controller
         ]);
     }
 
+    // PUT /api/profile/medical/{id}
+    public function updateMedical(Request $request, $id)
+    {
+        $request->validate([
+            'checkup_date'      => 'nullable|date',
+            'blood_type'        => 'nullable|string|max:20',
+            'height'            => 'nullable',
+            'weight'            => 'nullable',
+            'blood_pressure'    => 'nullable|string|max:30',
+            'allergies'         => 'nullable|string',
+            'result'            => 'nullable|string|max:255',
+            'next_checkup_date' => 'nullable|date',
+        ]);
 
-private function formatUser($user): array
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $medical = $user->medicals()->findOrFail($id);
+
+        $medical->update($request->only(
+            'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure', 'allergies', 'result', 'next_checkup_date'
+        ));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Medical record updated successfully.',
+            'data'    => $medical,
+        ]);
+    }
+
+    // DELETE /api/profile/medical/{id}
+    public function destroyMedical($id)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        $medical = $user->medicals()->findOrFail($id);
+        $medical->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Medical record deleted successfully.',
+        ]);
+    }
+
+    private function formatUser($user): array
     {
         return [
             'id'             => $user->id,
@@ -203,51 +380,37 @@ private function formatUser($user): array
             'phone_number'   => $user->phone_number,
             'position'       => $user->position,
             'department'     => $user->department,
+            'company'        => $user->company,
             'profile_photo'  => $user->profile_photo
                 ? asset('storage/' . $user->profile_photo)
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,
-
-            // ── WAJIB pakai ->values() ──────────────────────────────────────
-            // Tanpa ->values(), Laravel Collection bisa serialize sebagai
-            // JSON object {"0":{...},"1":{...}} bukan array [{...},{...}].
-            // Flutter jsonDecode akan parsing sebagai Map bukan List → kosong.
-            'licenses' => $user->relationLoaded('licenses')
-                ? $user->licenses->map(fn($l) => [
-                    'id'             => $l->id,
-                    'user_id'        => $l->user_id,
-                    'name'           => $l->name,
-                    'license_number' => $l->license_number,
-                    'expiry_date'    => $l->expired_at?->format('Y-m-d'),
-                    'status'         => $l->status,
-                ])->values()->all()  // ← ->values()->all() pastikan JSON array
-                : [],
-
-            'certifications' => $user->relationLoaded('certifications')
-                ? $user->certifications->map(fn($c) => [
-                    'id'      => $c->id,
-                    'user_id' => $c->user_id,
-                    'name'    => $c->name,
-                    'issuer'  => $c->issuer,
-                    'year'    => $c->year,
-                    'status'  => $c->status,
-                ])->values()->all()  // ← fix
-                : [],
-
-            'medicals' => $user->relationLoaded('medicals')
-                ? $user->medicals->map(fn($m) => [
-                    'id'               => $m->id,
-                    'examination_date' => $m->checkup_date?->format('Y-m-d'),
-                    'blood_type'       => $m->blood_type,
-                    'height_cm'        => $m->height,
-                    'weight_kg'        => $m->weight,
-                    'blood_pressure'   => $m->blood_pressure,
-                    'allergy'          => $m->allergies,
-                    'mcu_status'       => $m->result,
-                    'next_mcu_date'    => $m->next_checkup_date?->format('Y-m-d'),
-                ])->values()->all()  // ← fix
-                : [],
+            'licenses'       => $user->relationLoaded('licenses') ? $user->licenses->map(fn($l) => [
+                'id'             => $l->id,
+                'name'           => $l->name,
+                'license_number' => $l->license_number,
+                'expired_at'     => $l->expired_at?->format('Y-m-d'),
+                'status'         => $l->status,
+            ]) : [],
+            'certifications' => $user->relationLoaded('certifications') ? $user->certifications->map(fn($c) => [
+                'id'     => $c->id,
+                'name'   => $c->name,
+                'issuer' => $c->issuer,
+                'year'   => $c->year,
+                'status' => $c->status,
+            ]) : [],
+            'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
+                'id'                => $m->id,
+                'checkup_date'      => $m->checkup_date?->format('Y-m-d'),
+                'blood_type'        => $m->blood_type,
+                'height'            => $m->height,
+                'weight'            => $m->weight,
+                'blood_pressure'    => $m->blood_pressure,
+                'allergies'         => $m->allergies,
+                'result'            => $m->result,
+                'next_checkup_date' => $m->next_checkup_date?->format('Y-m-d'),
+            ]) : [],
         ];
     }
 }

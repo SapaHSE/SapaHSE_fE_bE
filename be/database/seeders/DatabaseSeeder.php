@@ -22,10 +22,10 @@ class DatabaseSeeder extends Seeder
     {
         // ══════════════════════════════════════════════════════════════════
         // USERS
-        // Kolom login: employee_id + password
+        // Kolom login: staff_id + password_hash
         // Role: superadmin | admin | user
         //
-        // Demo login: employee_id = "1" | password = "123"
+        // Demo login: staff_id = "1" | password = "123"
         // ══════════════════════════════════════════════════════════════════
 
         $superadmin = User::create([
@@ -36,7 +36,8 @@ class DatabaseSeeder extends Seeder
             'phone_number'   => '+62811000001',
             'position'       => 'System Administrator',
             'department'     => 'IT',
-            'password'  => Hash::make('password'),
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'superadmin',
             'email_verified_at' => now(),
@@ -50,7 +51,8 @@ class DatabaseSeeder extends Seeder
             'phone_number'   => '+62811000002',
             'position'       => 'HSE Manager',
             'department'     => 'K3 / HSE',
-            'password'  => Hash::make('password'),
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'admin',
             'email_verified_at' => now(),
@@ -64,13 +66,14 @@ class DatabaseSeeder extends Seeder
             'phone_number'   => '+62811000003',
             'position'       => 'Mine Safety Inspector',
             'department'     => 'K3 / HSE',
-            'password'  => Hash::make('password'),
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'admin',
             'email_verified_at' => now(),
         ]);
 
-        // Demo user — employee_id = "1", password = "123"
+        // Demo user — staff_id = "1", password = "123"
         $demo = User::create([
             'employee_id'       => '1',
             'full_name'      => 'Demo User',
@@ -79,7 +82,8 @@ class DatabaseSeeder extends Seeder
             'phone_number'   => '+62811000099',
             'position'       => 'IT Intern',
             'department'     => 'IT',
-            'password'  => Hash::make('123'),
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('123'),
             'is_active'      => true,
             'role'           => 'user',
             'email_verified_at' => now(),
@@ -93,7 +97,8 @@ class DatabaseSeeder extends Seeder
             'phone_number'   => '+62811000004',
             'position'       => 'Heavy Equipment Operator',
             'department'     => 'Operational',
-            'password'  => Hash::make('password'),
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'user',
             'email_verified_at' => now(),
@@ -107,7 +112,8 @@ class DatabaseSeeder extends Seeder
             'phone_number'   => '+62811000005',
             'position'       => 'Workshop Technician',
             'department'     => 'Operational',
-            'password'  => Hash::make('password'),
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'user',
             'email_verified_at' => now(),
@@ -121,7 +127,8 @@ class DatabaseSeeder extends Seeder
             'phone_number'   => '+62811000006',
             'position'       => 'Electrical Maintenance',
             'department'     => 'Maintenance',
-            'password'  => Hash::make('password'),
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'user',
             'email_verified_at' => now(),
@@ -135,7 +142,8 @@ class DatabaseSeeder extends Seeder
             'phone_number'   => '+62811000007',
             'position'       => 'Environmental Officer',
             'department'     => 'Environmental',
-            'password'  => Hash::make('password'),
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'user',
             'email_verified_at' => now(),

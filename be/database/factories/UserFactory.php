@@ -33,7 +33,7 @@ class UserFactory extends Factory
             'position'          => fake()->jobTitle(),
             'department'        => fake()->randomElement(['IT', 'HSE', 'Operational', 'Maintenance']),
             'company'           => 'PT Bukit Baiduri Energi',
-            'password'     => static::$password ??= Hash::make('password'),
+            'password_hash'     => static::$password ??= Hash::make('password'),
             'is_active'         => true,
             'role'              => 'user',
             'email_verified_at' => now(),

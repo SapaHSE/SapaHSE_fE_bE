@@ -40,8 +40,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/profile',               [ProfileController::class, 'destroyAccount']);
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword']);
     Route::post('/profile/license',         [ProfileController::class, 'storeLicense']);
+    Route::put('/profile/license/{id}',      [ProfileController::class, 'updateLicense']);
+    Route::delete('/profile/license/{id}',   [ProfileController::class, 'destroyLicense']);
+
     Route::post('/profile/certification',   [ProfileController::class, 'storeCertification']);
+    Route::put('/profile/certification/{id}', [ProfileController::class, 'updateCertification']);
+    Route::delete('/profile/certification/{id}', [ProfileController::class, 'destroyCertification']);
+
     Route::post('/profile/medical',         [ProfileController::class, 'storeMedical']);
+    Route::put('/profile/medical/{id}',      [ProfileController::class, 'updateMedical']);
+    Route::delete('/profile/medical/{id}',   [ProfileController::class, 'destroyMedical']);
 
     // ── Reports (Hazard) ──────────────────────────────────────────────────────
     // GET    /api/reports              → list all reports (filter, search, paginate)
