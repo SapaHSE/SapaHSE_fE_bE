@@ -10,6 +10,7 @@ class UserLicense extends Model
     use HasUuids;
 
     protected $fillable = [
+        'id',
         'user_id',
         'name',
         'license_number',
