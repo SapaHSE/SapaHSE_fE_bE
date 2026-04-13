@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(\Illuminate\Support\Facades\DB::raw('(UUID())'));
-            $table->string('staff_id', 50)->unique();                // Staff / Employee ID (free format, e.g. BBE-IT-001)
+            $table->string('employee_id', 50)->unique();                // Staff / Employee ID (free format, e.g. BBE-IT-001)
             $table->string('full_name', 100);
             $table->string('personal_email', 150)->unique();         // Personal email — used for login & email verification
             $table->string('work_email', 150)->nullable()->unique();  // Work / office email (optional)

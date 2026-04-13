@@ -30,7 +30,7 @@ class NewsController extends Controller
             });
         }
 
-        $perPage = (int) $request->get('per_page', 10);
+        $perPage = (int) $request->input('per_page', 10);
         $news    = $query->paginate($perPage);
 
         return response()->json([
@@ -79,7 +79,7 @@ class NewsController extends Controller
             'created_by'  => Auth::id(),
             'title'       => $request->title,
             'excerpt'     => $request->excerpt,
-            'content'     => $request->content,
+            'content'     => $request->input('content'),
             'category'    => $request->category,
             'author_name' => $request->author_name ?? Auth::user()->full_name,
             'image_url'   => $imageUrl,

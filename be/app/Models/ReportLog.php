@@ -15,7 +15,9 @@ class ReportLog extends Model
         'report_id',
         'user_id',
         'status',
+        'sub_status',
         'message',
+        'image_url',
     ];
 
     public function report(): BelongsTo

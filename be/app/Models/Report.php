@@ -16,6 +16,7 @@ class Report extends Model
         'title',
         'description',
         'status',
+        'sub_status',
         'location',
         'image_url',
         // Hazard-only

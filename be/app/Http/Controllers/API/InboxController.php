@@ -3,200 +3,133 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\Announcement;
-use App\Models\ReadStatus;
-use App\Models\Report;
+use App\Models\News;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
-class InboxController extends Controller
+class NewsController extends Controller
 {
+    // GET /api/news
+    // Filter  : ?category=K3/HSE &is_featured=1
+    // Search  : ?search=keyword
+    // Paginate: ?page=1&per_page=10
     public function index(Request $request)
     {
-        $userId  = Auth::id();
-        $type    = $request->input('type', 'report'); // default ke report
-        $isRead  = $request->filled('is_read') ? filter_var($request->is_read, FILTER_VALIDATE_BOOLEAN) : null;
-        $search  = $request->input('search');
-        $perPage = (int) $request->input('per_page', 15);
+        $query = News::active()->with('creator')->latest();
 
-        // ── 1. Hitung Unread Badges (selalu dihitung agar UI bisa render badge) ──
-        $readReportIds = ReadStatus::where('user_id', $userId)
-            ->where('item_type', 'report')
-            ->pluck('item_id');
-        $unreadReportsCount = Report::whereNotIn('id', $readReportIds)->count();
+        if ($request->filled('category'))   $query->where('category', $request->category);
+        if ($request->filled('is_featured')) $query->where('is_featured', true);
 
-        $readAnnouncementIds = ReadStatus::where('user_id', $userId)
-            ->where('item_type', 'announcement')
-            ->pluck('item_id');
-        $unreadAnnouncementsCount = Announcement::active()->whereNotIn('id', $readAnnouncementIds)->count();
-
-        // ── 2. Fetch Data Sesuai Tab (Sangat efisien via DB Pagination) ──
-        if ($type === 'announcement') {
-            $query = Announcement::active()->with('creator');
-            
-            if ($isRead !== null) {
-                if ($isRead) {
-                    $query->whereIn('id', $readAnnouncementIds);
-                } else {
-                    $query->whereNotIn('id', $readAnnouncementIds);
-                }
-            }
-
-            if ($search) {
-                $query->where(function($q) use ($search) {
-                    $q->where('title', 'like', "%{$search}%")
-                      ->orWhere('body', 'like', "%{$search}%");
-                });
-            }
-            
-            $paged = $query->latest()->paginate($perPage);
-            $data = $paged->map(fn($a) => $this->formatAnnouncement($a, $userId));
-
-        } else { // type = report
-            $query = Report::with(['user', 'checklistItems']);
-            
-            if ($isRead !== null) {
-                if ($isRead) {
-                    $query->whereIn('id', $readReportIds);
-                } else {
-                    $query->whereNotIn('id', $readReportIds);
-                }
-            }
-
-            if ($search) {
-                $query->where(function($q) use ($search) {
-                    $q->where('title', 'like', "%{$search}%")
-                      ->orWhere('description', 'like', "%{$search}%")
-                      ->orWhere('location', 'like', "%{$search}%");
-                });
-            }
-            
-            $paged = $query->latest()->paginate($perPage);
-            $data = $paged->map(fn($r) => $this->formatReport($r, $userId));
+        if ($request->filled('search')) {
+            $kw = $request->search;
+            $query->where(function ($q) use ($kw) {
+                $q->where('title', 'like', "%{$kw}%")
+                  ->orWhere('excerpt', 'like', "%{$kw}%")
+                  ->orWhere('category', 'like', "%{$kw}%");
+            });
         }
 
+        $perPage = (int) $request->input('per_page', 10);
+        $news    = $query->paginate($perPage);
+
         return response()->json([
-            'status'       => 'success',
-            'unread_count' => [
-                'total'         => $unreadReportsCount + $unreadAnnouncementsCount,
-                'reports'       => $unreadReportsCount,
-                'announcements' => $unreadAnnouncementsCount,
+            'status' => 'success',
+            'meta'   => [
+                'total'        => $news->total(),
+                'per_page'     => $news->perPage(),
+                'current_page' => $news->currentPage(),
+                'last_page'    => $news->lastPage(),
+                'has_more'     => $news->hasMorePages(),
             ],
-            'meta' => [
-                'total'        => $paged->total(),
-                'per_page'     => $paged->perPage(),
-                'current_page' => $paged->currentPage(),
-                'last_page'    => $paged->lastPage(),
-                'has_more'     => $paged->hasMorePages(),
-            ],
-            'data' => $data,
+            'data' => collect($news->items())->map(fn($n) => $this->formatNews($n, false)),
         ]);
     }
 
-    public function markAsRead(Request $request)
+    // GET /api/news/{id}
+    public function show($id)
+    {
+        $news = News::active()->with('creator')->findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $this->formatNews($news, true), // true = include full content
+        ]);
+    }
+
+    // POST /api/news (admin/supervisor only)
+    public function store(Request $request)
     {
         $request->validate([
-            'item_id'   => 'required|string',
-            'item_type' => 'required|in:report,announcement',
+            'title'       => 'required|string|max:300',
+            'excerpt'     => 'nullable|string',
+            'content'     => 'required|string',
+            'category'    => 'required|string|max:50',
+            'author_name' => 'nullable|string|max:100',
+            'is_featured' => 'boolean',
+            'image'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        ReadStatus::firstOrCreate([
-            'user_id'   => Auth::id(),
-            'item_id'   => $request->item_id,
-            'item_type' => $request->item_type,
-        ], ['read_at' => now()]);
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $imageUrl = asset('storage/' . $request->file('image')->store('news', 'public'));
+        }
+
+        $news = News::create([
+            'created_by'  => Auth::id(),
+            'title'       => $request->title,
+            'excerpt'     => $request->excerpt,
+            'content'     => $request->input('content'),
+            'category'    => $request->category,
+            'author_name' => $request->author_name ?? Auth::user()->full_name,
+            'image_url'   => $imageUrl,
+            'is_featured' => $request->boolean('is_featured', false),
+            'is_active'   => true,
+        ]);
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Item marked as read',
-        ]);
+            'message' => 'News article created successfully',
+            'data'    => $this->formatNews($news->load('creator'), true),
+        ], 201);
     }
 
-    public function markAllAsRead()
+    // DELETE /api/news/{id} (admin only)
+    public function destroy($id)
     {
-        $userId = Auth::id();
+        $news = News::findOrFail($id);
 
-        // Mark all reports
-        $reportIds = Report::pluck('id');
-        foreach ($reportIds as $id) {
-            ReadStatus::firstOrCreate([
-                'user_id'   => $userId,
-                'item_id'   => $id,
-                'item_type' => 'report',
-            ], ['read_at' => now()]);
+        if ($news->image_url) {
+            $path = str_replace(asset('storage/') . '/', '', $news->image_url);
+            Storage::disk('public')->delete($path);
         }
 
-        // Mark all announcements
-        $announcementIds = Announcement::active()->pluck('id');
-        foreach ($announcementIds as $id) {
-            ReadStatus::firstOrCreate([
-                'user_id'   => $userId,
-                'item_id'   => $id,
-                'item_type' => 'announcement',
-            ], ['read_at' => now()]);
-        }
+        $news->delete();
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'All items marked as read',
+            'message' => 'News article deleted successfully',
         ]);
     }
 
-    private function formatReport(Report $report, ?string $userId): array
+    private function formatNews(News $news, bool $withContent = true): array
     {
-        $base = [
-            'id'          => $report->id,
-            'item_type'   => 'report',
-            'type'        => $report->type,
-            'title'       => $report->title,
-            'description' => $report->description,
-            'status'      => $report->status,
-            'location'    => $report->location,
-            'image_url'   => $report->image_url,
-            'is_read'     => $userId ? $report->isReadBy($userId) : false,
-            'reported_by' => $report->user ? [
-                'full_name'  => $report->user->full_name,
-                'staff_id'   => $report->user->staff_id,
-                'department' => $report->user->department,
-            ] : null,
-            'created_at'  => $report->created_at?->toIso8601String(),
-            'time_ago'    => $report->created_at?->diffForHumans(),
+        $data = [
+            'id'          => $news->id,
+            'title'       => $news->title,
+            'excerpt'     => $news->excerpt,
+            'category'    => $news->category,
+            'author_name' => $news->author_name,
+            'image_url'   => $news->image_url,
+            'is_featured' => $news->is_featured,
+            'date'        => $news->created_at?->format('d F Y'),
+            'created_at'  => $news->created_at?->toDateTimeString(),
         ];
 
-        if ($report->type === 'hazard') {
-            $base['severity']            = $report->severity;
-            $base['name_pja']            = $report->name_pja;
-            $base['reported_department'] = $report->reported_department;
-        } else {
-            $base['area']            = $report->area;
-            $base['result']          = $report->result;
-            $base['notes']           = $report->notes;
-            $base['checklist_items'] = $report->checklistItems->map(fn($item) => [
-                'id'         => $item->id,
-                'label'      => $item->label,
-                'is_checked' => $item->is_checked,
-                'sort_order' => $item->sort_order,
-            ])->values();
+        if ($withContent) {
+            $data['content'] = $news->content;
         }
 
-        return $base;
-    }
-
-    private function formatAnnouncement(Announcement $a, ?string $userId): array
-    {
-        return [
-            'id'        => $a->id,
-            'item_type' => 'announcement',
-            'title'     => $a->title,
-            'body'      => $a->body,
-            'subtitle'  => $a->creator?->full_name ?? 'Admin',
-            'is_read'   => $userId ? $a->isReadBy($userId) : false,
-            'created_by'=> $a->creator ? [
-                'full_name' => $a->creator->full_name,
-                'position'  => $a->creator->position,
-            ] : null,
-            'created_at' => $a->created_at?->toIso8601String(),
-            'time_ago'   => $a->created_at?->diffForHumans(),
-        ];
+        return $data;
     }
 }

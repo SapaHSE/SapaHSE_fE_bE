@@ -38,7 +38,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Profile ───────────────────────────────────────────────────────────────
     Route::get('/profile',                  [ProfileController::class, 'getProfile']);
     Route::post('/profile',                 [ProfileController::class, 'updateProfile']);
+    Route::delete('/profile',               [ProfileController::class, 'destroyAccount']);
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword']);
+    Route::post('/profile/license',         [ProfileController::class, 'storeLicense']);
+    Route::post('/profile/certification',   [ProfileController::class, 'storeCertification']);
+    Route::post('/profile/medical',         [ProfileController::class, 'storeMedical']);
     
     // ── Reports (Hazard) ──────────────────────────────────────────────────────
     // GET    /api/reports              → list all reports (filter, search, paginate)
@@ -52,8 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/{id}',          [ReportController::class, 'show']);
     Route::get('/reports/{id}/logs',     [ReportController::class, 'logs']);
     Route::delete('/reports/{id}',       [ReportController::class, 'destroy']);
-    Route::patch('/reports/{id}/status', [ReportController::class, 'updateStatus'])
-        ->middleware('role:admin,supervisor');
+    Route::post('/reports/{id}/status', [ReportController::class, 'updateStatus'])
+        ->middleware('role:admin,superadmin');
 
     // Inspections merged into /api/reports    // ==========================================
     // News & Articles

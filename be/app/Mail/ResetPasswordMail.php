@@ -20,7 +20,7 @@ class ResetPasswordMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Reset Password - Hazard App',
+            subject: 'Reset Password - SapaHSE',
         );
     }
 

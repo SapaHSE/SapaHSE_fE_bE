@@ -7,6 +7,8 @@ use App\Models\ChecklistItem;
 use App\Models\ReadStatus;
 use App\Models\Report;
 use App\Models\ReportLog;
+use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,6 +19,14 @@ class ReportController extends Controller
     // Search  : ?search=keyword
     // Sort    : ?sort=oldest
     // Paginate: ?page=1&per_page=10
+
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function index(Request $request)
     {
         $query  = Report::with(['user', 'checklistItems'])->latest();
@@ -178,6 +188,27 @@ class ReportController extends Controller
 
         $report->load(['user', 'checklistItems']);
 
+
+        // ── Notifikasi otomatis ke Admin & Superadmin ──────────────────────
+        try {
+            $admins = User::whereIn('role', ['admin', 'superadmin'])->get();
+            $creatorName = $report->user->full_name ?? 'User';
+            $typeLabel = ucfirst($report->type);
+
+            foreach ($admins as $admin) {
+                /** @var User $admin */
+                $this->notificationService->createNotification(
+                    $admin,
+                    'hazard', // categorized as hazard/system
+                    "Laporan $typeLabel Baru",
+                    "$creatorName telah mengirim laporan: {$report->title}",
+                    ['report_id' => $report->id, 'type' => $report->type]
+                );
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Gagal kirim notifikasi admin: ' . $e->getMessage());
+        }
+
         return response()->json([
             'status'  => 'success',
             'message' => $request->type === 'hazard'
@@ -232,21 +263,72 @@ class ReportController extends Controller
     public function updateStatus(Request $request, string $id)
     {
         $request->validate([
-            'status'  => 'required|in:open,in_progress,closed',
-            'message' => 'nullable|string'
+            'status'     => 'required|in:open,in_progress,closed',
+            'sub_status' => 'nullable|string|max:50',
+            'message'    => 'nullable|string',
+            'image'      => 'nullable|image|max:8192', // Max 8MB
         ]);
 
-        $report = Report::findOrFail($id);
-        $oldStatus = $report->status;
-        $report->update(['status' => $request->status]);
+        // Custom validation: executing or reviewing REQUIRES an image
+        if (in_array($request->sub_status, ['executing', 'reviewing']) && !$request->hasFile('image')) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Melampirkan foto wajib untuk status ' . ucfirst($request->sub_status),
+            ], 422);
+        }
 
-        if ($oldStatus !== $request->status) {
-            ReportLog::create([
-                'report_id' => $report->id,
-                'user_id'   => Auth::id(),
-                'status'    => $request->status,
-                'message'   => $request->message ?? "Status diubah dari $oldStatus menjadi $request->status",
-            ]);
+        $report = Report::findOrFail($id);
+        // Prevent backward status transitions
+        $statusLevels = [
+            'open'        => 0,
+            'in_progress' => 1,
+            'closed'      => 2
+        ];
+        
+        $currentLevel = $statusLevels[$report->status] ?? 0;
+        $newLevel     = $statusLevels[$request->status] ?? 0;
+        
+        if ($newLevel < $currentLevel) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Status tidak dapat dikembalikan ke tahap sebelumnya.',
+            ], 422);
+        }
+
+        $imageUrl = null;
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('report_logs', 'public');
+            $imageUrl = asset('storage/' . $path);
+        }
+
+        $report->update([
+            'status'     => $request->status,
+            'sub_status' => $request->sub_status,
+        ]);
+
+        ReportLog::create([
+            'report_id'  => $report->id,
+            'user_id'    => Auth::id(),
+            'status'     => $request->status,
+            'sub_status' => $request->sub_status,
+            'message'    => $request->message ?? "Status diubah menjadi {$request->status} - {$request->sub_status}",
+            'image_url'  => $imageUrl,
+        ]);
+
+        // ── Notifikasi otomatis ke Pembuat Laporan ──────────────────────────
+        try {
+            /** @var User $reporter */
+            $reporter = $report->user;
+            
+            $this->notificationService->createNotification(
+                $reporter,
+                'status_update',
+                "Pembaruan Status Laporan",
+                "Status laporan '{$report->title}' Anda telah diubah menjadi " . strtoupper($request->status),
+                ['report_id' => $report->id, 'status' => $request->status]
+            );
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Gagal kirim notifikasi user: ' . $e->getMessage());
         }
 
         return response()->json([
@@ -270,7 +352,9 @@ class ReportController extends Controller
             'data'   => $logs->map(fn($log) => [
                 'id'         => $log->id,
                 'status'     => $log->status,
+                'sub_status' => $log->sub_status,
                 'message'    => $log->message,
+                'image_url'  => $log->image_url,
                 'user_name'  => $log->user->full_name ?? 'System',
                 'created_at' => $log->created_at->format('Y-m-d H:i:s'),
                 'date_human' => $log->created_at->format('d M Y, H:i'),
@@ -286,12 +370,13 @@ class ReportController extends Controller
             'title'       => $report->title,
             'description' => $report->description,
             'status'      => $report->status,
+            'sub_status'  => $report->sub_status,
             'location'    => $report->location,
             'image_url'   => $report->image_url,
             'is_read'     => $userId ? $report->isReadBy($userId) : false,
             'reported_by' => $report->user ? [
                 'full_name'  => $report->user->full_name,
-                'staff_id'   => $report->user->staff_id,
+                'employee_id'   => $report->user->employee_id,
                 'department' => $report->user->department,
             ] : null,
             'created_at'  => $report->created_at,

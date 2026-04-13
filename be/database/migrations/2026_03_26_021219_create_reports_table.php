@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('title', 200);
             $table->text('description');
             $table->enum('status', ['open', 'in_progress', 'closed'])->default('open');
+            $table->string('sub_status', 50)->nullable();
             $table->string('location', 200);
             $table->text('image_url')->nullable();
 

@@ -28,7 +28,7 @@ class AnnouncementController extends Controller
                 'last_page'    => $announcements->lastPage(),
                 'has_more'     => $announcements->hasMorePages(),
             ],
-            'data' => collect($announcements->items())->map(fn($a) => $this->formatAnnouncement($a, $userId)),
+            'data' => collect($announcements->items())->map(fn($a) => $this->formatAnnouncement($a, $userId, true)),
         ]);
     }
 

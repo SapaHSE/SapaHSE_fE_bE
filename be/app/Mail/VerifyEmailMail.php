@@ -20,7 +20,7 @@ class VerifyEmailMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Verifikasi Email - Hazard App',
+            subject: 'Verifikasi Email - SapaHSE',
         );
     }
 

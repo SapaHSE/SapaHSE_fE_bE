@@ -97,11 +97,106 @@ class ProfileController extends Controller
         ]);
     }
 
+ // DELETE /api/profile
+    public function destroyAccount()
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        
+        // Hapus token session
+        $user->tokens()->delete();
+        
+        // Hapus data
+        $user->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Account deleted successfully.',
+        ]);
+    }
+
+    // POST /api/profile/license
+    public function storeLicense(Request $request)
+    {
+        $request->validate([
+            'name'           => 'required|string|max:150',
+            'license_number' => 'required|string|max:100',
+            'expired_at'     => 'nullable|date',
+            'status'         => 'required|string|max:50',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        $license = $user->licenses()->create($request->only(
+            'name', 'license_number', 'expired_at', 'status'
+        ));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'License added successfully.',
+            'data'    => $license,
+        ]);
+    }
+
+    // POST /api/profile/certification
+    public function storeCertification(Request $request)
+    {
+        $request->validate([
+            'name'   => 'required|string|max:150',
+            'issuer' => 'required|string|max:150',
+            'year'   => 'nullable|integer',
+            'status' => 'required|string|max:50',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        $cert = $user->certifications()->create($request->only(
+            'name', 'issuer', 'year', 'status'
+        ));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Certification added successfully.',
+            'data'    => $cert,
+        ]);
+    }
+
+    // POST /api/profile/medical
+    public function storeMedical(Request $request)
+    {
+        $request->validate([
+            'checkup_date'      => 'nullable|date',
+            'blood_type'        => 'nullable|string|max:10',
+            'height'            => 'nullable|numeric',
+            'weight'            => 'nullable|numeric',
+            'blood_pressure'    => 'nullable|string|max:20',
+            'allergies'         => 'nullable|string',
+            'result'            => 'nullable|string|max:200',
+            'next_checkup_date' => 'nullable|date',
+        ]);
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        $medical = $user->medicals()->create($request->only(
+            'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure', 'allergies', 'result', 'next_checkup_date'
+        ));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Medical record added successfully.',
+            'data'    => $medical,
+        ]);
+    }
+
+
     private function formatUser($user): array
     {
         return [
             'id'             => $user->id,
-            'staff_id'       => $user->staff_id,
+            'employee_id'    => $user->employee_id,
             'full_name'      => $user->full_name,
             'personal_email' => $user->personal_email,
             'work_email'     => $user->work_email,

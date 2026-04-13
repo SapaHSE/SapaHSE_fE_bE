@@ -16,31 +16,33 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'staff_id'       => 'required|string|max:50|unique:users',
+            'employee_id'    => 'required|string|min:10|max:16|unique:users,employee_id',
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email:rfc,dns|max:150|unique:users',
             'work_email'     => 'nullable|email:rfc,dns|max:150|unique:users',
             'password'       => 'required|string|min:8|confirmed',
-            'phone_number'   => 'nullable|string|max:20',
-            'position'       => 'nullable|string|max:100',
-            'department'     => 'nullable|string|max:100',
+            'phone_number'   => 'required|string|max:20',
+            'position'       => 'required|string|max:100',
+            'department'     => 'required|string|max:100',
         ], [
-            'staff_id.unique'            => 'Staff ID sudah terdaftar. Gunakan Staff ID lain.',
-            'personal_email.email'       => 'Format email tidak valid atau domain email tidak ditemukan. Pastikan email Anda benar.',
+            'employee_id.unique'         => 'NIK sudah terdaftar. Gunakan NIK lain.',
+            'employee_id.min'            => 'NIK minimal 10 digit.',
+            'employee_id.max'            => 'NIK maksimal 16 digit.',
+            'personal_email.email'       => 'Format email tidak valid. Pastikan email Anda benar.',
             'personal_email.unique'      => 'Email ini sudah terdaftar. Gunakan email lain atau login.',
             'work_email.email'           => 'Format email kerja tidak valid atau domain tidak ditemukan.',
             'work_email.unique'          => 'Email kerja ini sudah terdaftar.',
-            'password.min'               => 'Password minimal 6 karakter.',
+            'password.min'               => 'Password minimal 8 karakter.',
         ]);
 
         $verificationToken = Str::random(64);
 
         $user = User::create([
-            'staff_id'                  => $request->staff_id,
+            'employee_id'               => $request->employee_id,
             'full_name'                 => $request->full_name,
             'personal_email'            => $request->personal_email,
             'work_email'                => $request->work_email,
-            'password'             => Hash::make($request->password),
+            'password'                  => Hash::make($request->password),
             'phone_number'              => $request->phone_number,
             'position'                  => $request->position,
             'department'                => $request->department,
@@ -79,7 +81,7 @@ class AuthController extends Controller
         if ($user->email_verified_at) {
             return response()->view('auth.email-verify-result', [
                 'success' => true,
-                'message' => 'Email Anda sudah diverifikasi sebelumnya. Silakan login di aplikasi.',
+                'message' => 'Email Anda sudah diverifikasi sebelumnya. Silakan login di Aplikasi SapaHSE.',
             ]);
         }
 
@@ -90,7 +92,7 @@ class AuthController extends Controller
 
         return response()->view('auth.email-verify-result', [
             'success' => true,
-            'message' => 'Email berhasil diverifikasi! Silakan kembali ke aplikasi dan login.',
+            'message' => 'Email berhasil diverifikasi! Silakan kembali ke Aplikasi SapaHSE dan login.',
         ]);
     }
 
@@ -114,7 +116,7 @@ class AuthController extends Controller
         if ($user->email_verified_at) {
             return response()->json([
                 'status'  => 'success',
-                'message' => 'Email sudah terverifikasi. Silakan login.',
+                'message' => 'Email sudah terverifikasi. Silakan login Aplikasi SapaHSE.',
             ]);
         }
 
@@ -139,13 +141,13 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::where('staff_id', $request->login)
+        $user = User::where('employee_id', $request->login)
             ->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Kredensial tidak valid. Silakan periksa Staff ID dan password Anda.',
+                'message' => 'Kredensial tidak valid. Periksa kembali NIK / Email dan password Anda.',
             ], 401);
         }
 
@@ -201,7 +203,7 @@ class AuthController extends Controller
     {
         return [
             'id'             => $user->id,
-            'staff_id'       => $user->staff_id,
+            'employee_id'    => $user->employee_id,
             'full_name'      => $user->full_name,
             'personal_email' => $user->personal_email,
             'work_email'     => $user->work_email,
