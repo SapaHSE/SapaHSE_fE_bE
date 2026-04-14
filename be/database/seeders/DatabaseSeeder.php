@@ -285,6 +285,16 @@ class DatabaseSeeder extends Seeder
             'facility_contact'=> '0541-123456',
             'doctor_notes'     => 'Kondisi kesehatan baik. Disarankan tetap rutin berolahraga.',
             'next_checkup_date' => now()->addMonths(6)->toDateString(),
+            'checklist_items'   => json_encode([
+                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
+                ['label' => 'Tes Darah Lengkap (CBC)', 'done' => true],
+                ['label' => 'Tes Fungsi Hati (SGOT/SGPT)', 'done' => true],
+                ['label' => 'Tes Fungsi Ginjal (Creatinine/Urea)', 'done' => true],
+                ['label' => 'Tes Gula Darah (GDS/GDS Puasa)', 'done' => true],
+                ['label' => 'Tes Kolesterol Total', 'done' => false],
+                ['label' => 'Elektrokardiogram (EKG)', 'done' => true],
+                ['label' => 'Rontgen Dada (Thoraks)', 'done' => true],
+            ]),
         ]);
         UserMedical::create([
             'user_id'           => $faiz->id,
@@ -303,6 +313,16 @@ class DatabaseSeeder extends Seeder
             'facility_contact'=> '0541-123456',
             'doctor_notes'     => 'Kondisi kesehatan baik secara keseluruhan.',
             'next_checkup_date' => now()->subMonths(6)->toDateString(),
+            'checklist_items'   => json_encode([
+                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
+                ['label' => 'Tes Darah Lengkap (CBC)', 'done' => true],
+                ['label' => 'Tes Fungsi Hati (SGOT/SGPT)', 'done' => true],
+                ['label' => 'Tes Fungsi Ginjal (Creatinine/Urea)', 'done' => true],
+                ['label' => 'Tes Gula Darah (GDS)', 'done' => true],
+                ['label' => 'Tes Kolesterol Total', 'done' => true],
+                ['label' => 'Elektrokardiogram (EKG)', 'done' => true],
+                ['label' => 'Rontgen Dada (Thoraks)', 'done' => false],
+            ]),
         ]);
         UserMedical::create([
             'user_id'           => $lintang->id,
@@ -321,6 +341,16 @@ class DatabaseSeeder extends Seeder
             'facility_contact'=> '0541-654321',
             'doctor_notes'     => 'Disarankan menggunakan masker anti-debu saat bekerja di lingkungan workshop.',
             'next_checkup_date' => now()->addMonths(9)->toDateString(),
+            'checklist_items'   => json_encode([
+                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
+                ['label' => 'Tes Alergi Debu Logam', 'done' => true],
+                ['label' => 'Tes Fungsi Paru (Spirometri)', 'done' => true],
+                ['label' => 'Tes Darah Lengkap (CBC)', 'done' => true],
+                ['label' => 'Tes Gula Darah (GDS)', 'done' => true],
+                ['label' => 'Pemeriksaan Saluran Pernapasan', 'done' => true],
+                ['label' => 'Elektrokardiogram (EKG)', 'done' => false],
+                ['label' => 'Konsultasi Spesialis Paru', 'done' => true],
+            ]),
         ]);
         UserMedical::create([
             'user_id'           => $rudi->id,
@@ -339,6 +369,16 @@ class DatabaseSeeder extends Seeder
             'facility_contact'=> '0541-123456',
             'doctor_notes'     => 'Tekanan darah sedikit tinggi, pantau secara berkala.',
             'next_checkup_date' => now()->addMonths(7)->toDateString(),
+            'checklist_items'   => json_encode([
+                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
+                ['label' => 'Tes Darah Lengkap (CBC)', 'done' => true],
+                ['label' => 'Tes Fungsi Jantung (EKG)', 'done' => true],
+                ['label' => 'Tes Gula Darah (GDS Puasa)', 'done' => true],
+                ['label' => 'Tes Kolesterol & Trigliserida', 'done' => true],
+                ['label' => 'Pemeriksaan Tekanan Darah', 'done' => true],
+                ['label' => 'Tes Fungsi Ginjal', 'done' => false],
+                ['label' => 'Konsultasi Gizi', 'done' => true],
+            ]),
         ]);
         UserMedical::create([
             'user_id'           => $admin->id,
@@ -357,6 +397,16 @@ class DatabaseSeeder extends Seeder
             'facility_contact'=> '0541-111222',
             'doctor_notes'     => 'Kondisi kesehatan sangat baik. Jaga pola makan dan olahraga.',
             'next_checkup_date' => now()->addMonths(8)->toDateString(),
+            'checklist_items'   => json_encode([
+                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
+                ['label' => 'Tes Darah Lengkap (CBC)', 'done' => true],
+                ['label' => 'Tes Fungsi Hati (SGOT/SGPT)', 'done' => true],
+                ['label' => 'Tes Fungsi Ginjal (Creatinine/Urea)', 'done' => true],
+                ['label' => 'Tes Gula Darah (GDS Puasa)', 'done' => true],
+                ['label' => 'Profil Lipid Lengkap', 'done' => true],
+                ['label' => 'Elektrokardiogram (EKG)', 'done' => true],
+                ['label' => 'Rontgen Dada (Thoraks)', 'done' => true],
+            ]),
         ]);
         UserMedical::create([
             'user_id'           => $putri->id,
@@ -375,6 +425,16 @@ class DatabaseSeeder extends Seeder
             'facility_contact'=> '0541-123456',
             'doctor_notes'     => 'Hindari paparan bahan kimia langsung. Gunakan APD sesuai standar.',
             'next_checkup_date' => now()->addMonths(10)->toDateString(),
+            'checklist_items'   => json_encode([
+                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
+                ['label' => 'Tes Alergi Polutan Kimia', 'done' => true],
+                ['label' => 'Tes Darah Lengkap (CBC)', 'done' => true],
+                ['label' => 'Tes Fungsi Hati (SGOT/SGPT)', 'done' => true],
+                ['label' => 'Tes Gula Darah (GDS)', 'done' => true],
+                ['label' => 'Pemeriksaan Saluran Pernapasan', 'done' => true],
+                ['label' => 'Elektrokardiogram (EKG)', 'done' => true],
+                ['label' => 'Konsultasi Spesialis Kulit', 'done' => false],
+            ]),
         ]);
 
         // ══════════════════════════════════════════════════════════════════
