@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Profile data model - matches /api/profile response from Laravel
 class ProfileData {
   final String id;
@@ -127,13 +129,13 @@ class UserMedical {
   final String? title;
   final String? patientName;
   final String? checkupDate;
+  final String? nextCheckupDate;
   final String? bloodType;
   final String? height;
   final String? weight;
   final String? bloodPressure;
   final String? allergies;
   final String? result;
-  final String? nextCheckupDate;
   final String? doctorName;
   final String? doctorContact;
   final String? facilityName;
@@ -146,13 +148,13 @@ class UserMedical {
     this.title,
     this.patientName,
     this.checkupDate,
+    this.nextCheckupDate,
     this.bloodType,
     this.height,
     this.weight,
     this.bloodPressure,
     this.allergies,
     this.result,
-    this.nextCheckupDate,
     this.doctorName,
     this.doctorContact,
     this.facilityName,
@@ -167,23 +169,40 @@ class UserMedical {
       title: json['title']?.toString(),
       patientName: json['patient_name']?.toString(),
       checkupDate: json['checkup_date']?.toString(),
+      nextCheckupDate: json['next_checkup_date']?.toString(),
       bloodType: json['blood_type']?.toString(),
       height: json['height']?.toString(),
       weight: json['weight']?.toString(),
       bloodPressure: json['blood_pressure']?.toString(),
       allergies: json['allergies']?.toString(),
       result: json['result']?.toString(),
-      nextCheckupDate: json['next_checkup_date']?.toString(),
       doctorName: json['doctor_name']?.toString(),
       doctorContact: json['doctor_contact']?.toString(),
       facilityName: json['facility_name']?.toString(),
       facilityContact: json['facility_contact']?.toString(),
       doctorNotes: json['doctor_notes']?.toString(),
-      checklistItems: (json['checklist_items'] as List<dynamic>?)
-              ?.map((item) => MedicalChecklistItem.fromJson(item as Map<String, dynamic>))
-              .toList() ??
-          [],
+      checklistItems: _parseChecklistItems(json['checklist_items']),
     );
+  }
+
+  static List<MedicalChecklistItem> _parseChecklistItems(dynamic data) {
+    if (data == null) return [];
+    if (data is List) {
+      return data.map((i) => MedicalChecklistItem.fromJson(i as Map<String, dynamic>)).toList();
+    }
+    if (data is String && data.isNotEmpty) {
+      try {
+        final decoded = _jsonDecode(data);
+        if (decoded is List) {
+          return decoded.map((i) => MedicalChecklistItem.fromJson(i as Map<String, dynamic>)).toList();
+        }
+      } catch (_) {}
+    }
+    return [];
+  }
+
+  static dynamic _jsonDecode(String source) {
+    return source.isEmpty ? [] : jsonDecode(source);
   }
 }
 
@@ -191,12 +210,15 @@ class MedicalChecklistItem {
   final String label;
   final bool done;
 
-  MedicalChecklistItem({required this.label, required this.done});
+  MedicalChecklistItem({
+    required this.label,
+    required this.done,
+  });
 
   factory MedicalChecklistItem.fromJson(Map<String, dynamic> json) {
     return MedicalChecklistItem(
       label: json['label']?.toString() ?? '',
-      done: json['done'] == true,
+      done: json['done'] == true || json['done'] == 1,
     );
   }
 }
