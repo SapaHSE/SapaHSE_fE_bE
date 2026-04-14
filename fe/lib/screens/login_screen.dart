@@ -14,7 +14,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _nikCtrl = TextEditingController();
+  final _employeeIdCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
   bool _obscurePass = true;
@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
-    _nikCtrl.dispose();
+    _employeeIdCtrl.dispose();
     _passCtrl.dispose();
     _animCtrl.dispose();
     super.dispose();
@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
 
     final result = await AuthService.login(
-      login: _nikCtrl.text.trim(),
+      login: _employeeIdCtrl.text.trim(),
       password: _passCtrl.text,
       rememberMe: _rememberMe,
     );
@@ -151,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 32),
                         const Text(
-                          'Selamat Datang 👋',
+                          'Selamat Datang',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 26,
@@ -190,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen>
                           _buildLabel('NIK'),
                           const SizedBox(height: 6),
                           TextFormField(
-                            controller: _nikCtrl,
+                            controller: _employeeIdCtrl,
                             keyboardType: TextInputType.text,
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
@@ -219,8 +219,8 @@ class _LoginScreenState extends State<LoginScreen>
                               if (v == '123') {
                                 return null; // Bypass validation for "123"';
                               }
-                              if (v.length < 6) {
-                                return 'Password minimal 6 karakter';
+                              if (v.length < 8) {
+                                return 'Password minimal 8 karakter';
                               }
                               return null;
                             },
@@ -365,7 +365,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _showForgotPasswordDialog(BuildContext context) {
-    final nikCtrl = TextEditingController();
+    final staffIdCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -382,7 +382,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
             const SizedBox(height: 14),
             TextField(
-              controller: nikCtrl,
+              controller: staffIdCtrl,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: _inputDecoration(

@@ -4,7 +4,7 @@ import '../models/user_model.dart';
 
 class AuthService {
   // ── Login ─────────────────────────────────────────────────────────────────
-  /// [login] With NIK — matches Laravel's AuthController
+  /// [login] With NIK
   static Future<AuthResult> login({
     required String login,
     required String password,

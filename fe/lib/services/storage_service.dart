@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
-  static const _keyToken      = 'auth_token';
-  static const _keyUser       = 'auth_user';
-  static const _keyExpiry     = 'auth_expiry';     // ← baru
-  static const _keyRememberMe = 'auth_remember';   // ← baru
+  static const _keyToken = 'auth_token';
+  static const _keyUser = 'auth_user';
+  static const _keyExpiry = 'auth_expiry'; // ← baru
+  static const _keyRememberMe = 'auth_remember'; // ← baru
 
   static SharedPreferences? _prefs;
 
@@ -15,23 +15,25 @@ class StorageService {
   }
 
   // ── Token ─────────────────────────────────────────────────────────────────
-  static Future<void> saveToken(String token, {required bool rememberMe}) async {
+  static Future<void> saveToken(String token,
+      {required bool rememberMe}) async {
     final prefs = await _getPrefs();
 
-    final duration = rememberMe
+    final duration =
+        rememberMe 
         ? const Duration(days: 7) 
-        : const Duration(hours: 0);  
+        : const Duration(minutes: 1);
 
     final expiry = DateTime.now().add(duration).toIso8601String();
 
-    await prefs.setString(_keyToken,      token);
-    await prefs.setString(_keyExpiry,     expiry);
-    await prefs.setBool  (_keyRememberMe, rememberMe);
+    await prefs.setString(_keyToken, token);
+    await prefs.setString(_keyExpiry, expiry);
+    await prefs.setBool(_keyRememberMe, rememberMe);
   }
 
   static Future<String?> getToken() async {
     final prefs = await _getPrefs();
-    final token  = prefs.getString(_keyToken);
+    final token = prefs.getString(_keyToken);
     final expiry = prefs.getString(_keyExpiry);
 
     if (token == null || expiry == null) return null;
@@ -89,12 +91,12 @@ class StorageService {
 
   // ── Sisa waktu sesi (opsional, untuk ditampilkan di UI) ───────────────────
   static Future<Duration?> getRemainingSession() async {
-    final prefs  = await _getPrefs();
+    final prefs = await _getPrefs();
     final expiry = prefs.getString(_keyExpiry);
     if (expiry == null) return null;
 
-    final expiryDate  = DateTime.parse(expiry);
-    final remaining   = expiryDate.difference(DateTime.now());
+    final expiryDate = DateTime.parse(expiry);
+    final remaining = expiryDate.difference(DateTime.now());
     return remaining.isNegative ? null : remaining;
   }
 }
