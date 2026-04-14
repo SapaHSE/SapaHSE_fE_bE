@@ -1,5 +1,6 @@
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../models/report.dart';
 
@@ -26,7 +27,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   bool _isSubmitting = false;
 
   // ── Photo ──────────────────────────────────────────────────────────────────
-  File? _photoFile;
+  XFile? _photoFile;
   final _picker = ImagePicker();
 
   @override
@@ -46,7 +47,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         maxWidth: 1280,
       );
       if (picked != null) {
-        setState(() => _photoFile = File(picked.path));
+        setState(() => _photoFile = picked);
       }
     } catch (e) {
       if (mounted) {
@@ -135,7 +136,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.delete_outline,
@@ -306,7 +307,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _blue,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: _blue.withOpacity(0.5),
+                    disabledBackgroundColor: _blue.withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
@@ -339,7 +340,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _blue.withOpacity(0.3), width: 1.5),
+        border: Border.all(color: _blue.withValues(alpha: 0.3), width: 1.5),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -373,7 +374,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           child: SizedBox(
             width: double.infinity,
             height: 200,
-            child: Image.file(_photoFile!, fit: BoxFit.cover),
+            child: kIsWeb
+                ? Image.network(_photoFile!.path, fit: BoxFit.cover)
+                : Image.file(File(_photoFile!.path), fit: BoxFit.cover),
           ),
         ),
         // Change photo button
@@ -423,7 +426,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
               margin: const EdgeInsets.only(right: 8),
               padding: const EdgeInsets.symmetric(vertical: 11),
               decoration: BoxDecoration(
-                color: isSelected ? color : color.withOpacity(0.08),
+                color: isSelected ? color : color.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: color, width: isSelected ? 2 : 1),
               ),
@@ -452,7 +455,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2))
         ],

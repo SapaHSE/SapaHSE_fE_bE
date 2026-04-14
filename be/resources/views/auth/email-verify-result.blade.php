@@ -84,19 +84,19 @@
             <p class="message">{{ $message }}</p>
             <div class="hint">
                 Akun Anda sudah aktif.<br>
-                <strong>Buka Hazard App</strong> dan login sekarang.
+                <strong>Buka SapaHSE</strong> dan login sekarang.
             </div>
         @else
             <div class="icon error">❌</div>
             <h1 class="error">Verifikasi Gagal</h1>
             <p class="message">{{ $message }}</p>
             <div class="hint">
-                Minta link verifikasi baru melalui <strong>Hazard App</strong>
+                Minta link verifikasi baru melalui <strong>SapaHSE</strong>
                 di menu <em>Kirim Ulang Email Verifikasi</em>.
             </div>
         @endif
 
-        <p class="footer">Hazard App &copy; {{ date('Y') }}</p>
+        <p class="footer">SapaHSE &copy; {{ date('Y') }}</p>
     </div>
 </body>
 </html>

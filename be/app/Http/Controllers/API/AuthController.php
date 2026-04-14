@@ -20,7 +20,7 @@ class AuthController extends Controller
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email:rfc,dns|max:150|unique:users',
             'work_email'     => 'nullable|email:rfc,dns|max:150|unique:users',
-            'password'       => 'required|string|min:6',
+            'password'       => 'required|string|min:8',
             'phone_number'   => 'required|string|max:20',
             'position'       => 'required|string|max:100',
             'department'     => 'required|string|max:100',
@@ -33,7 +33,7 @@ class AuthController extends Controller
             'personal_email.unique'      => 'Email ini sudah terdaftar. Gunakan email lain atau login.',
             'work_email.email'           => 'Format email kerja tidak valid atau domain tidak ditemukan.',
             'work_email.unique'          => 'Email kerja ini sudah terdaftar.',
-            'password.min'               => 'Password minimal 6 karakter.',
+            'password.min'               => 'Password minimal 8 karakter.',
         ]);
 
         $verificationToken = Str::random(64);
@@ -52,9 +52,14 @@ class AuthController extends Controller
             'email_verification_token'  => $verificationToken,
         ]);
 
-        // Kirim link verifikasi ke personal email
+        // Kirim link verifikasi ke personal email (non-blocking)
         $verificationUrl = url("/api/email/verify/{$user->id}/{$verificationToken}");
-        Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
+        try {
+            Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
+        } catch (\Exception $e) {
+            // Log error but continue - registration still succeeds
+            \Illuminate\Support\Facades\Log::warning('Email sending failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'status'  => 'success',
@@ -99,10 +104,14 @@ class AuthController extends Controller
     public function resendVerification(Request $request)
     {
         $request->validate([
-            'personal_email' => 'required|email',
+            'personal_email' => 'required|string',
         ]);
 
-        $user = User::where('personal_email', $request->personal_email)->first();
+        $user = User::where('personal_email', $request->personal_email)
+            ->orWhere('work_email', $request->personal_email)
+            ->orWhere('employee_id', $request->personal_email)
+            ->first();
+
 
         if (! $user) {
             return response()->json([
@@ -126,8 +135,7 @@ class AuthController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Link verifikasi baru telah dikirim ke email Anda.',
-        ]);
+            'message' => 'Link verifikasi baru telah dikirim ke email Anda: ' . $user->personal_email,        ]);
     }
 
     // POST /api/login

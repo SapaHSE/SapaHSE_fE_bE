@@ -85,7 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/announcements/{id}',         [AnnouncementController::class, 'show']);
     Route::patch('/announcements/read-all',   [AnnouncementController::class, 'markAllAsRead']);
     Route::post('/announcements',             [AnnouncementController::class, 'store'])
-        ->middleware('role:admin,supervisor');
+        ->middleware('role:admin,superadmin');
     Route::delete('/announcements/{id}',      [AnnouncementController::class, 'destroy'])
         ->middleware('role:admin');
             // Inbox — gabungan reports + announcements

@@ -38,31 +38,34 @@ class AuthService {
     return AuthResult.success(UserModel.fromJson(userData));
   }
 
-  // ── Register ──────────────────────────────────────────────────────────────
-static Future<AuthResult> register({
-  required String nik,
-  String? employeeId,
-  required String fullName,
-  required String email,
-  required String password,
-  String? phoneNumber,
-  String? position,
-  String? department,
-}) async {
-  final response = await ApiService.post(
-    '/register',
-    {
-      'nik':         nik,
-      'employee_id': employeeId,
-      'full_name':   fullName,
-      'email':       email,
-      'password':    password,
-      if (phoneNumber != null) 'phone_number': phoneNumber,
-      if (position    != null) 'position':     position,
-      if (department  != null) 'department':   department,
-    },
-    auth: false,
-  );
+// ── Register ──────────────────────────────────────────────────────────────
+  static Future<AuthResult> register({
+    required String nik,
+    String? employeeId,
+    required String fullName,
+    required String personalEmail,
+    String? workEmail,
+    required String password,
+    String? phoneNumber,
+    String? position,
+    String? department,
+    String? company,
+  }) async {
+    final response = await ApiService.post(
+      '/register',
+      {
+        'employee_id':   nik,
+        'full_name':    fullName,
+        'personal_email': personalEmail,
+        if (workEmail != null && workEmail.isNotEmpty) 'work_email': workEmail,
+        'password':     password,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (position    != null) 'position':    position,
+        if (department  != null) 'department':  department,
+        if (company     != null) 'company':     company,
+      },
+      auth: false,
+    );
 
 
   if (!response.success) {

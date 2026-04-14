@@ -129,7 +129,7 @@
         <div class="body">
             <p class="greeting">Halo, {{ $userName }}!</p>
             <p class="message">
-                Kami menerima permintaan untuk mereset password akun Hazard App Anda.
+                Kami menerima permintaan untuk mereset password akun SapaHSE Anda.
                 Silakan klik tombol di bawah ini untuk mengatur ulang password Anda:
             </p>
 
@@ -161,7 +161,7 @@
 
         <div class="footer">
             <p>
-                Email ini dikirim otomatis oleh sistem <strong>Hazard App</strong>.<br>
+                Email ini dikirim otomatis oleh sistem <strong>SapaHSE</strong>.<br>
                 Mohon jangan membalas email ini.
             </p>
         </div>

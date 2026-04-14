@@ -299,24 +299,36 @@ class ProfileController extends Controller
     // POST /api/profile/medical
     public function storeMedical(Request $request)
     {
-        file_put_contents(storage_path('logs/debug_medical.log'), '['.date('Y-m-d H:i:s').'] storeMedical: ' . json_encode($request->all()) . PHP_EOL, FILE_APPEND);
-
         $request->validate([
+            'title'             => 'nullable|string|max:200',
+            'patient_name'      => 'nullable|string|max:150',
             'checkup_date'      => 'nullable|date',
             'blood_type'        => 'nullable|string|max:20',
-            'height'            => 'nullable', // Allow numeric or string
-            'weight'            => 'nullable', // Allow numeric or string
+            'height'            => 'nullable',
+            'weight'            => 'nullable',
             'blood_pressure'    => 'nullable|string|max:30',
             'allergies'         => 'nullable|string',
             'result'            => 'nullable|string|max:255',
             'next_checkup_date' => 'nullable|date',
+            'doctor_name'       => 'nullable|string|max:150',
+            'doctor_contact'    => 'nullable|string|max:50',
+            'facility_name'     => 'nullable|string|max:200',
+            'facility_contact'  => 'nullable|string|max:50',
+            'doctor_notes'      => 'nullable|string',
+            'checklist_items'   => 'nullable|array',
+            'checklist_items.*.label' => 'required|string',
+            'checklist_items.*.done'  => 'required|boolean',
         ]);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
         $medical = $user->medicals()->create($request->only(
-            'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure', 'allergies', 'result', 'next_checkup_date'
+            'title', 'patient_name',
+            'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure',
+            'allergies', 'result', 'next_checkup_date',
+            'doctor_name', 'doctor_contact', 'facility_name', 'facility_contact',
+            'doctor_notes', 'checklist_items'
         ));
 
         return response()->json([
@@ -330,6 +342,8 @@ class ProfileController extends Controller
     public function updateMedical(Request $request, $id)
     {
         $request->validate([
+            'title'             => 'nullable|string|max:200',
+            'patient_name'      => 'nullable|string|max:150',
             'checkup_date'      => 'nullable|date',
             'blood_type'        => 'nullable|string|max:20',
             'height'            => 'nullable',
@@ -338,6 +352,14 @@ class ProfileController extends Controller
             'allergies'         => 'nullable|string',
             'result'            => 'nullable|string|max:255',
             'next_checkup_date' => 'nullable|date',
+            'doctor_name'       => 'nullable|string|max:150',
+            'doctor_contact'    => 'nullable|string|max:50',
+            'facility_name'     => 'nullable|string|max:200',
+            'facility_contact'  => 'nullable|string|max:50',
+            'doctor_notes'      => 'nullable|string',
+            'checklist_items'   => 'nullable|array',
+            'checklist_items.*.label' => 'required|string',
+            'checklist_items.*.done'  => 'required|boolean',
         ]);
 
         /** @var \App\Models\User $user */
@@ -345,8 +367,12 @@ class ProfileController extends Controller
         $medical = $user->medicals()->findOrFail($id);
 
         $medical->update($request->only(
-            'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure', 'allergies', 'result', 'next_checkup_date'
-        ));
+            'title', 'patient_name',
+            'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure',
+            'allergies', 'result', 'next_checkup_date',
+            'doctor_name', 'doctor_contact', 'facility_name', 'facility_contact',
+            'doctor_notes', 'checklist_items'
+            ));
 
         return response()->json([
             'status'  => 'success',
@@ -400,8 +426,10 @@ class ProfileController extends Controller
                 'year'   => $c->year,
                 'status' => $c->status,
             ]) : [],
-            'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
+                'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
                 'id'                => $m->id,
+                'title'             => $m->title,
+                'patient_name'      => $m->patient_name,
                 'checkup_date'      => $m->checkup_date?->format('Y-m-d'),
                 'blood_type'        => $m->blood_type,
                 'height'            => $m->height,
@@ -410,6 +438,12 @@ class ProfileController extends Controller
                 'allergies'         => $m->allergies,
                 'result'            => $m->result,
                 'next_checkup_date' => $m->next_checkup_date?->format('Y-m-d'),
+                'doctor_name'       => $m->doctor_name,
+                'doctor_contact'    => $m->doctor_contact,
+                'facility_name'     => $m->facility_name,
+                'facility_contact'  => $m->facility_contact,
+                'doctor_notes'      => $m->doctor_notes,
+                'checklist_items'   => $m->checklist_items ?? [],
             ]) : [],
         ];
     }

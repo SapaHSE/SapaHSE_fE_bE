@@ -12,19 +12,27 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen>
     with SingleTickerProviderStateMixin {
-  final _formKey       = GlobalKey<FormState>();
-  final _namaCtrl      = TextEditingController();
-  final _nikCtrl       = TextEditingController();
-  final _emailCtrl     = TextEditingController();
-  final _teleponCtrl   = TextEditingController();
-  final _passCtrl      = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _namaCtrl = TextEditingController();
+  final _nikCtrl = TextEditingController();
+  final _emailPribadiCtrl = TextEditingController();
+  final _emailKantorCtrl = TextEditingController();
+  final _teleponCtrl = TextEditingController();
+  final _jabatanCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
   final _confirmPassCtrl = TextEditingController();
 
-  String _selectedDivisi = 'Departemen HSE';
-  bool _obscurePass    = true;
+  String _selectedDepartemen = 'Departemen HSE';
+  String _selectedPerusahaan = 'PT Bukit Baiduri Energi';
+  bool _obscurePass = true;
   bool _obscureConfirm = true;
-  bool _isLoading      = false;
-  bool _agreeTerms     = false;
+  bool _isLoading = false;
+  bool _agreeTerms = false;
+
+  final List<String> _perusahaanList = [
+    'PT Bukit Baiduri Energi',
+    'PT. Khotai Makmur Insan Abadi',
+  ];
 
   // Step: 0 = data diri, 1 = akun
   int _currentStep = 0;
@@ -41,15 +49,15 @@ class _RegisterScreenState extends State<RegisterScreen>
   ];
 
   late AnimationController _animCtrl;
-  late Animation<double>   _fadeAnim;
+  late Animation<double> _fadeAnim;
 
   @override
   void initState() {
     super.initState();
     _animCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 500));
-    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
-        CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+    _fadeAnim =
+        Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
     _animCtrl.forward();
   }
 
@@ -57,24 +65,43 @@ class _RegisterScreenState extends State<RegisterScreen>
   void dispose() {
     _namaCtrl.dispose();
     _nikCtrl.dispose();
-    _emailCtrl.dispose();
+    _emailPribadiCtrl.dispose();
+    _emailKantorCtrl.dispose();
     _teleponCtrl.dispose();
+    _jabatanCtrl.dispose();
     _passCtrl.dispose();
     _confirmPassCtrl.dispose();
     _animCtrl.dispose();
     super.dispose();
   }
 
-  // ── Step 1 → Step 2 ───────────────────────────────────────────────────────
   void _nextStep() {
+    // Validate step 0 fields
     if (_currentStep == 0) {
       if (_namaCtrl.text.isEmpty || _nikCtrl.text.isEmpty ||
-          _emailCtrl.text.isEmpty || _teleponCtrl.text.isEmpty) {
-        _showSnackbar('Harap lengkapi semua field', Colors.orange);
+          _emailPribadiCtrl.text.isEmpty ||
+          _teleponCtrl.text.isEmpty || _jabatanCtrl.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Harap lengkapi semua field'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
         return;
       }
       if (_nikCtrl.text.length < 10) {
-        _showSnackbar('NIK minimal 10 digit', Colors.orange);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('NIK minimal 10 digit'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
         return;
       }
       setState(() => _currentStep = 1);
@@ -89,65 +116,104 @@ class _RegisterScreenState extends State<RegisterScreen>
     _animCtrl.forward();
   }
 
-  // ── Register → API ────────────────────────────────────────────────────────
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-
     if (!_agreeTerms) {
-      _showSnackbar('Harap setujui syarat & ketentuan', Colors.orange);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Harap setujui syarat & ketentuan'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.register(
-      nik: _nikCtrl.text.trim(),
-      employeeId: null,
-      fullName: _namaCtrl.text.trim(),
-      email: _emailCtrl.text.trim(),
-      password: _passCtrl.text,
-      phoneNumber:
-          _teleponCtrl.text.trim().isEmpty ? null : _teleponCtrl.text.trim(),
-      department: _selectedDivisi,
-    );
-
-    if (!mounted) return;
-
-    if (result.success) {
-        setState(() => _isLoading = false); // ← ADD THIS
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
+    try {
+      final response = await AuthService.register(
+        nik: _nikCtrl.text,
+        employeeId: _nikCtrl.text,
+        fullName: _namaCtrl.text,
+        personalEmail: _emailPribadiCtrl.text,
+        workEmail: _emailKantorCtrl.text,
+        password: _passCtrl.text,
+        phoneNumber: _teleponCtrl.text,
+        position: _jabatanCtrl.text,
+        department: _selectedDepartemen,
+        company: _selectedPerusahaan,
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Expanded(child: Text('Registrasi berhasil! Silakan login.')),
-            ],
-          ),
-          backgroundColor: const Color(0xFF1A56C4),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } else {
+
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      _showSnackbar(result.errorMessage ?? 'Registrasi gagal.', Colors.red);
+
+      if (response.success) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 70, height: 70,
+                  decoration: const BoxDecoration(
+                      color: Color(0xFFEFF4FF), shape: BoxShape.circle),
+                  child: const Icon(Icons.check_circle,
+                      color: Color(0xFF1A56C4), size: 42),
+                ),
+                const SizedBox(height: 16),
+                const Text('Registrasi Berhasil!',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                const SizedBox(height: 8),
+                const Text(
+                  'Akun Anda telah berhasil dibuat. Silakan cek email pribadi Anda untuk verifikasi.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.5),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A56C4),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Login Sekarang'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        _showErrorSnackBar(response.errorMessage ?? 'Registrasi gagal.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showErrorSnackBar('Terjadi kesalahan: ${e.toString()}');
     }
   }
 
-  void _showSnackbar(String message, Color color) {
+  void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: color,
+        backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
@@ -155,7 +221,6 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,6 +234,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               child: Column(
                 children: [
+                  // Back + Title
                   Row(
                     children: [
                       GestureDetector(
@@ -178,7 +244,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                         child: Container(
                           width: 36, height: 36,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(Icons.arrow_back,
@@ -202,11 +268,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                   // ── Step indicator ─────────────────────────────────────
                   Row(
                     children: [
-                      _StepDot(
-                          number: 1,
-                          isActive: _currentStep == 0,
-                          isDone: _currentStep > 0,
-                          label: 'Data Diri'),
+                      _StepDot(number: 1, isActive: _currentStep == 0, isDone: _currentStep > 0, label: 'Data Diri'),
                       Expanded(
                         child: Container(
                           height: 2,
@@ -215,11 +277,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                               : Colors.white38,
                         ),
                       ),
-                      _StepDot(
-                          number: 2,
-                          isActive: _currentStep == 1,
-                          isDone: false,
-                          label: 'Akun'),
+                      _StepDot(number: 2, isActive: _currentStep == 1, isDone: false, label: 'Akun'),
                     ],
                   ),
                 ],
@@ -243,7 +301,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                  color: Colors.black.withOpacity(0.06),
+                                  color: Colors.black.withValues(alpha: 0.06),
                                   blurRadius: 12,
                                   offset: const Offset(0, 4)),
                             ],
@@ -255,7 +313,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                         const SizedBox(height: 20),
 
-                        // ── Tombol aksi ───────────────────────────────────
+                        // ── Action button ─────────────────────────────────
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -267,7 +325,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                               backgroundColor: const Color(0xFF1A56C4),
                               foregroundColor: Colors.white,
                               disabledBackgroundColor:
-                                  const Color(0xFF1A56C4).withOpacity(0.6),
+                                  const Color(0xFF1A56C4).withValues(alpha: 0.6),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                               elevation: 0,
@@ -302,7 +360,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
                         const SizedBox(height: 16),
 
-                        // ── Link login ────────────────────────────────────
+                        // ── Login link ────────────────────────────────────
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -345,6 +403,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 20),
 
+        // Nama Lengkap
         _label('Nama Lengkap *'),
         const SizedBox(height: 6),
         TextFormField(
@@ -356,6 +415,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
         const SizedBox(height: 16),
 
+        // NIK
         _label('NIK *'),
         const SizedBox(height: 6),
         TextFormField(
@@ -365,22 +425,23 @@ class _RegisterScreenState extends State<RegisterScreen>
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(16),
           ],
-          decoration: _deco(hint: 'Masukkan NIK (16 digit)', icon: Icons.badge_outlined),
+          decoration: _deco(hint: 'Masukkan NIK (10-16 digit)', icon: Icons.badge_outlined),
           validator: (v) {
             if (v!.isEmpty) return 'Wajib diisi';
-            if (v.length != 16) return 'NIK harus 16 digit';
+            if (v.length < 10) return 'NIK minimal 10 digit';
             return null;
           },
         ),
 
         const SizedBox(height: 16),
 
-        _label('Email *'),
+        // Email Pribadi
+        _label('Email Pribadi *'),
         const SizedBox(height: 6),
         TextFormField(
-          controller: _emailCtrl,
+          controller: _emailPribadiCtrl,
           keyboardType: TextInputType.emailAddress,
-          decoration: _deco(hint: 'Masukkan email', icon: Icons.email_outlined),
+          decoration: _deco(hint: 'Masukkan email pribadi', icon: Icons.email_outlined),
           validator: (v) {
             if (v!.isEmpty) return 'Wajib diisi';
             if (!v.contains('@') || !v.contains('.')) return 'Format email tidak valid';
@@ -390,27 +451,25 @@ class _RegisterScreenState extends State<RegisterScreen>
 
         const SizedBox(height: 16),
 
-        _label('Nomor Telepon *'),
+        // Email Kantor
+        _label('Email Kantor (Opsional)'),
         const SizedBox(height: 6),
         TextFormField(
-          controller: _teleponCtrl,
-          keyboardType: TextInputType.phone,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(13),
-          ],
-          decoration: _deco(hint: 'Contoh: 081234567890', icon: Icons.phone_outlined),
+          controller: _emailKantorCtrl,
+          keyboardType: TextInputType.emailAddress,
+          decoration: _deco(hint: 'Masukkan email kantor', icon: Icons.alternate_email),
           validator: (v) {
-            if (v!.isEmpty) return 'Wajib diisi';
-            if (v.length < 12) return 'Nomor telepon tidak valid';
-            if (v.length > 13) return 'Nomor telepon tidak valid';
+            if (v != null && v.isNotEmpty) {
+              if (!v.contains('@') || !v.contains('.')) return 'Format email tidak valid';
+            }
             return null;
           },
         ),
 
         const SizedBox(height: 16),
 
-        _label('Jabatan / Divisi *'),
+        // Perusahaan
+        _label('Perusahaan (PT) *'),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -421,7 +480,67 @@ class _RegisterScreenState extends State<RegisterScreen>
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: _selectedDivisi,
+              value: _selectedPerusahaan,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+              items: _perusahaanList
+                  .map((p) => DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 14))))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _selectedPerusahaan = v);
+              },
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Nomor Telepon
+        _label('Nomor Telepon *'),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _teleponCtrl,
+          keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(13)
+            ],
+          decoration: _deco(hint: 'Contoh: 081234567890', icon: Icons.phone_outlined),
+          validator: (v) {
+            if (v!.isEmpty) return 'Wajib diisi';
+            if (v.length < 10) return 'Nomor telepon tidak valid';
+            return null;
+          },
+        ),
+
+        const SizedBox(height: 16),
+
+        // Jabatan
+        _label('Jabatan *'),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _jabatanCtrl,
+          textCapitalization: TextCapitalization.words,
+          decoration: _deco(hint: 'Masukkan jabatan', icon: Icons.work_outline),
+          validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+        ),
+
+        const SizedBox(height: 16),
+
+        // Departemen
+        _label('Departemen *'),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F8F8),
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedDepartemen,
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
               style: const TextStyle(fontSize: 14, color: Colors.black87),
@@ -429,7 +548,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                   .map((d) => DropdownMenuItem(value: d, child: Text(d)))
                   .toList(),
               onChanged: (v) {
-                if (v != null) setState(() => _selectedDivisi = v);
+                if (v != null) setState(() => _selectedDepartemen = v);
               },
             ),
           ),
@@ -450,45 +569,45 @@ class _RegisterScreenState extends State<RegisterScreen>
             style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 20),
 
-        // Ringkasan data diri
+        // Summary data diri
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: const Color(0xFFEFF4FF),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-                color: const Color(0xFF1A56C4).withOpacity(0.2)),
+            border: Border.all(color: const Color(0xFF1A56C4).withValues(alpha: 0.2)),
           ),
           child: Column(
             children: [
-              _SummaryRow(label: 'Nama',   value: _namaCtrl.text),
-              _SummaryRow(label: 'NIK',    value: _nikCtrl.text),
-              _SummaryRow(label: 'Email',  value: _emailCtrl.text),
-              _SummaryRow(label: 'Divisi', value: _selectedDivisi),
+              _SummaryRow(label: 'Nama', value: _namaCtrl.text),
+              _SummaryRow(label: 'NIK', value: _nikCtrl.text),
+              _SummaryRow(label: 'Email', value: _emailPribadiCtrl.text),
+              if (_emailKantorCtrl.text.isNotEmpty)
+                _SummaryRow(label: 'Kantor', value: _emailKantorCtrl.text),
+              _SummaryRow(label: 'PT', value: _selectedPerusahaan),
+              _SummaryRow(label: 'Jabatan', value: _jabatanCtrl.text),
+              _SummaryRow(label: 'Dept', value: _selectedDepartemen),
             ],
           ),
         ),
 
         const SizedBox(height: 20),
 
+        // Password
         _label('Password *'),
         const SizedBox(height: 6),
         TextFormField(
           controller: _passCtrl,
           obscureText: _obscurePass,
-          onChanged: (_) => setState(() {}),
           decoration: _deco(
             hint: 'Minimal 8 karakter',
             icon: Icons.lock_outline,
             suffix: IconButton(
               icon: Icon(
-                _obscurePass
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
+                _obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                 color: Colors.grey, size: 20,
               ),
-              onPressed: () =>
-                  setState(() => _obscurePass = !_obscurePass),
+              onPressed: () => setState(() => _obscurePass = !_obscurePass),
             ),
           ),
           validator: (v) {
@@ -500,11 +619,12 @@ class _RegisterScreenState extends State<RegisterScreen>
 
         const SizedBox(height: 8),
 
-        if (_passCtrl.text.isNotEmpty)
-          _buildPasswordStrength(_passCtrl.text),
+        // Password strength indicator
+        if (_passCtrl.text.isNotEmpty) _buildPasswordStrength(_passCtrl.text),
 
         const SizedBox(height: 16),
 
+        // Konfirmasi password
         _label('Konfirmasi Password *'),
         const SizedBox(height: 6),
         TextFormField(
@@ -516,9 +636,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             icon: Icons.lock_outline,
             suffix: IconButton(
               icon: Icon(
-                _obscureConfirm
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
+                _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                 color: Colors.grey, size: 20,
               ),
               onPressed: () =>
@@ -546,14 +664,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                 width: 20, height: 20,
                 margin: const EdgeInsets.only(top: 1),
                 decoration: BoxDecoration(
-                  color: _agreeTerms
-                      ? const Color(0xFF1A56C4)
-                      : Colors.transparent,
+                  color: _agreeTerms ? const Color(0xFF1A56C4) : Colors.transparent,
                   borderRadius: BorderRadius.circular(5),
                   border: Border.all(
-                    color: _agreeTerms
-                        ? const Color(0xFF1A56C4)
-                        : Colors.grey.shade400,
+                    color: _agreeTerms ? const Color(0xFF1A56C4) : Colors.grey.shade400,
                     width: 2,
                   ),
                 ),
@@ -566,8 +680,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 child: Text.rich(
                   TextSpan(
                     text: 'Saya menyetujui ',
-                    style:
-                        TextStyle(fontSize: 13, color: Colors.black54),
+                    style: TextStyle(fontSize: 13, color: Colors.black54),
                     children: [
                       TextSpan(
                         text: 'Syarat & Ketentuan',
@@ -602,52 +715,34 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (pass.contains(RegExp(r'[!@#$%^&*]'))) strength++;
 
     final labels = ['Sangat Lemah', 'Lemah', 'Cukup', 'Kuat'];
-    final colors = [
-      Colors.red,
-      Colors.orange,
-      Colors.yellow.shade700,
-      const Color(0xFF1A56C4)
-    ];
+    final colors = [Colors.red, Colors.orange, Colors.yellow.shade700, const Color(0xFF1A56C4)];
     final idx = (strength - 1).clamp(0, 3);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          children: List.generate(
-            4,
-            (i) => Expanded(
-              child: Container(
-                height: 4,
-                margin: const EdgeInsets.only(right: 4),
-                decoration: BoxDecoration(
-                  color: i < strength
-                      ? colors[idx]
-                      : Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+          children: List.generate(4, (i) => Expanded(
+            child: Container(
+              height: 4,
+              margin: const EdgeInsets.only(right: 4),
+              decoration: BoxDecoration(
+                color: i < strength ? colors[idx] : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
+          )),
         ),
         const SizedBox(height: 4),
-        Text(
-          strength > 0 ? 'Kekuatan: ${labels[idx]}' : '',
-          style: TextStyle(
-              fontSize: 11,
-              color: strength > 0 ? colors[idx] : Colors.grey),
-        ),
+        Text(strength > 0 ? 'Kekuatan: ${labels[idx]}' : '',
+            style: TextStyle(fontSize: 11, color: strength > 0 ? colors[idx] : Colors.grey)),
       ],
     );
   }
 
-  Widget _label(String text) => Text(
-        text,
-        style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87),
-      );
+  Widget _label(String text) => Text(text,
+      style: const TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87));
 
   InputDecoration _deco({
     required String hint,
@@ -659,8 +754,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
       prefixIcon: Icon(icon, color: Colors.grey, size: 20),
       suffixIcon: suffix,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       filled: true,
       fillColor: const Color(0xFFF8F8F8),
       border: OutlineInputBorder(
@@ -671,8 +765,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           borderSide: BorderSide(color: Colors.grey.shade300)),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: Color(0xFF1A56C4), width: 1.5)),
+          borderSide: const BorderSide(color: Color(0xFF1A56C4), width: 1.5)),
       errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Colors.red)),
@@ -710,8 +803,7 @@ class _StepDot extends StatelessWidget {
           ),
           child: Center(
             child: isDone
-                ? const Icon(Icons.check,
-                    color: Color(0xFF1A56C4), size: 18)
+                ? const Icon(Icons.check, color: Color(0xFF1A56C4), size: 18)
                 : Text(
                     '$number',
                     style: TextStyle(
@@ -725,15 +817,12 @@ class _StepDot extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: isActive || isDone ? Colors.white : Colors.white54,
-            fontSize: 11,
-            fontWeight:
-                isActive ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
+        Text(label,
+            style: TextStyle(
+              color: isActive || isDone ? Colors.white : Colors.white54,
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+            )),
       ],
     );
   }
@@ -753,8 +842,7 @@ class _SummaryRow extends StatelessWidget {
             SizedBox(
               width: 56,
               child: Text(label,
-                  style:
-                      const TextStyle(fontSize: 12, color: Colors.grey)),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
             ),
             const Text(': ',
                 style: TextStyle(fontSize: 12, color: Colors.grey)),
