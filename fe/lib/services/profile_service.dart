@@ -110,8 +110,8 @@ class ProfileService {
     if (newPassword != confirmPassword) {
       return SimpleResult.error('Password baru dan konfirmasi tidak cocok.');
     }
-    if (newPassword.length < 6) {
-      return SimpleResult.error('Password baru minimal 6 karakter.');
+    if (newPassword.length < 8) {
+      return SimpleResult.error('Password baru minimal 8 karakter.');
     }
 
     final response = await ApiService.post('/profile/change-password', {

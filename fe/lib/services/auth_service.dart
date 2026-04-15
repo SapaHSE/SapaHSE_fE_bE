@@ -29,8 +29,7 @@ class AuthService {
 
     try {
       await Future.wait([
-        StorageService.saveToken(token,
-            rememberMe: rememberMe),
+        StorageService.saveToken(token, rememberMe: rememberMe),
         StorageService.saveUser(userData),
       ]).timeout(const Duration(seconds: 3));
     } catch (_) {}
@@ -54,26 +53,25 @@ class AuthService {
     final response = await ApiService.post(
       '/register',
       {
-        'employee_id':   nik,
-        'full_name':    fullName,
+        'employee_id': nik,
+        'full_name': fullName,
         'personal_email': personalEmail,
         if (workEmail != null && workEmail.isNotEmpty) 'work_email': workEmail,
-        'password':     password,
+        'password': password,
         if (phoneNumber != null) 'phone_number': phoneNumber,
-        if (position    != null) 'position':    position,
-        if (department  != null) 'department':  department,
-        if (company     != null) 'company':     company,
+        if (position != null) 'position': position,
+        if (department != null) 'department': department,
+        if (company != null) 'company': company,
       },
       auth: false,
     );
 
-
-  if (!response.success) {
-    return AuthResult.error(response.errorMessage ?? 'Registrasi gagal.');
-  }
+    if (!response.success) {
+      return AuthResult.error(response.errorMessage ?? 'Registrasi gagal.');
+    }
 
     return AuthResult.success(UserModel.fromJson(response.data['data']));
-}
+  }
 
   // ── Logout ────────────────────────────────────────────────────────────────
   static Future<void> logout() async {
@@ -81,6 +79,32 @@ class AuthService {
       await ApiService.post('/logout', {}).timeout(const Duration(seconds: 5));
     } catch (_) {}
     await StorageService.clear();
+  }
+
+  // ── Forgot Password ───────────────────────────────────────────────────────
+  /// [identifier] bisa berupa personal_email, work_email, atau employee_id
+  static Future<({bool success, String message})> forgotPassword({
+    required String identifier,
+  }) async {
+    final response = await ApiService.post(
+      '/forgot-password',
+      {'personal_email': identifier},
+      auth: false,
+    );
+
+    if (!response.success) {
+      return (
+        success: false,
+        message:
+            response.errorMessage ?? 'Gagal mengirim email reset password.',
+      );
+    }
+
+    return (
+      success: true,
+      message: (response.data['message'] as String?) ??
+          'Jika data terdaftar, tautan reset password akan dikirimkan ke email Anda.',
+    );
   }
 
   // ── Get current user from local storage ───────────────────────────────────
