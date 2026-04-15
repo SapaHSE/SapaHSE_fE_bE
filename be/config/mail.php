@@ -14,7 +14,7 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'smtp'),
+    'default' => env('MAIL_MAILER', 'failover'),
 
     /*
     |--------------------------------------------------------------------------
@@ -37,14 +37,20 @@ return [
 
     'mailers' => [
 
+        'brevo' => [
+            'transport' => 'brevo',
+            'api_key' => env('BREVO_API_KEY'),
+        ],
+
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            'scheme' => 'smtp',
             'url' => env('MAIL_URL'),
-            'host' => env('MAIL_HOST', '127.0.0.1'),
-            'port' => env('MAIL_PORT', 2525),
-            'username' => env('MAIL_USERNAME'),
-            'password' => env('MAIL_PASSWORD'),
+            'host' => 'smtp-relay.brevo.com',
+            'port' => 587,
+            'encryption' => 'tls',
+            'username' => 'a82772001@smtp-brevo.com',
+            'password' => 'xbVj6sqSTkUG5nEN',
             'timeout' => 10,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
@@ -82,8 +88,8 @@ return [
         'failover' => [
             'transport' => 'failover',
             'mailers' => [
+                'brevo',
                 'smtp',
-                'log',
             ],
             'retry_after' => 60,
         ],
