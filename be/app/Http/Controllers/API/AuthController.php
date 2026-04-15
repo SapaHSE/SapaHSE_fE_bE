@@ -55,7 +55,7 @@ class AuthController extends Controller
         // Kirim link verifikasi ke personal email (non-blocking)
         $verificationUrl = url("/api/email/verify/{$user->id}/{$verificationToken}");
         try {
-            Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
+            Mail::to($user->personal_email)->queue(new VerifyEmailMail($verificationUrl, $user->full_name));
         } catch (\Exception $e) {
             // Log error but continue - registration still succeeds
             \Illuminate\Support\Facades\Log::warning('Email sending failed: ' . $e->getMessage());
@@ -131,7 +131,15 @@ class AuthController extends Controller
         $user->update(['email_verification_token' => $verificationToken]);
 
         $verificationUrl = url("/api/email/verify/{$user->id}/{$verificationToken}");
-        Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
+        try {
+            Mail::to($user->personal_email)->queue(new VerifyEmailMail($verificationUrl, $user->full_name));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Email resend failed: ' . $e->getMessage());
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal mengirim email verifikasi. Silakan coba lagi.',
+            ], 500);
+        }
 
         return response()->json([
             'status'  => 'success',
