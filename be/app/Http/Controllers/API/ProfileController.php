@@ -72,20 +72,23 @@ class ProfileController extends Controller
 
         $request->validate([
             'current_password' => 'required',
-            'new_password'     => 'required|min:6|confirmed',
+            'new_password'     => 'required|min:8|confirmed',
+        ], [
+            'new_password.min'       => 'Password baru minimal 8 karakter.',
+            'new_password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 
         if (! Hash::check($request->current_password, $user->password_hash)) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Current password is incorrect',
+                'message' => 'Password saat ini tidak sesuai.',
             ], 422);
         }
 
         if (Hash::check($request->new_password, $user->password_hash)) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'New password must be different from current password',
+                'message' => 'Password baru tidak boleh sama dengan password saat ini.',
             ], 422);
         }
 
@@ -95,7 +98,7 @@ class ProfileController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Password changed successfully. Please log in again.',
+            'message' => 'Password berhasil diubah. Silakan login kembali.',
         ]);
     }
 

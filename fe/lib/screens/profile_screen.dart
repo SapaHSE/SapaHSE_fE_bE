@@ -1781,43 +1781,115 @@ class _SettingsTabState extends State<_SettingsTab> {
     final oldCtrl = TextEditingController();
     final newCtrl = TextEditingController();
     final confirmCtrl = TextEditingController();
+    bool isLoading = false;
+    String? errorMsg;
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Ubah Password',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _PasswordField(controller: oldCtrl, hint: 'Password lama'),
-            const SizedBox(height: 10),
-            _PasswordField(controller: newCtrl, hint: 'Password baru'),
-            const SizedBox(height: 10),
-            _PasswordField(
-                controller: confirmCtrl, hint: 'Konfirmasi password baru'),
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (_, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Ubah Password',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (errorMsg != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          color: Colors.red.shade600, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(errorMsg!,
+                            style: TextStyle(
+                                color: Colors.red.shade700, fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              _PasswordField(controller: oldCtrl, hint: 'Password lama'),
+              const SizedBox(height: 10),
+              _PasswordField(controller: newCtrl, hint: 'Password baru'),
+              const SizedBox(height: 10),
+              _PasswordField(
+                  controller: confirmCtrl, hint: 'Konfirmasi password baru'),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed:
+                    isLoading ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      setDialogState(() {
+                        isLoading = true;
+                        errorMsg = null;
+                      });
+
+                      final result = await ProfileService.changePassword(
+                        currentPassword: oldCtrl.text,
+                        newPassword: newCtrl.text,
+                        confirmPassword: confirmCtrl.text,
+                      );
+
+                      if (!dialogContext.mounted) return;
+
+                      if (result.success) {
+                        Navigator.pop(dialogContext);
+                        await StorageService.clear();
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(result.message),
+                            backgroundColor: Colors.green.shade600,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                            margin: const EdgeInsets.all(16),
+                          ),
+                        );
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
+                          (_) => false,
+                        );
+                      } else {
+                        setDialogState(() {
+                          isLoading = false;
+                          errorMsg = result.message;
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0),
+                  foregroundColor: Colors.white),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Simpan'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Password berhasil diubah'),
-                    backgroundColor: Color(0xFF1565C0)),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1565C0),
-                foregroundColor: Colors.white),
-            child: const Text('Simpan'),
-          ),
-        ],
       ),
     );
   }

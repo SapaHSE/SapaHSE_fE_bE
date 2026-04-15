@@ -192,6 +192,9 @@ class _LoginScreenState extends State<LoginScreen>
                           TextFormField(
                             controller: _employeeIdCtrl,
                             keyboardType: TextInputType.text,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(16),
+                              ],
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
                                 return 'Field ini wajib diisi';
@@ -365,58 +368,119 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _showForgotPasswordDialog(BuildContext context) {
-    final staffIdCtrl = TextEditingController();
+    final identifierCtrl = TextEditingController();
+    bool isLoading = false;
+    String? errorMsg;
+
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Lupa Password',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Masukkan NIK Anda. Tim admin akan menghubungi Anda untuk reset password.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: staffIdCtrl,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: _inputDecoration(
-                  hint: 'Masukkan NIK', prefixIcon: Icons.badge_outlined),
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (_, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Lupa Password',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Masukkan email pribadi atau NIK Anda. Tautan reset password akan dikirimkan ke email Anda.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 14),
+              if (errorMsg != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error_outline,
+                          color: Colors.red.shade600, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(errorMsg!,
+                            style: TextStyle(
+                                color: Colors.red.shade700, fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              TextField(
+                controller: identifierCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: _inputDecoration(
+                    hint: 'Email atau NIK',
+                    prefixIcon: Icons.person_outline),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed:
+                    isLoading ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final identifier = identifierCtrl.text.trim();
+                      if (identifier.isEmpty) return;
+
+                      setDialogState(() {
+                        isLoading = true;
+                        errorMsg = null;
+                      });
+
+                      final result = await AuthService.forgotPassword(
+                          identifier: identifier);
+
+                      if (!dialogContext.mounted) return;
+
+                      if (result.success) {
+                        Navigator.pop(dialogContext);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(result.message),
+                            backgroundColor: const Color(0xFF1A56C4),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                            margin: const EdgeInsets.all(16),
+                          ),
+                        );
+                      } else {
+                        setDialogState(() {
+                          isLoading = false;
+                          errorMsg = result.message;
+                        });
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A56C4),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Kirim'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Permintaan reset password terkirim'),
-                  backgroundColor: const Color(0xFF1A56C4),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  margin: const EdgeInsets.all(16),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A56C4),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Kirim'),
-          ),
-        ],
       ),
     );
   }
