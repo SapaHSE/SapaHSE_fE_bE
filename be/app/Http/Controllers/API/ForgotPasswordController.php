@@ -45,7 +45,17 @@ class ForgotPasswordController extends Controller
         );
 
         $resetUrl = url("/reset-password/{$token}?email=") . urlencode($user->personal_email);
-        Mail::to($user->personal_email)->send(new ResetPasswordMail($resetUrl, $user->full_name));
+
+        try {
+            Mail::to($user->personal_email)->send(new ResetPasswordMail($resetUrl, $user->full_name));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Reset password email failed: ' . $e->getMessage());
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal mengirim email reset password. Silakan coba lagi.',
+            ], 500);
+        }
 
         return response()->json([
             'status'  => 'success',
