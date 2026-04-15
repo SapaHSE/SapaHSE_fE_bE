@@ -1908,9 +1908,8 @@ class _SettingsTabState extends State<_SettingsTab> {
               child: const Text('Batal')),
           ElevatedButton(
             onPressed: () async {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('is_logged_in', false);
-
+              Navigator.pop(context);
+              await StorageService.clear();
               if (!context.mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
