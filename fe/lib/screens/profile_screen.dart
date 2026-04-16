@@ -186,27 +186,11 @@ class _ProfileTabState extends State<_ProfileTab> {
         _isLoading = false;
       });
     } else {
-      // Check if unauthorized - redirect to login
-      if (result.errorMessage?.toLowerCase().contains('Silahkan login kembali') ==
-              true ||
-          result.errorMessage?.toLowerCase().contains('tidak sah') == true) {
-        _handleLogout();
-        return;
-      }
+      if (result.statusCode == 401) return; 
       setState(() {
         _error = result.errorMessage ?? 'Gagal memuat profil';
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _handleLogout() async {
-    await StorageService.clear();
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
     }
   }
 
@@ -629,6 +613,7 @@ class _BiodataContentState extends State<_BiodataContent> {
 
     if (mounted) {
       setState(() => _isSaving = false);
+      if (result.statusCode == 401) return; // global handler sudah handle
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.success

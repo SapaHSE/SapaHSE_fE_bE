@@ -22,7 +22,7 @@ class StorageService {
     final duration =
         rememberMe 
         ? const Duration(days: 7) 
-        : const Duration(minutes: 15);
+        : const Duration(seconds: 15);
 
     final expiry = DateTime.now().add(duration).toIso8601String();
 
