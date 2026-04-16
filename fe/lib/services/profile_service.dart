@@ -74,13 +74,15 @@ class ProfileService {
 
   // ── Update profile (email, phone, position, department) ──────────────────
   static Future<ProfileResult> updateProfile({
-    String? email,
+    String? personalEmail,
+    String? workEmail,
     String? phoneNumber,
     String? position,
     String? department,
   }) async {
     final body = <String, dynamic>{};
-    if (email != null) body['email'] = email;
+    if (personalEmail != null) body['personal_email'] = personalEmail;
+    if (workEmail != null) body['work_email'] = workEmail;
     if (phoneNumber != null) body['phone_number'] = phoneNumber;
     if (position != null) body['position'] = position;
     if (department != null) body['department'] = department;

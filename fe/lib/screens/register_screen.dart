@@ -509,7 +509,9 @@ class _RegisterScreenState extends State<RegisterScreen>
           decoration: _deco(hint: 'Contoh: 081234567890', icon: Icons.phone_outlined),
           validator: (v) {
             if (v!.isEmpty) return 'Wajib diisi';
-            if (v.length < 10) return 'Nomor telepon tidak valid';
+            if (int.tryParse(v) == null) return 'Hanya boleh angka';
+            if (v.length < 12 || v.length > 13) return 'Nomor telepon tidak valid';
+            if (!v.startsWith('08')) return 'Nomor harus diawali 08';
             return null;
           },
         ),

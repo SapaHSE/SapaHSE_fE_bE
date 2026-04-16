@@ -22,10 +22,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   late TabController _topTabController;
   XFile? _avatarFile;
 
-
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
-  
+
   @override
   void initState() {
     super.initState();
@@ -132,7 +131,8 @@ class _ProfileTabState extends State<_ProfileTab> {
   String _position = '';
   String _department = '';
   String _company = '';
-  String _email = '';
+  String _personalEmail = '';
+  String _workEmail = '';
   String _phone = '';
   String _employeeId = '';
   String? _profilePhoto;
@@ -178,7 +178,8 @@ class _ProfileTabState extends State<_ProfileTab> {
         _position = result.data!.position ?? '';
         _department = result.data!.department ?? '';
         _company = result.data!.company ?? '';
-        _email = result.data!.email;
+        _personalEmail = result.data!.personalEmail;
+        _workEmail = result.data!.workEmail ?? '';
         _phone = result.data!.phoneNumber ?? '';
         _employeeId = result.data!.employeeId;
         _profilePhoto = result.data!.profilePhoto;
@@ -186,7 +187,7 @@ class _ProfileTabState extends State<_ProfileTab> {
       });
     } else {
       // Check if unauthorized - redirect to login
-      if (result.errorMessage?.toLowerCase().contains('unauthenticated') ==
+      if (result.errorMessage?.toLowerCase().contains('Silahkan login kembali') ==
               true ||
           result.errorMessage?.toLowerCase().contains('tidak sah') == true) {
         _handleLogout();
@@ -505,7 +506,8 @@ class _ProfileTabState extends State<_ProfileTab> {
       case 0:
         return _BiodataContent(
           employeeId: _employeeId,
-          email: _email,
+          personalEmail: _personalEmail,
+          workEmail: _workEmail,
           phone: _phone,
         );
       case 1:
@@ -569,12 +571,14 @@ class _DialogField extends StatelessWidget {
 // ── BIODATA ───────────────────────────────────────────────────────────────────
 class _BiodataContent extends StatefulWidget {
   final String employeeId;
-  final String email;
+  final String personalEmail;
+  final String workEmail;
   final String phone;
 
   const _BiodataContent({
     required this.employeeId,
-    required this.email,
+    required this.personalEmail,
+    required this.workEmail,
     required this.phone,
   });
 
@@ -584,20 +588,23 @@ class _BiodataContent extends StatefulWidget {
 
 class _BiodataContentState extends State<_BiodataContent> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _emailCtrl;
+  late final TextEditingController _personalEmailCtrl;
+  late final TextEditingController _workEmailCtrl;
   late final TextEditingController _phoneCtrl;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _emailCtrl = TextEditingController(text: widget.email);
+    _personalEmailCtrl = TextEditingController(text: widget.personalEmail);
+    _workEmailCtrl = TextEditingController(text: widget.workEmail);
     _phoneCtrl = TextEditingController(text: widget.phone);
   }
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _personalEmailCtrl.dispose();
+    _workEmailCtrl.dispose();
     _phoneCtrl.dispose();
     super.dispose();
   }
@@ -605,10 +612,21 @@ class _BiodataContentState extends State<_BiodataContent> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
+
+    final personalEmail = _personalEmailCtrl.text.trim();
+    final workEmail = _workEmailCtrl.text.trim();
+    final phoneNumber = _phoneCtrl.text.trim();
+    print(
+        'Saving profile - PersonalEmail: $personalEmail, WorkEmail: $workEmail, Phone: $phoneNumber');
+
     final result = await ProfileService.updateProfile(
-      email: _emailCtrl.text.trim(),
-      phoneNumber: _phoneCtrl.text.trim(),
+      personalEmail: personalEmail,
+      workEmail: workEmail.isEmpty ? null : workEmail,
+      phoneNumber: phoneNumber,
     );
+    print(
+        'Save result - Success: ${result.success}, Error: ${result.errorMessage}');
+
     if (mounted) {
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -636,61 +654,85 @@ class _BiodataContentState extends State<_BiodataContent> {
               label: 'NIK',
               child: _ReadOnlyField(value: widget.employeeId),
             ),
-          const SizedBox(height: 14),
-          _FormField(
-            label: 'Email Address',
-            child: _EditableField(
-                controller: _emailCtrl,
-                hint: 'Masukkan email',
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Email wajib diisi';
-                  }
-                  if (!value.contains('@') || !value.contains('.')) {
-                    return 'Format email tidak valid';
-                  }
-                  return null;
-                }),
-          ),
-          const SizedBox(height: 14),
-          _FormField(
-            label: 'Telephone Number',
-            child: _EditableField(
+            const SizedBox(height: 14),
+            _FormField(
+              label: 'Email Pribadi *',
+              child: _EditableField(
+                  controller: _personalEmailCtrl,
+                  hint: 'Masukkan email pribadi',
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Email wajib diisi';
+                    }
+                    if (!value.contains('@') || !value.contains('.')) {
+                      return 'Format email tidak valid';
+                    }
+                    return null;
+                  }),
+            ),
+            const SizedBox(height: 14),
+            _FormField(
+              label: 'Email Kantor',
+              child: _EditableField(
+                  controller: _workEmailCtrl,
+                  hint: 'Masukkan email kantor (opsional)',
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return null;
+                    }
+                    if (!value.contains('@') || !value.contains('.')) {
+                      return 'Format email tidak valid';
+                    }
+                    return null;
+                  }),
+            ),
+            const SizedBox(height: 14),
+            _FormField(
+              label: 'Nomor Telepon',
+              child: _EditableField(
                 controller: _phoneCtrl,
                 hint: 'Masukkan nomor telepon',
                 keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(13)
-                ]),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: _isSaving ? null : _save,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1565C0),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
+                inputFormatters: [LengthLimitingTextInputFormatter(13)],
+                validator: (v) {
+                  if (v!.isEmpty) return 'Wajib diisi';
+                  if (int.tryParse(v) == null) return 'Hanya boleh angka';
+                  if (v.length < 12 || v.length > 13) return 'Nomor telepon tidak valid';
+                  if (!v.startsWith('08')) return 'Nomor harus diawali 08';
+                  if (v.startsWith('+62')) return null;
+                  return null;
+                },
               ),
-              child: _isSaving
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : const Text('Simpan Perubahan',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1565C0),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('Simpan Perubahan',
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }
@@ -2223,7 +2265,7 @@ class _EditableField extends StatelessWidget {
       required this.keyboardType,
       this.inputFormatters,
       this.validator});
-  
+
   @override
   Widget build(BuildContext context) => TextFormField(
         controller: controller,
