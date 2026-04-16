@@ -32,17 +32,19 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $request->validate([
-            'full_name'     => 'nullable|string|max:100',
-            'work_email'    => 'nullable|email|max:150|unique:users,work_email,' . $user->id,
-            'phone_number'  => 'nullable|string|max:20',
+            'full_name'      => 'nullable|string|max:100',
+            'personal_email'  => 'required|email|max:150|unique:users,personal_email,' . $user->id,
+            'work_email'     => 'nullable|email|max:150|unique:users,work_email,' . $user->id,
+            'phone_number'   => 'nullable|string|max:20',
             'position'      => 'nullable|string|max:100',
-            'department'    => 'nullable|string|max:100',
-            'company'       => 'nullable|string|max:100',
-            'profile_photo' => 'nullable|image|max:2048',
+            'department'   => 'nullable|string|max:100',
+            'company'      => 'nullable|string|max:100',
+            'profile_photo'  => 'nullable|image|max:2048',
         ]);
 
-        if ($request->filled('full_name'))    $user->full_name    = $request->full_name;
-        if ($request->filled('work_email'))   $user->work_email   = $request->work_email;
+        if ($request->filled('full_name'))      $user->full_name      = $request->full_name;
+        if ($request->filled('personal_email')) $user->personal_email = $request->personal_email;
+        if ($request->filled('work_email'))    $user->work_email    = $request->work_email;
         if ($request->filled('phone_number')) $user->phone_number = $request->phone_number;
         if ($request->filled('position'))     $user->position     = $request->position;
         if ($request->filled('department'))   $user->department   = $request->department;
