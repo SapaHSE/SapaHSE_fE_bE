@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:shared_preferences/shared_preferences.dart';
 import '../models/profile_model.dart';
 import '../services/profile_service.dart';
 import '../services/storage_service.dart';
@@ -582,6 +583,7 @@ class _BiodataContent extends StatefulWidget {
 }
 
 class _BiodataContentState extends State<_BiodataContent> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _emailCtrl;
   late final TextEditingController _phoneCtrl;
   bool _isSaving = false;
@@ -601,6 +603,7 @@ class _BiodataContentState extends State<_BiodataContent> {
   }
 
   Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
     final result = await ProfileService.updateProfile(
       email: _emailCtrl.text.trim(),
@@ -622,22 +625,33 @@ class _BiodataContentState extends State<_BiodataContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _FormField(
-            label: 'NIK',
-            child: _ReadOnlyField(value: widget.employeeId),
-          ),
+    return Form(
+      key: _formKey,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FormField(
+              label: 'NIK',
+              child: _ReadOnlyField(value: widget.employeeId),
+            ),
           const SizedBox(height: 14),
           _FormField(
             label: 'Email Address',
             child: _EditableField(
                 controller: _emailCtrl,
                 hint: 'Masukkan email',
-                keyboardType: TextInputType.emailAddress),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Email wajib diisi';
+                  }
+                  if (!value.contains('@') || !value.contains('.')) {
+                    return 'Format email tidak valid';
+                  }
+                  return null;
+                }),
           ),
           const SizedBox(height: 14),
           _FormField(
@@ -645,7 +659,10 @@ class _BiodataContentState extends State<_BiodataContent> {
             child: _EditableField(
                 controller: _phoneCtrl,
                 hint: 'Masukkan nomor telepon',
-                keyboardType: TextInputType.phone),
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(13)
+                ]),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -673,6 +690,7 @@ class _BiodataContentState extends State<_BiodataContent> {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -2197,15 +2215,21 @@ class _EditableField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final TextInputType keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final String? Function(String?)? validator;
   const _EditableField(
       {required this.controller,
       required this.hint,
-      required this.keyboardType});
-
+      required this.keyboardType,
+      this.inputFormatters,
+      this.validator});
+  
   @override
-  Widget build(BuildContext context) => TextField(
+  Widget build(BuildContext context) => TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        validator: validator,
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,
