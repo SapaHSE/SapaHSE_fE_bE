@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 import '../models/report.dart';
 import '../data/news_data.dart';
+import '../services/news_service.dart';
 import 'report_detail_screen.dart';
 import 'news_detail_screen.dart';
 import '../data/report_store.dart';
@@ -32,8 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
 
   // ── Featured News Carousel ────────────────────────────────────────────────
-  List<NewsArticle> get _carouselItems =>
-      dummyNews.where((a) => a.isFeatured).toList();
+  List<NewsArticle> _carouselItems = [];
 
   // ── Only Hazard & Inspection ──────────────────────────────────────────────
   final List<String> _reportTypes = [
@@ -45,8 +45,19 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _startCarousel();
+    _loadCarouselNews();
     _scrollController.addListener(_onScroll);
+  }
+
+  Future<void> _loadCarouselNews() async {
+    final result = await NewsService.getNews();
+    if (!mounted) return;
+    if (result.success) {
+      setState(() {
+        _carouselItems = result.articles.where((a) => a.isFeatured).toList();
+      });
+      _startCarousel();
+    }
   }
 
   void _onScroll() {
@@ -70,9 +81,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startCarousel() {
+    _carouselTimer?.cancel();
+    if (_carouselItems.isEmpty) return;
     _carouselTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!mounted) return;
       if (!_pageController.hasClients) return;
+      if (_carouselItems.isEmpty) return;
       final next = (_currentPage + 1) % _carouselItems.length;
       _pageController.animateToPage(
         next,
@@ -235,6 +249,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ── CAROUSEL ──────────────────────────────────────────────────────────────
   Widget _buildCarousel() {
+    if (_carouselItems.isEmpty) {
+      return Container(
+        height: 240,
+        color: const Color(0xFF263238),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white38),
+        ),
+      );
+    }
     return SizedBox(
       height: 240,
       child: Stack(

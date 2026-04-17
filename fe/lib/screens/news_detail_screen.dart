@@ -1,10 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../data/news_data.dart';
+import '../services/news_service.dart';
 
-class NewsDetailScreen extends StatelessWidget {
+class NewsDetailScreen extends StatefulWidget {
   final NewsArticle article;
   const NewsDetailScreen({super.key, required this.article});
+
+  @override
+  State<NewsDetailScreen> createState() => _NewsDetailScreenState();
+}
+
+class _NewsDetailScreenState extends State<NewsDetailScreen> {
+  NewsArticle? _fullArticle;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDetail();
+  }
+
+  Future<void> _loadDetail() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    final result = await NewsService.getNewsDetail(widget.article.id);
+    if (!mounted) return;
+
+    if (result.success && result.article != null) {
+      setState(() {
+        _fullArticle = result.article;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _error = result.errorMessage;
+        _isLoading = false;
+      });
+    }
+  }
 
   Color _categoryColor(String cat) {
     switch (cat) {
@@ -23,6 +61,7 @@ class NewsDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final article = _fullArticle ?? widget.article;
     final catColor = _categoryColor(article.category);
 
     return Scaffold(
@@ -38,7 +77,7 @@ class NewsDetailScreen extends StatelessWidget {
               onTap: () => Navigator.pop(context),
               child: Container(
                 margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.black45,
                   shape: BoxShape.circle,
                 ),
@@ -52,7 +91,7 @@ class NewsDetailScreen extends StatelessWidget {
                 ),
                 child: Container(
                   margin: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: Colors.black45,
                     shape: BoxShape.circle,
                   ),
@@ -167,11 +206,35 @@ class NewsDetailScreen extends StatelessWidget {
                   ),
 
                   // Body content
-                  Text(
-                    article.content,
-                    style: const TextStyle(
-                        fontSize: 15, height: 1.7, color: Color(0xFF2D2D2D)),
-                  ),
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (_error != null)
+                    Column(
+                      children: [
+                        Text(
+                          article.excerpt,
+                          style: const TextStyle(
+                              fontSize: 15, height: 1.7, color: Color(0xFF2D2D2D)),
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton.icon(
+                          onPressed: _loadDetail,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Muat ulang konten'),
+                        ),
+                      ],
+                    )
+                  else
+                    Text(
+                      article.content.isNotEmpty ? article.content : article.excerpt,
+                      style: const TextStyle(
+                          fontSize: 15, height: 1.7, color: Color(0xFF2D2D2D)),
+                    ),
 
                   const SizedBox(height: 32),
 

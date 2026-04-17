@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 import '../data/news_data.dart';
+import '../services/news_service.dart';
 import 'news_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
 
@@ -23,11 +24,15 @@ class _NewsScreenState extends State<NewsScreen> {
 
   String _selectedCategory = 'All News';
 
+  List<NewsArticle> _articles = [];
+  bool _isLoading = true;
+  String? _error;
+
   List<NewsArticle> get _featuredArticles =>
-      dummyNews.where((a) => a.isFeatured).toList();
+      _articles.where((a) => a.isFeatured).toList();
 
   List<NewsArticle> get _allFilteredArticles {
-    return dummyNews.where((a) {
+    return _articles.where((a) {
       final matchCat = _selectedCategory == 'All News' || a.category == _selectedCategory;
       final matchSearch = _searchQuery.isEmpty || a.title.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchCat && matchSearch;
@@ -37,14 +42,41 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   void initState() {
     super.initState();
-    _startCarousel();
+    _loadNews();
+  }
+
+  Future<void> _loadNews() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    final result = await NewsService.getNews();
+    if (!mounted) return;
+
+    if (result.success) {
+      setState(() {
+        _articles = result.articles;
+        _isLoading = false;
+      });
+      _startCarousel();
+    } else {
+      setState(() {
+        _error = result.errorMessage;
+        _isLoading = false;
+      });
+    }
   }
 
   void _startCarousel() {
+    _carouselTimer?.cancel();
+    if (_featuredArticles.isEmpty) return;
     _carouselTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted) return;
       if (!_carouselController.hasClients) return;
-      final next = (_currentCarouselPage + 1) % _featuredArticles.length;
+      final featured = _featuredArticles;
+      if (featured.isEmpty) return;
+      final next = (_currentCarouselPage + 1) % featured.length;
       _carouselController.animateToPage(
         next,
         duration: const Duration(milliseconds: 450),
@@ -102,34 +134,66 @@ class _NewsScreenState extends State<NewsScreen> {
             ),
 
             Expanded(
-              child: CustomScrollView(
-                slivers: [
-                  // ── Carousel ──────────────────────────────────────────
-                  SliverToBoxAdapter(child: _buildCarousel()),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? _buildErrorState()
+                      : RefreshIndicator(
+                          onRefresh: _loadNews,
+                          child: CustomScrollView(
+                            slivers: [
+                              // ── Carousel ─────────────────────────────────
+                              SliverToBoxAdapter(child: _buildCarousel()),
 
-                  // ── Category Filter Dropdown ───────────────────────────
-                  SliverToBoxAdapter(child: _buildCategoryFilter()),
+                              // ── Category Filter ───────────────────────────
+                              SliverToBoxAdapter(child: _buildCategoryFilter()),
 
-                  // ── Article List ──────────────────────────────────────
-                  _allFilteredArticles.isEmpty
-                      ? const SliverFillRemaining(
-                          child: Center(
-                            child: Text(
-                              'Tidak ada berita di kategori ini',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                        )
-                      : SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (_, i) => _buildArticleCard(_allFilteredArticles[i]),
-                            childCount: _allFilteredArticles.length,
+                              // ── Article List ──────────────────────────────
+                              _allFilteredArticles.isEmpty
+                                  ? const SliverFillRemaining(
+                                      child: Center(
+                                        child: Text(
+                                          'Tidak ada berita di kategori ini',
+                                          style: TextStyle(color: Colors.grey),
+                                        ),
+                                      ),
+                                    )
+                                  : SliverList(
+                                      delegate: SliverChildBuilderDelegate(
+                                        (_, i) => _buildArticleCard(_allFilteredArticles[i]),
+                                        childCount: _allFilteredArticles.length,
+                                      ),
+                                    ),
+
+                              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                            ],
                           ),
                         ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                  const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                ],
-              ),
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_outlined, size: 56, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              _error ?? 'Gagal memuat berita',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _loadNews,
+              child: const Text('Coba Lagi'),
             ),
           ],
         ),
@@ -140,6 +204,12 @@ class _NewsScreenState extends State<NewsScreen> {
   // ── CAROUSEL ────────────────────────────────────────────────────────────────
   Widget _buildCarousel() {
     final featured = _featuredArticles;
+    if (featured.isEmpty) {
+      return const SizedBox(
+        height: 240,
+        child: Center(child: Text('Tidak ada berita unggulan', style: TextStyle(color: Colors.grey))),
+      );
+    }
     return SizedBox(
       height: 240,
       child: Stack(
@@ -304,7 +374,7 @@ class _NewsScreenState extends State<NewsScreen> {
                     ),
                   ),
 
-                  // Category badge — pojok kiri atas
+                  // Category badge
                   Positioned(
                     top: 10,
                     left: 10,
@@ -325,7 +395,7 @@ class _NewsScreenState extends State<NewsScreen> {
                     ),
                   ),
 
-                  // Gradient bawah + judul + author + tanggal
+                  // Gradient + title + author + date
                   Positioned(
                     left: 0, right: 0, bottom: 0,
                     child: Container(
@@ -343,7 +413,6 @@ class _NewsScreenState extends State<NewsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Judul
                           Text(
                             article.title,
                             maxLines: 2,
@@ -356,7 +425,6 @@ class _NewsScreenState extends State<NewsScreen> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          // Author + date row
                           Row(children: [
                             const Icon(Icons.person_outline,
                                 size: 12, color: Colors.white70),
