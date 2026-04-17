@@ -49,7 +49,7 @@
         }
         .message {
             font-size: 14px;
-            color: #64748b;
+            color: #000000ff;
             line-height: 1.7;
             margin-bottom: 32px;
         }

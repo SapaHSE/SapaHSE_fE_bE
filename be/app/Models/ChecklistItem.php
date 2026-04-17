@@ -3,29 +3,27 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ChecklistItem extends Model
 {
-    use HasUuids;
-
-    protected $keyType = 'string';
-    public $incrementing = false;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
-        'report_id',
+        'inspection_report_id',
         'label',
         'is_checked',
         'sort_order',
     ];
 
-    protected function casts(): array
-    {
-        return ['is_checked' => 'boolean'];
-    }
+    protected $casts = [
+        'is_checked' => 'boolean',
+        'sort_order' => 'integer',
+    ];
 
-    public function report()
+    public function inspectionReport()
     {
-        return $this->belongsTo(Report::class, 'report_id');
+        return $this->belongsTo(InspectionReport::class, 'inspection_report_id');
     }
 }

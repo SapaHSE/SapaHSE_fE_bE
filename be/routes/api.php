@@ -3,7 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\ProfileController;
-use App\Http\Controllers\API\ReportController;
+use App\Http\Controllers\API\HazardReportController;
+use App\Http\Controllers\API\InspectionReportController;
 use App\Http\Controllers\API\NewsController;
 use App\Http\Controllers\API\AnnouncementController;
 use App\Http\Controllers\API\QrAssetController;
@@ -51,19 +52,26 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/medical/{id}',      [ProfileController::class, 'updateMedical']);
     Route::delete('/profile/medical/{id}',   [ProfileController::class, 'destroyMedical']);
 
-    // ── Reports (Hazard) ──────────────────────────────────────────────────────
-    // GET    /api/reports              → list all reports (filter, search, paginate)
-    // POST   /api/reports              → create new report
-    // GET    /api/reports/{id}         → detail + auto mark as read
-    // DELETE /api/reports/{id}         → delete own report (admin can delete all)
-    // PATCH  /api/reports/{id}/status  → update status (admin/supervisor only)
-    Route::get('/reports',               [ReportController::class, 'index']);
-    Route::get('/reports/statistics',    [ReportController::class, 'statistics']);
-    Route::post('/reports',              [ReportController::class, 'store']);
-    Route::get('/reports/{id}',          [ReportController::class, 'show']);
-    Route::get('/reports/{id}/logs',     [ReportController::class, 'logs']);
-    Route::delete('/reports/{id}',       [ReportController::class, 'destroy']);
-    Route::post('/reports/{id}/status', [ReportController::class, 'updateStatus'])
+    // ── Hazard Reports ────────────────────────────────────────────────────────
+    Route::get('/hazard-reports',              [HazardReportController::class, 'index']);
+    Route::post('/hazard-reports',             [HazardReportController::class, 'store']);
+    Route::get('/hazard-reports/{id}',         [HazardReportController::class, 'show']);
+    Route::get('/hazard-reports/{id}/logs',    [HazardReportController::class, 'logs']);
+    Route::delete('/hazard-reports/{id}',      [HazardReportController::class, 'destroy']);
+    Route::post('/hazard-reports/{id}/status', [HazardReportController::class, 'updateStatus'])
+        ->middleware('role:admin,superadmin');
+
+    // ── Inspection Reports ────────────────────────────────────────────────────
+    Route::get('/inspection-reports',              [InspectionReportController::class, 'index']);
+    Route::post('/inspection-reports',             [InspectionReportController::class, 'store']);
+    Route::get('/inspection-reports/{id}',         [InspectionReportController::class, 'show']);
+    Route::get('/inspection-reports/{id}/logs',    [InspectionReportController::class, 'logs']);
+    Route::delete('/inspection-reports/{id}',      [InspectionReportController::class, 'destroy']);
+    Route::post('/inspection-reports/{id}/status', [InspectionReportController::class, 'updateStatus'])
+        ->middleware('role:admin,superadmin');
+
+    // GET /api/users  — daftar user untuk fitur Tag Orang (admin & superadmin only)
+    Route::get('/users', [AuthController::class, 'listUsers'])
         ->middleware('role:admin,superadmin');
 
     // Inspections merged into /api/reports    // ==========================================
@@ -95,7 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── News (admin/supervisor manage) ────────────────────────────────────────
     Route::post('/news',        [NewsController::class, 'store'])
-        ->middleware('role:admin,supervisor');
+        ->middleware('role:admin,superadmin');
     Route::delete('/news/{id}', [NewsController::class, 'destroy'])
         ->middleware('role:admin');
 
