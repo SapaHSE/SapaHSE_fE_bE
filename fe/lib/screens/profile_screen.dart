@@ -187,7 +187,7 @@ class _ProfileTabState extends State<_ProfileTab> {
         _isLoading = false;
       });
     } else {
-      if (result.statusCode == 401) return; 
+      if (result.statusCode == 401) return;
       setState(() {
         _error = result.errorMessage ?? 'Gagal memuat profil';
         _isLoading = false;
@@ -324,199 +324,206 @@ class _ProfileTabState extends State<_ProfileTab> {
       );
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // ── Avatar + name ──────────────────────────────────────────
-          Container(
-            width: double.infinity,
-            color: const Color(0xFFF0F0F0),
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: IconButton(
-                    onPressed: _showEditProfileDialog,
-                    icon: const Icon(Icons.edit_outlined,
-                        color: Color(0xFF1565C0)),
-                    tooltip: 'Edit Profil',
-                  ),
-                ),
-                Column(
-                  children: [
-                    GestureDetector(
-                      onTap: widget.onPickImage,
-                      child: Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 56,
-                            backgroundColor: const Color(0xFFD0D0D0),
-                            backgroundImage: _getAvatarImage(),
-                            child: widget.avatarFile == null &&
-                                    (_profilePhoto == null ||
-                                        _profilePhoto!.isEmpty)
-                                ? const Icon(Icons.person,
-                                    size: 60, color: Colors.white)
-                                : null,
-                          ),
-                          Positioned(
-                            bottom: 2,
-                            right: 2,
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF1565C0),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.camera_alt,
-                                  color: Colors.white, size: 14),
-                            ),
-                          ),
-                        ],
-                      ),
+    return RefreshIndicator(
+      color: const Color(0xFF1565C0),
+      onRefresh: _loadProfile,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            // ── Avatar + name ──────────────────────────────────────────
+            Container(
+              width: double.infinity,
+              color: const Color(0xFFF0F0F0),
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 20),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: IconButton(
+                      onPressed: _showEditProfileDialog,
+                      icon: const Icon(Icons.edit_outlined,
+                          color: Color(0xFF1565C0)),
+                      tooltip: 'Edit Profil',
                     ),
-                    const SizedBox(height: 12),
-
-                    // ── Status Kerja ──────────────────────────────────
-                    GestureDetector(
-                      onTap: () => setState(() => _isWorkActive = !_isWorkActive),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _isWorkActive
-                              ? const Color(0xFF4CAF50).withValues(alpha: 0.12)
-                              : Colors.grey.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: _isWorkActive
-                                ? const Color(0xFF4CAF50)
-                                : Colors.grey.shade400,
-                            width: 1.2,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                  ),
+                  Column(
+                    children: [
+                      GestureDetector(
+                        onTap: widget.onPickImage,
+                        child: Stack(
                           children: [
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _isWorkActive
-                                    ? const Color(0xFF4CAF50)
-                                    : Colors.grey,
-                              ),
+                            CircleAvatar(
+                              radius: 56,
+                              backgroundColor: const Color(0xFFD0D0D0),
+                              backgroundImage: _getAvatarImage(),
+                              child: widget.avatarFile == null &&
+                                      (_profilePhoto == null ||
+                                          _profilePhoto!.isEmpty)
+                                  ? const Icon(Icons.person,
+                                      size: 60, color: Colors.white)
+                                  : null,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _isWorkActive ? 'Aktif' : 'Nonaktif',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: _isWorkActive
-                                    ? const Color(0xFF2E7D32)
-                                    : Colors.grey.shade600,
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: Container(
+                                width: 26,
+                                height: 26,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF1565C0),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.camera_alt,
+                                    color: Colors.white, size: 14),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 12),
 
-                    const SizedBox(height: 10),
-                    Text(
-                      _name,
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _position,
-                      style:
-                          const TextStyle(fontSize: 13, color: Colors.black54),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _department,
-                      style:
-                          const TextStyle(fontSize: 13, color: Colors.black54),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _company,
-                      style:
-                          const TextStyle(fontSize: 13, color: Colors.black54),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
-                ),
-              ],
-            ),
-          ),
+                      // ── Status Kerja ──────────────────────────────────
+                      GestureDetector(
+                        onTap: () =>
+                            setState(() => _isWorkActive = !_isWorkActive),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _isWorkActive
+                                ? const Color(0xFF4CAF50)
+                                    .withValues(alpha: 0.12)
+                                : Colors.grey.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _isWorkActive
+                                  ? const Color(0xFF4CAF50)
+                                  : Colors.grey.shade400,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _isWorkActive
+                                      ? const Color(0xFF4CAF50)
+                                      : Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _isWorkActive ? 'Aktif' : 'Nonaktif',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _isWorkActive
+                                      ? const Color(0xFF2E7D32)
+                                      : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
 
-          // ── Sub-tab icon buttons ───────────────────────────────────
-          Container(
-            color: const Color(0xFFF0F0F0),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: List.generate(_subTabs.length, (i) {
-                final isActive = _selectedSubTab == i;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedSubTab = i),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? const Color(0xFF1565C0)
-                            : const Color(0xFFBDBDBD),
-                        borderRadius: BorderRadius.circular(12),
+                      const SizedBox(height: 10),
+                      Text(
+                        _name,
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87),
+                        textAlign: TextAlign.center,
                       ),
-                      child: Column(
-                        children: [
-                          Icon(
-                            _subTabs[i]['icon'] as IconData,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _subTabs[i]['label'] as String,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        _position,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black54),
+                        textAlign: TextAlign.center,
                       ),
-                    ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _department,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black54),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _company,
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black54),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
                   ),
-                );
-              }),
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 4),
+            // ── Sub-tab icon buttons ───────────────────────────────────
+            Container(
+              color: const Color(0xFFF0F0F0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: List.generate(_subTabs.length, (i) {
+                  final isActive = _selectedSubTab == i;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedSubTab = i),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? const Color(0xFF1565C0)
+                              : const Color(0xFFBDBDBD),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              _subTabs[i]['icon'] as IconData,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _subTabs[i]['label'] as String,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
 
-          // ── Sub-tab content ────────────────────────────────────────
-          _buildSubTabContent(),
+            const SizedBox(height: 4),
 
-          const SizedBox(height: 80),
-        ],
+            // ── Sub-tab content ────────────────────────────────────────
+            _buildSubTabContent(),
+
+            const SizedBox(height: 80),
+          ],
+        ),
       ),
     );
   }
@@ -720,7 +727,8 @@ class _BiodataContentState extends State<_BiodataContent> {
                 validator: (v) {
                   if (v!.isEmpty) return 'Wajib diisi';
                   if (int.tryParse(v) == null) return 'Hanya boleh angka';
-                  if (v.length < 12 || v.length > 13) return 'Nomor telepon tidak valid';
+                  if (v.length < 12 || v.length > 13)
+                    return 'Nomor telepon tidak valid';
                   if (!v.startsWith('08')) return 'Nomor harus diawali 08';
                   if (v.startsWith('+62')) return null;
                   return null;

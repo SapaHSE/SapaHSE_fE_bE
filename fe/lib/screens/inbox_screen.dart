@@ -1,61 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../data/dummy_data.dart';
+import '../models/inbox_item.dart';
 import '../models/report.dart';
+import '../services/inbox_service.dart';
 import 'report_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
-
-// ── Dummy announcements ───────────────────────────────────────────────────────
-class Announcement {
-  final String id;
-  final String title;
-  final String body;
-  final String from;
-  final DateTime createdAt;
-
-  const Announcement({
-    required this.id,
-    required this.title,
-    required this.body,
-    required this.from,
-    required this.createdAt,
-  });
-}
-
-final List<Announcement> dummyAnnouncements = [
-  Announcement(
-    id: 'a1',
-    title: 'Pelatihan K3 Wajib Maret 2026',
-    body:
-        'Seluruh karyawan diwajibkan mengikuti pelatihan K3 pada tanggal 28 Maret 2026 pukul 08.00 di Aula Utama. Kehadiran bersifat wajib.',
-    from: 'Admin HSE',
-    createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-  ),
-  Announcement(
-    id: 'a2',
-    title: 'Inspeksi Rutin Area Tambang',
-    body:
-        'Akan dilaksanakan inspeksi rutin menyeluruh di seluruh area tambang pada minggu ini. Harap semua peralatan dalam kondisi siap periksa.',
-    from: 'Supervisor K3',
-    createdAt: DateTime.now().subtract(const Duration(days: 1)),
-  ),
-  Announcement(
-    id: 'a3',
-    title: 'Update SOP Penanganan Bahan B3',
-    body:
-        'SOP penanganan limbah B3 telah diperbarui sesuai regulasi KLHK terbaru. Silakan unduh dokumen terbaru di portal internal perusahaan.',
-    from: 'Admin HSE',
-    createdAt: DateTime.now().subtract(const Duration(days: 2)),
-  ),
-  Announcement(
-    id: 'a4',
-    title: 'Jadwal Pemeriksaan APAR Bulanan',
-    body:
-        'Pemeriksaan APAR bulanan akan dilaksanakan pada 30 Maret 2026. Pastikan semua unit APAR di area tanggung jawab Anda dalam kondisi baik.',
-    from: 'Tim HSE',
-    createdAt: DateTime.now().subtract(const Duration(days: 4)),
-  ),
-];
 
 enum _SubFilter { unread, read }
 
@@ -73,6 +24,17 @@ class _InboxScreenState extends State<InboxScreen>
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  Timer? _searchDebounce;
+
+  // ── Server-backed state ────────────────────────────────────────────────────
+  List<InboxItem> _reports = [];
+  List<InboxItem> _announcements = [];
+  int _unreadReports = 0;
+  int _unreadAnnouncements = 0;
+  bool _loadingReports = false;
+  bool _loadingAnnouncements = false;
+  String? _errorReports;
+  String? _errorAnnouncements;
 
   @override
   void initState() {
@@ -85,100 +47,128 @@ class _InboxScreenState extends State<InboxScreen>
         });
       }
     });
+    // Fetch both tabs in parallel so badges are accurate from the start.
+    _loadReports();
+    _loadAnnouncements();
   }
-
-  // Track read IDs (in-memory)
-  final Set<String> _readReportIds = {};
-  final Set<String> _readAnnouncementIds = {};
-
-  // ── Filtered reports ───────────────────────────────────────────────────────
-  List<Report> get _baseReports {
-    if (_activeFilter == _SubFilter.unread) {
-      return dummyReports.where((r) => !_readReportIds.contains(r.id)).toList();
-    }
-    return dummyReports.where((r) => _readReportIds.contains(r.id)).toList();
-  }
-
-  List<Report> get _activeReports {
-    final base = _baseReports;
-    if (_searchQuery.isEmpty) return base;
-    final q = _searchQuery.toLowerCase();
-    return base
-        .where((r) =>
-            r.title.toLowerCase().contains(q) ||
-            r.reportedBy.toLowerCase().contains(q) ||
-            r.location.toLowerCase().contains(q))
-        .toList();
-  }
-
-  // ── Filtered announcements ─────────────────────────────────────────────────
-  List<Announcement> get _baseAnnouncements {
-    if (_activeFilter == _SubFilter.unread) {
-      return dummyAnnouncements
-          .where((a) => !_readAnnouncementIds.contains(a.id))
-          .toList();
-    }
-    return dummyAnnouncements
-        .where((a) => _readAnnouncementIds.contains(a.id))
-        .toList();
-  }
-
-  List<Announcement> get _activeAnnouncements {
-    final base = _baseAnnouncements;
-    if (_searchQuery.isEmpty) return base;
-    final q = _searchQuery.toLowerCase();
-    return base
-        .where((a) =>
-            a.title.toLowerCase().contains(q) ||
-            a.body.toLowerCase().contains(q) ||
-            a.from.toLowerCase().contains(q))
-        .toList();
-  }
-
-  // ── Badge counts ───────────────────────────────────────────────────────────
-  int get _unreadReportCount =>
-      dummyReports.where((r) => !_readReportIds.contains(r.id)).length;
-
-  int get _unreadAnnouncementCount => dummyAnnouncements
-      .where((a) => !_readAnnouncementIds.contains(a.id))
-      .length;
-
-  int get _readReportCount => _readReportIds.length;
-  int get _readAnnouncementCount => _readAnnouncementIds.length;
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _mainTabController.dispose();
     super.dispose();
   }
 
-  void _markReportRead(String id) {
-    if (!_readReportIds.contains(id)) {
-      setState(() => _readReportIds.add(id));
-    }
+  // ── Data loading ───────────────────────────────────────────────────────────
+  Future<void> _loadReports() async {
+    setState(() {
+      _loadingReports = true;
+      _errorReports = null;
+    });
+    final result = await InboxService.fetchInbox(
+      type: 'personal',
+      search: _searchQuery.isEmpty ? null : _searchQuery,
+      perPage: 100,
+    );
+    if (!mounted) return;
+    setState(() {
+      _loadingReports = false;
+      if (result.success) {
+        _reports = result.items;
+        _unreadReports = result.unreadPersonal;
+        // Also refresh announcement count from the same response (cheap).
+        _unreadAnnouncements = result.unreadAnnouncements;
+      } else {
+        _errorReports = result.errorMessage;
+      }
+    });
   }
 
-  void _markAnnouncementRead(String id) {
-    if (!_readAnnouncementIds.contains(id)) {
-      setState(() => _readAnnouncementIds.add(id));
-    }
+  Future<void> _loadAnnouncements() async {
+    setState(() {
+      _loadingAnnouncements = true;
+      _errorAnnouncements = null;
+    });
+    final result = await InboxService.fetchInbox(
+      type: 'announcement',
+      search: _searchQuery.isEmpty ? null : _searchQuery,
+      perPage: 100,
+    );
+    if (!mounted) return;
+    setState(() {
+      _loadingAnnouncements = false;
+      if (result.success) {
+        _announcements = result.items;
+        _unreadAnnouncements = result.unreadAnnouncements;
+        _unreadReports = result.unreadPersonal;
+      } else {
+        _errorAnnouncements = result.errorMessage;
+      }
+    });
   }
 
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value);
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _loadReports();
+      _loadAnnouncements();
+    });
+  }
+
+  // ── Filtering (client-side by read/unread + already filtered list) ────────
+  List<InboxItem> _filterByReadState(List<InboxItem> source) {
+    if (_activeFilter == _SubFilter.unread) {
+      return source.where((i) => !i.isRead).toList();
+    }
+    return source.where((i) => i.isRead).toList();
+  }
+
+  List<InboxItem> get _activeReports => _filterByReadState(_reports);
+  List<InboxItem> get _activeAnnouncements => _filterByReadState(_announcements);
+
+  int get _readReportCount => _reports.where((i) => i.isRead).length;
+  int get _readAnnouncementCount =>
+      _announcements.where((i) => i.isRead).length;
+
+  // ── Mark-as-read (optimistic) ──────────────────────────────────────────────
+  void _markItemRead(InboxItem item) {
+    if (item.isRead) return;
+    setState(() {
+      item.isRead = true;
+      if (item.itemType == InboxItemType.report && _unreadReports > 0) {
+        _unreadReports -= 1;
+      } else if (item.itemType == InboxItemType.announcement &&
+          _unreadAnnouncements > 0) {
+        _unreadAnnouncements -= 1;
+      }
+    });
+
+    // Fire-and-forget — rollback if it fails.
+    final typeStr = item.itemType == InboxItemType.report
+        ? 'report'
+        : 'announcement';
+    InboxService.markRead(itemId: item.id, itemType: typeStr).then((res) {
+      if (!mounted) return;
+      if (!res.success) {
+        setState(() {
+          item.isRead = false;
+          if (item.itemType == InboxItemType.report) {
+            _unreadReports += 1;
+          } else {
+            _unreadAnnouncements += 1;
+          }
+        });
+      }
+    });
+  }
+
+  // ── Formatters & colors ────────────────────────────────────────────────────
   String _formatDate(DateTime dt) {
     final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'Mei',
-      'Jun',
-      'Jul',
-      'Agu',
-      'Sep',
-      'Okt',
-      'Nov',
-      'Des',
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
@@ -199,24 +189,24 @@ class _InboxScreenState extends State<InboxScreen>
   Color _statusColor(ReportStatus s) {
     switch (s) {
       case ReportStatus.open:
-        return const Color(0xFF2196F3); // Biru
+        return const Color(0xFF2196F3);
       case ReportStatus.inProgress:
-        return const Color(0xFF9C27B0); // Ungu
+        return const Color(0xFF9C27B0);
       case ReportStatus.closed:
-        return const Color(0xFF757575); // Abu
+        return const Color(0xFF757575);
     }
   }
 
   Color _severityColor(ReportSeverity s) {
     switch (s) {
       case ReportSeverity.low:
-        return const Color(0xFF4CAF50); // Green
+        return const Color(0xFF4CAF50);
       case ReportSeverity.medium:
-        return const Color(0xFFFF9800); // Orange
+        return const Color(0xFFFF9800);
       case ReportSeverity.high:
-        return const Color(0xFFF44336); // Red
+        return const Color(0xFFF44336);
       case ReportSeverity.critical:
-        return const Color(0xFFB71C1C); // Dark Red
+        return const Color(0xFFB71C1C);
     }
   }
 
@@ -247,13 +237,15 @@ class _InboxScreenState extends State<InboxScreen>
                     isSearching: _isSearching,
                     searchController: _searchController,
                     searchHint: 'Cari...',
-                    onSearchChanged: (v) => setState(() => _searchQuery = v),
+                    onSearchChanged: _onSearchChanged,
                     onSearchToggle: () {
                       setState(() {
                         _isSearching = !_isSearching;
                         if (!_isSearching) {
                           _searchController.clear();
                           _searchQuery = '';
+                          _loadReports();
+                          _loadAnnouncements();
                         }
                       });
                     },
@@ -275,9 +267,9 @@ class _InboxScreenState extends State<InboxScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text('Personal'),
-                            if (_unreadReportCount > 0) ...[
+                            if (_unreadReports > 0) ...[
                               const SizedBox(width: 6),
-                              _TabBadge(count: _unreadReportCount),
+                              _TabBadge(count: _unreadReports),
                             ],
                           ],
                         ),
@@ -287,9 +279,9 @@ class _InboxScreenState extends State<InboxScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text('Announcement'),
-                            if (_unreadAnnouncementCount > 0) ...[
+                            if (_unreadAnnouncements > 0) ...[
                               const SizedBox(width: 6),
-                              _TabBadge(count: _unreadAnnouncementCount),
+                              _TabBadge(count: _unreadAnnouncements),
                             ],
                           ],
                         ),
@@ -312,9 +304,9 @@ class _InboxScreenState extends State<InboxScreen>
                       label: 'Unread',
                       isActive: _activeFilter == _SubFilter.unread,
                       badge: _mainTabController.index == 0
-                          ? (_unreadReportCount > 0 ? _unreadReportCount : null)
-                          : (_unreadAnnouncementCount > 0
-                              ? _unreadAnnouncementCount
+                          ? (_unreadReports > 0 ? _unreadReports : null)
+                          : (_unreadAnnouncements > 0
+                              ? _unreadAnnouncements
                               : null),
                       onTap: () =>
                           setState(() => _activeFilter = _SubFilter.unread),
@@ -343,8 +335,8 @@ class _InboxScreenState extends State<InboxScreen>
               child: TabBarView(
                 controller: _mainTabController,
                 children: [
-                  _buildListTab(false),
-                  _buildListTab(true),
+                  _buildReportsTab(),
+                  _buildAnnouncementsTab(),
                 ],
               ),
             ),
@@ -354,29 +346,62 @@ class _InboxScreenState extends State<InboxScreen>
     );
   }
 
-  Widget _buildListTab(bool isAnnouncement) {
-    final list = isAnnouncement ? _activeAnnouncements : _activeReports;
+  Widget _buildReportsTab() {
+    if (_loadingReports && _reports.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorReports != null && _reports.isEmpty) {
+      return _buildErrorState(_errorReports!, _loadReports);
+    }
+    return RefreshIndicator(
+      onRefresh: _loadReports,
+      child: _buildList(_activeReports, isAnnouncement: false),
+    );
+  }
+
+  Widget _buildAnnouncementsTab() {
+    if (_loadingAnnouncements && _announcements.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorAnnouncements != null && _announcements.isEmpty) {
+      return _buildErrorState(_errorAnnouncements!, _loadAnnouncements);
+    }
+    return RefreshIndicator(
+      onRefresh: _loadAnnouncements,
+      child: _buildList(_activeAnnouncements, isAnnouncement: true),
+    );
+  }
+
+  Widget _buildList(List<InboxItem> list, {required bool isAnnouncement}) {
     if (list.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _activeFilter == _SubFilter.unread
-                  ? Icons.mark_email_read_outlined
-                  : Icons.drafts_outlined,
-              size: 52,
-              color: Colors.grey.shade300,
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.5,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _activeFilter == _SubFilter.unread
+                        ? Icons.mark_email_read_outlined
+                        : Icons.drafts_outlined,
+                    size: 52,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _activeFilter == _SubFilter.unread
+                        ? 'Semua sudah dibaca!'
+                        : 'Belum ada yang dibaca.',
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              _activeFilter == _SubFilter.unread
-                  ? 'Semua sudah dibaca!'
-                  : 'Belum ada yang dibaca.',
-              style: const TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -384,47 +409,69 @@ class _InboxScreenState extends State<InboxScreen>
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       itemCount: list.length,
       itemBuilder: (context, i) {
+        final item = list[i];
         if (isAnnouncement) {
-          final ann = list[i] as Announcement;
           return _AnnouncementCard(
-            announcement: ann,
-            isRead: _readAnnouncementIds.contains(ann.id),
+            item: item,
             formatDate: _formatDate,
             onTap: () {
-              _markAnnouncementRead(ann.id);
-              _showAnnouncementDetail(context, ann);
-            },
-          );
-        } else {
-          final r = list[i] as Report;
-          return _InboxCard(
-            report: r,
-            isRead: _readReportIds.contains(r.id),
-            formatDate: _formatDate,
-            levelResiko: _levelResiko,
-            statusColor: _statusColor,
-            statusLabel: _statusLabel,
-            severityColor: _severityColor,
-            onDetail: () {
-              _markReportRead(r.id);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => ReportDetailScreen(report: r)),
-              );
+              _markItemRead(item);
+              _showAnnouncementDetail(context, item);
             },
           );
         }
+        return _InboxCard(
+          item: item,
+          formatDate: _formatDate,
+          levelResiko: _levelResiko,
+          statusColor: _statusColor,
+          statusLabel: _statusLabel,
+          severityColor: _severityColor,
+          onDetail: () {
+            _markItemRead(item);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ReportDetailScreen(report: item.toReport()),
+              ),
+            );
+          },
+        );
       },
     );
   }
 
-  void _showAnnouncementDetail(BuildContext context, Announcement ann) {
+  Widget _buildErrorState(String message, Future<void> Function() onRetry) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_outlined, size: 56, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAnnouncementDetail(BuildContext context, InboxItem item) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
+      builder: (sheetCtx) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         maxChildSize: 0.9,
         minChildSize: 0.4,
@@ -451,7 +498,6 @@ class _InboxScreenState extends State<InboxScreen>
                 child: ListView(
                   controller: sc,
                   children: [
-                    // Icon
                     Row(
                       children: [
                         Container(
@@ -470,12 +516,12 @@ class _InboxScreenState extends State<InboxScreen>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(ann.from,
+                              Text(item.fromName ?? 'Admin',
                                   style: const TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 13,
                                       color: Color(0xFF1A56C4))),
-                              Text(_formatDate(ann.createdAt),
+                              Text(_formatDate(item.createdAt),
                                   style: const TextStyle(
                                       fontSize: 11, color: Colors.grey)),
                             ],
@@ -484,7 +530,7 @@ class _InboxScreenState extends State<InboxScreen>
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Text(ann.title,
+                    Text(item.title,
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 17,
@@ -492,7 +538,7 @@ class _InboxScreenState extends State<InboxScreen>
                     const SizedBox(height: 12),
                     const Divider(),
                     const SizedBox(height: 12),
-                    Text(ann.body,
+                    Text(item.body ?? '',
                         style: const TextStyle(
                             fontSize: 14, color: Colors.black87, height: 1.6)),
                     const SizedBox(height: 24),
@@ -502,7 +548,7 @@ class _InboxScreenState extends State<InboxScreen>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(sheetCtx),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A56C4),
                     foregroundColor: Colors.white,
@@ -546,7 +592,7 @@ class _TabBadge extends StatelessWidget {
   }
 }
 
-// ── SUB FILTER CHIP (All | Unread) ─────────────────────────────────────────────
+// ── SUB FILTER CHIP (Unread | Read) ──────────────────────────────────────────
 class _SubFilterChip extends StatelessWidget {
   final String label;
   final bool isActive;
@@ -612,10 +658,9 @@ class _SubFilterChip extends StatelessWidget {
   }
 }
 
-// ── INBOX CARD (Report) ───────────────────────────────────────────────────────
+// ── INBOX CARD (Report) ──────────────────────────────────────────────────────
 class _InboxCard extends StatelessWidget {
-  final Report report;
-  final bool isRead;
+  final InboxItem item;
   final String Function(DateTime) formatDate;
   final String Function(ReportSeverity) levelResiko;
   final Color Function(ReportStatus) statusColor;
@@ -624,8 +669,7 @@ class _InboxCard extends StatelessWidget {
   final VoidCallback onDetail;
 
   const _InboxCard({
-    required this.report,
-    required this.isRead,
+    required this.item,
     required this.formatDate,
     required this.levelResiko,
     required this.statusColor,
@@ -635,16 +679,34 @@ class _InboxCard extends StatelessWidget {
   });
 
   Color get _typeColor {
-    switch (report.type) {
+    switch (item.reportType) {
       case ReportType.hazard:
         return const Color(0xFFF44336);
       case ReportType.inspection:
         return const Color(0xFF1565C0);
+      default:
+        return const Color(0xFF757575);
+    }
+  }
+
+  String get _typeLabel {
+    switch (item.reportType) {
+      case ReportType.hazard:
+        return 'HAZARD';
+      case ReportType.inspection:
+        return 'INSPECTION';
+      default:
+        return '—';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isRead = item.isRead;
+    final ReportStatus status = item.status ?? ReportStatus.open;
+    final ReportSeverity severity = item.severity ?? ReportSeverity.medium;
+    final String imageUrl = item.imageUrl ?? '';
+
     return GestureDetector(
       onTap: onDetail,
       child: Container(
@@ -681,28 +743,34 @@ class _InboxCard extends StatelessWidget {
                       child: Column(
                         children: [
                           Expanded(
-                            child: CachedNetworkImage(
-                              imageUrl: report.imageUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => Container(
-                                color: Colors.grey.shade200,
-                                child: const Center(
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2)),
-                              ),
-                              errorWidget: (_, __, ___) => Container(
-                                color: Colors.grey.shade200,
-                                child: const Icon(Icons.image_outlined,
-                                    color: Colors.grey),
-                              ),
-                            ),
+                            child: imageUrl.isEmpty
+                                ? Container(
+                                    color: Colors.grey.shade200,
+                                    child: const Icon(Icons.image_outlined,
+                                        color: Colors.grey),
+                                  )
+                                : CachedNetworkImage(
+                                    imageUrl: imageUrl,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(
+                                      color: Colors.grey.shade200,
+                                      child: const Center(
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2)),
+                                    ),
+                                    errorWidget: (_, __, ___) => Container(
+                                      color: Colors.grey.shade200,
+                                      child: const Icon(Icons.image_outlined,
+                                          color: Colors.grey),
+                                    ),
+                                  ),
                           ),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.symmetric(vertical: 6),
                             color: _typeColor,
                             child: Text(
-                              report.type.label.toUpperCase(),
+                              _typeLabel,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -724,7 +792,7 @@ class _InboxCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              report.title,
+                              item.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -736,7 +804,7 @@ class _InboxCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              report.description,
+                              item.description ?? '',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -753,7 +821,7 @@ class _InboxCard extends StatelessWidget {
                                 const Icon(Icons.calendar_today_outlined,
                                     size: 10, color: Colors.grey),
                                 const SizedBox(width: 4),
-                                Text(formatDate(report.createdAt),
+                                Text(formatDate(item.createdAt),
                                     style: const TextStyle(
                                         fontSize: 10, color: Colors.grey)),
                                 const SizedBox(width: 12),
@@ -761,7 +829,7 @@ class _InboxCard extends StatelessWidget {
                                     size: 10, color: Colors.grey),
                                 const SizedBox(width: 4),
                                 Expanded(
-                                    child: Text(report.location,
+                                    child: Text(item.location ?? '-',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
@@ -778,17 +846,17 @@ class _InboxCard extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: statusColor(report.status)
+                                    color: statusColor(status)
                                         .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                     border: Border.all(
-                                        color: statusColor(report.status)
+                                        color: statusColor(status)
                                             .withValues(alpha: 0.3)),
                                   ),
                                   child: Text(
-                                    statusLabel(report.status),
+                                    statusLabel(status),
                                     style: TextStyle(
-                                        color: statusColor(report.status),
+                                        color: statusColor(status),
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold),
                                   ),
@@ -797,11 +865,11 @@ class _InboxCard extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: severityColor(report.severity),
+                                    color: severityColor(severity),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
-                                    levelResiko(report.severity),
+                                    levelResiko(severity),
                                     style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 9,
@@ -819,7 +887,7 @@ class _InboxCard extends StatelessWidget {
               ),
 
               // ── BOTTOM: Warning Banner if Open ───────────────────────────
-              if (report.status == ReportStatus.open)
+              if (status == ReportStatus.open)
                 Container(
                   width: double.infinity,
                   padding:
@@ -854,22 +922,21 @@ class _InboxCard extends StatelessWidget {
   }
 }
 
-// ── ANNOUNCEMENT CARD ─────────────────────────────────────────────────────────
+// ── ANNOUNCEMENT CARD ────────────────────────────────────────────────────────
 class _AnnouncementCard extends StatelessWidget {
-  final Announcement announcement;
-  final bool isRead;
+  final InboxItem item;
   final String Function(DateTime) formatDate;
   final VoidCallback onTap;
 
   const _AnnouncementCard({
-    required this.announcement,
-    required this.isRead,
+    required this.item,
     required this.formatDate,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool isRead = item.isRead;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -907,7 +974,6 @@ class _AnnouncementCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Icon
                     Container(
                       width: 42,
                       height: 42,
@@ -919,7 +985,6 @@ class _AnnouncementCard extends StatelessWidget {
                           color: Color(0xFF1A56C4), size: 22),
                     ),
                     const SizedBox(width: 12),
-
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -939,7 +1004,7 @@ class _AnnouncementCard extends StatelessWidget {
                                 ),
                               Expanded(
                                 child: Text(
-                                  announcement.title,
+                                  item.title,
                                   style: TextStyle(
                                     fontWeight: isRead
                                         ? FontWeight.w500
@@ -953,7 +1018,7 @@ class _AnnouncementCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            announcement.body,
+                            item.body ?? '',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -965,14 +1030,14 @@ class _AnnouncementCard extends StatelessWidget {
                               const Icon(Icons.access_time,
                                   size: 12, color: Colors.grey),
                               const SizedBox(width: 4),
-                              Text(formatDate(announcement.createdAt),
+                              Text(formatDate(item.createdAt),
                                   style: const TextStyle(
                                       fontSize: 11, color: Colors.grey)),
                               const SizedBox(width: 12),
                               const Icon(Icons.person_outline,
                                   size: 12, color: Colors.grey),
                               const SizedBox(width: 4),
-                              Text(announcement.from,
+                              Text(item.fromName ?? 'Admin',
                                   style: const TextStyle(
                                       fontSize: 11, color: Colors.grey)),
                             ],
@@ -987,39 +1052,6 @@ class _AnnouncementCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// ── DETAIL ROW ────────────────────────────────────────────────────────────────
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetailRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 90, // Menyamakan ukuran label agar rapi
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-        ),
-        const Text(': ', style: TextStyle(fontSize: 13, color: Colors.black54)),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black87,
-                fontWeight: FontWeight.w500),
-          ),
-        ),
-      ],
     );
   }
 }
