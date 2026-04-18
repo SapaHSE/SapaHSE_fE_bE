@@ -84,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         fontWeight: FontWeight.normal, fontSize: 14),
                     tabs: const [
                       Tab(text: 'Profile'),
-                      Tab(text: 'App'),
+                      Tab(text: 'Workspace'),
                       Tab(text: 'Settings'),
                     ],
                   ),
@@ -125,6 +125,7 @@ class _ProfileTabState extends State<_ProfileTab> {
   int _selectedSubTab = 0;
   bool _isLoading = true;
   String? _error;
+  bool _isWorkActive = true;
 
   ProfileData? _profileData;
   String _name = '';
@@ -378,7 +379,58 @@ class _ProfileTabState extends State<_ProfileTab> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
+
+                    // ── Status Kerja ──────────────────────────────────
+                    GestureDetector(
+                      onTap: () => setState(() => _isWorkActive = !_isWorkActive),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _isWorkActive
+                              ? const Color(0xFF4CAF50).withValues(alpha: 0.12)
+                              : Colors.grey.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: _isWorkActive
+                                ? const Color(0xFF4CAF50)
+                                : Colors.grey.shade400,
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _isWorkActive
+                                    ? const Color(0xFF4CAF50)
+                                    : Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _isWorkActive ? 'Aktif' : 'Nonaktif',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _isWorkActive
+                                    ? const Color(0xFF2E7D32)
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
                     Text(
                       _name,
                       style: const TextStyle(
@@ -461,23 +513,7 @@ class _ProfileTabState extends State<_ProfileTab> {
           const SizedBox(height: 4),
 
           // ── Sub-tab content ────────────────────────────────────────
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.02, 0),
-                  end: Offset.zero,
-                ).animate(animation),
-                child: child,
-              ),
-            ),
-            child: SizedBox(
-              key: ValueKey(_selectedSubTab),
-              child: _buildSubTabContent(),
-            ),
-          ),
+          _buildSubTabContent(),
 
           const SizedBox(height: 80),
         ],

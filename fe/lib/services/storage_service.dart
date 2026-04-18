@@ -19,24 +19,33 @@ class StorageService {
       {required bool rememberMe}) async {
     final prefs = await _getPrefs();
 
-    final duration =
-        rememberMe 
-        ? const Duration(days: 7) 
-        : const Duration(seconds: 15);
-
-    final expiry = DateTime.now().add(duration).toIso8601String();
-
     await prefs.setString(_keyToken, token);
-    await prefs.setString(_keyExpiry, expiry);
     await prefs.setBool(_keyRememberMe, rememberMe);
+
+    if (rememberMe) {
+      // Sesi selamanya — tidak ada expiry di sisi client.
+      await prefs.remove(_keyExpiry);
+    } else {
+      final expiry = DateTime.now()
+          .add(const Duration(minutes: 15))
+          .toIso8601String();
+      await prefs.setString(_keyExpiry, expiry);
+    }
   }
 
   static Future<String?> getToken() async {
     final prefs = await _getPrefs();
     final token = prefs.getString(_keyToken);
-    final expiry = prefs.getString(_keyExpiry);
+    if (token == null) return null;
 
-    if (token == null || expiry == null) return null;
+    final rememberMe = prefs.getBool(_keyRememberMe) ?? false;
+    if (rememberMe) {
+      // Remember me aktif — sesi tidak pernah expired di sisi client.
+      return token;
+    }
+
+    final expiry = prefs.getString(_keyExpiry);
+    if (expiry == null) return null;
 
     // Cek apakah sesi sudah kadaluarsa
     final expiryDate = DateTime.parse(expiry);
@@ -92,6 +101,11 @@ class StorageService {
   // ── Sisa waktu sesi (opsional, untuk ditampilkan di UI) ───────────────────
   static Future<Duration?> getRemainingSession() async {
     final prefs = await _getPrefs();
+
+    // Remember me aktif → sesi tidak terbatas, tidak ada countdown.
+    final rememberMe = prefs.getBool(_keyRememberMe) ?? false;
+    if (rememberMe) return null;
+
     final expiry = prefs.getString(_keyExpiry);
     if (expiry == null) return null;
 

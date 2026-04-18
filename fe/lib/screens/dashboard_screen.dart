@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import '../data/dummy_data.dart';
+import '../data/report_store.dart';
 import '../models/report.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -23,9 +23,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<String> _typeOptions   = ['Semua', 'Hazard', 'Inspection'];
   final List<String> _statusOptions = ['Semua', 'Open', 'In Progress', 'Closed'];
 
+  @override
+  void initState() {
+    super.initState();
+    ReportStore.instance.reports.addListener(_onReportsChanged);
+    _refreshReports();
+  }
+
+  @override
+  void dispose() {
+    ReportStore.instance.reports.removeListener(_onReportsChanged);
+    super.dispose();
+  }
+
+  void _onReportsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _refreshReports() async {
+    try {
+      await ReportStore.instance.refreshReports();
+    } catch (_) {}
+  }
+
   // ── Filtered reports ───────────────────────────────────────────────────────
   List<Report> get _filtered {
-    return dummyReports.where((r) {
+    return ReportStore.instance.reports.value.where((r) {
       final matchType = _filterType == 'Semua' || r.type.label == _filterType;
       final matchStatus = _filterStatus == 'Semua' ||
           (_filterStatus == 'Open'        && r.status == ReportStatus.open) ||
@@ -409,7 +432,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   BoxDecoration _cardDeco() => BoxDecoration(
     color: Colors.white,
     borderRadius: BorderRadius.circular(12),
-    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))],
+    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
   );
 
   Widget _sectionLabel(String t) =>
@@ -418,7 +441,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _countBadge(int n) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
-        color: const Color(0xFF1A56C4).withOpacity(0.1),
+        color: const Color(0xFF1A56C4).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10)),
     child: Text('$n data',
         style: const TextStyle(fontSize: 12, color: Color(0xFF1A56C4), fontWeight: FontWeight.bold)),
@@ -448,12 +471,12 @@ class _StatCard extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0,2))],
+      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0,2))],
     ),
     child: Row(children: [
       Container(
         width: 40, height: 40,
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
         child: Icon(icon, color: color, size: 22),
       ),
       const SizedBox(width: 10),
@@ -496,7 +519,7 @@ class _TypeBadge extends StatelessWidget {
     final c = type == ReportType.hazard ? const Color(0xFFF44336) : const Color(0xFF1565C0);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
       child: Text(type.label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: c)),
     );
   }
@@ -506,9 +529,10 @@ class _SeverityBadge extends StatelessWidget {
   final ReportSeverity severity;
   const _SeverityBadge(this.severity);
   Color get _c => switch (severity) {
-    ReportSeverity.high   => const Color(0xFFF44336),
-    ReportSeverity.medium => const Color(0xFFFF9800),
-    ReportSeverity.low    => const Color(0xFF4CAF50),
+    ReportSeverity.high     => const Color(0xFFF44336),
+    ReportSeverity.medium   => const Color(0xFFFF9800),
+    ReportSeverity.low      => const Color(0xFF4CAF50),
+    ReportSeverity.critical => const Color(0xFF880E4F),
   };
   @override
   Widget build(BuildContext context) => Container(
@@ -531,9 +555,9 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
     decoration: BoxDecoration(
-      color: _c.withOpacity(0.12),
+      color: _c.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: _c.withOpacity(0.3)),
+      border: Border.all(color: _c.withValues(alpha: 0.3)),
     ),
     child: Text(status.label, style: TextStyle(fontSize: 10, color: _c, fontWeight: FontWeight.w600)),
   );

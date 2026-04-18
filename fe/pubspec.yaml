@@ -12,19 +12,21 @@ dependencies:
   cupertino_icons: ^1.0.6
   cached_network_image: ^3.3.1
   image_picker: ^1.0.7
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^7.2.0
   csv: ^6.0.0
   path_provider: ^2.1.2
   share_plus: ^10.0.0
   # ── API & Storage (newly added) ───────────────────────────────────────────
   http: ^1.2.1                    # HTTP requests to Laravel API
-  shared_preferences: ^2.2.3     # Persist token & user data locally
+  shared_preferences: ^2.2.3 
+  intl: ^0.19.0                  # Date formatting    # Persist token & user data locally
+  connectivity_plus: ^6.1.4      # Cloud Save: detect network connectivity
  
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
  
 flutter:
   uses-material-design: true

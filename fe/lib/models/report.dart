@@ -1,5 +1,5 @@
 enum ReportType { hazard, inspection }
-enum ReportSeverity { low, medium, high }
+enum ReportSeverity { low, medium, high, critical }
 enum ReportStatus { open, inProgress, closed }
 
 // Sub-kategori hazard / inspection
@@ -94,9 +94,10 @@ extension HazardCategoryLabel on HazardCategory {
 extension ReportSeverityLabel on ReportSeverity {
   String get label {
     switch (this) {
-      case ReportSeverity.low:    return 'Low';
-      case ReportSeverity.medium: return 'Medium';
-      case ReportSeverity.high:   return 'High';
+      case ReportSeverity.low:      return 'Low';
+      case ReportSeverity.medium:   return 'Medium';
+      case ReportSeverity.high:     return 'High';
+      case ReportSeverity.critical: return 'Critical';
     }
   }
 }

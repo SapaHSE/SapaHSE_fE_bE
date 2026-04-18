@@ -16,6 +16,7 @@ class ReportDetailScreen extends StatefulWidget {
 
 class _ReportDetailScreenState extends State<ReportDetailScreen> {
   late Report _report;
+  bool _isTimelineLoading = true;
 
   static const _blue = Color(0xFF1A56C4);
   static const _blueLight = Color(0xFFEFF4FF);
@@ -24,6 +25,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   void initState() {
     super.initState();
     _report = ReportStore.instance.getById(widget.report.id) ?? widget.report;
+    _loadTimeline(force: true);
+  }
+
+  Future<void> _loadTimeline({bool force = false}) async {
+    try {
+      await ReportStore.instance.loadTimeline(_report.id, force: force);
+    } finally {
+      if (mounted) {
+        setState(() => _isTimelineLoading = false);
+      }
+    }
   }
 
   // ── Colors ─────────────────────────────────────────────────────────────────
@@ -31,12 +43,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         ReportSeverity.low => const Color(0xFF4CAF50),
         ReportSeverity.medium => const Color(0xFFFF9800),
         ReportSeverity.high => const Color(0xFFF44336),
+        ReportSeverity.critical => const Color(0xFF880E4F),
       };
 
   Color _statusColor(ReportStatus s) => switch (s) {
-        ReportStatus.open       => const Color(0xFF2196F3), // Biru
+        ReportStatus.open => const Color(0xFF2196F3), // Biru
         ReportStatus.inProgress => const Color(0xFF9C27B0), // Ungu
-        ReportStatus.closed     => const Color(0xFF757575), // Abu
+        ReportStatus.closed => const Color(0xFF757575), // Abu
       };
 
   IconData _statusIcon(ReportStatus s) => switch (s) {
@@ -108,8 +121,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   fit: BoxFit.contain,
                   placeholder: (_, __) =>
                       const CircularProgressIndicator(color: Colors.white),
-                  errorWidget: (_, __, ___) => const Icon(Icons.image,
-                      color: Colors.white54, size: 80),
+                  errorWidget: (_, __, ___) =>
+                      const Icon(Icons.image, color: Colors.white54, size: 80),
                 ),
               ),
             ),
@@ -240,6 +253,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         icon: Icons.category_outlined,
                         label: 'Kategori',
                         value: _report.category?.label ?? _report.type.label),
+                    const SizedBox(height: 12),
+                    _DetailRow(
+                        icon: Icons.confirmation_number_outlined,
+                        label: 'No. Tiket',
+                        value: '#TKT-${_report.id.padLeft(4, '0')}'),
                   ]),
             ),
 
@@ -279,7 +297,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                     const SizedBox(height: 20),
 
                     // Timeline events (grouped by parent status)
-                    ..._buildGroupedTimeline(timeline),
+                    if (_isTimelineLoading && timeline.isEmpty)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF1A56C4),
+                          ),
+                        ),
+                      )
+                    else
+                      ..._buildGroupedTimeline(timeline),
                   ]),
             ),
 
@@ -297,7 +325,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                       ),
                     );
                     if (result != null) {
-                      setState(() => _report = result);
+                      setState(() {
+                        _report = result;
+                        _isTimelineLoading = true;
+                      });
+                      await _loadTimeline(force: true);
                     }
                   },
                   icon: const Icon(Icons.edit_outlined, size: 18),
@@ -327,7 +359,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     }
 
     final result = <Widget>[];
-    final statuses = [ReportStatus.open, ReportStatus.inProgress, ReportStatus.closed];
+    final statuses = [
+      ReportStatus.open,
+      ReportStatus.inProgress,
+      ReportStatus.closed
+    ];
 
     for (final status in statuses) {
       final events = groups[status];
@@ -344,7 +380,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: isCurrentGroup ? statusColor : statusColor.withValues(alpha: 0.1),
+                color: isCurrentGroup
+                    ? statusColor
+                    : statusColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -362,8 +400,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             const SizedBox(width: 8),
             Expanded(
                 child: Container(
-                    height: 1,
-                    color: statusColor.withValues(alpha: 0.2))),
+                    height: 1, color: statusColor.withValues(alpha: 0.2))),
           ]),
         ),
       );
@@ -372,8 +409,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       for (int i = 0; i < events.length; i++) {
         final event = events[i];
         final isLastInGroup = i == events.length - 1;
-        final isVeryLast =
-            status == (_report.status) && isLastInGroup;
+        final isVeryLast = status == (_report.status) && isLastInGroup;
 
         result.add(
           _TimelineItem(
@@ -541,8 +577,9 @@ class _TimelineItem extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color:
-                        isCurrent ? statusColor : statusColor.withValues(alpha: 0.12),
+                    color: isCurrent
+                        ? statusColor
+                        : statusColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: statusColor,
@@ -614,7 +651,8 @@ class _TimelineItem extends StatelessWidget {
                           color: const Color(0xFFEFF4FF),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: const Color(0xFF1A56C4).withValues(alpha: 0.3)),
+                              color: const Color(0xFF1A56C4)
+                                  .withValues(alpha: 0.3)),
                         ),
                         child: const Text('TERKINI',
                             style: TextStyle(
@@ -670,50 +708,52 @@ class _TimelineItem extends StatelessWidget {
                   // Photo
                   if (event.photoPath != null) ...[
                     const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => Scaffold(
-                              backgroundColor: Colors.black,
-                              appBar: AppBar(
-                                backgroundColor: Colors.transparent,
-                                iconTheme: const IconThemeData(color: Colors.white),
-                                elevation: 0,
-                              ),
-                              extendBodyBehindAppBar: true,
-                              body: Center(
-                                child: InteractiveViewer(
-                                  minScale: 1.0,
-                                  maxScale: 4.0,
-                                  child: kIsWeb
-                                      ? Image.network(
-                                          event.photoPath!,
-                                          fit: BoxFit.contain,
-                                        )
-                                      : Image.file(
-                                          File(event.photoPath!),
-                                          fit: BoxFit.contain,
-                                        ),
+                    Builder(builder: (_) {
+                      final path = event.photoPath!;
+                      final isNetwork =
+                          path.startsWith('http://') || path.startsWith('https://');
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => Scaffold(
+                                backgroundColor: Colors.black,
+                                appBar: AppBar(
+                                  backgroundColor: Colors.transparent,
+                                  iconTheme:
+                                      const IconThemeData(color: Colors.white),
+                                  elevation: 0,
+                                ),
+                                extendBodyBehindAppBar: true,
+                                body: Center(
+                                  child: InteractiveViewer(
+                                    minScale: 1.0,
+                                    maxScale: 4.0,
+                                    child: (kIsWeb || isNetwork)
+                                        ? Image.network(path, fit: BoxFit.contain)
+                                        : Image.file(
+                                            File(path),
+                                            fit: BoxFit.contain,
+                                          ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        height: 140,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
+                          );
+                        },
+                        child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          image: DecorationImage(
-                            image: FileImage(File(event.photoPath!)),
-                            fit: BoxFit.cover,
+                          child: SizedBox(
+                            height: 140,
+                            width: double.infinity,
+                            child: (kIsWeb || isNetwork)
+                                ? Image.network(path, fit: BoxFit.cover)
+                                : Image.file(File(path), fit: BoxFit.cover),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
                   ],
                 ],
               ),
@@ -754,7 +794,6 @@ class _DetailRow extends StatelessWidget {
       );
 }
 
-
 // ══════════════════════════════════════════════════════════════════════════════
 // UPDATE STATUS PAGE (FULLSCREEN)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -766,10 +805,39 @@ class UpdateStatusPage extends StatefulWidget {
   State<UpdateStatusPage> createState() => _UpdateStatusPageState();
 }
 
+// ── Data orang yang bisa di-tag ────────────────────────────────────────────
+const _allPeople = [
+  'Budi Santoso',
+  'Ahmad Fauzi',
+  'Riko Pratama',
+  'Hendra Wijaya',
+  'Siti Rahayu',
+  'Dian Permata',
+  'Eko Susilo',
+  'Novi Andriani',
+  'Wahyu Hidayat',
+  'Agus Setiawan',
+  'Bambang Purnomo',
+  'Lintang Bhaskara',
+  'Maya Putri',
+  'Reza Firmansyah',
+  'Dewi Kusuma',
+  'Rizki Fauzan',
+  'Rina Marlina',
+  'Kevin Alfarisi',
+  'Deni Setiawan',
+  'Putri Wulandari',
+  'Faisal Rahman',
+  'Guntur Prabowo',
+  'Yuli Astuti',
+];
+
 class _UpdateStatusPageState extends State<UpdateStatusPage> {
   late ReportStatus _selectedStatus;
   ReportSubStatus? _selectedSub;
   final _noteCtrl = TextEditingController();
+  final _deferredKeteranganCtrl = TextEditingController();
+  final Set<String> _taggedPeople = {};
   XFile? _attachedPhoto;
   bool _isSaving = false;
 
@@ -783,19 +851,13 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
   @override
   void dispose() {
     _noteCtrl.dispose();
+    _deferredKeteranganCtrl.dispose();
     super.dispose();
   }
 
   // Sequential logic: Open -> InProgress -> Closed
   List<ReportStatus> get _allowedStatuses {
-    switch (widget.report.status) {
-      case ReportStatus.open:
-        return [ReportStatus.open, ReportStatus.inProgress];
-      case ReportStatus.inProgress:
-        return [ReportStatus.inProgress, ReportStatus.closed];
-      case ReportStatus.closed:
-        return [ReportStatus.closed];
-    }
+    return ReportStatus.values;
   }
 
   Color _statusColor(ReportStatus s) => switch (s) {
@@ -841,7 +903,8 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
+              leading:
+                  const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
               title: const Text('Galeri'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -854,34 +917,141 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
     );
   }
 
+  void _showTagPeopleSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text('Pilih Orang',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Divider(),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _allPeople.length,
+                  itemBuilder: (_, i) {
+                    final person = _allPeople[i];
+                    final isTagged = _taggedPeople.contains(person);
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: const Color(0xFFEFF4FF),
+                        child: Text(
+                          person[0],
+                          style: const TextStyle(
+                              color: Color(0xFF1A56C4),
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      title: Text(person, style: const TextStyle(fontSize: 14)),
+                      trailing: isTagged
+                          ? const Icon(Icons.check_circle,
+                              color: Color(0xFF1A56C4))
+                          : const Icon(Icons.radio_button_unchecked,
+                              color: Colors.grey),
+                      onTap: () {
+                        setState(() {
+                          if (isTagged) {
+                            _taggedPeople.remove(person);
+                          } else {
+                            _taggedPeople.add(person);
+                          }
+                        });
+                        setSheetState(() {});
+                      },
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1A56C4),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                      _taggedPeople.isEmpty
+                          ? 'Tutup'
+                          : 'Selesai (${_taggedPeople.length} dipilih)',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleSave() async {
-    if (_selectedSub == ReportSubStatus.reviewing && _attachedPhoto == null) {
+    final needsPhoto = _selectedSub == ReportSubStatus.reviewing ||
+        _selectedSub == ReportSubStatus.executing;
+    if (needsPhoto && _attachedPhoto == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Foto bukti wajib dilampirkan untuk tahap Reviewing!'),
+        content:
+            Text('Foto bukti wajib dilampirkan untuk tahap Executing/Reviewing!'),
         backgroundColor: Colors.red,
       ));
       return;
     }
 
     setState(() => _isSaving = true);
-    // Simulate network
-    await Future.delayed(const Duration(milliseconds: 500));
-    
-    final updated = ReportStore.instance.updateStatus(
-      widget.report.id,
-      _selectedStatus,
-      newSubStatus: _selectedSub,
-      actor: 'Noor Lintang Bhaskara',
-      note: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
-      photoPath: _attachedPhoto?.path,
-    );
+    try {
+      final note = [
+        _noteCtrl.text.trim(),
+        if (_selectedSub == ReportSubStatus.deferred)
+          _deferredKeteranganCtrl.text.trim(),
+      ].where((e) => e.isNotEmpty).join('\n\n');
 
-    if (mounted) {
+      final updated = await ReportStore.instance.updateStatus(
+        widget.report.id,
+        _selectedStatus,
+        newSubStatus: _selectedSub,
+        note: note.isEmpty ? null : note,
+        photoPath: _attachedPhoto?.path,
+      );
+
+      if (!mounted) return;
       Navigator.pop(context, updated);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Status berhasil diperbarui ke ${_selectedStatus.label}'),
         backgroundColor: _statusColor(_selectedStatus),
       ));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui status: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -897,7 +1067,10 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Update Status Laporan',
-            style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 16)),
+            style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+                fontSize: 16)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -921,16 +1094,28 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    border: Border.all(color: isSelected ? color : Colors.grey.shade300, width: isSelected ? 2 : 1),
+                    border: Border.all(
+                        color: isSelected ? color : Colors.grey.shade300,
+                        width: isSelected ? 2 : 1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Icon(isSelected ? Icons.radio_button_checked : Icons.radio_button_off, color: color),
+                      Icon(
+                          isSelected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          color: color),
                       const SizedBox(width: 12),
-                      Text(s.label, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 15)),
+                      Text(s.label,
+                          style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: 15)),
                       const Spacer(),
-                      if (isSelected) Icon(Icons.check_circle, color: color, size: 20),
+                      if (isSelected)
+                        Icon(Icons.check_circle, color: color, size: 20),
                     ],
                   ),
                 ),
@@ -945,27 +1130,36 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
             const _Label('Sub-Status'),
             const SizedBox(height: 8),
             Column(
-              children: ReportSubStatusInfo.forStatus(_selectedStatus).map((sub) {
+              children:
+                  ReportSubStatusInfo.forStatus(_selectedStatus).map((sub) {
                 final isSubSelected = _selectedSub == sub;
                 final color = _statusColor(_selectedStatus);
                 return GestureDetector(
                   onTap: () => setState(() => _selectedSub = sub),
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: isSubSelected ? color.withValues(alpha: 0.1) : Colors.white,
-                      border: Border.all(color: isSubSelected ? color : Colors.grey.shade200),
+                      color: isSubSelected
+                          ? color.withValues(alpha: 0.1)
+                          : Colors.white,
+                      border: Border.all(
+                          color: isSubSelected ? color : Colors.grey.shade200),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
-                        Text(sub.label, style: TextStyle(
-                          color: isSubSelected ? color : Colors.black87,
-                          fontWeight: isSubSelected ? FontWeight.bold : FontWeight.normal,
-                        )),
+                        Text(sub.label,
+                            style: TextStyle(
+                              color: isSubSelected ? color : Colors.black87,
+                              fontWeight: isSubSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            )),
                         const Spacer(),
-                        if (isSubSelected) Icon(Icons.check, color: color, size: 18),
+                        if (isSubSelected)
+                          Icon(Icons.check, color: color, size: 18),
                       ],
                     ),
                   ),
@@ -978,7 +1172,7 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
             const SizedBox(height: 16),
 
             // ── Note ─────────────────────────────────────────────────────
-            const _Label('Catatan Tambahan'),
+            const _Label('Catatan Perubahan'),
             const SizedBox(height: 8),
             TextField(
               controller: _noteCtrl,
@@ -987,12 +1181,102 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
                 hintText: 'Masukkan keterangan...',
                 fillColor: Colors.white,
                 filled: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
               ),
             ),
 
             const SizedBox(height: 20),
+
+            // ── Deferred: Tag Orang & Keterangan ─────────────────────────
+            if (_selectedSub == ReportSubStatus.deferred) ...[
+              const _Label('Tag Orang'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_taggedPeople.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: _taggedPeople
+                            .map((p) => Chip(
+                                  label: Text(p,
+                                      style: const TextStyle(fontSize: 12)),
+                                  deleteIcon: const Icon(Icons.close, size: 14),
+                                  onDeleted: () =>
+                                      setState(() => _taggedPeople.remove(p)),
+                                  backgroundColor: const Color(0xFFEFF4FF),
+                                  side: const BorderSide(
+                                      color: Color(0xFF1A56C4)),
+                                  labelStyle:
+                                      const TextStyle(color: Color(0xFF1A56C4)),
+                                  deleteIconColor: const Color(0xFF1A56C4),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 4),
+                                ))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    GestureDetector(
+                      onTap: () => _showTagPeopleSheet(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.person_add_outlined,
+                                size: 18, color: Colors.grey),
+                            SizedBox(width: 8),
+                            Text('Tambah orang...',
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const _Label('Keterangan Laporan'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _deferredKeteranganCtrl,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Masukkan keterangan laporan yang ditangguhkan...',
+                  fillColor: Colors.white,
+                  filled: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300)),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300)),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
 
             // ── Photo ────────────────────────────────────────────────────
             Row(
@@ -1000,7 +1284,11 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
               children: [
                 const _Label('Bukti Foto'),
                 if (_selectedSub == ReportSubStatus.reviewing)
-                  const Text('* Wajib di tahap Reviewing', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                  const Text('* Wajib di tahap Reviewing',
+                      style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 8),
@@ -1012,28 +1300,33 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+                  border: Border.all(
+                      color: Colors.grey.shade300, style: BorderStyle.solid),
                 ),
                 child: _attachedPhoto != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: kIsWeb 
-                          ? Image.network(_attachedPhoto!.path, fit: BoxFit.cover)
-                          : Image.file(File(_attachedPhoto!.path), fit: BoxFit.cover),
+                        child: kIsWeb
+                            ? Image.network(_attachedPhoto!.path,
+                                fit: BoxFit.cover)
+                            : Image.file(File(_attachedPhoto!.path),
+                                fit: BoxFit.cover),
                       )
                     : const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.add_a_photo, color: Colors.grey, size: 40),
                           SizedBox(height: 8),
-                          Text('Klik untuk ambil foto (Kamera/Galeri)', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                          Text('Klik untuk ambil foto (Kamera/Galeri)',
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 13)),
                         ],
                       ),
               ),
             ),
 
             const SizedBox(height: 40),
-            
+
             // ── Save Button ──────────────────────────────────────────────
             SizedBox(
               width: double.infinity,
@@ -1043,12 +1336,15 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A56C4),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
                 child: _isSaving
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Simpan Perubahan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text('Simpan Perubahan',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 40),
@@ -1064,6 +1360,8 @@ class _Label extends StatelessWidget {
   const _Label(this.text);
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black54));
+    return Text(text,
+        style: const TextStyle(
+            fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black54));
   }
 }

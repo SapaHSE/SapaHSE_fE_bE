@@ -34,7 +34,7 @@ class ApiService {
             headers: await _headers(auth: auth),
           )
           .timeout(const Duration(seconds: 30));
-      return _handleResponse(response);
+      return await _handleResponse(response);
     } on SocketException {
       return ApiResponse.error(
           'No internet connection. Check if Laravel server is running.');
@@ -59,7 +59,7 @@ class ApiService {
             body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 30));
-      return _handleResponse(response);
+      return await _handleResponse(response);
     } on SocketException {
       return ApiResponse.error(
           'No internet connection. Check if Laravel server is running.');
@@ -84,7 +84,7 @@ class ApiService {
             body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 30));
-      return _handleResponse(response);
+      return await _handleResponse(response);
     } on SocketException {
       return ApiResponse.error('No internet connection.');
     } catch (e) {
@@ -101,7 +101,7 @@ class ApiService {
             headers: await _headers(auth: auth),
           )
           .timeout(const Duration(seconds: 30));
-      return _handleResponse(response);
+      return await _handleResponse(response);
     } on SocketException {
       return ApiResponse.error('No internet connection.');
     } catch (e) {
@@ -110,7 +110,7 @@ class ApiService {
   }
 
   // ── Response Handler ──────────────────────────────────────────────────────
-  static ApiResponse _handleResponse(http.Response response) {
+  static Future<ApiResponse> _handleResponse(http.Response response) async {
     final body = jsonDecode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -120,49 +120,54 @@ class ApiService {
         return ApiResponse.error(body['message'] ?? 'Unknown error');
       }
     } else if (response.statusCode == 401) {
-      // Auto-logout: tampilkan dialog sesi habis, lalu redirect ke login
-      StorageService.clear().then((_) {
-        final ctx = navigatorKey.currentContext;
-        if (ctx == null) return;
-        showDialog(
-          context: ctx,
-          barrierDismissible: false,
-          builder: (_) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.lock_clock, color: Color(0xFF1A56C4)),
-                SizedBox(width: 8),
-                Text('Sesi Berakhir'),
+      final hasToken = await StorageService.getToken() != null;
+      if (hasToken) {
+        StorageService.clear().then((_) {
+          final ctx = navigatorKey.currentContext;
+          if (ctx == null) return;
+          showDialog(
+            context: ctx,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.lock_clock, color: Color(0xFF1A56C4)),
+                  SizedBox(width: 8),
+                  Text('Sesi Berakhir'),
+                ],
+              ),
+              content: const Text(
+                'Sesi kamu telah habis. Silakan login kembali untuk melanjutkan.',
+              ),
+              actions: [
+                FilledButton(
+                  onPressed: () {
+                    navigatorKey.currentState?.pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A56C4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Login Kembali'),
+                ),
               ],
             ),
-            content: const Text(
-              'Sesi kamu telah habis. Silakan login kembali untuk melanjutkan.',
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () {
-                  navigatorKey.currentState?.pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
-                  );
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A56C4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Login Kembali'),
-              ),
-            ],
-          ),
-        );
-      });
+          );
+        });
+      }
       return ApiResponse.error(
-        body['message'] ?? 'Sesi berakhir. Silakan login kembali.',
+        body['message'] ??
+            (hasToken
+                ? 'Sesi berakhir. Silakan login kembali.'
+                : 'Credensial tidak valid.'),
         statusCode: 401,
       );
     } else if (response.statusCode == 403) {

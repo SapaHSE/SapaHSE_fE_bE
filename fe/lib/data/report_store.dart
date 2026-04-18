@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../models/report.dart';
-import '../data/dummy_data.dart';
+import '../services/cloud_save_service.dart';
+import '../services/report_service.dart';
 
-// ── Timeline event model ───────────────────────────────────────────────────────
 class TimelineEvent {
   final ReportStatus status;
   final ReportSubStatus? subStatus;
@@ -21,213 +21,255 @@ class TimelineEvent {
   });
 }
 
-// ── ReportStore ───────────────────────────────────────────────────────────────
 class ReportStore {
   ReportStore._();
   static final ReportStore instance = ReportStore._();
 
-  // Mutable report list
-  final ValueNotifier<List<Report>> reports = ValueNotifier(
-    dummyReports.map((r) => r).toList(),
-  );
-
-  // Timeline per report ID — seed awal dari status laporan dummy
+  final ValueNotifier<List<Report>> reports = ValueNotifier<List<Report>>([]);
   final Map<String, List<TimelineEvent>> _timelines = {};
 
-  // ── Get timeline untuk satu report ────────────────────────────────────────
-  List<TimelineEvent> getTimeline(String reportId) {
-    if (!_timelines.containsKey(reportId)) {
-      final report = getById(reportId);
-      if (report != null) {
-        _timelines[reportId] = _seedTimeline(report);
+  bool _isRefreshing = false;
+
+  Future<void> refreshReports() async {
+    if (_isRefreshing) return;
+    _isRefreshing = true;
+    try {
+      final result = await ReportService.getReports(perPage: 100);
+      if (!result.success) {
+        throw Exception(result.errorMessage ?? 'Gagal memuat laporan.');
       }
+      reports.value = result.reports;
+    } finally {
+      _isRefreshing = false;
     }
-    return List.unmodifiable(_timelines[reportId] ?? []);
   }
 
-  // ── Inisialisasi timeline awal dari dummy data ─────────────────────────────
-  static List<TimelineEvent> _seedTimeline(Report r) {
-    final base = r.createdAt;
-    final events = <TimelineEvent>[
-      TimelineEvent(
-        status: ReportStatus.open,
-        subStatus: ReportSubStatus.validating,
-        timestamp: base,
-        actor: r.reportedBy,
-        note: 'Laporan dibuat dan sedang divalidasi.',
-      ),
-    ];
-
-    if (r.status == ReportStatus.open) {
-      // Seed sub-steps for open if subStatus tells us how far we are
-      final sub = r.subStatus;
-      if (sub == ReportSubStatus.approved || sub == ReportSubStatus.assigned) {
-        events.add(TimelineEvent(
-          status: ReportStatus.open,
-          subStatus: ReportSubStatus.approved,
-          timestamp: base.add(const Duration(hours: 1)),
-          actor: 'Supervisor HSE',
-          note: 'Laporan telah divalidasi dan disetujui.',
-        ));
-      }
-      if (sub == ReportSubStatus.assigned) {
-        events.add(TimelineEvent(
-          status: ReportStatus.open,
-          subStatus: ReportSubStatus.assigned,
-          timestamp: base.add(const Duration(hours: 2)),
-          actor: 'Admin HSE',
-          note: 'Laporan ditugaskan kepada tim terkait.',
-        ));
-      }
+  Future<Report> createHazardReport({
+    required String title,
+    required String description,
+    required String location,
+    required String severity,
+    String? namePja,
+    String? department,
+    String? hazardCategory,
+    String? hazardSubcategory,
+    String? suggestion,
+    String? imagePath,
+  }) async {
+    final result = await ReportService.createHazardReport(
+      title: title,
+      description: description,
+      location: location,
+      severity: severity,
+      namePja: namePja,
+      department: department,
+      hazardCategory: hazardCategory,
+      hazardSubcategory: hazardSubcategory,
+      suggestion: suggestion,
+      imagePath: imagePath,
+    );
+    if (!result.success || result.report == null) {
+      throw Exception(result.errorMessage ?? 'Gagal mengirim laporan hazard.');
     }
-
-    if (r.status == ReportStatus.inProgress || r.status == ReportStatus.closed) {
-      events.addAll([
-        TimelineEvent(
-          status: ReportStatus.open,
-          subStatus: ReportSubStatus.approved,
-          timestamp: base.add(const Duration(hours: 1)),
-          actor: 'Supervisor HSE',
-          note: 'Laporan telah divalidasi dan disetujui.',
-        ),
-        TimelineEvent(
-          status: ReportStatus.open,
-          subStatus: ReportSubStatus.assigned,
-          timestamp: base.add(const Duration(hours: 2)),
-          actor: 'Admin HSE',
-          note: 'Laporan ditugaskan kepada tim terkait.',
-        ),
-        TimelineEvent(
-          status: ReportStatus.inProgress,
-          subStatus: ReportSubStatus.preparing,
-          timestamp: base.add(const Duration(hours: 3)),
-          actor: 'Tim HSE',
-          note: 'Tim sedang mempersiapkan penanganan.',
-        ),
-      ]);
-
-      final sub = r.subStatus;
-      if (sub == ReportSubStatus.executing || sub == ReportSubStatus.reviewing) {
-        events.add(TimelineEvent(
-          status: ReportStatus.inProgress,
-          subStatus: ReportSubStatus.executing,
-          timestamp: base.add(const Duration(hours: 5)),
-          actor: 'Tim HSE',
-          note: 'Penanganan sedang dilaksanakan di lapangan.',
-        ));
-      }
-      if (sub == ReportSubStatus.reviewing) {
-        events.add(TimelineEvent(
-          status: ReportStatus.inProgress,
-          subStatus: ReportSubStatus.reviewing,
-          timestamp: base.add(const Duration(hours: 7)),
-          actor: 'Supervisor HSE',
-          note: 'Hasil penanganan sedang direview.',
-        ));
-      }
-    }
-
-    if (r.status == ReportStatus.closed) {
-      events.addAll([
-        TimelineEvent(
-          status: ReportStatus.inProgress,
-          subStatus: ReportSubStatus.executing,
-          timestamp: base.add(const Duration(hours: 5)),
-          actor: 'Tim HSE',
-          note: 'Penanganan sedang dilaksanakan di lapangan.',
-        ),
-        TimelineEvent(
-          status: ReportStatus.inProgress,
-          subStatus: ReportSubStatus.reviewing,
-          timestamp: base.add(const Duration(hours: 7)),
-          actor: 'Supervisor HSE',
-          note: 'Hasil penanganan sedang direview.',
-        ),
-        TimelineEvent(
-          status: ReportStatus.closed,
-          subStatus: r.subStatus ?? ReportSubStatus.resolved,
-          timestamp: base.add(const Duration(days: 1)),
-          actor: 'Admin HSE',
-          note: 'Penanganan selesai dan laporan ditutup.',
-        ),
-      ]);
-    }
-
-    return events;
+    _upsertReport(result.report!, prepend: true);
+    await loadTimeline(result.report!.id, force: true);
+    return result.report!;
   }
 
-  // ── Update status + sub-status + tambah event ke timeline ─────────────────
-  Report updateStatus(
+  Future<Report> createInspectionReport({
+    required String title,
+    required String description,
+    required String location,
+    String? area,
+    String? inspector,
+    String? result,
+    String? notes,
+    List<Map<String, dynamic>>? checklistItems,
+    String? imagePath,
+  }) async {
+    final response = await ReportService.createInspectionReport(
+      title: title,
+      description: description,
+      location: location,
+      area: area,
+      inspector: inspector,
+      result: result,
+      notes: notes,
+      checklistItems: checklistItems,
+      imagePath: imagePath,
+    );
+    if (!response.success || response.report == null) {
+      throw Exception(response.errorMessage ?? 'Gagal mengirim laporan inspeksi.');
+    }
+    _upsertReport(response.report!, prepend: true);
+    await loadTimeline(response.report!.id, force: true);
+    return response.report!;
+  }
+
+  Future<Report> updateStatus(
     String id,
     ReportStatus newStatus, {
     ReportSubStatus? newSubStatus,
-    String actor = 'User',
     String? note,
     String? photoPath,
-  }) {
-    final list = List<Report>.from(reports.value);
-    final idx = list.indexWhere((r) => r.id == id);
-    if (idx == -1) throw ArgumentError('Report $id tidak ditemukan');
+    String? taggedUserId,
+  }) async {
+    final report = getById(id);
+    if (report == null) {
+      throw Exception('Report $id tidak ditemukan.');
+    }
 
-    final old = list[idx];
-    final updated = Report(
-      id:          old.id,
-      title:       old.title,
-      description: old.description,
-      type:        old.type,
-      category:    old.category,
-      severity:    old.severity,
-      status:      newStatus,
-      subStatus:   newSubStatus,
-      location:    old.location,
-      createdAt:   old.createdAt,
-      reportedBy:  old.reportedBy,
-      imageUrl:    old.imageUrl,
-    );
-    list[idx] = updated;
-    reports.value = list;
-
-    // Append timeline event
-    _timelines.putIfAbsent(id, () => _seedTimeline(old));
-    _timelines[id]!.add(TimelineEvent(
-      status:    newStatus,
+    final result = await ReportService.updateReportStatus(
+      report: report,
+      status: newStatus,
       subStatus: newSubStatus,
-      timestamp: DateTime.now(),
-      actor:     actor,
-      note:      note ?? _defaultNote(newStatus, newSubStatus),
-      photoPath: photoPath,
-    ));
+      message: note,
+      imagePath: photoPath,
+      taggedUserId: taggedUserId,
+    );
+    if (!result.success || result.report == null) {
+      throw Exception(result.errorMessage ?? 'Gagal memperbarui status laporan.');
+    }
 
-    return updated;
+    _upsertReport(result.report!);
+    await loadTimeline(id, force: true);
+    return result.report!;
   }
 
-  String _defaultNote(ReportStatus s, ReportSubStatus? sub) {
-    if (sub != null) {
-      switch (sub) {
-        case ReportSubStatus.validating: return 'Laporan sedang divalidasi.';
-        case ReportSubStatus.approved:   return 'Laporan telah disetujui.';
-        case ReportSubStatus.assigned:   return 'Laporan telah ditugaskan.';
-        case ReportSubStatus.preparing:  return 'Tim sedang mempersiapkan penanganan.';
-        case ReportSubStatus.executing:  return 'Penanganan sedang dilaksanakan.';
-        case ReportSubStatus.reviewing:  return 'Hasil penanganan sedang direview.';
-        case ReportSubStatus.resolved:   return 'Laporan selesai ditangani dan ditutup.';
-        case ReportSubStatus.rejected:   return 'Laporan ditolak.';
-        case ReportSubStatus.deferred:   return 'Penanganan laporan ditunda.';
+  List<TimelineEvent> getTimeline(String reportId) {
+    return List.unmodifiable(_timelines[reportId] ?? const <TimelineEvent>[]);
+  }
+
+  Future<List<TimelineEvent>> loadTimeline(
+    String reportId, {
+    bool force = false,
+  }) async {
+    if (!force && _timelines.containsKey(reportId)) {
+      return getTimeline(reportId);
+    }
+
+    final report = getById(reportId);
+    if (report == null) {
+      return const <TimelineEvent>[];
+    }
+
+    final logsResult = await ReportService.getLogs(report);
+    if (!logsResult.success) {
+      final fallback = _buildFallbackTimeline(report);
+      _timelines[reportId] = fallback;
+      return fallback;
+    }
+
+    final events = logsResult.logs.map((entry) {
+      return TimelineEvent(
+        status: entry.status,
+        subStatus: entry.subStatus,
+        timestamp: entry.timestamp,
+        actor: entry.actor,
+        note: entry.note,
+        photoPath: entry.photoUrl,
+      );
+    }).toList();
+
+    _timelines[reportId] =
+        events.isEmpty ? _buildFallbackTimeline(report) : events;
+    return getTimeline(reportId);
+  }
+
+  Future<bool> submitDraft(ReportDraft draft) async {
+    try {
+      if (draft.type == DraftType.hazard) {
+        final severityRaw = (draft.data['severity']?.toString() ?? '').trim();
+        final severityApi =
+            severityRaw.isEmpty ? 'medium' : severityRaw.toLowerCase();
+
+        await createHazardReport(
+          title: (draft.data['title']?.toString() ?? '').trim(),
+          description: (draft.data['kronologi']?.toString() ?? '').trim(),
+          location: (draft.data['location']?.toString() ?? '').trim(),
+          severity: severityApi,
+          namePja: draft.data['pja']?.toString(),
+          department: draft.data['departemen']?.toString(),
+          hazardCategory: draft.data['kategori']?.toString(),
+          hazardSubcategory: draft.data['subkategori']?.toString(),
+          suggestion: draft.data['saran']?.toString(),
+          imagePath: draft.data['photoPath']?.toString(),
+        );
+      } else {
+        final checklistRaw = draft.data['checklist'];
+        final checklistItems = checklistRaw is List
+            ? checklistRaw
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList()
+            : const <Map<String, dynamic>>[];
+
+        await createInspectionReport(
+          title: (draft.data['title']?.toString() ?? '').trim(),
+          description: (draft.data['notes']?.toString() ?? '').trim().isEmpty
+              ? 'Laporan inspeksi dari draft offline.'
+              : (draft.data['notes']?.toString() ?? '').trim(),
+          location: (draft.data['location']?.toString() ?? '').trim(),
+          inspector: draft.data['inspector']?.toString(),
+          area: draft.data['area']?.toString(),
+          result: _inspectionResultUiToApi(draft.data['result']?.toString()),
+          notes: draft.data['notes']?.toString(),
+          checklistItems: checklistItems,
+          imagePath: draft.data['photoPath']?.toString(),
+        );
       }
-    }
-    switch (s) {
-      case ReportStatus.open:       return 'Status dikembalikan ke Open.';
-      case ReportStatus.inProgress: return 'Laporan sedang ditindaklanjuti.';
-      case ReportStatus.closed:     return 'Laporan selesai ditangani dan ditutup.';
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
-  // ── Get report by ID ───────────────────────────────────────────────────────
   Report? getById(String id) {
     try {
       return reports.value.firstWhere((r) => r.id == id);
     } catch (_) {
       return null;
+    }
+  }
+
+  void _upsertReport(Report report, {bool prepend = false}) {
+    final current = List<Report>.from(reports.value);
+    final idx = current.indexWhere((r) => r.id == report.id);
+    if (idx >= 0) {
+      current[idx] = report;
+    } else if (prepend) {
+      current.insert(0, report);
+    } else {
+      current.add(report);
+    }
+    current.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    reports.value = current;
+  }
+
+  List<TimelineEvent> _buildFallbackTimeline(Report report) {
+    return [
+      TimelineEvent(
+        status: report.status,
+        subStatus: report.subStatus,
+        timestamp: report.createdAt,
+        actor: report.reportedBy,
+        note: 'Laporan dibuat.',
+      ),
+    ];
+  }
+
+  String? _inspectionResultUiToApi(String? uiValue) {
+    switch (uiValue) {
+      case 'Sesuai':
+      case 'compliant':
+        return 'compliant';
+      case 'Tidak Sesuai':
+      case 'non_compliant':
+        return 'non_compliant';
+      case 'Perlu Tindak Lanjut':
+      case 'needs_follow_up':
+        return 'needs_follow_up';
+      default:
+        return null;
     }
   }
 }

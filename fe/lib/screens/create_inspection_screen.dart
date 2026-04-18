@@ -1,4 +1,7 @@
+import 'dart:math' show Random;
 import 'package:flutter/material.dart';
+import '../data/report_store.dart';
+import '../services/cloud_save_service.dart';
 
 class CreateInspectionScreen extends StatefulWidget {
   const CreateInspectionScreen({super.key});
@@ -55,9 +58,104 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
+
+    final online = await CloudSaveService.isOnline();
+
+    if (!online) {
+      // ── OFFLINE: simpan draft ──────────────────────────────────────────
+      final draft = ReportDraft(
+        id: 'inspection_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}',
+        type: DraftType.inspection,
+        title: _titleController.text.trim(),
+        data: {
+          'title': _titleController.text.trim(),
+          'location': _locationController.text.trim(),
+          'inspector': _inspectorController.text.trim(),
+          'notes': _notesController.text.trim(),
+          'area': _selectedArea,
+          'result': _selectedResult,
+          'checklist': _checklistItems
+              .map((e) => {'label': e['label'], 'checked': e['checked']})
+              .toList(),
+        },
+        createdAt: DateTime.now(),
+      );
+      await CloudSaveService.instance.saveDraft(draft);
+
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showResultDialog(
+        isOffline: true,
+        title: 'Tersimpan sebagai Draft',
+        message:
+            'Tidak ada koneksi internet. Laporan inspeksi disimpan secara lokal dan akan dikirim saat Anda kembali online.',
+      );
+    } else {
+      try {
+        final notes = _notesController.text.trim();
+        final description = notes.isNotEmpty
+            ? notes
+            : 'Hasil inspeksi $_selectedResult pada area $_selectedArea.';
+
+        await ReportStore.instance.createInspectionReport(
+          title: _titleController.text.trim(),
+          description: description,
+          location: _locationController.text.trim(),
+          area: _selectedArea,
+          inspector: _inspectorController.text.trim(),
+          result: _resultToApi(_selectedResult),
+          notes: notes,
+          checklistItems: _checklistItems
+              .map((e) => {
+                    'label': e['label'],
+                    'checked': e['checked'],
+                  })
+              .toList(),
+        );
+
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        _showResultDialog(
+          isOffline: false,
+          title: 'Inspeksi Terkirim!',
+          message:
+              'Laporan inspeksi Anda telah berhasil dikirim dan akan segera diproses.',
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengirim laporan: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
+  }
+
+  String _resultToApi(String uiResult) {
+    switch (uiResult) {
+      case 'Sesuai':
+        return 'compliant';
+      case 'Tidak Sesuai':
+        return 'non_compliant';
+      case 'Perlu Tindak Lanjut':
+        return 'needs_follow_up';
+      default:
+        return 'compliant';
+    }
+  }
+
+  void _showResultDialog({
+    required bool isOffline,
+    required String title,
+    required String message,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -69,20 +167,62 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
             Container(
               width: 70,
               height: 70,
-              decoration: const BoxDecoration(
-                  color: _blueLight, shape: BoxShape.circle),
-              child:
-                  const Icon(Icons.check_circle, color: _blue, size: 42),
+              decoration: BoxDecoration(
+                color: isOffline
+                    ? const Color(0xFFFFF3E0)
+                    : _blueLight,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isOffline
+                    ? Icons.cloud_off_outlined
+                    : Icons.cloud_done_outlined,
+                color: isOffline ? const Color(0xFFFF9800) : _blue,
+                size: 42,
+              ),
             ),
             const SizedBox(height: 16),
-            const Text('Inspeksi Terkirim!',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 8),
-            const Text(
-              'Laporan inspeksi Anda telah berhasil dikirim dan akan segera diproses.',
+            Text(
+              message,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.5),
+              style: const TextStyle(
+                  color: Colors.grey, fontSize: 13, height: 1.5),
             ),
+            if (isOffline) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: const Color(0xFFFF9800)
+                          .withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cloud_outlined,
+                        size: 14, color: Color(0xFFE65100)),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Cek ikon Cloud Save di header untuk melihat & mengirim draft.',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFE65100),
+                            height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -94,7 +234,8 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _blue,
+                backgroundColor:
+                    isOffline ? const Color(0xFFFF9800) : _blue,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -137,34 +278,38 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
               // ── Photo placeholder ─────────────────────────────────────
               Container(
                 width: double.infinity,
-                height: 160,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border:
-                      Border.all(color: _blue.withOpacity(0.3), width: 1.5),
+                      Border.all(color: _blue.withValues(alpha: 0.3), width: 1.5),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Row(
                   children: [
                     Container(
-                      width: 56,
-                      height: 56,
+                      width: 32,
+                      height: 32,
                       decoration: const BoxDecoration(
                           color: _blueLight, shape: BoxShape.circle),
                       child: const Icon(Icons.camera_alt_outlined,
-                          color: _blue, size: 28),
+                          color: _blue, size: 16),
                     ),
-                    const SizedBox(height: 10),
-                    const Text('Tambah Foto Inspeksi',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _blue,
-                            fontSize: 14)),
-                    const SizedBox(height: 2),
-                    const Text('Kamera atau Galeri',
-                        style:
-                            TextStyle(fontSize: 12, color: Colors.grey)),
+                    const SizedBox(width: 10),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Tambah Foto Inspeksi',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: _blue,
+                                fontSize: 12)),
+                        Text('Kamera atau Galeri',
+                            style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ],
+                    ),
+                    const Spacer(),
+                    const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
                   ],
                 ),
               ),
@@ -293,7 +438,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _blue,
                     foregroundColor: Colors.white,
-                    disabledBackgroundColor: _blue.withOpacity(0.5),
+                    disabledBackgroundColor: _blue.withValues(alpha: 0.5),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
@@ -337,7 +482,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
               margin: const EdgeInsets.only(right: 6),
               padding: const EdgeInsets.symmetric(vertical: 11),
               decoration: BoxDecoration(
-                color: isSelected ? color : color.withOpacity(0.08),
+                color: isSelected ? color : color.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: color, width: isSelected ? 2 : 1),
               ),
@@ -366,7 +511,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2))
         ],

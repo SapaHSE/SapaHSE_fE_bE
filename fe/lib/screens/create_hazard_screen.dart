@@ -1,8 +1,50 @@
 import 'dart:io' show File;
+import 'dart:math' show Random;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/report.dart';
+import '../data/report_store.dart';
+import '../services/cloud_save_service.dart';
+
+// ── Data: Departemen & PJA ─────────────────────────────────────────────────
+const _departemenList = [
+  'Mining', 'Processing', 'Maintenance', 'HSE',
+  'HR', 'Finance', 'IT', 'Operations',
+];
+
+const _pjaByDepartemen = <String, List<String>>{
+  'Mining':      ['Budi Santoso', 'Ahmad Fauzi', 'Riko Pratama', 'Hendra Wijaya'],
+  'Processing':  ['Siti Rahayu', 'Dian Permata', 'Eko Susilo', 'Novi Andriani'],
+  'Maintenance': ['Wahyu Hidayat', 'Agus Setiawan', 'Bambang Purnomo'],
+  'HSE':         ['Lintang Bhaskara', 'Maya Putri', 'Reza Firmansyah'],
+  'HR':          ['Dewi Kusuma', 'Rizki Fauzan', 'Rina Marlina'],
+  'Finance':     ['Tono Subagio', 'Fitri Handayani', 'Arief Budiman'],
+  'IT':          ['Kevin Alfarisi', 'Deni Setiawan', 'Putri Wulandari'],
+  'Operations':  ['Faisal Rahman', 'Guntur Prabowo', 'Yuli Astuti'],
+};
+
+// ── Data: Kategori & Subkategori ───────────────────────────────────────────
+const _subkategoriTTA = [
+  'Tidak Menggunakan APD',
+  'Mengoperasikan Peralatan Tanpa Izin',
+  'Posisi/Sikap Kerja Tidak Aman',
+  'Bekerja di Bawah Pengaruh Alkohol/Obat',
+  'Mengabaikan Prosedur Keselamatan',
+  'Berkendara Tidak Aman',
+  'Menggunakan Peralatan Rusak',
+];
+
+const _subkategoriKTA = [
+  'Kondisi Lantai/Jalan Berbahaya',
+  'Peralatan Rusak/Tidak Layak Pakai',
+  'Pencahayaan Tidak Memadai',
+  'Penyimpanan Material Tidak Aman',
+  'Bahaya Benda Jatuh/Terlempar',
+  'Kebisingan Berlebihan',
+  'Instalasi Listrik Tidak Aman',
+  'Ventilasi Tidak Memadai',
+];
 
 class CreateHazardScreen extends StatefulWidget {
   const CreateHazardScreen({super.key});
@@ -21,9 +63,21 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
+  final _kronologiCtrl = TextEditingController();
+  final _saranCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
 
-  ReportSeverity _selectedSeverity = ReportSeverity.low;
+  // Orang
+  String? _selectedDepartemen;
+  String? _selectedPja;
+
+  // Status (Severity)
+  ReportSeverity? _selectedSeverity;
+
+  // Kategori & Subkategori Hazard
+  String? _selectedKategori; // 'TTA' or 'KTA'
+  String? _selectedSubkategori;
+
   bool _isSubmitting = false;
 
   // ── Photo ──────────────────────────────────────────────────────────────────
@@ -34,8 +88,16 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   void dispose() {
     _titleCtrl.dispose();
     _descriptionCtrl.dispose();
+    _kronologiCtrl.dispose();
+    _saranCtrl.dispose();
     _locationCtrl.dispose();
     super.dispose();
+  }
+
+  List<String> get _subkategoriList {
+    if (_selectedKategori == 'TTA') return _subkategoriTTA;
+    if (_selectedKategori == 'KTA') return _subkategoriKTA;
+    return [];
   }
 
   // ── Pick photo ─────────────────────────────────────────────────────────────
@@ -46,17 +108,14 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         imageQuality: 80,
         maxWidth: 1280,
       );
-      if (picked != null) {
-        setState(() => _photoFile = picked);
-      }
+      if (picked != null) setState(() => _photoFile = picked);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Gagal mengambil foto: $e'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           margin: const EdgeInsets.all(16),
         ));
       }
@@ -77,12 +136,10 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle
             Padding(
               padding: const EdgeInsets.only(top: 12, bottom: 4),
               child: Container(
-                width: 40,
-                height: 4,
+                width: 40, height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(2),
@@ -95,59 +152,38 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ),
             const Divider(height: 1),
-            // Kamera
             ListTile(
               leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                    color: _blueLight, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.camera_alt_outlined,
-                    color: _blue, size: 22),
+                width: 40, height: 40,
+                decoration: BoxDecoration(color: _blueLight, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.camera_alt_outlined, color: _blue, size: 22),
               ),
               title: const Text('Ambil Foto dari Kamera'),
               trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () {
-                Navigator.pop(context);
-                _pickPhoto(ImageSource.camera);
-              },
+              onTap: () { Navigator.pop(context); _pickPhoto(ImageSource.camera); },
             ),
-            // Galeri
             ListTile(
               leading: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                    color: _blueLight, borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.photo_library_outlined,
-                    color: _blue, size: 22),
+                width: 40, height: 40,
+                decoration: BoxDecoration(color: _blueLight, borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.photo_library_outlined, color: _blue, size: 22),
               ),
               title: const Text('Pilih dari Galeri'),
               trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () {
-                Navigator.pop(context);
-                _pickPhoto(ImageSource.gallery);
-              },
+              onTap: () { Navigator.pop(context); _pickPhoto(ImageSource.gallery); },
             ),
-            // Hapus foto (jika ada)
             if (_photoFile != null)
               ListTile(
                 leading: Container(
-                  width: 40,
-                  height: 40,
+                  width: 40, height: 40,
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.delete_outline,
-                      color: Colors.red, size: 22),
+                  child: const Icon(Icons.delete_outline, color: Colors.red, size: 22),
                 ),
-                title: const Text('Hapus Foto',
-                    style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() => _photoFile = null);
-                },
+                title: const Text('Hapus Foto', style: TextStyle(color: Colors.red)),
+                onTap: () { Navigator.pop(context); setState(() => _photoFile = null); },
               ),
             const SizedBox(height: 8),
             Padding(
@@ -177,9 +213,100 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   Future<void> _submitReport() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
+
+    final online = await CloudSaveService.isOnline();
+
+    if (!online) {
+      // ── OFFLINE: simpan sebagai draft Cloud Save ───────────────────────
+      final draft = ReportDraft(
+        id: 'hazard_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(9999)}',
+        type: DraftType.hazard,
+        title: _titleCtrl.text.trim(),
+        data: {
+          'title': _titleCtrl.text.trim(),
+          'description': _descriptionCtrl.text.trim(),
+          'kronologi': _kronologiCtrl.text.trim(),
+          'saran': _saranCtrl.text.trim(),
+          'location': _locationCtrl.text.trim(),
+          'departemen': _selectedDepartemen,
+          'pja': _selectedPja,
+          'severity': _selectedSeverity?.name,
+          'kategori': _selectedKategori,
+          'subkategori': _selectedSubkategori,
+          'photoPath': _photoFile?.path,
+        },
+        createdAt: DateTime.now(),
+      );
+      await CloudSaveService.instance.saveDraft(draft);
+
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showResultDialog(
+        isOffline: true,
+        title: 'Tersimpan sebagai Draft',
+        message:
+            'Tidak ada koneksi internet. Laporan hazard disimpan secara lokal dan akan dikirim otomatis saat Anda kembali online.',
+      );
+    } else {
+      try {
+        await ReportStore.instance.createHazardReport(
+          title: _titleCtrl.text.trim(),
+          description: _kronologiCtrl.text.trim(),
+          location: _locationCtrl.text.trim(),
+          severity: _severityToApi(_selectedSeverity),
+          namePja: _selectedPja,
+          department: _selectedDepartemen,
+          hazardCategory: _selectedKategori,
+          hazardSubcategory: _selectedSubkategori,
+          suggestion: _saranCtrl.text.trim(),
+          imagePath: _photoFile?.path,
+        );
+
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        _showResultDialog(
+          isOffline: false,
+          title: 'Laporan Terkirim!',
+          message:
+              'Laporan hazard Anda telah berhasil dikirim dan akan segera ditindaklanjuti.',
+        );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengirim laporan: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
+  }
+
+  String _severityToApi(ReportSeverity? severity) {
+    switch (severity) {
+      case ReportSeverity.low:
+        return 'low';
+      case ReportSeverity.medium:
+        return 'medium';
+      case ReportSeverity.high:
+        return 'high';
+      case ReportSeverity.critical:
+        return 'critical';
+      case null:
+        return 'medium';
+    }
+  }
+
+  void _showResultDialog({
+    required bool isOffline,
+    required String title,
+    required String message,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -191,19 +318,62 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             Container(
               width: 70,
               height: 70,
-              decoration: const BoxDecoration(
-                  color: _blueLight, shape: BoxShape.circle),
-              child: const Icon(Icons.check_circle, color: _blue, size: 42),
+              decoration: BoxDecoration(
+                color: isOffline
+                    ? const Color(0xFFFFF3E0)
+                    : _blueLight,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isOffline
+                    ? Icons.cloud_off_outlined
+                    : Icons.cloud_done_outlined,
+                color: isOffline ? const Color(0xFFFF9800) : _blue,
+                size: 42,
+              ),
             ),
             const SizedBox(height: 16),
-            const Text('Laporan Terkirim!',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(title,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 8),
-            const Text(
-              'Laporan hazard Anda telah berhasil dikirim dan akan segera ditindaklanjuti.',
+            Text(
+              message,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.5),
+              style: const TextStyle(
+                  color: Colors.grey, fontSize: 13, height: 1.5),
             ),
+            if (isOffline) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: const Color(0xFFFF9800)
+                          .withValues(alpha: 0.4)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cloud_outlined,
+                        size: 14, color: Color(0xFFE65100)),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Cek ikon Cloud Save di header untuk melihat & mengirim draft.',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFE65100),
+                            height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
@@ -215,7 +385,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                 Navigator.pop(context);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _blue,
+                backgroundColor: isOffline
+                    ? const Color(0xFFFF9800)
+                    : _blue,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -255,13 +427,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Photo section ──────────────────────────────────────────
-              GestureDetector(
-                onTap: _showPhotoOptions,
-                child: _photoFile == null
-                    ? _buildPhotoPlaceholder()
-                    : _buildPhotoPreview(),
-              ),
+              // ── Photo section (compact) ────────────────────────────────
+              _buildPhotoCompact(),
 
               const SizedBox(height: 16),
 
@@ -273,9 +440,61 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   hint: 'Masukkan judul laporan',
                   validator: (v) => v!.trim().isEmpty ? 'Wajib diisi' : null,
                 ),
+
                 const SizedBox(height: 14),
-                _label('Tingkat Risiko *'),
-                _buildSeveritySelector(),
+                _label('Status *'),
+                _buildSeverityDropdown(),
+
+                const SizedBox(height: 14),
+                _label('Departemen *'),
+                _buildDropdown(
+                  value: _selectedDepartemen,
+                  hint: 'Pilih departemen',
+                  items: _departemenList,
+                  icon: Icons.business_outlined,
+                  onChanged: (val) => setState(() {
+                    _selectedDepartemen = val;
+                    _selectedPja = null;
+                  }),
+                  validator: (v) => v == null ? 'Wajib dipilih' : null,
+                ),
+
+                const SizedBox(height: 14),
+                _label('PJA (Penanggung Jawab Area) *'),
+                _buildDropdown(
+                  value: _selectedPja,
+                  hint: _selectedDepartemen == null
+                      ? 'Pilih departemen terlebih dahulu'
+                      : 'Pilih PJA',
+                  items: _selectedDepartemen != null
+                      ? (_pjaByDepartemen[_selectedDepartemen!] ?? [])
+                      : [],
+                  icon: Icons.person_outlined,
+                  onChanged: _selectedDepartemen == null
+                      ? null
+                      : (val) => setState(() => _selectedPja = val),
+                  validator: (v) => v == null ? 'Wajib dipilih' : null,
+                ),
+
+                const SizedBox(height: 14),
+                _label('Kategori Hazard *'),
+                _buildKategoriSelector(),
+
+                const SizedBox(height: 14),
+                _label('Subkategori Hazard *'),
+                _buildDropdown(
+                  value: _selectedSubkategori,
+                  hint: _selectedKategori == null
+                      ? 'Pilih kategori terlebih dahulu'
+                      : 'Pilih subkategori',
+                  items: _subkategoriList,
+                  icon: Icons.category_outlined,
+                  onChanged: _selectedKategori == null
+                      ? null
+                      : (val) => setState(() => _selectedSubkategori = val),
+                  validator: (v) => v == null ? 'Wajib dipilih' : null,
+                ),
+
                 const SizedBox(height: 14),
                 _label('Lokasi *'),
                 _textField(
@@ -284,15 +503,23 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   icon: Icons.location_on_outlined,
                   validator: (v) => v!.trim().isEmpty ? 'Wajib diisi' : null,
                 ),
+
                 const SizedBox(height: 14),
-                _label('Deskripsi *'),
+                _label('Deskripsi Kronologi *'),
                 TextFormField(
-                  controller: _descriptionCtrl,
+                  controller: _kronologiCtrl,
                   maxLines: 4,
                   validator: (v) => v!.trim().isEmpty ? 'Wajib diisi' : null,
-                  decoration: _inputDeco(
-                    hint: 'Jelaskan kondisi hazard secara detail...',
-                  ),
+                  decoration: _inputDeco(hint: 'Jelaskan kronologi kejadian secara runtut...'),
+                ),
+
+                const SizedBox(height: 14),
+                _label('Deskripsi Saran *'),
+                TextFormField(
+                  controller: _saranCtrl,
+                  maxLines: 4,
+                  validator: (v) => v!.trim().isEmpty ? 'Wajib diisi' : null,
+                  decoration: _inputDeco(hint: 'Berikan saran atau rekomendasi tindakan perbaikan...'),
                 ),
               ]),
 
@@ -308,19 +535,15 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                     backgroundColor: _blue,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: _blue.withValues(alpha: 0.5),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                   child: _isSubmitting
                       ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
+                          width: 22, height: 22,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Text('Kirim Laporan',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
 
@@ -332,117 +555,224 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     );
   }
 
-  // ── Photo placeholder ──────────────────────────────────────────────────────
-  Widget _buildPhotoPlaceholder() {
-    return Container(
-      width: double.infinity,
-      height: 160,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _blue.withValues(alpha: 0.3), width: 1.5),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  // ── Photo compact row ──────────────────────────────────────────────────────
+  Widget _buildPhotoCompact() {
+    if (_photoFile != null) {
+      return Stack(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration:
-                const BoxDecoration(color: _blueLight, shape: BoxShape.circle),
-            child:
-                const Icon(Icons.camera_alt_outlined, color: _blue, size: 28),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: double.infinity,
+              height: 160,
+              child: kIsWeb
+                  ? Image.network(_photoFile!.path, fit: BoxFit.cover)
+                  : Image.file(File(_photoFile!.path), fit: BoxFit.cover),
+            ),
           ),
-          const SizedBox(height: 10),
-          const Text('Tambah Foto Hazard',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, color: _blue, fontSize: 14)),
-          const SizedBox(height: 2),
-          const Text('Kamera atau Galeri',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
+          Positioned(
+            top: 8, right: 8,
+            child: GestureDetector(
+              onTap: _showPhotoOptions,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.edit, color: Colors.white, size: 13),
+                    SizedBox(width: 4),
+                    Text('Ganti', style: TextStyle(color: Colors.white, fontSize: 11)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Compact placeholder
+    return GestureDetector(
+      onTap: _showPhotoOptions,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _blue.withValues(alpha: 0.3), width: 1.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32, height: 32,
+              decoration: const BoxDecoration(color: _blueLight, shape: BoxShape.circle),
+              child: const Icon(Icons.camera_alt_outlined, color: _blue, size: 16),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Tambah Foto Hazard',
+                    style: TextStyle(fontWeight: FontWeight.w600, color: _blue, fontSize: 12)),
+                Text('Kamera atau Galeri',
+                    style: TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+            const Spacer(),
+            const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Severity dropdown ──────────────────────────────────────────────────────
+  Widget _buildSeverityDropdown() {
+    const options = [ReportSeverity.low, ReportSeverity.high, ReportSeverity.critical];
+    const colors = {
+      ReportSeverity.low:      Color(0xFF4CAF50),
+      ReportSeverity.high:     Color(0xFFF44336),
+      ReportSeverity.critical: Color(0xFF880E4F),
+    };
+
+    return FormField<ReportSeverity>(
+      validator: (v) => v == null ? 'Wajib dipilih' : null,
+      builder: (state) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: options.map((s) {
+              final isSelected = _selectedSeverity == s;
+              final color = colors[s]!;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => _selectedSeverity = s);
+                    state.didChange(s);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected ? color : color.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: color, width: isSelected ? 2 : 1),
+                    ),
+                    child: Text(
+                      s.label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : color,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          if (state.hasError)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4),
+              child: Text(state.errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
+            ),
         ],
       ),
     );
   }
 
-  // ── Photo preview (after picking) ─────────────────────────────────────────
-  Widget _buildPhotoPreview() {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            width: double.infinity,
-            height: 200,
-            child: kIsWeb
-                ? Image.network(_photoFile!.path, fit: BoxFit.cover)
-                : Image.file(File(_photoFile!.path), fit: BoxFit.cover),
+  // ── Kategori selector (TTA / KTA) ──────────────────────────────────────────
+  Widget _buildKategoriSelector() {
+    const options = ['TTA', 'KTA'];
+    const labels = {'TTA': 'TTA (Tindakan Tidak Aman)', 'KTA': 'KTA (Kondisi Tidak Aman)'};
+    const icons = {'TTA': Icons.warning_amber_outlined, 'KTA': Icons.construction_outlined};
+
+    return FormField<String>(
+      validator: (v) => v == null ? 'Wajib dipilih' : null,
+      builder: (state) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: options.map((k) {
+              final isSelected = _selectedKategori == k;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedKategori = k;
+                      _selectedSubkategori = null;
+                    });
+                    state.didChange(k);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? _blue : _blueLight,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: isSelected ? _blue : Colors.blue.shade100,
+                          width: isSelected ? 2 : 1),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(icons[k], color: isSelected ? Colors.white : _blue, size: 20),
+                        const SizedBox(height: 4),
+                        Text(
+                          labels[k]!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : _blue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
-        ),
-        // Change photo button
-        Positioned(
-          top: 10,
-          right: 10,
-          child: GestureDetector(
-            onTap: _showPhotoOptions,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.edit, color: Colors.white, size: 14),
-                  SizedBox(width: 4),
-                  Text('Ganti',
-                      style: TextStyle(color: Colors.white, fontSize: 12)),
-                ],
-              ),
+          if (state.hasError)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4),
+              child: Text(state.errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12)),
             ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  // ── Severity selector ──────────────────────────────────────────────────────
-  Widget _buildSeveritySelector() {
-    const severityColors = {
-      ReportSeverity.low: Color(0xFF4CAF50),
-      ReportSeverity.medium: Color(0xFFFF9800),
-      ReportSeverity.high: Color(0xFFF44336),
-    };
-    return Row(
-      children: ReportSeverity.values.map((s) {
-        final isSelected = _selectedSeverity == s;
-        final color = severityColors[s]!;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => setState(() => _selectedSeverity = s),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(vertical: 11),
-              decoration: BoxDecoration(
-                color: isSelected ? color : color.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: color, width: isSelected ? 2 : 1),
-              ),
-              child: Text(
-                s.label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+  // ── Generic dropdown ───────────────────────────────────────────────────────
+  Widget _buildDropdown({
+    required String? value,
+    required String hint,
+    required List<String> items,
+    required void Function(String?)? onChanged,
+    required String? Function(String?) validator,
+    IconData? icon,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      validator: validator,
+      onChanged: onChanged,
+      decoration: _inputDeco(hint: hint, icon: icon),
+      isExpanded: true,
+      hint: Text(hint, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+      items: items
+          .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13))))
+          .toList(),
     );
   }
 
@@ -460,8 +790,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
               offset: const Offset(0, 2))
         ],
       ),
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
     );
   }
 
@@ -469,9 +798,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text,
             style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87)),
+                fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
       );
 
   Widget _textField({
@@ -491,8 +818,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-      prefixIcon:
-          icon != null ? Icon(icon, size: 20, color: Colors.grey) : null,
+      prefixIcon: icon != null ? Icon(icon, size: 20, color: Colors.grey) : null,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
       filled: true,
       fillColor: const Color(0xFFF8F9FF),

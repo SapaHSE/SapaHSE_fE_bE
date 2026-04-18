@@ -32,6 +32,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingMore = false;
   final ScrollController _scrollController = ScrollController();
 
+  // ── Loading / error state ─────────────────────────────────────────────────
+  bool _isLoadingReports = false;
+  String? _reportsError;
+  bool _isLoadingNews = false;
+  String? _newsError;
+
   // ── Featured News Carousel ────────────────────────────────────────────────
   List<NewsArticle> _carouselItems = [];
 
@@ -46,18 +52,53 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadCarouselNews();
+    _loadReports();
     _scrollController.addListener(_onScroll);
   }
 
   Future<void> _loadCarouselNews() async {
-    final result = await NewsService.getNews();
     if (!mounted) return;
-    if (result.success) {
-      setState(() {
-        _carouselItems = result.articles.where((a) => a.isFeatured).toList();
-      });
-      _startCarousel();
+    setState(() {
+      _isLoadingNews = true;
+      _newsError = null;
+    });
+    try {
+      final result = await NewsService.getNews();
+      if (!mounted) return;
+      if (result.success) {
+        setState(() {
+          _carouselItems = result.articles.where((a) => a.isFeatured).toList();
+        });
+        _startCarousel();
+      } else {
+        setState(() {
+          _newsError = result.errorMessage ?? 'Gagal memuat berita.';
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _newsError = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoadingNews = false);
     }
+  }
+
+  Future<void> _loadReports() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingReports = true;
+      _reportsError = null;
+    });
+    try {
+      await ReportStore.instance.refreshReports();
+    } catch (e) {
+      if (mounted) setState(() => _reportsError = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoadingReports = false);
+    }
+  }
+
+  Future<void> _refreshAll() async {
+    await Future.wait([_loadReports(), _loadCarouselNews()]);
   }
 
   void _onScroll() {
@@ -147,9 +188,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // ── Scrollable Body ─────────────────────────────────────────────
             Expanded(
-              child: CustomScrollView(
-                controller: _scrollController,
-                slivers: [
+              child: RefreshIndicator(
+                color: const Color(0xFF1A56C4),
+                onRefresh: _refreshAll,
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
                   // ── Carousel ───────────────────────────────────────────────────
                   SliverToBoxAdapter(child: _buildCarousel()),
 
@@ -189,6 +234,61 @@ class _HomeScreenState extends State<HomeScreen> {
                       final displayList = filtered.take(_displayedCount).toList();
 
                       if (filtered.isEmpty) {
+                        if (_isLoadingReports) {
+                          return const SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Padding(
+                              padding: EdgeInsets.all(40),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                    color: Color(0xFF1A56C4)),
+                              ),
+                            ),
+                          );
+                        }
+                        if (_reportsError != null) {
+                          return SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Padding(
+                              padding: const EdgeInsets.all(40),
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.cloud_off,
+                                        size: 48, color: Colors.grey),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Gagal memuat laporan',
+                                      style: TextStyle(
+                                          color: Colors.grey.shade700,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _reportsError!,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          color: Colors.grey, fontSize: 12),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    OutlinedButton.icon(
+                                      onPressed: _loadReports,
+                                      icon: const Icon(Icons.refresh, size: 16),
+                                      label: const Text('Coba Lagi'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor:
+                                            const Color(0xFF1A56C4),
+                                        side: const BorderSide(
+                                            color: Color(0xFF1A56C4)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }
                         return const SliverFillRemaining(
                           hasScrollBody: false,
                           child: Padding(
@@ -239,6 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 80)),
                 ],
+                ),
               ),
             ),
           ],
@@ -250,11 +351,55 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── CAROUSEL ──────────────────────────────────────────────────────────────
   Widget _buildCarousel() {
     if (_carouselItems.isEmpty) {
+      if (_isLoadingNews) {
+        return Container(
+          height: 240,
+          color: const Color(0xFF263238),
+          child: const Center(
+            child: CircularProgressIndicator(color: Colors.white38),
+          ),
+        );
+      }
+      if (_newsError != null) {
+        return Container(
+          height: 240,
+          color: const Color(0xFF263238),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off, color: Colors.white54, size: 40),
+                const SizedBox(height: 8),
+                const Text(
+                  'Gagal memuat berita',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _loadCarouselNews,
+                  icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+                  label: const Text('Coba Lagi',
+                      style: TextStyle(color: Colors.white)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white38),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       return Container(
         height: 240,
         color: const Color(0xFF263238),
         child: const Center(
-          child: CircularProgressIndicator(color: Colors.white38),
+          child: Text(
+            'Belum ada berita unggulan',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
+          ),
         ),
       );
     }
@@ -538,43 +683,32 @@ class _ReportCard extends StatelessWidget {
 
   const _ReportCard({required this.report, required this.onTap});
 
+  String _formatDate(DateTime dt) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
   Color get _severityColor {
     switch (report.severity) {
-      case ReportSeverity.low:
-        return const Color(0xFF4CAF50);
-      case ReportSeverity.medium:
-        return const Color(0xFFFF9800);
-      case ReportSeverity.high:
-        return const Color(0xFFF44336);
+      case ReportSeverity.low:      return const Color(0xFF4CAF50);
+      case ReportSeverity.medium:   return const Color(0xFFFF9800);
+      case ReportSeverity.high:     return const Color(0xFFF44336);
+      case ReportSeverity.critical: return const Color(0xFFB71C1C);
     }
   }
 
   Color get _statusColor {
     switch (report.status) {
-      case ReportStatus.open:
-        return const Color(0xFF2196F3); // Biru
-      case ReportStatus.inProgress:
-        return const Color(0xFF9C27B0); // Ungu
-      case ReportStatus.closed:
-        return const Color(0xFF757575); // Abu
+      case ReportStatus.open:       return const Color(0xFF2196F3);
+      case ReportStatus.inProgress: return const Color(0xFF9C27B0);
+      case ReportStatus.closed:     return const Color(0xFF757575);
     }
   }
 
   Color get _typeColor {
     switch (report.type) {
-      case ReportType.hazard:
-        return const Color(0xFFF44336);
-      case ReportType.inspection:
-        return const Color(0xFF1565C0);
-    }
-  }
-
-  IconData get _typeIcon {
-    switch (report.type) {
-      case ReportType.hazard:
-        return Icons.warning_amber_rounded;
-      case ReportType.inspection:
-        return Icons.search;
+      case ReportType.hazard:       return const Color(0xFFF44336);
+      case ReportType.inspection:   return const Color(0xFF1565C0);
     }
   }
 
@@ -583,155 +717,207 @@ class _ReportCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 2)),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
           ],
         ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
             children: [
-              // ── Thumbnail Image ───────────────────────────────────────────
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
-                child: SizedBox(
-                  width: 100,
-                  height: double.infinity,
-                  child: CachedNetworkImage(
-                    imageUrl: report.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Container(
-                      color: const Color(0xFF546E7A),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                            color: Colors.white38, strokeWidth: 2),
-                      ),
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: const Color(0xFF546E7A),
-                      child: const Icon(Icons.image,
-                          color: Colors.white38, size: 32),
-                    ),
-                  ),
-                ),
-              ),
-
-            // ── Content ──────────────────────────────────────────────
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Type badge + Severity badge
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _typeColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(_typeIcon, size: 11, color: _typeColor),
-                              const SizedBox(width: 3),
-                              Text(
-                                report.type.label,
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    color: _typeColor,
-                                    fontWeight: FontWeight.w600),
+                    // ── LEFT SIDE: Image + Category ──────────────────────────
+                    Container(
+                      width: 110,
+                      color: Colors.grey.shade50,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: CachedNetworkImage(
+                              imageUrl: report.imageUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: Colors.grey.shade200,
+                                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                               ),
-                            ],
+                              errorWidget: (_, __, ___) => Container(
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.image_outlined, color: Colors.grey),
+                              ),
+                            ),
                           ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _severityColor,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            report.severity.label,
-                            style: const TextStyle(
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            color: _typeColor,
+                            child: Text(
+                              report.type.label.toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 9,
-                                fontWeight: FontWeight.w600),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
 
-                    // Title
-                    Text(
-                      report.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87),
-                    ),
-                    const SizedBox(height: 4),
+                    // ── RIGHT SIDE: Details ──────────────────────────────────
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              report.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              report.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.black54,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            
+                            // Date & Location
+                            Row(
+                              children: [
+                                const Icon(Icons.calendar_today_outlined, size: 10, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(_formatDate(report.createdAt), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                const SizedBox(width: 12),
+                                const Icon(Icons.location_on_outlined, size: 10, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Expanded(child: Text(report.location, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: Colors.grey))),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
 
-                    // Description
-                    Text(
-                      report.description,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 11, color: Colors.grey, height: 1.4),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Status badge
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _statusColor,
-                          ),
+                            // Status & Priority
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _statusColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: _statusColor.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Text(
+                                    report.status.label,
+                                    style: TextStyle(color: _statusColor, fontSize: 9, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _severityColor,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    report.severity.label,
+                                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          report.status.label,
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: _statusColor),
-                        ),
-                        const Spacer(),
-                        Icon(Icons.chevron_right,
-                            color: Colors.grey.shade400, size: 16),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+
+              // ── BOTTOM: Status Banner (Always present for uniform size) ───────
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: report.status == ReportStatus.open
+                      ? const Color(0xFFFFF4E5)
+                      : report.status == ReportStatus.inProgress
+                          ? const Color(0xFFF3E5F5)
+                          : const Color(0xFFE8F5E9),
+                  border: Border(
+                    top: BorderSide(
+                      color: report.status == ReportStatus.open
+                          ? Colors.orange.shade100
+                          : report.status == ReportStatus.inProgress
+                              ? Colors.purple.shade100
+                              : Colors.green.shade100,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      report.status == ReportStatus.open
+                          ? Icons.warning_amber_rounded
+                          : report.status == ReportStatus.inProgress
+                              ? Icons.pending_actions_rounded
+                              : Icons.check_circle_outline_rounded,
+                      size: 14,
+                      color: report.status == ReportStatus.open
+                          ? Colors.orange.shade900
+                          : report.status == ReportStatus.inProgress
+                              ? Colors.purple.shade900
+                              : Colors.green.shade900,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      report.status == ReportStatus.open
+                          ? 'BUTUH TINDAKAN SEGERA'
+                          : report.status == ReportStatus.inProgress
+                              ? 'LAPORAN SEDANG DIPROSES'
+                              : 'LAPORAN TELAH SELESAI',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: report.status == ReportStatus.open
+                            ? Colors.orange.shade900
+                            : report.status == ReportStatus.inProgress
+                                ? Colors.purple.shade900
+                                : Colors.green.shade900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
