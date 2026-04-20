@@ -161,7 +161,7 @@ class HazardReportController extends Controller
             'tagged_user_id' => 'nullable|uuid|exists:users,id',
         ]);
 
-        if (in_array($request->sub_status, ['executing', 'reviewing']) && !$request->hasFile('image')) {
+        if ($request->sub_status === 'reviewing' && !$request->hasFile('image')) {
             return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
         }
 
