@@ -23,7 +23,17 @@ class HazardReportController extends Controller
     public function index(Request $request)
     {
         $query  = HazardReport::with(['user'])->latest();
-        $userId = Auth::id();
+        $user   = Auth::user();
+        $userId = $user->id;
+
+        // Apply privacy filter: private reports are visible only to the creator, the targeted PJA, or admins
+        if (!in_array($user->role, ['admin', 'superadmin'])) {
+            $query->where(function ($q) use ($user) {
+                $q->where('is_public', true)
+                ->orWhere('user_id', $user->id)
+                ->orWhere('name_pja', 'like', '%' . $user->full_name . '%');
+            });
+        }
 
         if ($request->filled('severity'))   $query->where('severity', $request->severity);
         if ($request->filled('status'))     $query->where('status', $request->status);
@@ -71,6 +81,7 @@ class HazardReportController extends Controller
             'hazard_category'     => 'nullable|in:TTA,KTA',
             'hazard_subcategory'  => 'nullable|string|max:150',
             'suggestion'          => 'nullable|string',
+            'isPublic'            => 'nullable|string',
         ]);
 
         $imageUrl = null;
@@ -92,6 +103,7 @@ class HazardReportController extends Controller
             'hazard_category'     => $request->hazard_category,
             'hazard_subcategory'  => $request->hazard_subcategory,
             'suggestion'          => $request->suggestion,
+            'is_public'           => filter_var($request->input('isPublic', true), FILTER_VALIDATE_BOOLEAN),            
         ]);
 
         $report->logs()->create([
@@ -237,6 +249,7 @@ class HazardReportController extends Controller
             'hazard_category'     => $report->hazard_category,
             'hazard_subcategory'  => $report->hazard_subcategory,
             'suggestion'          => $report->suggestion,
+            'is_public'           => (bool)$report->is_public,
         ];
     }
 }

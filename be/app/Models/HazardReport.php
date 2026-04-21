@@ -28,6 +28,7 @@ class HazardReport extends Model
         'hazard_category',
         'hazard_subcategory',
         'suggestion',
+        'is_public',        
     ];
 
     public function user()
