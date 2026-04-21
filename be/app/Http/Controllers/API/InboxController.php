@@ -5,7 +5,8 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\ReadStatus;
-use App\Models\Report;
+use App\Models\HazardReport;
+use App\Models\InspectionReport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -21,18 +22,31 @@ class InboxController extends Controller
         $perPage = (int) $request->input('per_page', 15);
 
         // ── 1. Hitung unread badges ────────────────────────────────────────────
-        $readReportIds = ReadStatus::where('user_id', $userId)
-            ->where('item_type', 'report')
+        $readHazardIds = ReadStatus::where('user_id', $userId)
+            ->where('item_type', 'hazard_report')
+            ->pluck('item_id');
+        
+        $readInspectionIds = ReadStatus::where('user_id', $userId)
+            ->where('item_type', 'inspection_report')
             ->pluck('item_id');
 
-        // Personal: hanya laporan yang name_pja == full_name user login
-        $personalUnread = Report::where('name_pja', $user->full_name)
-            ->whereNotIn('id', $readReportIds)
+        // Personal: reports where user is PJA, Inspector, or tagged
+        $personalHazardUnread = HazardReport::where(function($q) use ($user) {
+                $q->where('name_pja', $user->full_name);
+            })
+            ->whereNotIn('id', $readHazardIds)
+            ->count();
+
+        $personalInspectionUnread = InspectionReport::where(function($q) use ($user) {
+                $q->where('name_inspector', $user->full_name);
+            })
+            ->whereNotIn('id', $readInspectionIds)
             ->count();
 
         $readAnnouncementIds = ReadStatus::where('user_id', $userId)
             ->where('item_type', 'announcement')
             ->pluck('item_id');
+        
         $unreadAnnouncementsCount = Announcement::active()
             ->whereNotIn('id', $readAnnouncementIds)
             ->count();
@@ -57,41 +71,68 @@ class InboxController extends Controller
             }
 
             $paged = $query->latest()->paginate($perPage);
-            $data  = $paged->map(fn($a) => $this->formatAnnouncement($a, $userId));
+            $data  = $paged->getCollection()->map(fn($a) => $this->formatAnnouncement($a, $userId));
 
         } else {
-            // type = personal: laporan yang name_pja = full_name user yang login
-            $query = Report::with(['user', 'checklistItems'])
-                ->where('name_pja', $user->full_name);
+            // Gabungkan Hazard dan Inspection yang relevan
+            $hQuery = HazardReport::with(['user'])->where('name_pja', $user->full_name);
+            $iQuery = InspectionReport::with(['user', 'checklistItems'])->where('name_inspector', $user->full_name);
 
             if ($isRead !== null) {
                 if ($isRead) {
-                    $query->whereIn('id', $readReportIds);
+                    $hQuery->whereIn('id', $readHazardIds);
+                    $iQuery->whereIn('id', $readInspectionIds);
                 } else {
-                    $query->whereNotIn('id', $readReportIds);
+                    $hQuery->whereNotIn('id', $readHazardIds);
+                    $iQuery->whereNotIn('id', $readInspectionIds);
                 }
             }
 
             if ($search) {
-                $query->where(function ($q) use ($search) {
+                $searchCallback = function ($q) use ($search) {
                     $q->where('title', 'like', "%{$search}%")
                       ->orWhere('description', 'like', "%{$search}%")
                       ->orWhere('location', 'like', "%{$search}%");
-                });
+                };
+                $hQuery->where($searchCallback);
+                $iQuery->where($searchCallback);
             }
 
-            $paged = $query->latest()->paginate($perPage);
-            $data  = $paged->map(fn($r) => $this->formatReport($r, $userId));
+            // Gabungkan hasil (ini manual gabung karena beda tabel)
+            $hazards = $hQuery->get()->map(function(HazardReport $r) use ($userId) {
+                return $this->formatHazard($r, $userId);
+            });
+            $inspections = $iQuery->get()->map(function(InspectionReport $r) use ($userId) {
+                return $this->formatInspection($r, $userId);
+            });
+
+            $merged = $hazards->concat($inspections)->sortByDesc('created_at')->values();
+            
+            // Manual pagination for merged collection
+            $currentPage = $request->input('page', 1);
+            $pagedData = $merged->forPage($currentPage, $perPage);
+            
+            $data = $pagedData;
+            $totalMerged = $merged->count();
+            
+            // Re-mocking pagination object values for response
+            $metaExtra = [
+                'total'        => $totalMerged,
+                'per_page'     => $perPage,
+                'current_page' => (int)$currentPage,
+                'last_page'    => ceil($totalMerged / $perPage),
+                'has_more'     => ($currentPage * $perPage) < $totalMerged,
+            ];
         }
 
         return response()->json([
             'status'       => 'success',
             'unread_count' => [
-                'total'         => $personalUnread + $unreadAnnouncementsCount,
-                'personal'      => $personalUnread,
+                'total'         => $personalHazardUnread + $personalInspectionUnread + $unreadAnnouncementsCount,
+                'personal'      => $personalHazardUnread + $personalInspectionUnread,
                 'announcements' => $unreadAnnouncementsCount,
             ],
-            'meta' => [
+            'meta' => isset($metaExtra) ? $metaExtra : [
                 'total'        => $paged->total(),
                 'per_page'     => $paged->perPage(),
                 'current_page' => $paged->currentPage(),
@@ -106,7 +147,7 @@ class InboxController extends Controller
     {
         $request->validate([
             'item_id'   => 'required|string',
-            'item_type' => 'required|in:report,announcement',
+            'item_type' => 'required|in:hazard_report,inspection_report,announcement',
         ]);
 
         ReadStatus::firstOrCreate([
@@ -125,19 +166,26 @@ class InboxController extends Controller
     {
         $userId = Auth::id();
 
-        // Mark all reports
-        $reportIds = Report::pluck('id');
-        foreach ($reportIds as $id) {
+        // Mark all hazards
+        foreach (HazardReport::pluck('id') as $id) {
             ReadStatus::firstOrCreate([
                 'user_id'   => $userId,
                 'item_id'   => $id,
-                'item_type' => 'report',
+                'item_type' => 'hazard_report',
+            ], ['read_at' => now()]);
+        }
+
+        // Mark all inspections
+        foreach (InspectionReport::pluck('id') as $id) {
+            ReadStatus::firstOrCreate([
+                'user_id'   => $userId,
+                'item_id'   => $id,
+                'item_type' => 'inspection_report',
             ], ['read_at' => now()]);
         }
 
         // Mark all announcements
-        $announcementIds = Announcement::active()->pluck('id');
-        foreach ($announcementIds as $id) {
+        foreach (Announcement::active()->pluck('id') as $id) {
             ReadStatus::firstOrCreate([
                 'user_id'   => $userId,
                 'item_id'   => $id,
@@ -151,64 +199,66 @@ class InboxController extends Controller
         ]);
     }
 
-    private function formatReport(Report $report, ?string $userId): array
+    private function formatHazard(HazardReport $report, ?string $userId): array
     {
-        $base = [
-            'id'          => $report->id,
-            'item_type'   => 'report',
-            'type'        => $report->type,
-            'title'       => $report->title,
-            'description' => $report->description,
-            'status'      => $report->status,
-            'location'    => $report->location,
-            'image_url'   => $report->image_url,
-            'is_read'     => $userId ? $report->isReadBy($userId) : false,
-            'reported_by' => $report->user ? [
-                'full_name'  => $report->user->full_name,
-                'employee_id'   => $report->user->employee_id,
-                'department' => $report->user->department,
-                'company'    => $report->user->company,
-            ] : null,
-            'created_at'  => $report->created_at?->toIso8601String(),
-            'time_ago'    => $report->created_at?->diffForHumans(),
+        return [
+            'id'                  => $report->id,
+            'item_type'           => 'hazard_report',
+            'ticket_number'       => $report->ticket_number,
+            'title'               => $report->title,
+            'description'         => $report->description,
+            'status'              => $report->status,
+            'location'            => $report->location,
+            'image_url'           => $report->image_url,
+            'is_read'             => $userId ? $report->isReadBy($userId) : false,
+            'reported_by'         => $report->user ? $report->user->only(['full_name', 'employee_id', 'department', 'company']) : null,
+            'created_at'          => $report->created_at?->toIso8601String(),
+            'time_ago'            => $report->created_at?->diffForHumans(),
+            'severity'            => $report->severity,
+            'name_pja'            => $report->name_pja,
+            'reported_department' => $report->reported_department,
+            'hazard_category'     => $report->hazard_category,
+            'hazard_subcategory'  => $report->hazard_subcategory,
+            'suggestion'          => $report->suggestion,
         ];
+    }
 
-        if ($report->type === 'hazard') {
-            $base['severity']            = $report->severity;
-            $base['name_pja']            = $report->name_pja;
-            $base['reported_department'] = $report->reported_department;
-        } else {
-            $base['area']            = $report->area;
-            $base['result']          = $report->result;
-            $base['notes']           = $report->notes;
-            $base['checklist_items'] = $report->checklistItems->map(fn($item) => [
-                'id'         => $item->id,
-                'label'      => $item->label,
-                'is_checked' => $item->is_checked,
-                'sort_order' => $item->sort_order,
-            ])->values();
-        }
-
-        return $base;
+    private function formatInspection(InspectionReport $report, ?string $userId): array
+    {
+        return [
+            'id'              => $report->id,
+            'item_type'       => 'inspection_report',
+            'ticket_number'   => $report->ticket_number,
+            'title'           => $report->title,
+            'description'     => $report->description,
+            'status'          => $report->status,
+            'location'        => $report->location,
+            'image_url'       => $report->image_url,
+            'is_read'         => $userId ? $report->isReadBy($userId) : false,
+            'reported_by'     => $report->user ? $report->user->only(['full_name', 'employee_id', 'department', 'company']) : null,
+            'created_at'      => $report->created_at?->toIso8601String(),
+            'time_ago'        => $report->created_at?->diffForHumans(),
+            'area'            => $report->area,
+            'name_inspector'  => $report->name_inspector,
+            'result'          => $report->result,
+            'notes'           => $report->notes,
+            'checklist_items' => $report->checklistItems->map(fn($item) => $item->only(['id', 'label', 'is_checked', 'sort_order'])),
+        ];
     }
 
     private function formatAnnouncement(Announcement $a, ?string $userId): array
     {
         $creatorName = $a->creator?->full_name ?? 'Admin';
-
         return [
             'id'        => $a->id,
             'item_type' => 'announcement',
             'title'     => $a->title,
             'body'      => $a->body,
             'subtitle'  => $creatorName,
-            'from'      => $creatorName,   // untuk Announcement.fromJson di Flutter
-            'from_name' => $creatorName,   // alias
+            'from'      => $creatorName,
+            'from_name' => $creatorName,
             'is_read'   => $userId ? $a->isReadBy($userId) : false,
-            'created_by' => $a->creator ? [
-                'full_name' => $a->creator->full_name,
-                'position'  => $a->creator->position,
-            ] : null,
+            'created_by' => $a->creator ? $a->creator->only(['full_name', 'position']) : null,
             'created_at' => $a->created_at?->toIso8601String(),
             'time_ago'   => $a->created_at?->diffForHumans(),
         ];

@@ -5,6 +5,7 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\HazardReportController;
 use App\Http\Controllers\API\InspectionReportController;
+use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\API\NewsController;
 use App\Http\Controllers\API\AnnouncementController;
 use App\Http\Controllers\API\QrAssetController;
@@ -34,6 +35,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Auth ─────────────────────────────────────────────────────────────────
     Route::post('/logout', [AuthController::class, 'logout']);
+
+    // ── Admin User Management (CRUD) ──────────────────────────────────────────
+    Route::prefix('admin')->group(function () {
+        Route::get('/users',    [AuthController::class, 'adminIndex']);
+        Route::post('/users',   [AuthController::class, 'adminStore']);
+        Route::put('/users/{id}', [AuthController::class, 'adminUpdate']);
+        Route::delete('/users/{id}', [AuthController::class, 'adminDestroy']);
+    });
+
 
     // ── Profile ───────────────────────────────────────────────────────────────
     Route::get('/profile',                  [ProfileController::class, 'getProfile']);
@@ -106,6 +116,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('role:admin,superadmin');
     Route::delete('/news/{id}', [NewsController::class, 'destroy'])
         ->middleware('role:admin');
+
+    // ── Dashboard Statistics ──────────────────────────────────────────────────
+    Route::get('/dashboard/statistics', [DashboardController::class, 'statistics'])
+        ->middleware('role:admin,superadmin');
 
     // ── QR Assets ─────────────────────────────────────────────────────────────
     // GET /api/qr-assets              → list all assets

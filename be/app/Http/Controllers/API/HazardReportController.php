@@ -65,7 +65,7 @@ class HazardReportController extends Controller
             'description'         => 'required|string',
             'location'            => 'required|string|max:200',
             'image'               => 'nullable|image|max:4096',
-            'severity'            => 'nullable|in:low,medium,high,critical',
+            'severity'            => 'required|in:low,high,critical',
             'name_pja'            => 'nullable|string|max:100',
             'reported_department' => 'nullable|string|max:100',
             'hazard_category'     => 'nullable|in:TTA,KTA',

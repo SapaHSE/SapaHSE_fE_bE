@@ -206,30 +206,149 @@ class AuthController extends Controller
     {
         $search = $request->query('search');
 
-        $users = User::when($search, fn($q) => $q
-            ->where('full_name', 'like', "%{$search}%")
-            ->orWhere('employee_id', 'like', "%{$search}%")
-            ->orWhere('department', 'like', "%{$search}%")
-        )
-        ->where('is_active', true)
-        ->orderBy('full_name')
-        ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'role', 'profile_photo'])
-        ->get()
-        ->map(fn($u) => [
-            'id'          => $u->id,
-            'full_name'   => $u->full_name,
-            'employee_id' => $u->employee_id,
-            'department'  => $u->department,
-            'position'    => $u->position,
-            'role'        => $u->role,
-            'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
-        ]);
+        $users = User::when($request->department, fn($q) => $q->where('department', $request->department))
+            ->when($search, fn($q) => $q->where(function ($sub) use ($search) {
+                $sub->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%");
+            }))->where('is_active', true)
+            ->orderBy('full_name')
+            ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'role', 'profile_photo'])
+            ->get()
+            ->map(fn($u) => [
+                'id'          => $u->id,
+                'full_name'   => $u->full_name,
+                'employee_id' => $u->employee_id,
+                'department'  => $u->department,
+                'position'    => $u->position,
+                'role'        => $u->role,
+                'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
+            ]);
 
         return response()->json([
             'status' => 'success',
             'data'   => $users,
         ]);
     }
+
+    // ── ADMIN USER MANAGEMENT (CRUD) ──────────────────────────────────────────
+
+    // GET /api/admin/users
+    public function adminIndex(Request $request)
+    {
+        $search = $request->query('search');
+        $role = $request->query('role');
+        $department = $request->query('department');
+
+        $users = User::when($search, function ($q) use ($search) {
+            $q->where(function ($sub) use ($search) {
+                $sub->where('full_name', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%")
+                    ->orWhere('personal_email', 'like', "%{$search}%");
+            });
+        })
+            ->when($role, fn($q) => $q->where('role', $role))
+            ->when($department, fn($q) => $q->where('department', $department))
+            ->orderBy('full_name')
+            ->paginate(10);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $users,
+        ]);
+    }
+
+    // POST /api/admin/users
+    public function adminStore(Request $request)
+    {
+        $request->validate([
+            'employee_id'    => 'required|string|unique:users,employee_id',
+            'full_name'      => 'required|string|max:100',
+            'personal_email' => 'required|email|unique:users,personal_email',
+            'work_email'     => 'nullable|email|unique:users,work_email',
+            'phone_number'   => 'required|string|max:20',
+            'position'       => 'required|string|max:100',
+            'department'     => 'required|string|max:100',
+            'company'        => 'required|string|max:100',
+            'role'           => 'required|string|in:user,admin,superadmin',
+            'password'       => 'required|string|min:6',
+            'is_active'      => 'boolean',
+        ]);
+
+        $user = User::create([
+            'employee_id'       => $request->employee_id,
+            'full_name'      => $request->full_name,
+            'personal_email' => $request->personal_email,
+            'work_email'     => $request->work_email,
+            'phone_number'   => $request->phone_number,
+            'position'       => $request->position,
+            'department'     => $request->department,
+            'company'        => $request->company,
+            'role'           => $request->role,
+            'password_hash'  => Hash::make($request->password),
+            'is_active'      => $request->is_active ?? true,
+            'email_verified_at' => now(),
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'User created successfully',
+            'data'    => $user,
+        ], 201);
+    }
+
+    // PUT /api/admin/users/{id}
+    public function adminUpdate(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $request->validate([
+            'employee_id'    => 'required|string|unique:users,employee_id,' . $user->id,
+            'full_name'      => 'required|string|max:100',
+            'personal_email' => 'required|email|unique:users,personal_email,' . $user->id,
+            'work_email'     => 'nullable|email|unique:users,work_email,' . $user->id,
+            'phone_number'   => 'required|string|max:20',
+            'position'       => 'required|string|max:100',
+            'department'     => 'required|string|max:100',
+            'company'        => 'required|string|max:100',
+            'role'           => 'required|string|in:user,admin,superadmin',
+            'password'       => 'nullable|string|min:6',
+            'is_active'      => 'boolean',
+        ]);
+
+        $data = $request->except(['password', 'profile_photo']);
+        if ($request->filled('password')) {
+            $data['password_hash'] = Hash::make($request->password);
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'User updated successfully',
+            'data'    => $user,
+        ]);
+    }
+
+    // DELETE /api/admin/users/{id}
+    public function adminDestroy($id)
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->id === \Illuminate\Support\Facades\Auth::id()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Anda tidak bisa menghapus akun Anda sendiri.',
+            ], 403);
+        }
+
+        $user->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'User deleted successfully',
+        ]);
+    }
+
 
     private function formatUser(User $user): array
     {
