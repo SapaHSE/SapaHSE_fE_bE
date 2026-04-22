@@ -331,6 +331,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           hazardSubcategory: _selectedSubkategori,
           suggestion: _saranCtrl.text.trim(),
           imagePath: _photoFiles.isNotEmpty ? _photoFiles.first.path : null,
+          isPublic: _isPublic,
         );
 
         if (!mounted) return;
@@ -364,7 +365,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -389,10 +390,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                Navigator.pop(context);
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (context.mounted) Navigator.pop(context);
-                });
+                Navigator.of(dialogContext).pop();
+                Navigator.of(context).pop();
               },
               style: ElevatedButton.styleFrom(
                   backgroundColor: _blue, foregroundColor: Colors.white),
