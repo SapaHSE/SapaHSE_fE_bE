@@ -84,6 +84,7 @@ class InboxItem {
   final String? notes;
   final List<InboxChecklistItem> checklistItems;
   final InboxReporter? reportedBy;
+  final String? ticketNumber;
 
   // Announcement-only
   final String? body;
@@ -110,6 +111,7 @@ class InboxItem {
     this.notes,
     this.checklistItems = const [],
     this.reportedBy,
+    this.ticketNumber,
     this.body,
     this.fromName,
     this.createdBy,
@@ -144,7 +146,8 @@ class InboxItem {
     final checklistList = rawChecklist is List
         ? rawChecklist
             .whereType<Map>()
-            .map((m) => InboxChecklistItem.fromJson(Map<String, dynamic>.from(m)))
+            .map((m) =>
+                InboxChecklistItem.fromJson(Map<String, dynamic>.from(m)))
             .toList()
         : const <InboxChecklistItem>[];
 
@@ -170,6 +173,7 @@ class InboxItem {
       reportedBy: rawReporter is Map<String, dynamic>
           ? InboxReporter.fromJson(rawReporter)
           : null,
+      ticketNumber: json['ticket_number']?.toString(),
     );
   }
 
@@ -188,6 +192,7 @@ class InboxItem {
       imageUrl: (imageUrl == null || imageUrl!.isEmpty)
           ? 'https://placehold.co/600x400?text=No+Image'
           : imageUrl!,
+      ticketNumber: ticketNumber,
     );
   }
 
@@ -220,7 +225,6 @@ class InboxItem {
     }
   }
 
-  /// Backend only sends low|medium|high. Fall back to medium for unknown.
   static ReportSeverity _parseSeverity(String? raw) {
     switch (raw) {
       case 'low':
