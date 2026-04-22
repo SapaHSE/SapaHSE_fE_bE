@@ -21,6 +21,9 @@ dependencies:
   shared_preferences: ^2.2.3 
   intl: ^0.19.0                  # Date formatting    # Persist token & user data locally
   connectivity_plus: ^6.1.4      # Cloud Save: detect network connectivity
+  geolocator: ^14.0.2            # Get GPS coordinates
+  flutter_map: ^7.0.2            # OpenStreetMap
+  latlong2: ^0.9.1               # Map coordinates
  
 dev_dependencies:
   flutter_test:
