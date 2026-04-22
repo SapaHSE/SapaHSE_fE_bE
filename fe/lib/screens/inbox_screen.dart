@@ -204,8 +204,14 @@ class _InboxScreenState extends State<InboxScreen>
     });
 
     // Fire-and-forget — rollback if it fails.
-    final typeStr =
-        item.itemType == InboxItemType.report ? 'report' : 'announcement';
+    String typeStr;
+    if (item.itemType == InboxItemType.announcement) {
+      typeStr = 'announcement';
+    } else {
+      typeStr = item.reportType == ReportType.hazard
+          ? 'hazard_report'
+          : 'inspection_report';
+    }
     InboxService.markRead(itemId: item.id, itemType: typeStr).then((res) {
       if (!mounted) return;
       if (!res.success) {
