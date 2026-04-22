@@ -168,9 +168,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
               width: 70,
               height: 70,
               decoration: BoxDecoration(
-                color: isOffline
-                    ? const Color(0xFFFFF3E0)
-                    : _blueLight,
+                color: isOffline ? const Color(0xFFFFF3E0) : _blueLight,
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -183,8 +181,8 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
             ),
             const SizedBox(height: 16),
             Text(title,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 18)),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 8),
             Text(
               message,
@@ -195,14 +193,13 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
             if (isOffline) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF3E0),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                      color: const Color(0xFFFF9800)
-                          .withValues(alpha: 0.4)),
+                      color: const Color(0xFFFF9800).withValues(alpha: 0.4)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -231,11 +228,12 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
             child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                Navigator.pop(context);
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (context.mounted) Navigator.pop(context);
+                });
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isOffline ? const Color(0xFFFF9800) : _blue,
+                backgroundColor: isOffline ? const Color(0xFFFF9800) : _blue,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -278,12 +276,13 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
               // ── Photo placeholder ─────────────────────────────────────
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(10),
-                  border:
-                      Border.all(color: _blue.withValues(alpha: 0.3), width: 1.5),
+                  border: Border.all(
+                      color: _blue.withValues(alpha: 0.3), width: 1.5),
                 ),
                 child: Row(
                   children: [
@@ -309,7 +308,8 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                       ],
                     ),
                     const Spacer(),
-                    const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                    const Icon(Icons.chevron_right,
+                        color: Colors.grey, size: 18),
                   ],
                 ),
               ),
@@ -359,8 +359,8 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
               // ── Checklist card ────────────────────────────────────────
               _buildCard(children: [
                 const Text('Checklist Inspeksi',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 14)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 const SizedBox(height: 4),
                 const Text('Centang item yang sudah diperiksa',
                     style: TextStyle(fontSize: 12, color: Colors.grey)),
@@ -384,9 +384,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                               color: checked ? _blue : Colors.transparent,
                               borderRadius: BorderRadius.circular(5),
                               border: Border.all(
-                                color: checked
-                                    ? _blue
-                                    : Colors.grey.shade400,
+                                color: checked ? _blue : Colors.grey.shade400,
                                 width: 2,
                               ),
                             ),
@@ -401,9 +399,8 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                               item['label'] as String,
                               style: TextStyle(
                                 fontSize: 13,
-                                color: checked
-                                    ? Colors.black87
-                                    : Colors.black54,
+                                color:
+                                    checked ? Colors.black87 : Colors.black54,
                               ),
                             ),
                           ),
@@ -549,8 +546,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
       hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
       prefixIcon:
           icon != null ? Icon(icon, size: 20, color: Colors.grey) : null,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
       filled: true,
       fillColor: const Color(0xFFF8F9FF),
       border: OutlineInputBorder(
