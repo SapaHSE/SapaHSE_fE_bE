@@ -126,7 +126,8 @@ class _InboxScreenState extends State<InboxScreen>
   }
 
   List<InboxItem> get _activeReports => _filterByReadState(_reports);
-  List<InboxItem> get _activeAnnouncements => _filterByReadState(_announcements);
+  List<InboxItem> get _activeAnnouncements =>
+      _filterByReadState(_announcements);
 
   int get _readReportCount => _reports.where((i) => i.isRead).length;
   int get _readAnnouncementCount =>
@@ -146,9 +147,8 @@ class _InboxScreenState extends State<InboxScreen>
     });
 
     // Fire-and-forget — rollback if it fails.
-    final typeStr = item.itemType == InboxItemType.report
-        ? 'report'
-        : 'announcement';
+    final typeStr =
+        item.itemType == InboxItemType.report ? 'report' : 'announcement';
     InboxService.markRead(itemId: item.id, itemType: typeStr).then((res) {
       if (!mounted) return;
       if (!res.success) {
@@ -167,8 +167,18 @@ class _InboxScreenState extends State<InboxScreen>
   // ── Formatters & colors ────────────────────────────────────────────────────
   String _formatDate(DateTime dt) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
@@ -732,7 +742,8 @@ class _InboxCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Column(
             children: [
-              IntrinsicHeight(
+              SizedBox(
+                height: 135,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -803,14 +814,16 @@ class _InboxCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              item.description ?? '',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.black54,
-                                height: 1.3,
+                            Expanded(
+                              child: Text(
+                                item.description ?? '',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.black54,
+                                  height: 1.3,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 8),
