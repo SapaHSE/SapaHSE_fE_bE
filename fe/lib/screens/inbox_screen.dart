@@ -5,8 +5,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/inbox_item.dart';
 import '../models/report.dart';
 import '../services/inbox_service.dart';
+import '../services/report_service.dart';
 import 'report_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
+import '../services/storage_service.dart';
 
 enum _SubFilter { unread, read }
 
@@ -29,17 +31,20 @@ class _InboxScreenState extends State<InboxScreen>
   // ── Server-backed state ────────────────────────────────────────────────────
   List<InboxItem> _reports = [];
   List<InboxItem> _announcements = [];
-  int _unreadReports = 0;
-  int _unreadAnnouncements = 0;
+  List<Report> _myRawReports = [];
   bool _loadingReports = false;
   bool _loadingAnnouncements = false;
+  bool _loadingMyReports = false;
   String? _errorReports;
   String? _errorAnnouncements;
+  String? _errorMyReports;
+  String? _currentUserName;
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _mainTabController = TabController(length: 2, vsync: this);
+    _mainTabController = TabController(length: 3, vsync: this);
     _mainTabController.addListener(() {
       if (!_mainTabController.indexIsChanging) {
         setState(() {
@@ -47,9 +52,21 @@ class _InboxScreenState extends State<InboxScreen>
         });
       }
     });
+    _loadCurrentUser();
     // Fetch both tabs in parallel so badges are accurate from the start.
     _loadReports();
     _loadAnnouncements();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final user = await StorageService.getUser();
+    if (user != null) {
+      setState(() {
+        _currentUserName = user['full_name']?.toString();
+        _currentUserId = user['id']?.toString();
+      });
+      _loadMyReports();
+    }
   }
 
   @override
@@ -76,9 +93,6 @@ class _InboxScreenState extends State<InboxScreen>
       _loadingReports = false;
       if (result.success) {
         _reports = result.items;
-        _unreadReports = result.unreadPersonal;
-        // Also refresh announcement count from the same response (cheap).
-        _unreadAnnouncements = result.unreadAnnouncements;
       } else {
         _errorReports = result.errorMessage;
       }
@@ -100,12 +114,47 @@ class _InboxScreenState extends State<InboxScreen>
       _loadingAnnouncements = false;
       if (result.success) {
         _announcements = result.items;
-        _unreadAnnouncements = result.unreadAnnouncements;
-        _unreadReports = result.unreadPersonal;
       } else {
         _errorAnnouncements = result.errorMessage;
       }
     });
+  }
+
+  Future<void> _loadMyReports() async {
+    if (_currentUserId == null) return;
+    setState(() {
+      _loadingMyReports = true;
+      _errorMyReports = null;
+    });
+    final result = await ReportService.getReports();
+    if (!mounted) return;
+    setState(() {
+      _loadingMyReports = false;
+      if (result.success) {
+        _myRawReports = result.reports
+            .where((r) => r.reporterId == _currentUserId)
+            .toList();
+      } else {
+        _errorMyReports = result.errorMessage;
+      }
+    });
+  }
+
+  InboxItem _reportToInboxItem(Report r) {
+    return InboxItem(
+      id: r.id,
+      itemType: InboxItemType.report,
+      isRead: true,
+      title: r.title,
+      createdAt: r.createdAt,
+      reportType: r.type,
+      description: r.description,
+      status: r.status,
+      location: r.location,
+      imageUrl: r.imageUrl,
+      severity: r.severity,
+      ticketNumber: r.ticketNumber,
+    );
   }
 
   void _onSearchChanged(String value) {
@@ -125,25 +174,33 @@ class _InboxScreenState extends State<InboxScreen>
     return source.where((i) => i.isRead).toList();
   }
 
-  List<InboxItem> get _activeReports => _filterByReadState(_reports);
+  // Reports where user is tagged (inbox tasks assigned to the user)
+  List<InboxItem> get _personalReports => _reports;
+
+  // Reports created by the current user, fetched from ReportService
+  List<InboxItem> get _myReports =>
+      _myRawReports.map(_reportToInboxItem).toList();
+
+  List<InboxItem> get _activeReports => _filterByReadState(_personalReports);
   List<InboxItem> get _activeAnnouncements =>
       _filterByReadState(_announcements);
+  List<InboxItem> get _activeMyReports => _filterByReadState(_myReports);
 
-  int get _readReportCount => _reports.where((i) => i.isRead).length;
+  int get _readReportCount => _personalReports.where((i) => i.isRead).length;
   int get _readAnnouncementCount =>
       _announcements.where((i) => i.isRead).length;
+  int get _readMyReportCount => _myReports.where((i) => i.isRead).length;
+
+  int get _unreadReports => _personalReports.where((i) => !i.isRead).length;
+  int get _unreadAnnouncements => _announcements.where((i) => !i.isRead).length;
+  int get _unreadMyReports => _myReports.where((i) => !i.isRead).length;
 
   // ── Mark-as-read (optimistic) ──────────────────────────────────────────────
   void _markItemRead(InboxItem item) {
     if (item.isRead) return;
     setState(() {
       item.isRead = true;
-      if (item.itemType == InboxItemType.report && _unreadReports > 0) {
-        _unreadReports -= 1;
-      } else if (item.itemType == InboxItemType.announcement &&
-          _unreadAnnouncements > 0) {
-        _unreadAnnouncements -= 1;
-      }
+      // No manual count adjustment; counts are computed from lists.
     });
 
     // Fire-and-forget — rollback if it fails.
@@ -154,11 +211,7 @@ class _InboxScreenState extends State<InboxScreen>
       if (!res.success) {
         setState(() {
           item.isRead = false;
-          if (item.itemType == InboxItemType.report) {
-            _unreadReports += 1;
-          } else {
-            _unreadAnnouncements += 1;
-          }
+          // No manual count adjustment; counts are computed from lists.
         });
       }
     });
@@ -199,24 +252,24 @@ class _InboxScreenState extends State<InboxScreen>
   Color _statusColor(ReportStatus s) {
     switch (s) {
       case ReportStatus.open:
-        return const Color(0xFF2196F3);
+        return const Color(0xFF2196F3); // Biru
       case ReportStatus.inProgress:
-        return const Color(0xFF9C27B0);
+        return const Color(0xFF9C27B0); // Ungu
       case ReportStatus.closed:
-        return const Color(0xFF757575);
+        return const Color(0xFF757575); // Abu
     }
   }
 
   Color _severityColor(ReportSeverity s) {
     switch (s) {
       case ReportSeverity.low:
-        return const Color(0xFF4CAF50);
+        return const Color(0xFF4CAF50); // Green
       case ReportSeverity.medium:
-        return const Color(0xFFFF9800);
+        return const Color(0xFFFF9800); // Orange
       case ReportSeverity.high:
-        return const Color(0xFFF44336);
+        return const Color(0xFFF44336); // Red
       case ReportSeverity.critical:
-        return const Color(0xFFB71C1C);
+        return const Color(0xFFB71C1C); // Dark Red
     }
   }
 
@@ -276,7 +329,7 @@ class _InboxScreenState extends State<InboxScreen>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Personal'),
+                            const Text('Tugas'),
                             if (_unreadReports > 0) ...[
                               const SizedBox(width: 6),
                               _TabBadge(count: _unreadReports),
@@ -288,10 +341,22 @@ class _InboxScreenState extends State<InboxScreen>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Announcement'),
+                            const Text('Pengumuman'),
                             if (_unreadAnnouncements > 0) ...[
                               const SizedBox(width: 6),
                               _TabBadge(count: _unreadAnnouncements),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('MyPost'),
+                            if (_unreadMyReports > 0) ...[
+                              const SizedBox(width: 6),
+                              _TabBadge(count: _unreadMyReports),
                             ],
                           ],
                         ),
@@ -315,9 +380,13 @@ class _InboxScreenState extends State<InboxScreen>
                       isActive: _activeFilter == _SubFilter.unread,
                       badge: _mainTabController.index == 0
                           ? (_unreadReports > 0 ? _unreadReports : null)
-                          : (_unreadAnnouncements > 0
-                              ? _unreadAnnouncements
-                              : null),
+                          : _mainTabController.index == 1
+                              ? (_unreadAnnouncements > 0
+                                  ? _unreadAnnouncements
+                                  : null)
+                              : (_unreadMyReports > 0
+                                  ? _unreadMyReports
+                                  : null),
                       onTap: () =>
                           setState(() => _activeFilter = _SubFilter.unread),
                     ),
@@ -329,9 +398,13 @@ class _InboxScreenState extends State<InboxScreen>
                       isActive: _activeFilter == _SubFilter.read,
                       badge: _mainTabController.index == 0
                           ? (_readReportCount > 0 ? _readReportCount : null)
-                          : (_readAnnouncementCount > 0
-                              ? _readAnnouncementCount
-                              : null),
+                          : _mainTabController.index == 1
+                              ? (_readAnnouncementCount > 0
+                                  ? _readAnnouncementCount
+                                  : null)
+                              : (_readMyReportCount > 0
+                                  ? _readMyReportCount
+                                  : null),
                       onTap: () =>
                           setState(() => _activeFilter = _SubFilter.read),
                     ),
@@ -347,6 +420,7 @@ class _InboxScreenState extends State<InboxScreen>
                 children: [
                   _buildReportsTab(),
                   _buildAnnouncementsTab(),
+                  _buildMyReportsTab(),
                 ],
               ),
             ),
@@ -379,6 +453,19 @@ class _InboxScreenState extends State<InboxScreen>
     return RefreshIndicator(
       onRefresh: _loadAnnouncements,
       child: _buildList(_activeAnnouncements, isAnnouncement: true),
+    );
+  }
+
+  Widget _buildMyReportsTab() {
+    if (_loadingMyReports && _myRawReports.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_errorMyReports != null && _myRawReports.isEmpty) {
+      return _buildErrorState(_errorMyReports!, _loadMyReports);
+    }
+    return RefreshIndicator(
+      onRefresh: _loadMyReports,
+      child: _buildList(_activeMyReports, isAnnouncement: false),
     );
   }
 
@@ -987,6 +1074,7 @@ class _AnnouncementCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Icon
                     Container(
                       width: 42,
                       height: 42,
