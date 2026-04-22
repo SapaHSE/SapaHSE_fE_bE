@@ -5,3 +5,6 @@
 fe/macos/Flutter/GeneratedPluginRegistrant.swift
 fe/windows/flutter/generated_plugin_registrant.cc
 fe/windows/flutter/generated_plugins.cmake
+fe/lib/screens/create_hazard_screen.dart
+fe/android/.kotlin/sessions/kotlin-compiler-5205154563476354240.salive
+fe/pubspec.lock
