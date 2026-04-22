@@ -24,6 +24,7 @@ dependencies:
   geolocator: ^14.0.2            # Get GPS coordinates
   flutter_map: ^7.0.2            # OpenStreetMap
   latlong2: ^0.9.1               # Map coordinates
+  url_launcher: ^6.3.2
  
 dev_dependencies:
   flutter_test:
