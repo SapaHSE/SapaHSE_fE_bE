@@ -181,7 +181,41 @@ class _InboxScreenState extends State<InboxScreen>
   List<InboxItem> get _myReports =>
       _myRawReports.map(_reportToInboxItem).toList();
 
-  List<InboxItem> get _activeReports => _filterByReadState(_personalReports);
+  int _severityValue(ReportSeverity? s) {
+    if (s == null) return 0;
+    switch (s) {
+      case ReportSeverity.critical:
+        return 4;
+      case ReportSeverity.high:
+        return 3;
+      case ReportSeverity.medium:
+        return 2;
+      case ReportSeverity.low:
+        return 1;
+    }
+  }
+
+  List<InboxItem> get _activeReports {
+    final list = _personalReports.where((i) {
+      if (_activeFilter == _SubFilter.unread) {
+        return i.status != ReportStatus.closed;
+      } else {
+        return i.status == ReportStatus.closed;
+      }
+    }).toList();
+    
+    list.sort((a, b) {
+      final sevA = _severityValue(a.severity);
+      final sevB = _severityValue(b.severity);
+      if (sevA != sevB) {
+        return sevB.compareTo(sevA);
+      }
+      return b.createdAt.compareTo(a.createdAt);
+    });
+    
+    return list;
+  }
+
   List<InboxItem> get _activeAnnouncements =>
       _filterByReadState(_announcements);
   List<InboxItem> get _activeMyReports => _filterByReadState(_myReports);
@@ -195,6 +229,11 @@ class _InboxScreenState extends State<InboxScreen>
   int get _unreadAnnouncements => _announcements.where((i) => !i.isRead).length;
   int get _unreadMyReports => _myReports.where((i) => !i.isRead).length;
 
+  int get _aktifReportCount =>
+      _personalReports.where((i) => i.status != ReportStatus.closed).length;
+  int get _selesaiReportCount =>
+      _personalReports.where((i) => i.status == ReportStatus.closed).length;
+
   // ── Mark-as-read (optimistic) ──────────────────────────────────────────────
   void _markItemRead(InboxItem item) {
     if (item.isRead) return;
@@ -204,14 +243,8 @@ class _InboxScreenState extends State<InboxScreen>
     });
 
     // Fire-and-forget — rollback if it fails.
-    String typeStr;
-    if (item.itemType == InboxItemType.announcement) {
-      typeStr = 'announcement';
-    } else {
-      typeStr = item.reportType == ReportType.hazard
-          ? 'hazard_report'
-          : 'inspection_report';
-    }
+    final typeStr =
+        item.itemType == InboxItemType.report ? 'report' : 'announcement';
     InboxService.markRead(itemId: item.id, itemType: typeStr).then((res) {
       if (!mounted) return;
       if (!res.success) {
@@ -335,10 +368,10 @@ class _InboxScreenState extends State<InboxScreen>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Tugas'),
-                            if (_unreadReports > 0) ...[
+                            const Text('Pengumuman'),
+                            if (_unreadAnnouncements > 0) ...[
                               const SizedBox(width: 6),
-                              _TabBadge(count: _unreadReports),
+                              _TabBadge(count: _unreadAnnouncements),
                             ],
                           ],
                         ),
@@ -347,10 +380,10 @@ class _InboxScreenState extends State<InboxScreen>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Pengumuman'),
-                            if (_unreadAnnouncements > 0) ...[
+                            const Text('Tugas'),
+                            if (_unreadReports > 0) ...[
                               const SizedBox(width: 6),
-                              _TabBadge(count: _unreadAnnouncements),
+                              _TabBadge(count: _unreadReports),
                             ],
                           ],
                         ),
@@ -382,14 +415,14 @@ class _InboxScreenState extends State<InboxScreen>
                 children: [
                   Expanded(
                     child: _SubFilterChip(
-                      label: 'Unread',
+                      label: _mainTabController.index == 1 ? 'Aktif' : 'Unread',
                       isActive: _activeFilter == _SubFilter.unread,
                       badge: _mainTabController.index == 0
-                          ? (_unreadReports > 0 ? _unreadReports : null)
+                          ? (_unreadAnnouncements > 0
+                              ? _unreadAnnouncements
+                              : null)
                           : _mainTabController.index == 1
-                              ? (_unreadAnnouncements > 0
-                                  ? _unreadAnnouncements
-                                  : null)
+                              ? (_aktifReportCount > 0 ? _aktifReportCount : null)
                               : (_unreadMyReports > 0
                                   ? _unreadMyReports
                                   : null),
@@ -400,14 +433,14 @@ class _InboxScreenState extends State<InboxScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: _SubFilterChip(
-                      label: 'Read',
+                      label: _mainTabController.index == 1 ? 'Selesai' : 'Read',
                       isActive: _activeFilter == _SubFilter.read,
                       badge: _mainTabController.index == 0
-                          ? (_readReportCount > 0 ? _readReportCount : null)
+                          ? (_readAnnouncementCount > 0
+                              ? _readAnnouncementCount
+                              : null)
                           : _mainTabController.index == 1
-                              ? (_readAnnouncementCount > 0
-                                  ? _readAnnouncementCount
-                                  : null)
+                              ? (_selesaiReportCount > 0 ? _selesaiReportCount : null)
                               : (_readMyReportCount > 0
                                   ? _readMyReportCount
                                   : null),
@@ -419,13 +452,44 @@ class _InboxScreenState extends State<InboxScreen>
               ),
             ),
 
+            // ── Tugas Butuh Tindakan Segera Banner ───────────────────────
+            if (_mainTabController.index == 1)
+              Builder(builder: (context) {
+                final urgentCount = _personalReports.where((i) =>
+                  i.status == ReportStatus.open && 
+                  (i.severity == ReportSeverity.high || i.severity == ReportSeverity.critical)
+                ).length;
+                
+                if (urgentCount == 0) return const SizedBox.shrink();
+                
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  color: const Color(0xFFFFF4E5),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange.shade900),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$urgentCount Tugas Butuh Tindakan Segera',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange.shade900,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
             // ── Content (TabBarView for smooth animations) ───────────────
             Expanded(
               child: TabBarView(
                 controller: _mainTabController,
                 children: [
-                  _buildReportsTab(),
                   _buildAnnouncementsTab(),
+                  _buildReportsTab(),
                   _buildMyReportsTab(),
                 ],
               ),
@@ -496,8 +560,8 @@ class _InboxScreenState extends State<InboxScreen>
                   const SizedBox(height: 12),
                   Text(
                     _activeFilter == _SubFilter.unread
-                        ? 'Semua sudah dibaca!'
-                        : 'Belum ada yang dibaca.',
+                        ? (_mainTabController.index == 1 ? 'Tidak ada tugas aktif!' : 'Semua sudah dibaca!')
+                        : (_mainTabController.index == 1 ? 'Tidak ada tugas selesai.' : 'Belum ada yang dibaca.'),
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ],
