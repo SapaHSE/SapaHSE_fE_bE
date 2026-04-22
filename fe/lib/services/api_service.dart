@@ -124,7 +124,7 @@ class ApiService {
       if (hasToken) {
         StorageService.clear().then((_) {
           final ctx = navigatorKey.currentContext;
-          if (ctx == null) return;
+          if (ctx == null || !ctx.mounted) return;
           showDialog(
             context: ctx,
             barrierDismissible: false,
