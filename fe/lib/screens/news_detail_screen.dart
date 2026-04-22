@@ -126,7 +126,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7)
+                          Colors.black.withValues(alpha: 0.7)
                         ],
                         stops: const [0.4, 1.0],
                       ),
@@ -149,9 +149,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: catColor.withOpacity(0.12),
+                      color: catColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: catColor.withOpacity(0.3)),
+                      border: Border.all(color: catColor.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       article.category,
