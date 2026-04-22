@@ -1,3 +1,5 @@
+import '../utils/url_helper.dart';
+
 /// Matches the formatUser() response from Laravel's AuthController
 class UserModel {
   final String id;
@@ -36,7 +38,7 @@ class UserModel {
     phoneNumber:  json['phone_number']?.toString(),
     position:     json['position']?.toString(),
     department:   json['department']?.toString(),
-    profilePhoto: json['profile_photo']?.toString(),
+    profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
     role:         json['role']?.toString() ?? 'user',
     isActive:     json['is_active'] == true || json['is_active'] == 1,
   );

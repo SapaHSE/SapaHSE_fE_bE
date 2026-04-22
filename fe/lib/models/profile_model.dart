@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../utils/url_helper.dart';
 
 /// Profile data model - matches /api/profile response from Laravel
 class ProfileData {
@@ -47,7 +48,7 @@ class ProfileData {
       position: json['position']?.toString(),
       department: json['department']?.toString(),
       company: json['company']?.toString(),
-      profilePhoto: json['profile_photo']?.toString(),
+      profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
       role: json['role']?.toString() ?? 'user',
       isActive: json['is_active'] == true || json['is_active'] == 1,
       licenses: (json['licenses'] as List<dynamic>?)
