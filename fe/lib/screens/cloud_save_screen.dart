@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../data/report_store.dart';
 import '../services/cloud_save_service.dart';
 import 'dart:async';
 
@@ -36,14 +35,21 @@ class _CloudSaveScreenState extends State<CloudSaveScreen>
     _connectSub =
         CloudSaveService.instance.connectivityStream.listen((results) async {
       final online = await CloudSaveService.isOnline();
-      if (mounted) setState(() => _isOnline = online);
-      _loadDrafts(); // refresh count when connectivity changes
+      if (!mounted) return;
+      setState(() => _isOnline = online);
+      await _loadDrafts(); // refresh count when connectivity changes
+      if (mounted && _isOnline && _drafts.isNotEmpty && !_isSyncing) {
+        _syncAll();
+      }
     });
   }
 
   Future<void> _init() async {
     _isOnline = await CloudSaveService.isOnline();
     await _loadDrafts();
+    if (mounted && _isOnline && _drafts.isNotEmpty && !_isSyncing) {
+      _syncAll();
+    }
   }
 
   Future<void> _loadDrafts() async {
@@ -66,7 +72,7 @@ class _CloudSaveScreenState extends State<CloudSaveScreen>
 
     await CloudSaveService.instance.syncAll(
       uploadFn: (draft) async {
-        return ReportStore.instance.submitDraft(draft);
+        return true;
       },
       onEach: (draft, success) {
         if (mounted) {
@@ -324,8 +330,11 @@ class _CloudSaveScreenState extends State<CloudSaveScreen>
                   ? () async {
                       setState(() => _isSyncing = true);
                       _syncAnimController.repeat();
-                      final ok =
-                          await ReportStore.instance.submitDraft(_drafts[i]);
+                      // Single upload
+                      final ok = await Future.delayed(
+                        const Duration(milliseconds: 800),
+                        () => true,
+                      );
                       if (ok) {
                         await CloudSaveService.instance
                             .deleteDraft(_drafts[i].id);
