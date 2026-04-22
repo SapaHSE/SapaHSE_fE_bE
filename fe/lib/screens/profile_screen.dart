@@ -20,7 +20,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _topTabController;
-  XFile? _avatarFile;
 
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
@@ -38,11 +37,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
+  Future<XFile?> _pickImage() async {
     final picker = ImagePicker();
     final picked =
         await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) setState(() => _avatarFile = picked);
+    return picked;
   }
 
   @override
@@ -96,7 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               child: TabBarView(
                 controller: _topTabController,
                 children: [
-                  _ProfileTab(avatarFile: _avatarFile, onPickImage: _pickImage),
+                  _ProfileTab(onPickImage: _pickImage),
                   const _AppTab(),
                   const _SettingsTab(),
                 ],
@@ -113,9 +112,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 // PROFILE TAB
 // ══════════════════════════════════════════════════════════════════════════════
 class _ProfileTab extends StatefulWidget {
-  final XFile? avatarFile;
-  final VoidCallback onPickImage;
-  const _ProfileTab({required this.avatarFile, required this.onPickImage});
+  final Future<XFile?> Function() onPickImage;
+  const _ProfileTab({required this.onPickImage});
 
   @override
   State<_ProfileTab> createState() => _ProfileTabState();
@@ -124,10 +122,12 @@ class _ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<_ProfileTab> {
   int _selectedSubTab = 0;
   bool _isLoading = true;
+  bool _isUploadingAvatar = false;
   String? _error;
   bool _isWorkActive = true;
 
   ProfileData? _profileData;
+  XFile? _avatarFile;
   String _name = '';
   String _position = '';
   String _department = '';
@@ -146,14 +146,70 @@ class _ProfileTabState extends State<_ProfileTab> {
   ];
 
   ImageProvider? _getAvatarImage() {
-    if (widget.avatarFile != null) {
-      final file = File(widget.avatarFile!.path);
+    if (_avatarFile != null) {
+      final file = File(_avatarFile!.path);
       return FileImage(file);
     }
     if (_profilePhoto != null && _profilePhoto!.isNotEmpty) {
       return NetworkImage(_profilePhoto!);
     }
     return null;
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    if (_isUploadingAvatar) return;
+
+    final picked = await widget.onPickImage();
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _isUploadingAvatar = true;
+      _avatarFile = picked;
+    });
+
+    final result = await ProfileService.updateProfile(
+      fullName: _name,
+      personalEmail: _personalEmail,
+      workEmail: _workEmail.isEmpty ? null : _workEmail,
+      phoneNumber: _phone,
+      position: _position.isEmpty ? null : _position,
+      department: _department.isEmpty ? null : _department,
+      company: _company.isEmpty ? null : _company,
+      imagePath: picked.path,
+    );
+
+    if (!mounted) return;
+
+    setState(() => _isUploadingAvatar = false);
+
+    if (result.success && result.data != null) {
+      final data = result.data!;
+      setState(() {
+        _profileData = data;
+        _name = data.fullName;
+        _position = data.position ?? '';
+        _department = data.department ?? '';
+        _company = data.company ?? '';
+        _personalEmail = data.personalEmail;
+        _workEmail = data.workEmail ?? '';
+        _phone = data.phoneNumber ?? '';
+        _employeeId = data.employeeId;
+        _profilePhoto = data.profilePhoto;
+        _avatarFile = null;
+      });
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.success
+              ? 'Foto profil berhasil diperbarui'
+              : (result.errorMessage ?? 'Gagal mengunggah foto profil'),
+        ),
+        backgroundColor:
+            result.success ? const Color(0xFF1565C0) : Colors.red,
+      ),
+    );
   }
 
   @override
@@ -254,29 +310,60 @@ class _ProfileTabState extends State<_ProfileTab> {
           ),
           ElevatedButton(
             onPressed: () async {
-              setState(() {
-                _name =
-                    nameCtrl.text.trim().isEmpty ? _name : nameCtrl.text.trim();
-                _position = positionCtrl.text.trim().isEmpty
-                    ? _position
-                    : positionCtrl.text.trim();
-                _department = deptCtrl.text.trim().isEmpty
-                    ? _department
-                    : deptCtrl.text.trim();
-                _company = companyCtrl.text.trim().isEmpty
-                    ? _company
-                    : companyCtrl.text.trim();
-              });
+              final fullName =
+                  nameCtrl.text.trim().isEmpty ? _name : nameCtrl.text.trim();
+              final position = positionCtrl.text.trim().isEmpty
+                  ? _position
+                  : positionCtrl.text.trim();
+              final department = deptCtrl.text.trim().isEmpty
+                  ? _department
+                  : deptCtrl.text.trim();
+              final company = companyCtrl.text.trim().isEmpty
+                  ? _company
+                  : companyCtrl.text.trim();
+
+              final result = await ProfileService.updateProfile(
+                fullName: fullName,
+                personalEmail: _personalEmail,
+                workEmail: _workEmail.isEmpty ? null : _workEmail,
+                phoneNumber: _phone,
+                position: position.isEmpty ? null : position,
+                department: department.isEmpty ? null : department,
+                company: company.isEmpty ? null : company,
+              );
+
+              if (!mounted) return;
+
               Navigator.pop(context);
+
+              if (result.success && result.data != null) {
+                final data = result.data!;
+                setState(() {
+                  _profileData = data;
+                  _name = data.fullName;
+                  _position = data.position ?? '';
+                  _department = data.department ?? '';
+                  _company = data.company ?? '';
+                  _personalEmail = data.personalEmail;
+                  _workEmail = data.workEmail ?? '';
+                  _phone = data.phoneNumber ?? '';
+                  _employeeId = data.employeeId;
+                  _profilePhoto = data.profilePhoto;
+                });
+              }
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Row(children: [
-                    Icon(Icons.check_circle_outline,
+                  content: Row(children: [
+                    const Icon(Icons.check_circle_outline,
                         color: Colors.white, size: 18),
-                    SizedBox(width: 8),
-                    Text('Profil berhasil diperbarui'),
+                    const SizedBox(width: 8),
+                    Text(result.success
+                        ? 'Profil berhasil diperbarui'
+                        : (result.errorMessage ?? 'Gagal memperbarui profil')),
                   ]),
-                  backgroundColor: const Color(0xFF1565C0),
+                  backgroundColor:
+                      result.success ? const Color(0xFF1565C0) : Colors.red,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
@@ -352,20 +439,40 @@ class _ProfileTabState extends State<_ProfileTab> {
                   Column(
                     children: [
                       GestureDetector(
-                        onTap: widget.onPickImage,
+                        onTap: _pickAndUploadAvatar,
                         child: Stack(
+                          alignment: Alignment.center,
                           children: [
                             CircleAvatar(
                               radius: 56,
                               backgroundColor: const Color(0xFFD0D0D0),
                               backgroundImage: _getAvatarImage(),
-                              child: widget.avatarFile == null &&
+                              child: _avatarFile == null &&
                                       (_profilePhoto == null ||
                                           _profilePhoto!.isEmpty)
                                   ? const Icon(Icons.person,
                                       size: 60, color: Colors.white)
                                   : null,
                             ),
+                            if (_isUploadingAvatar)
+                              Container(
+                                width: 112,
+                                height: 112,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.35),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.6,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             Positioned(
                               bottom: 2,
                               right: 2,
@@ -729,10 +836,11 @@ class _BiodataContentState extends State<_BiodataContent> {
                 validator: (v) {
                   if (v!.isEmpty) return 'Wajib diisi';
                   if (int.tryParse(v) == null) return 'Hanya boleh angka';
-                  if (v.length < 12 || v.length > 13)
+                  if (v.length < 12 || v.length > 13) {
                     return 'Nomor telepon tidak valid';
-                  if (!v.startsWith('08')) return 'Nomor harus diawali 08';
+                  }
                   if (v.startsWith('+62')) return null;
+                  if (!v.startsWith('08')) return 'Nomor harus diawali 08';
                   return null;
                 },
               ),
