@@ -84,13 +84,15 @@ class ReportService {
           'hazard_category': hazardCategory,
         if (hazardSubcategory != null && hazardSubcategory.isNotEmpty)
           'hazard_subcategory': hazardSubcategory,
-        if (suggestion != null && suggestion.isNotEmpty) 'suggestion': suggestion,
+        if (suggestion != null && suggestion.isNotEmpty)
+          'suggestion': suggestion,
       },
       imagePath: imagePath,
     );
 
     if (!payload.success) {
-      return ReportActionResult.error(payload.errorMessage ?? 'Gagal kirim laporan hazard.');
+      return ReportActionResult.error(
+          payload.errorMessage ?? 'Gagal kirim laporan hazard.');
     }
 
     final rawData = payload.data['data'];
@@ -123,7 +125,8 @@ class ReportService {
         if (inspector != null && inspector.isNotEmpty) 'inspector': inspector,
         if (result != null && result.isNotEmpty) 'result': result,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
-        if (checklistItems != null) 'checklist_items': jsonEncode(checklistItems),
+        if (checklistItems != null)
+          'checklist_items': jsonEncode(checklistItems),
       },
       imagePath: imagePath,
     );
@@ -160,7 +163,8 @@ class ReportService {
       fields: {
         'status': _statusToApi(status),
         if (subStatus != null) 'sub_status': subStatus.name,
-        if (message != null && message.trim().isNotEmpty) 'message': message.trim(),
+        if (message != null && message.trim().isNotEmpty)
+          'message': message.trim(),
         if (taggedUserId != null && taggedUserId.isNotEmpty)
           'tagged_user_id': taggedUserId,
       },
@@ -207,8 +211,8 @@ class ReportService {
   }
 
   static Report _mapHazardReport(Map<String, dynamic> json) {
-    final severity = _severityFromApi(json['severity']?.toString()) ??
-        ReportSeverity.medium;
+    final severity =
+        _severityFromApi(json['severity']?.toString()) ?? ReportSeverity.medium;
     return Report(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '-',
@@ -222,6 +226,7 @@ class ReportService {
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
       imageUrl: _safeImageUrl(json['image_url']?.toString()),
+      ticketNumber: json['ticket_number']?.toString(),
     );
   }
 
@@ -240,6 +245,7 @@ class ReportService {
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
       imageUrl: _safeImageUrl(json['image_url']?.toString()),
+      ticketNumber: json['ticket_number']?.toString(),
     );
   }
 
