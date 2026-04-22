@@ -422,7 +422,9 @@ class _ProfileTabState extends State<_ProfileTab> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                _isWorkActive ? 'Aktif' : 'Nonaktif',
+                                _isWorkActive
+                                    ? 'Status Karyawan : Aktif'
+                                    : 'Status Karyawan : Nonaktif',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -643,7 +645,7 @@ class _BiodataContentState extends State<_BiodataContent> {
     final personalEmail = _personalEmailCtrl.text.trim();
     final workEmail = _workEmailCtrl.text.trim();
     final phoneNumber = _phoneCtrl.text.trim();
-    print(
+    debugPrint(
         'Saving profile - PersonalEmail: $personalEmail, WorkEmail: $workEmail, Phone: $phoneNumber');
 
     final result = await ProfileService.updateProfile(
@@ -651,7 +653,7 @@ class _BiodataContentState extends State<_BiodataContent> {
       workEmail: workEmail.isEmpty ? null : workEmail,
       phoneNumber: phoneNumber,
     );
-    print(
+    debugPrint(
         'Save result - Success: ${result.success}, Error: ${result.errorMessage}');
 
     if (mounted) {
@@ -830,7 +832,7 @@ class _LicenseContentState extends State<_LicenseContent> {
                 foregroundColor: Colors.white),
             onPressed: () async {
               if (nameCtrl.text.isNotEmpty) {
-                final response = await ProfileService.updateProfile();
+                await ProfileService.updateProfile();
                 if (nameCtrl.text.isNotEmpty) {
                   setState(() {
                     _licenses.insert(
@@ -844,7 +846,7 @@ class _LicenseContentState extends State<_LicenseContent> {
                         ));
                   });
                 }
-                Navigator.pop(context);
+                if (mounted) Navigator.pop(context);
               }
             },
             child: const Text('Simpan'),
@@ -1119,13 +1121,17 @@ class _MedicalContent extends StatelessWidget {
   McuStatus _parseMcuStatus(String? result) {
     if (result == null) return McuStatus.fitToWork;
     final lower = result.toLowerCase();
-    if (lower.contains('fit to work') && !lower.contains('limit'))
+    if (lower.contains('fit to work') && !lower.contains('limit')) {
       return McuStatus.fitToWork;
+    }
     if (lower.contains('fit with') ||
         lower.contains('limit') ||
-        lower.contains('restriction')) return McuStatus.fitWithLimitation;
-    if (lower.contains('not fit') || lower.contains('unfit'))
+        lower.contains('restriction')) {
+      return McuStatus.fitWithLimitation;
+    }
+    if (lower.contains('not fit') || lower.contains('unfit')) {
       return McuStatus.notFitToWork;
+    }
     return McuStatus.fitToWork;
   }
 
