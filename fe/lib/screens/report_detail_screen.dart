@@ -16,7 +16,7 @@ class ReportDetailScreen extends StatefulWidget {
 
 class _ReportDetailScreenState extends State<ReportDetailScreen> {
   late Report _report;
-  bool _isTimelineLoading = true;
+  late Future<List<TimelineEvent>> _timelineFuture;
 
   static const _blue = Color(0xFF1A56C4);
   static const _blueLight = Color(0xFFEFF4FF);
@@ -25,17 +25,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   void initState() {
     super.initState();
     _report = ReportStore.instance.getById(widget.report.id) ?? widget.report;
-    _loadTimeline(force: true);
+    _timelineFuture = ReportStore.instance.loadTimeline(_report.id);
   }
 
-  Future<void> _loadTimeline({bool force = false}) async {
-    try {
-      await ReportStore.instance.loadTimeline(_report.id, force: force);
-    } finally {
-      if (mounted) {
-        setState(() => _isTimelineLoading = false);
-      }
-    }
+  final PageController _pageController = PageController();
+  int _currentImageIndex = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   // ── Colors ─────────────────────────────────────────────────────────────────
@@ -98,7 +97,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   // ── Update Status logic replaced by UpdateStatusPage ───────────────────────
 
   // ── Image Preview ──────────────────────────────────────────────────────────
-  void _showImagePreview(BuildContext context) {
+  void _showImagePreview(BuildContext context, String imageUrl, int index) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -114,17 +113,26 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             child: InteractiveViewer(
               minScale: 1.0,
               maxScale: 4.0,
-              child: Hero(
-                tag: 'report_image_${_report.id}',
-                child: CachedNetworkImage(
-                  imageUrl: _report.imageUrl,
-                  fit: BoxFit.contain,
-                  placeholder: (_, __) =>
-                      const CircularProgressIndicator(color: Colors.white),
-                  errorWidget: (_, __, ___) =>
-                      const Icon(Icons.image, color: Colors.white54, size: 80),
-                ),
-              ),
+              child: index == 0
+                  ? Hero(
+                      tag: 'report_image_${_report.id}',
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.contain,
+                        placeholder: (_, __) => const CircularProgressIndicator(
+                            color: Colors.white),
+                        errorWidget: (_, __, ___) => const Icon(Icons.image,
+                            color: Colors.white54, size: 80),
+                      ),
+                    )
+                  : CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.contain,
+                      placeholder: (_, __) =>
+                          const CircularProgressIndicator(color: Colors.white),
+                      errorWidget: (_, __, ___) => const Icon(Icons.image,
+                          color: Colors.white54, size: 80),
+                    ),
             ),
           ),
         ),
@@ -134,7 +142,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final timeline = ReportStore.instance.getTimeline(_report.id);
+    final List<String> exampleImages = [
+      _report.imageUrl,
+      'https://images.unsplash.com/photo-1541888081696-2616238b9d75?q=80&w=800&auto=format&fit=crop'
+    ];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F0),
@@ -161,26 +172,52 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               width: double.infinity,
               height: 220,
               child: Stack(fit: StackFit.expand, children: [
-                GestureDetector(
-                  onTap: () => _showImagePreview(context),
-                  child: Hero(
-                    tag: 'report_image_${_report.id}',
-                    child: CachedNetworkImage(
-                      imageUrl: _report.imageUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: const Color(0xFF37474F),
-                        child: const Center(
-                            child: CircularProgressIndicator(
-                                color: Colors.white38, strokeWidth: 2)),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: const Color(0xFF37474F),
-                        child: const Icon(Icons.image,
-                            color: Colors.white24, size: 80),
-                      ),
-                    ),
-                  ),
+                PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (idx) =>
+                      setState(() => _currentImageIndex = idx),
+                  itemCount: exampleImages.length,
+                  itemBuilder: (context, index) {
+                    final imgUrl = exampleImages[index];
+                    return GestureDetector(
+                      onTap: () => _showImagePreview(context, imgUrl, index),
+                      child: index == 0
+                          ? Hero(
+                              tag: 'report_image_${_report.id}',
+                              child: CachedNetworkImage(
+                                imageUrl: imgUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) => Container(
+                                  color: const Color(0xFF37474F),
+                                  child: const Center(
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white38,
+                                          strokeWidth: 2)),
+                                ),
+                                errorWidget: (_, __, ___) => Container(
+                                  color: const Color(0xFF37474F),
+                                  child: const Icon(Icons.image,
+                                      color: Colors.white24, size: 80),
+                                ),
+                              ),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: imgUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(
+                                color: const Color(0xFF37474F),
+                                child: const Center(
+                                    child: CircularProgressIndicator(
+                                        color: Colors.white38, strokeWidth: 2)),
+                              ),
+                              errorWidget: (_, __, ___) => Container(
+                                color: const Color(0xFF37474F),
+                                child: const Icon(Icons.image,
+                                    color: Colors.white24, size: 80),
+                              ),
+                            ),
+                    );
+                  },
                 ),
                 Positioned(
                   bottom: 0,
@@ -204,12 +241,79 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   bottom: 12,
                   left: 16,
                   child: Row(children: [
+                    _badge(_report.status.label, _statusColor(_report.status)),
+                    const SizedBox(width: 8),
                     _badge(_report.severity.label,
                         _severityColor(_report.severity)),
-                    const SizedBox(width: 8),
-                    _badge(_report.status.label, _statusColor(_report.status)),
                   ]),
                 ),
+                if (exampleImages.length > 1) ...[
+                  Positioned(
+                    bottom: 12,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black45,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_currentImageIndex + 1}/${exampleImages.length}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 8,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: CircleAvatar(
+                        backgroundColor: Colors.black.withValues(alpha: 0.3),
+                        radius: 18,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.arrow_back_ios_new,
+                              color: Colors.white, size: 18),
+                          onPressed: () {
+                            if (_currentImageIndex > 0) {
+                              _pageController.previousPage(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: CircleAvatar(
+                        backgroundColor: Colors.black.withValues(alpha: 0.3),
+                        radius: 18,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.arrow_forward_ios,
+                              color: Colors.white, size: 18),
+                          onPressed: () {
+                            if (_currentImageIndex < exampleImages.length - 1) {
+                              _pageController.nextPage(
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeInOut);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ]),
             ),
 
@@ -257,7 +361,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                     _DetailRow(
                         icon: Icons.confirmation_number_outlined,
                         label: 'No. Tiket',
-                        value: '#TKT-${_report.id.padLeft(4, '0')}'),
+                        value: _report.ticketNumber ??
+                            '#TKT-${_report.id.padLeft(4, '0')}'),
                   ]),
             ),
 
@@ -275,39 +380,104 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                           style: TextStyle(
                               fontWeight: FontWeight.bold, fontSize: 15)),
                       const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _blueLight,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text('${timeline.length} aktivitas',
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: _blue,
-                                fontWeight: FontWeight.w600)),
+                      FutureBuilder<List<TimelineEvent>>(
+                        future: _timelineFuture,
+                        builder: (context, snapshot) {
+                          final count = snapshot.data?.length ?? 0;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _blueLight,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text('$count aktivitas',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: _blue,
+                                    fontWeight: FontWeight.w600)),
+                          );
+                        },
                       ),
                     ]),
                     const SizedBox(height: 6),
 
-                    // Step indicator bar
-                    _buildStepBar(),
-
-                    const SizedBox(height: 20),
-
-                    // Timeline events (grouped by parent status)
-                    if (_isTimelineLoading && timeline.isEmpty)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF1A56C4),
-                          ),
-                        ),
-                      )
-                    else
-                      ..._buildGroupedTimeline(timeline),
+                    // Step indicator bar + timeline inside FutureBuilder
+                    FutureBuilder<List<TimelineEvent>>(
+                      future: _timelineFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(
+                            height: 200,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF1A56C4),
+                              ),
+                            ),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.error_outline,
+                                      size: 48, color: Colors.grey.shade400),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Gagal memuat timeline',
+                                    style:
+                                        TextStyle(color: Colors.grey.shade600),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  TextButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _timelineFuture = ReportStore.instance
+                                            .loadTimeline(_report.id);
+                                      });
+                                    },
+                                    child: const Text('Coba lagi'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        final timeline = snapshot.data ?? [];
+                        if (timeline.isEmpty) {
+                          return Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.hourglass_empty,
+                                      size: 48, color: Colors.grey.shade300),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Belum ada aktivitas',
+                                    style:
+                                        TextStyle(color: Colors.grey.shade600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildStepBar(timeline),
+                            const SizedBox(height: 20),
+                            ..._buildGroupedTimeline(timeline),
+                          ],
+                        );
+                      },
+                    ),
                   ]),
             ),
 
@@ -327,9 +497,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                     if (result != null) {
                       setState(() {
                         _report = result;
-                        _isTimelineLoading = true;
+                        _timelineFuture =
+                            ReportStore.instance.loadTimeline(_report.id);
                       });
-                      await _loadTimeline(force: true);
                     }
                   },
                   icon: const Icon(Icons.edit_outlined, size: 18),
@@ -431,13 +601,12 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   }
 
   // ── Step bar (Open → In Progress → Closed) ─────────────────────────────────
-  Widget _buildStepBar() {
+  Widget _buildStepBar(List<TimelineEvent> timeline) {
     final steps = [
       ReportStatus.open,
       ReportStatus.inProgress,
       ReportStatus.closed
     ];
-    final timeline = ReportStore.instance.getTimeline(_report.id);
     final reached = timeline.map((e) => e.status).toSet();
 
     return Row(
@@ -708,52 +877,51 @@ class _TimelineItem extends StatelessWidget {
                   // Photo
                   if (event.photoPath != null) ...[
                     const SizedBox(height: 8),
-                    Builder(builder: (_) {
-                      final path = event.photoPath!;
-                      final isNetwork =
-                          path.startsWith('http://') || path.startsWith('https://');
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => Scaffold(
-                                backgroundColor: Colors.black,
-                                appBar: AppBar(
-                                  backgroundColor: Colors.transparent,
-                                  iconTheme:
-                                      const IconThemeData(color: Colors.white),
-                                  elevation: 0,
-                                ),
-                                extendBodyBehindAppBar: true,
-                                body: Center(
-                                  child: InteractiveViewer(
-                                    minScale: 1.0,
-                                    maxScale: 4.0,
-                                    child: (kIsWeb || isNetwork)
-                                        ? Image.network(path, fit: BoxFit.contain)
-                                        : Image.file(
-                                            File(path),
-                                            fit: BoxFit.contain,
-                                          ),
-                                  ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => Scaffold(
+                              backgroundColor: Colors.black,
+                              appBar: AppBar(
+                                backgroundColor: Colors.transparent,
+                                iconTheme:
+                                    const IconThemeData(color: Colors.white),
+                                elevation: 0,
+                              ),
+                              extendBodyBehindAppBar: true,
+                              body: Center(
+                                child: InteractiveViewer(
+                                  minScale: 1.0,
+                                  maxScale: 4.0,
+                                  child: kIsWeb
+                                      ? Image.network(
+                                          event.photoPath!,
+                                          fit: BoxFit.contain,
+                                        )
+                                      : Image.file(
+                                          File(event.photoPath!),
+                                          fit: BoxFit.contain,
+                                        ),
                                 ),
                               ),
                             ),
-                          );
-                        },
-                        child: ClipRRect(
+                          ),
+                        );
+                      },
+                      child: Container(
+                        height: 140,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          child: SizedBox(
-                            height: 140,
-                            width: double.infinity,
-                            child: (kIsWeb || isNetwork)
-                                ? Image.network(path, fit: BoxFit.cover)
-                                : Image.file(File(path), fit: BoxFit.cover),
+                          image: DecorationImage(
+                            image: FileImage(File(event.photoPath!)),
+                            fit: BoxFit.cover,
                           ),
                         ),
-                      );
-                    }),
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -838,6 +1006,18 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
   final _noteCtrl = TextEditingController();
   final _deferredKeteranganCtrl = TextEditingController();
   final Set<String> _taggedPeople = {};
+
+  final List<String> _departments = [
+    'HSE',
+    'Produksi',
+    'Maintenance',
+    'Engineering',
+    'HRD',
+    'Logistik',
+    'Security',
+  ];
+  String? _selectedDepartment;
+
   XFile? _attachedPhoto;
   bool _isSaving = false;
 
@@ -918,140 +1098,167 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
   }
 
   void _showTagPeopleSheet() {
+    String query = '';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        builder: (ctx, setSheetState) {
+          final filteredPeople = _allPeople
+              .where((p) => p.toLowerCase().contains(query.toLowerCase()))
+              .toList();
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Pilih Orang',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const Divider(),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _allPeople.length,
-                  itemBuilder: (_, i) {
-                    final person = _allPeople[i];
-                    final isTagged = _taggedPeople.contains(person);
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(0xFFEFF4FF),
-                        child: Text(
-                          person[0],
-                          style: const TextStyle(
-                              color: Color(0xFF1A56C4),
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      title: Text(person, style: const TextStyle(fontSize: 14)),
-                      trailing: isTagged
-                          ? const Icon(Icons.check_circle,
-                              color: Color(0xFF1A56C4))
-                          : const Icon(Icons.radio_button_unchecked,
-                              color: Colors.grey),
-                      onTap: () {
-                        setState(() {
-                          if (isTagged) {
-                            _taggedPeople.remove(person);
-                          } else {
-                            _taggedPeople.add(person);
-                          }
-                        });
-                        setSheetState(() {});
-                      },
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A56C4),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                const SizedBox(height: 12),
+                const Text('Pilih Orang',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama...',
+                      prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 0),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: Colors.grey.shade300)),
                     ),
-                    child: Text(
-                      _taggedPeople.isEmpty
-                          ? 'Tutup'
-                          : 'Selesai (${_taggedPeople.length} dipilih)',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    onChanged: (val) => setSheetState(() => query = val),
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: filteredPeople.length,
+                    itemBuilder: (_, i) {
+                      final person = filteredPeople[i];
+                      final isTagged = _taggedPeople.contains(person);
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFFEFF4FF),
+                          child: Text(
+                            person[0],
+                            style: const TextStyle(
+                                color: Color(0xFF1A56C4),
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        title:
+                            Text(person, style: const TextStyle(fontSize: 14)),
+                        trailing: isTagged
+                            ? const Icon(Icons.check_circle,
+                                color: Color(0xFF1A56C4))
+                            : const Icon(Icons.radio_button_unchecked,
+                                color: Colors.grey),
+                        onTap: () {
+                          setState(() {
+                            if (isTagged) {
+                              _taggedPeople.remove(person);
+                            } else {
+                              _taggedPeople.add(person);
+                            }
+                          });
+                          setSheetState(() {});
+                        },
+                      );
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A56C4),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        _taggedPeople.isEmpty
+                            ? 'Tutup'
+                            : 'Selesai (${_taggedPeople.length} dipilih)',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
   Future<void> _handleSave() async {
-    final needsPhoto = _selectedSub == ReportSubStatus.reviewing ||
-        _selectedSub == ReportSubStatus.executing;
-    if (needsPhoto && _attachedPhoto == null) {
+    if (_selectedSub == ReportSubStatus.reviewing && _attachedPhoto == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content:
-            Text('Foto bukti wajib dilampirkan untuk tahap Executing/Reviewing!'),
+        content: Text('Foto bukti wajib dilampirkan untuk tahap Reviewing!'),
         backgroundColor: Colors.red,
       ));
       return;
     }
 
     setState(() => _isSaving = true);
-    try {
-      final note = [
-        _noteCtrl.text.trim(),
-        if (_selectedSub == ReportSubStatus.deferred)
-          _deferredKeteranganCtrl.text.trim(),
-      ].where((e) => e.isNotEmpty).join('\n\n');
+    // Simulate network
+    await Future.delayed(const Duration(milliseconds: 500));
 
-      final updated = await ReportStore.instance.updateStatus(
-        widget.report.id,
-        _selectedStatus,
-        newSubStatus: _selectedSub,
-        note: note.isEmpty ? null : note,
-        photoPath: _attachedPhoto?.path,
-      );
+    String? finalNote =
+        _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
+    if (_selectedSub == ReportSubStatus.assigned ||
+        _selectedSub == ReportSubStatus.deferred) {
+      final dept =
+          _selectedDepartment == null ? '' : 'Departemen: $_selectedDepartment';
+      final pjaTags =
+          _taggedPeople.isEmpty ? '' : 'PJA: ${_taggedPeople.join(', ')}';
+      final ket = _deferredKeteranganCtrl.text.trim().isEmpty
+          ? ''
+          : 'Keterangan: ${_deferredKeteranganCtrl.text.trim()}';
+      final addInfo =
+          [dept, pjaTags, ket].where((s) => s.isNotEmpty).join('\n');
+      if (addInfo.isNotEmpty) {
+        finalNote = finalNote == null ? addInfo : '$finalNote\n\n$addInfo';
+      }
+    }
 
-      if (!mounted) return;
+    final updated = await ReportStore.instance.updateStatus(
+      widget.report.id,
+      _selectedStatus,
+      newSubStatus: _selectedSub,
+      note: finalNote,
+      photoPath: _attachedPhoto?.path,
+    );
+
+    if (mounted) {
       Navigator.pop(context, updated);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Status berhasil diperbarui ke ${_selectedStatus.label}'),
         backgroundColor: _statusColor(_selectedStatus),
       ));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memperbarui status: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -1192,9 +1399,36 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
 
             const SizedBox(height: 20),
 
-            // ── Deferred: Tag Orang & Keterangan ─────────────────────────
-            if (_selectedSub == ReportSubStatus.deferred) ...[
-              const _Label('Tag Orang'),
+            // ── Assigned/Deferred: Tag PJA & Keterangan ─────────────────────────
+            if (_selectedSub == ReportSubStatus.assigned ||
+                _selectedSub == ReportSubStatus.deferred) ...[
+              const _Label('Departemen'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedDepartment,
+                    isExpanded: true,
+                    hint: const Text('Pilih departemen...',
+                        style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    icon: const Icon(Icons.keyboard_arrow_down,
+                        color: Colors.grey),
+                    items: _departments
+                        .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                        .toList(),
+                    onChanged: (val) =>
+                        setState(() => _selectedDepartment = val),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const _Label('Tag PJA'),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -1264,7 +1498,7 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
                 controller: _deferredKeteranganCtrl,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'Masukkan keterangan laporan yang ditangguhkan...',
+                  hintText: 'Masukkan keterangan laporan...',
                   fillColor: Colors.white,
                   filled: true,
                   border: OutlineInputBorder(
@@ -1292,37 +1526,84 @@ class _UpdateStatusPageState extends State<UpdateStatusPage> {
               ],
             ),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _showPhotoOptions,
-              child: Container(
-                height: 180,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color: Colors.grey.shade300, style: BorderStyle.solid),
-                ),
-                child: _attachedPhoto != null
-                    ? ClipRRect(
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: _showPhotoOptions,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        child: kIsWeb
-                            ? Image.network(_attachedPhoto!.path,
-                                fit: BoxFit.cover)
-                            : Image.file(File(_attachedPhoto!.path),
-                                fit: BoxFit.cover),
-                      )
-                    : const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Row(
                         children: [
-                          Icon(Icons.add_a_photo, color: Colors.grey, size: 40),
-                          SizedBox(height: 8),
-                          Text('Klik untuk ambil foto (Kamera/Galeri)',
-                              style:
-                                  TextStyle(color: Colors.grey, fontSize: 13)),
+                          const Icon(Icons.camera_alt_outlined,
+                              color: Colors.grey, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _attachedPhoto != null
+                                  ? _attachedPhoto!.name
+                                  : 'Pilih / Ambil Foto...',
+                              style: TextStyle(
+                                  color: _attachedPhoto != null
+                                      ? Colors.black87
+                                      : Colors.grey,
+                                  fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (_attachedPhoto != null)
+                            GestureDetector(
+                              onTap: () =>
+                                  setState(() => _attachedPhoto = null),
+                              child: const Icon(Icons.close,
+                                  size: 18, color: Colors.red),
+                            )
                         ],
                       ),
-              ),
+                    ),
+                  ),
+                ),
+                if (_attachedPhoto != null) ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => Scaffold(
+                                    backgroundColor: Colors.black,
+                                    appBar: AppBar(
+                                        backgroundColor: Colors.transparent,
+                                        elevation: 0,
+                                        iconTheme: const IconThemeData(
+                                            color: Colors.white)),
+                                    body: Center(
+                                        child: InteractiveViewer(
+                                            child: kIsWeb
+                                                ? Image.network(
+                                                    _attachedPhoto!.path)
+                                                : Image.file(File(
+                                                    _attachedPhoto!.path)))),
+                                  )));
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: kIsWeb
+                          ? Image.network(_attachedPhoto!.path,
+                              width: 48, height: 48, fit: BoxFit.cover)
+                          : Image.file(File(_attachedPhoto!.path),
+                              width: 48, height: 48, fit: BoxFit.cover),
+                    ),
+                  ),
+                ],
+              ],
             ),
 
             const SizedBox(height: 40),
