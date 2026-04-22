@@ -68,6 +68,7 @@ class ReportService {
     String? hazardSubcategory,
     String? suggestion,
     String? imagePath,
+    bool isPublic = true,
   }) async {
     final payload = await _sendMultipart(
       endpoint: '/hazard-reports',
@@ -86,6 +87,8 @@ class ReportService {
           'hazard_subcategory': hazardSubcategory,
         if (suggestion != null && suggestion.isNotEmpty)
           'suggestion': suggestion,
+        // Backend expects camelCase key `isPublic` and parses it as boolean.
+        'isPublic': isPublic.toString(),
       },
       imagePath: imagePath,
     );
@@ -210,6 +213,31 @@ class ReportService {
     return ReportLogsResult.success(logs);
   }
 
+  static Future<List<UserEntry>> getUsers({String? search}) async {
+    final query = (search != null && search.trim().isNotEmpty)
+        ? '?search=${Uri.encodeQueryComponent(search.trim())}'
+        : '';
+    final response = await ApiService.get('/users$query');
+    if (!response.success) return const [];
+    final raw = _asList(response.data['data']);
+    return raw.map((e) {
+      final m = Map<String, dynamic>.from(e);
+      return UserEntry(
+        id: m['id']?.toString() ?? '',
+        fullName: m['full_name']?.toString() ?? '',
+        department: m['department']?.toString(),
+        photoUrl: m['photo_url']?.toString(),
+      );
+    }).where((u) => u.id.isNotEmpty).toList();
+  }
+
+  static Future<List<String>> getDepartments() async {
+    final response = await ApiService.get('/departments');
+    if (!response.success) return const [];
+    final raw = _asList(response.data['data']);
+    return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+  }
+
   static Report _mapHazardReport(Map<String, dynamic> json) {
     final severity =
         _severityFromApi(json['severity']?.toString()) ?? ReportSeverity.medium;
@@ -219,12 +247,17 @@ class ReportService {
       description: json['description']?.toString() ?? '-',
       type: ReportType.hazard,
       category: _hazardCategoryFromApi(json['hazard_category']?.toString()),
+      subkategori: json['hazard_subcategory']?.toString(),
       severity: severity,
       status: _statusFromApi(json['status']?.toString()),
       subStatus: _subStatusFromApi(json['sub_status']?.toString()),
       location: json['location']?.toString() ?? '-',
+      saran: json['suggestion']?.toString(),
+      departemen: json['reported_department']?.toString(),
+      tagOrang: json['name_pja']?.toString(),
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
+      reporterId: _reporterId(json['reported_by']),
       imageUrl: _safeImageUrl(json['image_url']?.toString()),
       ticketNumber: json['ticket_number']?.toString(),
     );
@@ -244,6 +277,7 @@ class ReportService {
       location: json['location']?.toString() ?? '-',
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
+      reporterId: _reporterId(json['reported_by']),
       imageUrl: _safeImageUrl(json['image_url']?.toString()),
       ticketNumber: json['ticket_number']?.toString(),
     );
@@ -274,6 +308,13 @@ class ReportService {
       if (name != null && name.trim().isNotEmpty) return name;
     }
     return 'Unknown User';
+  }
+
+  static String? _reporterId(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      return raw['id']?.toString();
+    }
+    return null;
   }
 
   static DateTime _parseDate(dynamic raw) {
@@ -489,6 +530,20 @@ class ReportLogsResult {
 
   factory ReportLogsResult.error(String message) =>
       ReportLogsResult._(success: false, errorMessage: message);
+}
+
+class UserEntry {
+  final String id;
+  final String fullName;
+  final String? department;
+  final String? photoUrl;
+
+  const UserEntry({
+    required this.id,
+    required this.fullName,
+    this.department,
+    this.photoUrl,
+  });
 }
 
 class _MultipartResult {

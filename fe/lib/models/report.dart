@@ -42,12 +42,17 @@ class Report {
   final String description;
   final ReportType type;
   final HazardCategory? category;
+  final String? subkategori;    // hazard_subcategory from API
   final ReportSeverity severity;
   final ReportStatus status;
   final ReportSubStatus? subStatus;
   final String location;
+  final String? saran;          // suggestion from API
+  final String? departemen;     // reported_department from API
+  final String? tagOrang;       // name_pja from API
   final DateTime createdAt;
   final String reportedBy;
+  final String? reporterId;
   final String imageUrl;
   final String? ticketNumber;
 
@@ -57,12 +62,17 @@ class Report {
     required this.description,
     required this.type,
     this.category,
+    this.subkategori,
     required this.severity,
     required this.status,
     this.subStatus,
     required this.location,
+    this.saran,
+    this.departemen,
+    this.tagOrang,
     required this.createdAt,
     required this.reportedBy,
+    this.reporterId,
     required this.imageUrl,
     this.ticketNumber,
   });

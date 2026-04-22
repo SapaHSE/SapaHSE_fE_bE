@@ -55,6 +55,7 @@ class ReportStore {
     String? hazardSubcategory,
     String? suggestion,
     String? imagePath,
+    bool isPublic = true,
   }) async {
     final result = await ReportService.createHazardReport(
       title: title,
@@ -67,6 +68,7 @@ class ReportStore {
       hazardSubcategory: hazardSubcategory,
       suggestion: suggestion,
       imagePath: imagePath,
+      isPublic: isPublic,
     );
     if (!result.success || result.report == null) {
       throw Exception(result.errorMessage ?? 'Gagal mengirim laporan hazard.');
@@ -182,6 +184,18 @@ class ReportStore {
         final severityRaw = (draft.data['severity']?.toString() ?? '').trim();
         final severityApi =
             severityRaw.isEmpty ? 'medium' : severityRaw.toLowerCase();
+        final isPublicRaw = draft.data['isPublic'];
+        final isPublic = switch (isPublicRaw) {
+          null => true,
+          final bool v => v,
+          _ => () {
+              final s = isPublicRaw.toString().trim().toLowerCase();
+              if (s == 'false' || s == '0' || s == 'no' || s == 'off') {
+                return false;
+              }
+              return true;
+            }(),
+        };
 
         await createHazardReport(
           title: (draft.data['title']?.toString() ?? '').trim(),
@@ -194,6 +208,7 @@ class ReportStore {
           hazardSubcategory: draft.data['subkategori']?.toString(),
           suggestion: draft.data['saran']?.toString(),
           imagePath: draft.data['photoPath']?.toString(),
+          isPublic: isPublic,
         );
       } else {
         final checklistRaw = draft.data['checklist'];
