@@ -205,6 +205,22 @@ class AuthController extends Controller
         ]);
     }
 
+    // GET /api/departments  — daftar departemen unik dari tabel users
+    public function listDepartments()
+    {
+        $departments = \App\Models\User::where('is_active', true)
+            ->whereNotNull('department')
+            ->where('department', '!=', '')
+            ->distinct()
+            ->orderBy('department')
+            ->pluck('department');
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $departments,
+        ]);
+    }
+
     // GET /api/users  (admin & superadmin only — untuk fitur Tag Orang)
     public function listUsers(Request $request)
     {
