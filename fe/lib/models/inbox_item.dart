@@ -158,12 +158,12 @@ class InboxItem {
       title: json['title']?.toString() ?? '-',
       createdAt: createdAt,
       timeAgo: json['time_ago']?.toString(),
-      reportType: _parseReportType(json['type']?.toString()),
+      reportType: _parseReportType(json['type']?.toString() ?? json['item_type']?.toString()),
       description: json['description']?.toString() ?? '',
       status: _parseStatus(json['status']?.toString()),
       location: json['location']?.toString() ?? '-',
       imageUrl: json['image_url']?.toString(),
-      severity: _parseSeverity(json['severity']?.toString()),
+      severity: _parseSeverity(json['severity']?.toString() ?? _severityFromInspectionResult(json['result']?.toString())),
       namePja: json['name_pja']?.toString(),
       reportedDepartment: json['reported_department']?.toString(),
       area: json['area']?.toString(),
@@ -203,14 +203,11 @@ class InboxItem {
   }
 
   static ReportType? _parseReportType(String? raw) {
-    switch (raw) {
-      case 'hazard':
-        return ReportType.hazard;
-      case 'inspection':
-        return ReportType.inspection;
-      default:
-        return null;
-    }
+    if (raw == null) return null;
+    final lower = raw.toLowerCase();
+    if (lower.contains('hazard')) return ReportType.hazard;
+    if (lower.contains('inspection')) return ReportType.inspection;
+    return null;
   }
 
   static ReportStatus _parseStatus(String? raw) {
@@ -236,6 +233,19 @@ class InboxItem {
       case 'medium':
       default:
         return ReportSeverity.medium;
+    }
+  }
+
+  static String? _severityFromInspectionResult(String? result) {
+    switch (result) {
+      case 'non_compliant':
+        return 'high';
+      case 'needs_follow_up':
+        return 'medium';
+      case 'compliant':
+        return 'low';
+      default:
+        return null;
     }
   }
 }

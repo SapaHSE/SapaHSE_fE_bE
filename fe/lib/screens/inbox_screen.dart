@@ -987,7 +987,8 @@ class _InboxCard extends StatelessWidget {
               ),
 
               // ── BOTTOM: Warning Banner if Open ───────────────────────────
-              if (status == ReportStatus.open)
+              if (status == ReportStatus.open &&
+                  (severity == ReportSeverity.high))
                 Container(
                   width: double.infinity,
                   padding:
