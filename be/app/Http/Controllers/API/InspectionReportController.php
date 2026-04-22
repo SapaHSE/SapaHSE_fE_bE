@@ -244,7 +244,7 @@ class InspectionReportController extends Controller
             'location'        => $report->location,
             'image_url'       => $report->image_url,
             'is_read'         => $userId ? $report->isReadBy($userId) : false,
-            'reported_by'     => $report->user ? $report->user->only(['full_name', 'employee_id', 'department', 'company']) : null,
+            'reported_by'     => $report->user ? $report->user->only(['id', 'full_name', 'employee_id', 'department', 'company']) : null,
             'created_at'      => $report->created_at,
             'time_ago'        => $report->created_at?->diffForHumans(),
             'area'            => $report->area,
