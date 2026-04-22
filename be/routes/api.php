@@ -84,6 +84,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [AuthController::class, 'listUsers'])
         ->middleware('role:admin,superadmin');
 
+    // GET /api/departments  — daftar departemen unik (semua role yang login)
+    Route::get('/departments', [AuthController::class, 'listDepartments']);
+
     // Inspections merged into /api/reports    // ==========================================
     // News & Articles
     // ==========================================
