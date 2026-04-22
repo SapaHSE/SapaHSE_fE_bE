@@ -395,7 +395,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
               const SizedBox(width: 48),
               _NavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3,
                   currentIndex: _currentIndex, onTap: _onTabTapped),
-              _NavItem(icon: Icons.person_outline, label: 'Profile', index: 4,
+              _NavItem(icon: Icons.menu, label: 'Menu', index: 4,
                   currentIndex: _currentIndex, onTap: _onTabTapped),
             ],
           ),
