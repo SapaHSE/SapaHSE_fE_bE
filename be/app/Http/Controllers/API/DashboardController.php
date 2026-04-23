@@ -31,8 +31,8 @@ class DashboardController extends Controller
             'in_progress' => (clone $hQuery)->where('status', 'in_progress')->count(),
             'closed'      => (clone $hQuery)->where('status', 'closed')->count(),
             'severity' => [
-                'critical' => (clone $hQuery)->where('severity', 'critical')->count(),
                 'high'     => (clone $hQuery)->where('severity', 'high')->count(),
+                'medium'   => (clone $hQuery)->where('severity', 'medium')->count(),
                 'low'      => (clone $hQuery)->where('severity', 'low')->count(),
             ]
         ];

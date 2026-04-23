@@ -32,7 +32,7 @@ class InboxController extends Controller
 
         // Personal: reports where user is PJA, Inspector, or tagged
         $personalHazardUnread = HazardReport::where(function($q) use ($user) {
-                $q->where('name_pja', $user->full_name);
+                $q->where('pic_department', 'like', '%' . $user->full_name . '%');
             })
             ->whereNotIn('id', $readHazardIds)
             ->count();
@@ -75,7 +75,7 @@ class InboxController extends Controller
 
         } else {
             // Gabungkan Hazard dan Inspection yang relevan
-            $hQuery = HazardReport::with(['user'])->where('name_pja', $user->full_name);
+            $hQuery = HazardReport::with(['user'])->where('pic_department', 'like', '%' . $user->full_name . '%');
             $iQuery = InspectionReport::with(['user', 'checklistItems'])->where('name_inspector', $user->full_name);
 
             if ($isRead !== null) {
@@ -215,7 +215,8 @@ class InboxController extends Controller
             'created_at'          => $report->created_at?->toIso8601String(),
             'time_ago'            => $report->created_at?->diffForHumans(),
             'severity'            => $report->severity,
-            'name_pja'            => $report->name_pja,
+            'pic_department'      => $report->pic_department,
+            'pelaku_pelanggaran'  => $report->pelaku_pelanggaran,
             'reported_department' => $report->reported_department,
             'hazard_category'     => $report->hazard_category,
             'hazard_subcategory'  => $report->hazard_subcategory,

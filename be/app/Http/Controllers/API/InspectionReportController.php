@@ -35,6 +35,7 @@ class InspectionReportController extends Controller
                 ->where('title', 'like', "%{$s}%")
                 ->orWhere('description', 'like', "%{$s}%")
                 ->orWhere('location', 'like', "%{$s}%")
+                ->orWhere('ticket_number', 'like', "%{$s}%")
             );
         }
 
@@ -65,6 +66,7 @@ class InspectionReportController extends Controller
             'description'         => 'required|string',
             'location'            => 'required|string|max:200',
             'image'               => 'nullable|image|max:4096',
+            'company'             => 'nullable|string|max:3',
             'area'                => 'nullable|string|max:100',
             'inspector'           => 'nullable|string|max:150',
             'result'              => 'nullable|in:compliant,non_compliant,needs_follow_up',
@@ -85,6 +87,7 @@ class InspectionReportController extends Controller
             'status'              => 'open',
             'location'            => $request->location,
             'image_url'           => $imageUrl,
+            'company'             => $request->company ? strtoupper(trim($request->company)) : null,
             'area'                => $request->area,
             'name_inspector'      => $request->inspector,
             'result'              => $request->result,

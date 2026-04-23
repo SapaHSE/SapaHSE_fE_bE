@@ -31,7 +31,7 @@ class HazardReportController extends Controller
             $query->where(function ($q) use ($user) {
                 $q->where('is_public', true)
                 ->orWhere('user_id', $user->id)
-                ->orWhere('name_pja', 'like', '%' . $user->full_name . '%');
+                ->orWhere('pic_department', 'like', '%' . $user->full_name . '%');
             });
         }
 
@@ -45,6 +45,9 @@ class HazardReportController extends Controller
                 ->where('title', 'like', "%{$s}%")
                 ->orWhere('description', 'like', "%{$s}%")
                 ->orWhere('location', 'like', "%{$s}%")
+                ->orWhere('pic_department', 'like', "%{$s}%")
+                ->orWhere('pelaku_pelanggaran', 'like', "%{$s}%")
+                ->orWhere('ticket_number', 'like', "%{$s}%")
             );
         }
 
@@ -75,12 +78,15 @@ class HazardReportController extends Controller
             'description'         => 'required|string',
             'location'            => 'required|string|max:200',
             'image'               => 'nullable|image|max:4096',
-            'severity'            => 'required|in:low,high,critical',
-            'name_pja'            => 'nullable|string|max:100',
+            'severity'            => 'required|in:low,medium,high',
+            'pic_department'      => 'nullable|string|max:100',
             'reported_department' => 'nullable|string|max:100',
             'hazard_category'     => 'nullable|in:TTA,KTA',
             'hazard_subcategory'  => 'nullable|string|max:150',
             'suggestion'          => 'nullable|string',
+            'pelaku_pelanggaran'  => 'nullable|string|max:100',
+            'pelapor_location'    => 'nullable|string|max:200',
+            'kejadian_location'   => 'nullable|string|max:200',
             'isPublic'            => 'nullable|string',
         ]);
 
@@ -96,9 +102,12 @@ class HazardReportController extends Controller
             'description'         => $request->description,
             'status'              => 'open',
             'location'            => $request->location,
+            'pelapor_location'    => $request->pelapor_location,
+            'kejadian_location'   => $request->kejadian_location,
             'image_url'           => $imageUrl,
             'severity'            => $request->severity,
-            'name_pja'            => $request->name_pja,
+            'pic_department'      => $request->pic_department,
+            'pelaku_pelanggaran'  => $request->pelaku_pelanggaran,
             'reported_department' => $request->reported_department,
             'hazard_category'     => $request->hazard_category,
             'hazard_subcategory'  => $request->hazard_subcategory,
@@ -232,19 +241,21 @@ class HazardReportController extends Controller
         return [
             'id'                  => $report->id,
             'ticket_number'       => $report->ticket_number,
-            'type'                => 'hazard',
             'title'               => $report->title,
             'description'         => $report->description,
             'status'              => $report->status,
             'sub_status'          => $report->sub_status,
             'location'            => $report->location,
+            'pelapor_location'    => $report->pelapor_location,
+            'kejadian_location'   => $report->kejadian_location,
             'image_url'           => $report->image_url,
             'is_read'             => $userId ? $report->isReadBy($userId) : false,
             'reported_by'         => $report->user ? $report->user->only(['id', 'full_name', 'employee_id', 'department', 'company']) : null,
             'created_at'          => $report->created_at,
             'time_ago'            => $report->created_at?->diffForHumans(),
             'severity'            => $report->severity,
-            'name_pja'            => $report->name_pja,
+            'pic_department'      => $report->pic_department,
+            'pelaku_pelanggaran'  => $report->pelaku_pelanggaran,
             'reported_department' => $report->reported_department,
             'hazard_category'     => $report->hazard_category,
             'hazard_subcategory'  => $report->hazard_subcategory,

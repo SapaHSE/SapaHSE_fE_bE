@@ -41,6 +41,7 @@ class DatabaseSeeder extends Seeder
             'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'superadmin',
+            'tipe_afiliasi'  => 'owner',
             'email_verified_at' => now(),
         ]);
 
@@ -56,6 +57,7 @@ class DatabaseSeeder extends Seeder
             'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'admin',
+            'tipe_afiliasi'  => 'owner',
             'email_verified_at' => now(),
         ]);
 
@@ -102,6 +104,8 @@ class DatabaseSeeder extends Seeder
             'password_hash'  => Hash::make('password'),
             'is_active'      => true,
             'role'           => 'user',
+            'tipe_afiliasi'  => 'kontraktor',
+            'perusahaan_kontraktor' => 'PT PAMA',
             'email_verified_at' => now(),
         ]);
 
@@ -271,185 +275,69 @@ class DatabaseSeeder extends Seeder
 
         UserMedical::create([
             'user_id'           => $faiz->id,
-            'title'             => 'Medical Check-Up Tahunan 2026',
-            'patient_name'     => 'Muhammad Faiz',
             'checkup_date'      => now()->subMonths(6)->toDateString(),
+            'blood_type'        => 'O+',
+            'height'            => '172 cm',
+            'weight'            => '70 kg',
+            'blood_pressure'    => '118/76 mmHg',
+            'allergies'         => 'Tidak ada',
+            'result'            => 'Fit to Work',
             'next_checkup_date' => now()->addMonths(6)->toDateString(),
-            'blood_type'       => 'O+',
-            'height'           => '172 cm',
-            'weight'           => '70 kg',
-            'blood_pressure'  => '118/76 mmHg',
-            'allergies'        => 'Tidak ada',
-            'result'           => 'Fit to Work',
-            'doctor_name'      => 'dr. Andi Wijaya, Sp.OK',
-            'doctor_contact'  => '0812-3333-4444',
-            'facility_name'   => 'Klinik Pratama BBE',
-            'facility_contact'=> '0541-123456',
-            'doctor_notes'    => 'Kondisi kesehatan keseluruhan baik. Disarankan tetap rutin olahraga dan menjaga pola makan sehat.',
-            'checklist_items'  => json_encode([
-                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
-                ['label' => 'Pemeriksaan Mata (Visus)', 'done' => true],
-                ['label' => 'Pemeriksaan Telinga', 'done' => true],
-                ['label' => 'Pemeriksaan Darah Lengkap', 'done' => true],
-                ['label' => 'Pemeriksaan Urine', 'done' => true],
-                ['label' => 'EKG (Jantung)', 'done' => true],
-                ['label' => 'Rontgen Dada', 'done' => true],
-                ['label' => 'Tes Fungsi Hati', 'done' => true],
-                ['label' => 'Tes Fungsi Ginjal', 'done' => true],
-                ['label' => 'Tes Gula Darah', 'done' => true],
-            ]),
         ]);
         UserMedical::create([
             'user_id'           => $faiz->id,
-            'title'             => 'Medical Check-Up Tahunan 2025',
-            'patient_name'     => 'Muhammad Faiz',
             'checkup_date'      => now()->subYear()->toDateString(),
+            'blood_type'        => 'O+',
+            'height'            => '172 cm',
+            'weight'            => '68 kg',
+            'blood_pressure'    => '120/78 mmHg',
+            'allergies'         => 'Tidak ada',
+            'result'            => 'Fit to Work',
             'next_checkup_date' => now()->subMonths(6)->toDateString(),
-            'blood_type'       => 'O+',
-            'height'           => '172 cm',
-            'weight'           => '68 kg',
-            'blood_pressure'  => '120/78 mmHg',
-            'allergies'        => 'Tidak ada',
-            'result'           => 'Fit to Work',
-            'doctor_name'      => 'dr. Budi Raharjo',
-            'doctor_contact'  => '0812-3333-5555',
-            'facility_name'   => 'Klinik Pratama BBE',
-            'facility_contact'=> '0541-123456',
-            'doctor_notes'    => 'Hasil pemeriksaan dalam batas normal.',
-            'checklist_items'  => json_encode([
-                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
-                ['label' => 'Pemeriksaan Mata (Visus)', 'done' => true],
-                ['label' => 'Pemeriksaan Telinga', 'done' => true],
-                ['label' => 'Pemeriksaan Darah Lengkap', 'done' => true],
-                ['label' => 'Pemeriksaan Urine', 'done' => true],
-                ['label' => 'EKG (Jantung)', 'done' => true],
-                ['label' => 'Rontgen Dada', 'done' => true],
-                ['label' => 'Tes Fungsi Hati', 'done' => true],
-                ['label' => 'Tes Fungsi Ginjal', 'done' => true],
-                ['label' => 'Tes Gula Darah', 'done' => true],
-            ]),
         ]);
         UserMedical::create([
             'user_id'           => $lintang->id,
-            'title'             => 'Medical Check-Up Tahunan 2026',
-            'patient_name'     => 'Noor Lintang Bhaskara',
             'checkup_date'      => now()->subMonths(3)->toDateString(),
+            'blood_type'        => 'A+',
+            'height'            => '168 cm',
+            'weight'            => '65 kg',
+            'blood_pressure'    => '122/80 mmHg',
+            'allergies'         => 'Debu logam',
+            'result'            => 'Fit with Restriction',
             'next_checkup_date' => now()->addMonths(9)->toDateString(),
-            'blood_type'       => 'A+',
-            'height'           => '168 cm',
-            'weight'           => '65 kg',
-            'blood_pressure'  => '122/80 mmHg',
-            'allergies'       => 'Debu logam',
-            'result'          => 'Fit with Restriction',
-            'doctor_name'      => 'dr. Siti Aminah, Sp.KK',
-            'doctor_contact'  => '0812-3333-6666',
-            'facility_name'   => 'RSU Prima Utama',
-            'facility_contact'=> '0541-654321',
-            'doctor_notes'    => 'Ditemukan alergi terhadap debu logam. Direkomendasikan menggunakan masker debu saat bekerja di area workshop. Kondisi jantung dan paru-paru normal.',
-            'checklist_items'  => json_encode([
-                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
-                ['label' => 'Pemeriksaan Mata (Visus)', 'done' => true],
-                ['label' => 'Pemeriksaan Telinga', 'done' => true],
-                ['label' => 'Pemeriksaan Darah Lengkap', 'done' => true],
-                ['label' => 'Pemeriksaan Urine', 'done' => true],
-                ['label' => 'EKG (Jantung)', 'done' => true],
-                ['label' => 'Rontgen Dada', 'done' => true],
-                ['label' => 'Tes Fungsi Hati', 'done' => true],
-                ['label' => 'Tes Fungsi Ginjal', 'done' => true],
-                ['label' => 'Tes Gula Darah', 'done' => true],
-                ['label' => 'Tes Alergi', 'done' => true],
-            ]),
         ]);
         UserMedical::create([
             'user_id'           => $rudi->id,
-            'title'             => 'Medical Check-Up Tahunan 2026',
-            'patient_name'     => 'Rudi Hartono',
             'checkup_date'      => now()->subMonths(5)->toDateString(),
+            'blood_type'        => 'B+',
+            'height'            => '175 cm',
+            'weight'            => '78 kg',
+            'blood_pressure'    => '130/85 mmHg',
+            'allergies'         => 'Tidak ada',
+            'result'            => 'Fit to Work',
             'next_checkup_date' => now()->addMonths(7)->toDateString(),
-            'blood_type'       => 'B+',
-            'height'           => '175 cm',
-            'weight'           => '78 kg',
-            'blood_pressure'  => '130/85 mmHg',
-            'allergies'       => 'Tidak ada',
-            'result'          => 'Fit to Work',
-            'doctor_name'      => 'dr. Eko Prasetyo',
-            'doctor_contact'  => '0812-3333-7777',
-            'facility_name'   => 'Klinik Pratama BBE',
-            'facility_contact'=> '0541-123456',
-            'doctor_notes'    => 'Tekanan darah sedikit tinggi. Dianjurkan mengurangi asupan garam dan mengontrol stress.',
-            'checklist_items'  => json_encode([
-                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
-                ['label' => 'Pemeriksaan Mata (Visus)', 'done' => true],
-                ['label' => 'Pemeriksaan Telinga', 'done' => true],
-                ['label' => 'Pemeriksaan Darah Lengkap', 'done' => true],
-                ['label' => 'Pemeriksaan Urine', 'done' => true],
-                ['label' => 'EKG (Jantung)', 'done' => true],
-                ['label' => 'Rontgen Dada', 'done' => true],
-                ['label' => 'Tes Fungsi Hati', 'done' => true],
-                ['label' => 'Tes Fungsi Ginjal', 'done' => true],
-                ['label' => 'Tes Gula Darah', 'done' => true],
-            ]),
         ]);
         UserMedical::create([
             'user_id'           => $admin->id,
-            'title'             => 'Medical Check-Up Tahunan 2026',
-            'patient_name'     => 'Budi Santoso',
             'checkup_date'      => now()->subMonths(4)->toDateString(),
+            'blood_type'        => 'AB+',
+            'height'            => '170 cm',
+            'weight'            => '72 kg',
+            'blood_pressure'    => '115/75 mmHg',
+            'allergies'         => 'Tidak ada',
+            'result'            => 'Fit to Work',
             'next_checkup_date' => now()->addMonths(8)->toDateString(),
-            'blood_type'       => 'AB+',
-            'height'           => '170 cm',
-            'weight'           => '72 kg',
-            'blood_pressure'  => '115/75 mmHg',
-            'allergies'       => 'Tidak ada',
-            'result'          => 'Fit to Work',
-            'doctor_name'      => 'dr. Hendra Wijaya',
-            'doctor_contact'  => '0812-3333-8888',
-            'facility_name'   => 'RSU Prima Utama',
-            'facility_contact'=> '0541-654321',
-            'doctor_notes'    => 'Kondisi kesehatan sangat baik. Hasil semua pemeriksaan normal.',
-            'checklist_items'  => json_encode([
-                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
-                ['label' => 'Pemeriksaan Mata (Visus)', 'done' => true],
-                ['label' => 'Pemeriksaan Telinga', 'done' => true],
-                ['label' => 'Pemeriksaan Darah Lengkap', 'done' => true],
-                ['label' => 'Pemeriksaan Urine', 'done' => true],
-                ['label' => 'EKG (Jantung)', 'done' => true],
-                ['label' => 'Rontgen Dada', 'done' => true],
-                ['label' => 'Tes Fungsi Hati', 'done' => true],
-                ['label' => 'Tes Fungsi Ginjal', 'done' => true],
-                ['label' => 'Tes Gula Darah', 'done' => true],
-            ]),
         ]);
         UserMedical::create([
             'user_id'           => $putri->id,
-            'title'             => 'Medical Check-Up Tahunan 2026',
-            'patient_name'     => 'Putri Handayani',
             'checkup_date'      => now()->subMonths(2)->toDateString(),
+            'blood_type'        => 'A-',
+            'height'            => '160 cm',
+            'weight'            => '55 kg',
+            'blood_pressure'    => '110/70 mmHg',
+            'allergies'         => 'Polutan kimia',
+            'result'            => 'Fit to Work',
             'next_checkup_date' => now()->addMonths(10)->toDateString(),
-            'blood_type'       => 'A-',
-            'height'           => '160 cm',
-            'weight'           => '55 kg',
-            'blood_pressure'  => '110/70 mmHg',
-            'allergies'       => 'Polutan kimia',
-            'result'          => 'Fit to Work',
-            'doctor_name'      => 'dr. Maya Sari, Sp.KK',
-            'doctor_contact'  => '0812-3333-9999',
-            'facility_name'   => 'RSU Prima Utama',
-            'facility_contact'=> '0541-654321',
-            'doctor_notes'    => 'Ditemukan sensitivitas terhadap polutan kimia. Disarankan menjaga jarak dari sumber bahan kimia berbahaya dan menggunakan APD yang sesuai.',
-            'checklist_items'  => json_encode([
-                ['label' => 'Pemeriksaan Fisik Umum', 'done' => true],
-                ['label' => 'Pemeriksaan Mata (Visus)', 'done' => true],
-                ['label' => 'Pemeriksaan Telinga', 'done' => true],
-                ['label' => 'Pemeriksaan Darah Lengkap', 'done' => true],
-                ['label' => 'Pemeriksaan Urine', 'done' => true],
-                ['label' => 'EKG (Jantung)', 'done' => true],
-                ['label' => 'Rontgen Dada', 'done' => true],
-                ['label' => 'Tes Fungsi Hati', 'done' => true],
-                ['label' => 'Tes Fungsi Ginjal', 'done' => true],
-                ['label' => 'Tes Gula Darah', 'done' => true],
-                ['label' => 'Tes Alergi', 'done' => true],
-            ]),
         ]);
 
         // ══════════════════════════════════════════════════════════════════
@@ -457,24 +345,26 @@ class DatabaseSeeder extends Seeder
         // ══════════════════════════════════════════════════════════════════
 
         $r1 = HazardReport::create([
-            'ticket_number'       => '#TKT-0001',
+            'ticket_number'       => 'BBE-HZR-HSE-2026-000001',
             'user_id'             => $faiz->id,
             'title'               => 'Rambu Keselamatan Kotor & Tidak Terbaca',
             'description'         => 'Rambu keselamatan di area hauling road KM 3 sudah kotor dan warna pudar sehingga sulit dibaca oleh pengemudi dump truck, berpotensi menyebabkan kecelakaan lalu lintas tambang.',
-            'severity'            => 'critical',
+            'severity'            => 'high',
             'status'              => 'in_progress',
             'sub_status'          => 'executing',
             'location'            => 'Hauling Road KM 3',
-            'name_pja'            => 'Budi Santoso',
+            'pic_department'      => 'Budi Santoso, Sari Dewi Rahayu',
             'reported_department' => 'Operational',
             'hazard_category'     => 'KTA',
             'hazard_subcategory'  => 'Perlengkapan Keselamatan Rusak/Hilang',
             'suggestion'          => 'Segera bersihkan atau ganti rambu baru jika sudah buram agar mudah terlihat di malam hari.',
-            'is_public'           => true,
+            'pelaku_pelanggaran'  => 'Unknown Driver',
+            'pelapor_location'    => '-0.4948, 117.1436',
+            'kejadian_location'   => '-0.4949, 117.1437',
         ]);
 
         $r2 = HazardReport::create([
-            'ticket_number'       => '#TKT-0002',
+            'ticket_number'       => 'BBE-HZR-HSE-2026-000002',
             'user_id'             => $lintang->id,
             'title'               => 'Material Workshop Berserakan di Jalur Evakuasi',
             'description'         => 'Material workshop berupa pipa besi dan suku cadang berserakan di depan pintu keluar workshop, menghalangi jalur evakuasi darurat yang seharusnya selalu bersih.',
@@ -482,34 +372,32 @@ class DatabaseSeeder extends Seeder
             'status'              => 'open',
             'sub_status'          => 'validating',
             'location'            => 'Depan Workshop Utama',
-            'name_pja'            => 'Hendra Wijaya',
+            'pic_department'      => 'Hendra Wijaya',
             'reported_department' => 'Operational',
             'hazard_category'     => 'TTA',
             'hazard_subcategory'  => 'Housekeeping Buruk',
             'suggestion'          => 'Pindahkan material ke area penyimpanan khusus. Jangan tinggalkan barang di jalur evakuasi.',
-            'is_public'           => false,
-
+            'pelaku_pelanggaran'  => 'Mechanical Team A',
         ]);
 
         $r3 = HazardReport::create([
-            'ticket_number'       => '#TKT-0003',
+            'ticket_number'       => 'BBE-HZR-HSE-2026-000003',
             'user_id'             => $rudi->id,
             'title'               => 'Kabel Listrik Terbuka di Ruang Server',
             'description'         => 'Kabel listrik bertegangan 220V di sudut ruang server lantai 3 terkelupas isolasinya, berpotensi menyebabkan sengatan listrik atau kebakaran pada perangkat server.',
-            'severity'            => 'high',
+            'severity'            => 'medium',
             'status'              => 'open',
             'sub_status'          => 'approved',
             'location'            => 'Ruang Server - Lantai 3',
-            'name_pja'            => 'Rudi Hartono',
+            'pic_department'      => 'Rudi Hartono, IT Department',
             'reported_department' => 'IT',
             'hazard_category'     => 'KTA',
             'hazard_subcategory'  => 'Instalasi Listrik Tidak Aman',
             'suggestion'          => 'Isolasi segera atau ganti kabel dan masukkan ke dalam pipa conduit.',
-            'is_public'           => true,
         ]);
 
         $r4 = HazardReport::create([
-            'ticket_number'       => '#TKT-0004',
+            'ticket_number'       => 'BBE-HZR-HSE-2026-000004',
             'user_id'             => $demo->id,
             'title'               => 'Tumpahan Oli Hydraulic di Area Parkir Alat Berat',
             'description'         => 'Terdapat tumpahan oli hydraulic dari excavator PC200 Unit 03 di area parkir Sektor B. Genangan oli licin dapat menyebabkan karyawan terpeleset.',
@@ -517,33 +405,33 @@ class DatabaseSeeder extends Seeder
             'status'              => 'closed',
             'sub_status'          => 'resolved',
             'location'            => 'Parkir Alat Berat - Sektor B',
-            'name_pja'            => 'Budi Santoso',
+            'pic_department'      => 'Budi Santoso',
             'reported_department' => 'Operational',
             'hazard_category'     => 'KTA',
             'hazard_subcategory'  => 'Pencemaran/Tumpahan B3',
             'suggestion'          => 'Gunakan oil absorber dan panggil petugas maintenance untuk membersihkan lantai parkiran.',
-            'is_public'           => true,
+            'kejadian_location'   => '-0.4920, 117.1410',
         ]);
 
         $r5 = HazardReport::create([
-            'ticket_number'       => '#TKT-0005',
+            'ticket_number'       => 'BBE-HZR-HSE-2026-000005',
             'user_id'             => $putri->id,
             'title'               => 'Pembuangan Limbah B3 Tidak Sesuai SOP',
             'description'         => 'Ditemukan wadah limbah B3 berupa bekas cat dan thinner yang dibuang sembarangan di area belakang gudang, tidak sesuai prosedur pengelolaan limbah B3 KLHK.',
-            'severity'            => 'high',
+            'severity'            => 'medium',
             'status'              => 'in_progress',
             'sub_status'          => 'preparing',
             'location'            => 'Belakang Gudang Material',
-            'name_pja'            => 'Sari Dewi Rahayu',
+            'pic_department'      => 'Sari Dewi Rahayu, Environmental Dept',
             'reported_department' => 'Environmental',
             'hazard_category'     => 'TTA',
             'hazard_subcategory'  => 'Pelanggaran Prosedur K3/Lingkungan',
             'suggestion'          => 'Tegur pekerja yang bertanggung jawab dan edukasi ulang tentang SOP limbah B3.',
-            'is_public'           =>  false,
+            'pelaku_pelanggaran'  => 'Sub-con Painter Team',
         ]);
 
         $r6 = InspectionReport::create([
-            'ticket_number'  => '#TKT-0006',
+            'ticket_number'  => 'BBE-ISP-HSE-2026-000001',
             'user_id'        => $admin->id,
             'title'          => 'Inspeksi Rutin Alat Berat - Excavator Sektor B',
             'description'    => 'Inspeksi berkala bulanan excavator di area pertambangan Sektor B untuk memastikan kondisi operasional dan keselamatan.',
@@ -557,7 +445,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $r7 = InspectionReport::create([
-            'ticket_number'  => '#TKT-0007',
+            'ticket_number'  => 'BBE-ISP-HSE-2026-000002',
             'user_id'        => $admin2->id,
             'title'          => 'Inspeksi APAR Seluruh Gedung Kantor',
             'description'    => 'Pemeriksaan kondisi dan kelengkapan APAR di seluruh gedung kantor pusat BBE untuk memastikan kesiapan menghadapi darurat kebakaran.',
@@ -571,7 +459,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $r8 = InspectionReport::create([
-            'ticket_number'  => '#TKT-0008',
+            'ticket_number'  => 'BBE-ISP-HSE-2026-000003',
             'user_id'        => $admin->id,
             'title'          => 'Inspeksi Pemakaian APD Karyawan Area Tambang',
             'description'    => 'Inspeksi pemakaian Alat Pelindung Diri karyawan di area pertambangan aktif untuk memastikan kepatuhan terhadap standar K3.',
@@ -621,25 +509,25 @@ class DatabaseSeeder extends Seeder
         // REPORT LOGS
         // ══════════════════════════════════════════════════════════════════
 
-        ReportLog::create(['reportable_id' => $r1->id, 'reportable_type' => HazardReport::class, 'user_id' => $faiz->id,   'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(7)]);
-        ReportLog::create(['reportable_id' => $r1->id, 'reportable_type' => HazardReport::class, 'user_id' => $admin->id,  'status' => 'in_progress', 'sub_status' => 'executing',  'message' => 'Laporan divalidasi dan tim cleaning dijadwalkan.',                             'created_at' => now()->subDays(6)]);
+        ReportLog::create(['reportable_id' => $r1->id, 'reportable_type' => HazardReport::class, 'user_id' => $faiz->id,   'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(5)]);
+        ReportLog::create(['reportable_id' => $r1->id, 'reportable_type' => HazardReport::class, 'user_id' => $admin->id,  'status' => 'in_progress', 'sub_status' => 'executing',  'message' => 'Laporan divalidasi dan tim cleaning dijadwalkan.',                             'created_at' => now()->subDays(4)]);
 
-        ReportLog::create(['reportable_id' => $r2->id, 'reportable_type' => HazardReport::class, 'user_id' => $lintang->id,'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(5)]);
+        ReportLog::create(['reportable_id' => $r2->id, 'reportable_type' => HazardReport::class, 'user_id' => $lintang->id,'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(3)]);
         // Menambahkan tagged user (Rudi) di log r2
-        ReportLog::create(['reportable_id' => $r2->id, 'reportable_type' => HazardReport::class, 'user_id' => $admin->id,'status' => 'open',        'sub_status' => 'validating', 'message' => 'Harap bantu pengecekan lapangan terkait isu ini.', 'tagged_user_id' => $rudi->id,   'created_at' => now()->subDays(4)]);
+        ReportLog::create(['reportable_id' => $r2->id, 'reportable_type' => HazardReport::class, 'user_id' => $admin->id,'status' => 'open',        'sub_status' => 'validating', 'message' => 'Harap bantu pengecekan lapangan terkait isu ini.', 'tagged_user_id' => $rudi->id,   'created_at' => now()->subDays(2)]);
 
-        ReportLog::create(['reportable_id' => $r3->id, 'reportable_type' => HazardReport::class, 'user_id' => $rudi->id,   'status' => 'open',        'sub_status' => 'approved',   'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(3)]);
+        ReportLog::create(['reportable_id' => $r3->id, 'reportable_type' => HazardReport::class, 'user_id' => $rudi->id,   'status' => 'open',        'sub_status' => 'approved',   'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(2)]);
 
         ReportLog::create(['reportable_id' => $r4->id, 'reportable_type' => HazardReport::class, 'user_id' => $demo->id,   'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(10)]);
         ReportLog::create(['reportable_id' => $r4->id, 'reportable_type' => HazardReport::class, 'user_id' => $admin->id,  'status' => 'in_progress', 'sub_status' => 'executing',  'message' => 'Tim maintenance ditugaskan untuk pembersihan area.',                            'created_at' => now()->subDays(8)]);
         ReportLog::create(['reportable_id' => $r4->id, 'reportable_type' => HazardReport::class, 'user_id' => $admin->id,  'status' => 'closed',      'sub_status' => 'resolved',   'message' => 'Area telah dibersihkan dan oil absorber dipasang. Laporan ditutup.',            'created_at' => now()->subDays(7)]);
 
-        ReportLog::create(['reportable_id' => $r5->id, 'reportable_type' => HazardReport::class, 'user_id' => $putri->id,  'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(4)]);
-        ReportLog::create(['reportable_id' => $r5->id, 'reportable_type' => HazardReport::class, 'user_id' => $admin2->id, 'status' => 'in_progress', 'sub_status' => 'preparing',  'message' => 'Limbah dipindahkan sementara, koordinasi dengan tim environmental dimulai.',    'created_at' => now()->subDays(2)]);
+        ReportLog::create(['reportable_id' => $r5->id, 'reportable_type' => HazardReport::class, 'user_id' => $putri->id,  'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan hazard baru dibuat.',                                                    'created_at' => now()->subDays(6)]);
+        ReportLog::create(['reportable_id' => $r5->id, 'reportable_type' => HazardReport::class, 'user_id' => $admin2->id, 'status' => 'in_progress', 'sub_status' => 'preparing',  'message' => 'Limbah dipindahkan sementara, koordinasi dengan tim environmental dimulai.',    'created_at' => now()->subDays(5)]);
 
         ReportLog::create(['reportable_id' => $r6->id, 'reportable_type' => InspectionReport::class, 'user_id' => $admin->id,  'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan inspeksi baru dibuat.',                                                  'created_at' => now()->subDays(14)]);
-        ReportLog::create(['reportable_id' => $r6->id, 'reportable_type' => InspectionReport::class, 'user_id' => $admin->id,  'status' => 'in_progress', 'sub_status' => 'executing',  'message' => 'Inspeksi sedang berjalan di lapangan.',                                         'created_at' => now()->subDays(10)]);
-        ReportLog::create(['reportable_id' => $r6->id, 'reportable_type' => InspectionReport::class, 'user_id' => $admin->id,  'status' => 'closed',      'sub_status' => 'resolved',   'message' => 'Inspeksi selesai. Excavator Unit 03 dijadwalkan service.',                      'created_at' => now()->subDays(9)]);
+        ReportLog::create(['reportable_id' => $r6->id, 'reportable_type' => InspectionReport::class, 'user_id' => $admin->id,  'status' => 'in_progress', 'sub_status' => 'executing',  'message' => 'Inspeksi sedang berjalan di lapangan.',                                         'created_at' => now()->subDays(14)]);
+        ReportLog::create(['reportable_id' => $r6->id, 'reportable_type' => InspectionReport::class, 'user_id' => $admin->id,  'status' => 'closed',      'sub_status' => 'resolved',   'message' => 'Inspeksi selesai. Excavator Unit 03 dijadwalkan service.',                      'created_at' => now()->subDays(13)]);
 
         ReportLog::create(['reportable_id' => $r7->id, 'reportable_type' => InspectionReport::class, 'user_id' => $admin2->id, 'status' => 'open',        'sub_status' => 'assigned',   'message' => 'Laporan inspeksi baru dibuat.',                                                  'created_at' => now()->subDay()]);
         ReportLog::create(['reportable_id' => $r8->id, 'reportable_type' => InspectionReport::class, 'user_id' => $admin->id,  'status' => 'open',        'sub_status' => 'validating', 'message' => 'Laporan inspeksi baru dibuat.',                                                  'created_at' => now()->subDays(2)]);
