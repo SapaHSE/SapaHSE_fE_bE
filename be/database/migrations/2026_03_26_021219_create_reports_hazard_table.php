@@ -21,6 +21,7 @@ return new class extends Migration {
             // Hazard-specific
             $table->enum('severity', ['low', 'medium', 'high'])->nullable();
             $table->string('name_pja', 150)->nullable();
+            $table->string('company', 150)->nullable();
             $table->string('reported_department', 100)->nullable();
             $table->enum('hazard_category', ['TTA', 'KTA'])->nullable();
             $table->string('hazard_subcategory', 150)->nullable();
