@@ -261,6 +261,8 @@ class HazardReportController extends Controller
             'hazard_subcategory'  => $report->hazard_subcategory,
             'suggestion'          => $report->suggestion,
             'is_public'           => (bool)$report->is_public,
+            'due_date'            => $report->due_date,
+            'sisa_hari'           => $report->due_date ? (now()->diffInDays($report->due_date, false)) : null,
         ];
     }
 }

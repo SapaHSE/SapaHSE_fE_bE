@@ -361,6 +361,7 @@ class DatabaseSeeder extends Seeder
             'pelaku_pelanggaran'  => 'Unknown Driver',
             'pelapor_location'    => '-0.4948, 117.1436',
             'kejadian_location'   => '-0.4949, 117.1437',
+            'due_date'            => now()->addDays(1),            
         ]);
 
         $r2 = HazardReport::create([
@@ -378,6 +379,7 @@ class DatabaseSeeder extends Seeder
             'hazard_subcategory'  => 'Housekeeping Buruk',
             'suggestion'          => 'Pindahkan material ke area penyimpanan khusus. Jangan tinggalkan barang di jalur evakuasi.',
             'pelaku_pelanggaran'  => 'Mechanical Team A',
+            'due_date'            => now()->subDays(2),            
         ]);
 
         $r3 = HazardReport::create([
@@ -394,6 +396,7 @@ class DatabaseSeeder extends Seeder
             'hazard_category'     => 'KTA',
             'hazard_subcategory'  => 'Instalasi Listrik Tidak Aman',
             'suggestion'          => 'Isolasi segera atau ganti kabel dan masukkan ke dalam pipa conduit.',
+            'due_date'            => now()->addDays(5),            
         ]);
 
         $r4 = HazardReport::create([
