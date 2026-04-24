@@ -12,6 +12,7 @@ use App\Http\Controllers\API\QrAssetController;
 use App\Http\Controllers\API\InboxController;
 use App\Http\Controllers\API\ForgotPasswordController;
 use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\HazardCategoryController;
 
 // ── Public Routes ─────────────────────────────────────────────────────────────
 
@@ -70,6 +71,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/hazard-reports/{id}',      [HazardReportController::class, 'destroy']);
     Route::post('/hazard-reports/{id}/status', [HazardReportController::class, 'updateStatus'])
         ->middleware('role:admin,superadmin');
+
+    // ── Hazard Categories ─────────────────────────────────────────────────────
+    Route::get('/hazard-categories', [HazardCategoryController::class, 'index']);
+    Route::post('/hazard-categories', [HazardCategoryController::class, 'store'])
+        ->middleware('role:superadmin');
+    Route::put('/hazard-categories/{id}', [HazardCategoryController::class, 'update'])
+        ->middleware('role:superadmin');
+    Route::delete('/hazard-categories/{id}', [HazardCategoryController::class, 'destroy'])
+        ->middleware('role:superadmin');
+
+    // Subcategories
+    Route::post('/hazard-categories/subcategories/{subId}/toggle', [HazardCategoryController::class, 'toggleSubcategory'])
+        ->middleware('role:superadmin');
+
+    Route::post('/hazard-categories/{categoryId}/subcategories', [HazardCategoryController::class, 'storeSubcategory'])
+        ->middleware('role:superadmin');
+    Route::put('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'updateSubcategory'])
+        ->middleware('role:superadmin');
+    Route::delete('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'destroySubcategory'])
+        ->middleware('role:superadmin');
+
 
     // ── Inspection Reports ────────────────────────────────────────────────────
     Route::get('/inspection-reports',              [InspectionReportController::class, 'index']);
