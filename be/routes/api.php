@@ -69,8 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/hazard-reports/{id}',         [HazardReportController::class, 'show']);
     Route::get('/hazard-reports/{id}/logs',    [HazardReportController::class, 'logs']);
     Route::delete('/hazard-reports/{id}',      [HazardReportController::class, 'destroy']);
-    Route::post('/hazard-reports/{id}/status', [HazardReportController::class, 'updateStatus'])
-        ->middleware('role:admin,superadmin');
+    Route::post('/hazard-reports/{id}/status', [HazardReportController::class, 'updateStatus']);
 
     // ── Hazard Categories ─────────────────────────────────────────────────────
     Route::get('/hazard-categories', [HazardCategoryController::class, 'index']);
@@ -99,8 +98,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inspection-reports/{id}',         [InspectionReportController::class, 'show']);
     Route::get('/inspection-reports/{id}/logs',    [InspectionReportController::class, 'logs']);
     Route::delete('/inspection-reports/{id}',      [InspectionReportController::class, 'destroy']);
-    Route::post('/inspection-reports/{id}/status', [InspectionReportController::class, 'updateStatus'])
-        ->middleware('role:admin,superadmin');
+    Route::post('/inspection-reports/{id}/status', [InspectionReportController::class, 'updateStatus']);
 
     // GET /api/users  — daftar user untuk fitur Tag Orang (admin & superadmin only)
     Route::get('/users', [AuthController::class, 'listUsers'])

@@ -184,11 +184,33 @@ class HazardReportController extends Controller
             'reported_department' => 'nullable|string|max:100',
         ]);
 
+        $report = HazardReport::findOrFail($id);
+        $user = Auth::user();
+
+        // Check if user is Admin, Superadmin, the original Reporter, or tagged PJA
+        $isPja = $report->pic_department && stripos($report->pic_department, $user->full_name) !== false;
+        $isAdmin = in_array($user->role, ['admin', 'superadmin']);
+        $isReporter = $report->user_id === $user->id;
+
+        if (!$isAdmin && !$isReporter && !$isPja) {
+            return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
+        }
+
+        // Additional restrictions for non-admins
+        if (!$isAdmin) {
+            // Cannot select 'validating' or 'approved'
+            if (in_array($request->sub_status, ['validating', 'approved'])) {
+                return response()->json(['status' => 'error', 'message' => 'Izin ditolak untuk status ini.'], 403);
+            }
+            // Cannot select 'closed' status
+            if ($request->status === 'closed') {
+                return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang dapat menutup laporan.'], 403);
+            }
+        }
+
         if ($request->sub_status === 'reviewing' && !$request->hasFile('image')) {
             return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
         }
-
-        $report = HazardReport::findOrFail($id);
 
         $imageUrl = null;
         if ($request->hasFile('image')) {
