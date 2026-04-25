@@ -175,11 +175,13 @@ class HazardReportController extends Controller
     public function updateStatus(Request $request, string $id)
     {
         $request->validate([
-            'status'         => 'required|in:open,in_progress,closed',
-            'sub_status'     => 'nullable|string|max:50',
-            'message'        => 'nullable|string',
-            'image'          => 'nullable|image|max:8192',
-            'tagged_user_id' => 'nullable|uuid|exists:users,id',
+            'status'              => 'required|in:open,in_progress,closed',
+            'sub_status'          => 'nullable|string|max:50',
+            'message'             => 'nullable|string',
+            'image'               => 'nullable|image|max:8192',
+            'tagged_user_id'      => 'nullable|uuid|exists:users,id',
+            'pic_department'      => 'nullable|string|max:100',
+            'reported_department' => 'nullable|string|max:100',
         ]);
 
         if ($request->sub_status === 'reviewing' && !$request->hasFile('image')) {
@@ -194,10 +196,15 @@ class HazardReportController extends Controller
             $imageUrl = asset('storage/' . $path);
         }
 
-        $report->update([
+        $updateData = [
             'status'     => $request->status,
             'sub_status' => $request->sub_status,
-        ]);
+        ];
+
+        if ($request->has('pic_department'))      $updateData['pic_department'] = $request->pic_department;
+        if ($request->has('reported_department')) $updateData['reported_department'] = $request->reported_department;
+
+        $report->update($updateData);
 
         $report->logs()->create([
             'user_id'        => Auth::id(),
