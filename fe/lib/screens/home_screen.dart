@@ -26,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   String _selectedType = 'All Report';
-  bool _showOpenInProgress = false;
+  String _statusFilter = 'Aktif';
 
   int _displayedCount = 5;
   bool _isLoadingMore = false;
@@ -137,8 +137,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return allReports.where((r) {
       final matchType =
           _selectedType == 'All Report' || r.type.label == _selectedType;
-      final matchStatus =
-          !_showOpenInProgress || r.status == ReportStatus.closed;
+      bool matchStatus = true;
+      if (_statusFilter == 'Aktif') {
+        matchStatus = r.status != ReportStatus.closed;
+      } else if (_statusFilter == 'Selesai') {
+        matchStatus = r.status == ReportStatus.closed;
+      }
+
       final matchSearch = _searchQuery.isEmpty ||
           r.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           r.description.toLowerCase().contains(_searchQuery.toLowerCase());
@@ -537,68 +542,86 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () => setState(() {
-              _showOpenInProgress = !_showOpenInProgress;
-              _displayedCount = 5;
-            }),
-            behavior: HitTestBehavior.opaque,
-            child: Row(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: _showOpenInProgress
-                        ? const Color(0xFF1A56C4)
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: _showOpenInProgress
-                          ? const Color(0xFF1A56C4)
-                          : Colors.grey.shade400,
-                      width: 2,
-                    ),
-                  ),
-                  child: _showOpenInProgress
-                      ? const Icon(Icons.check, color: Colors.white, size: 13)
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Show Completed Only',
-                  style: TextStyle(fontSize: 14, color: Colors.black87),
-                ),
-                if (_showOpenInProgress) ...[
-                  const SizedBox(width: 8),
-                  ValueListenableBuilder<List<Report>>(
-                    valueListenable: ReportStore.instance.reports,
-                    builder: (context, reports, _) {
-                      final count = _getFilteredReports(reports).length;
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1A56C4).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '$count',
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF1A56C4),
-                              fontWeight: FontWeight.bold),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ],
-            ),
+          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _buildStatusChip('Aktif')),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatusChip('Selesai')),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String label) {
+    final isSelected = _statusFilter == label;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _statusFilter = label;
+          _displayedCount = 5;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1A56C4) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF1A56C4) : Colors.grey.shade300,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF1A56C4).withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 13,
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              ValueListenableBuilder<List<Report>>(
+                valueListenable: ReportStore.instance.reports,
+                builder: (context, reports, _) {
+                  final count = _getFilteredReports(reports).length;
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -644,6 +667,8 @@ class _ReportCard extends StatelessWidget {
 
   Color get _statusColor {
     switch (report.status) {
+      case ReportStatus.pending:
+        return const Color(0xFFFF9800);
       case ReportStatus.open:
         return const Color(0xFF2196F3);
       case ReportStatus.inProgress:
@@ -748,6 +773,7 @@ class _ReportCard extends StatelessWidget {
                                 color: Colors.black87,
                               ),
                             ),
+                            const SizedBox(height: 4),
                             Expanded(
                               child: Text(
                                 report.description,

@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/report.dart';
+import '../utils/url_helper.dart';
 import 'api_service.dart';
-import 'storage_service.dart';
 
 class ReportLogEntry {
   final ReportStatus status;
@@ -62,43 +63,54 @@ class ReportService {
     required String description,
     required String location,
     String? severity,
-    String? namePja,
+    String? picDepartment,
     String? department,
     String? hazardCategory,
     String? hazardSubcategory,
     String? suggestion,
+    String? pelakuPelanggaran,
+    String? pelaporLocation,
+    String? kejadianLocation,
     String? imagePath,
     bool isPublic = true,
   }) async {
-    final payload = await _sendMultipart(
-      endpoint: '/hazard-reports',
-      method: 'POST',
-      fields: {
-        'title': title,
-        'description': description,
-        'location': location,
-        if (severity != null && severity.isNotEmpty) 'severity': severity,
-        if (namePja != null && namePja.isNotEmpty) 'name_pja': namePja,
-        if (department != null && department.isNotEmpty)
-          'reported_department': department,
-        if (hazardCategory != null && hazardCategory.isNotEmpty)
-          'hazard_category': hazardCategory,
-        if (hazardSubcategory != null && hazardSubcategory.isNotEmpty)
-          'hazard_subcategory': hazardSubcategory,
-        if (suggestion != null && suggestion.isNotEmpty)
-          'suggestion': suggestion,
-        // Backend expects camelCase key `isPublic` and parses it as boolean.
-        'isPublic': isPublic.toString(),
-      },
-      imagePath: imagePath,
-    );
+    final fields = <String, String>{
+      'title': title,
+      'description': description,
+      'location': location,
+      if (severity != null && severity.isNotEmpty) 'severity': severity,
+      if (picDepartment != null && picDepartment.isNotEmpty)
+        'pic_department': picDepartment,
+      if (department != null && department.isNotEmpty)
+        'reported_department': department,
+      if (hazardCategory != null && hazardCategory.isNotEmpty)
+        'hazard_category': hazardCategory,
+      if (hazardSubcategory != null && hazardSubcategory.isNotEmpty)
+        'hazard_subcategory': hazardSubcategory,
+      if (suggestion != null && suggestion.isNotEmpty)
+        'suggestion': suggestion,
+      if (pelakuPelanggaran != null && pelakuPelanggaran.isNotEmpty)
+        'pelaku_pelanggaran': pelakuPelanggaran,
+      if (pelaporLocation != null && pelaporLocation.isNotEmpty)
+        'pelapor_location': pelaporLocation,
+      if (kejadianLocation != null && kejadianLocation.isNotEmpty)
+        'kejadian_location': kejadianLocation,
+      'isPublic': isPublic.toString(),
+    };
 
-    if (!payload.success) {
-      return ReportActionResult.error(
-          payload.errorMessage ?? 'Gagal kirim laporan hazard.');
+    final List<http.MultipartFile> files = [];
+    if (imagePath != null && imagePath.isNotEmpty) {
+      files.add(await http.MultipartFile.fromPath('image', imagePath));
     }
 
-    final rawData = payload.data['data'];
+    final response = await ApiService.postMultipart('/hazard-reports', fields, files);
+
+    if (!response.success) {
+      return ReportActionResult.error(
+          response.errorMessage ?? 'Gagal kirim laporan hazard.');
+    }
+
+    final rawData = response.data['data'];
     if (rawData is! Map<String, dynamic>) {
       return ReportActionResult.error('Respons server tidak valid.');
     }
@@ -117,30 +129,32 @@ class ReportService {
     List<Map<String, dynamic>>? checklistItems,
     String? imagePath,
   }) async {
-    final payload = await _sendMultipart(
-      endpoint: '/inspection-reports',
-      method: 'POST',
-      fields: {
-        'title': title,
-        'description': description,
-        'location': location,
-        if (area != null && area.isNotEmpty) 'area': area,
-        if (inspector != null && inspector.isNotEmpty) 'inspector': inspector,
-        if (result != null && result.isNotEmpty) 'result': result,
-        if (notes != null && notes.isNotEmpty) 'notes': notes,
-        if (checklistItems != null)
-          'checklist_items': jsonEncode(checklistItems),
-      },
-      imagePath: imagePath,
-    );
+    final fields = <String, String>{
+      'title': title,
+      'description': description,
+      'location': location,
+      if (area != null && area.isNotEmpty) 'area': area,
+      if (inspector != null && inspector.isNotEmpty) 'inspector': inspector,
+      if (result != null && result.isNotEmpty) 'result': result,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (checklistItems != null)
+        'checklist_items': jsonEncode(checklistItems),
+    };
 
-    if (!payload.success) {
+    final List<http.MultipartFile> files = [];
+    if (imagePath != null && imagePath.isNotEmpty) {
+      files.add(await http.MultipartFile.fromPath('image', imagePath));
+    }
+
+    final response = await ApiService.postMultipart('/inspection-reports', fields, files);
+
+    if (!response.success) {
       return ReportActionResult.error(
-        payload.errorMessage ?? 'Gagal kirim laporan inspeksi.',
+        response.errorMessage ?? 'Gagal kirim laporan inspeksi.',
       );
     }
 
-    final rawData = payload.data['data'];
+    final rawData = response.data['data'];
     if (rawData is! Map<String, dynamic>) {
       return ReportActionResult.error('Respons server tidak valid.');
     }
@@ -155,32 +169,46 @@ class ReportService {
     String? message,
     String? imagePath,
     String? taggedUserId,
+    String? department,
+    String? picDepartment,
   }) async {
     final endpoint = report.type == ReportType.hazard
         ? '/hazard-reports/${report.id}/status'
         : '/inspection-reports/${report.id}/status';
 
-    final payload = await _sendMultipart(
-      endpoint: endpoint,
-      method: 'POST',
-      fields: {
-        'status': _statusToApi(status),
-        if (subStatus != null) 'sub_status': subStatus.name,
-        if (message != null && message.trim().isNotEmpty)
-          'message': message.trim(),
-        if (taggedUserId != null && taggedUserId.isNotEmpty)
-          'tagged_user_id': taggedUserId,
-      },
-      imagePath: imagePath,
-    );
+    final fields = <String, String>{
+      'status': _statusToApi(status),
+    };
+    if (subStatus != null) fields['sub_status'] = subStatus.name;
+    if (message != null && message.trim().isNotEmpty) {
+      fields['message'] = message.trim();
+    }
+    if (taggedUserId != null && taggedUserId.isNotEmpty) {
+      fields['tagged_user_id'] = taggedUserId;
+    }
+    if (department != null && department.isNotEmpty) {
+      fields['reported_department'] = department;
+    }
+    if (picDepartment != null && picDepartment.isNotEmpty) {
+      fields['pic_department'] = picDepartment;
+    }
 
-    if (!payload.success) {
+    final List<http.MultipartFile> files = [];
+    if (imagePath != null && imagePath.isNotEmpty) {
+      files.add(await http.MultipartFile.fromPath('image', imagePath));
+    }
+
+    debugPrint('Updating status for report ${report.id} to ${status.name}');
+    final response = await ApiService.postMultipart(endpoint, fields, files);
+
+    if (!response.success) {
+      debugPrint('Update status failed: ${response.errorMessage}');
       return ReportActionResult.error(
-        payload.errorMessage ?? 'Gagal memperbarui status laporan.',
+        response.errorMessage ?? 'Gagal memperbarui status laporan.',
       );
     }
 
-    final rawData = payload.data['data'];
+    final rawData = response.data?['data'];
     if (rawData is! Map<String, dynamic>) {
       return ReportActionResult.error('Respons server tidak valid.');
     }
@@ -192,10 +220,37 @@ class ReportService {
     );
   }
 
+  static Future<ReportActionResult> getReportDetails(String id, ReportType type) async {
+    final endpoint = type == ReportType.hazard
+        ? '/hazard-reports/$id'
+        : '/inspection-reports/$id';
+    
+    debugPrint('Fetching report details: $endpoint');
+    final response = await ApiService.get(endpoint);
+
+    if (!response.success) {
+      return ReportActionResult.error(
+        response.errorMessage ?? 'Gagal memuat detail laporan.',
+      );
+    }
+
+    final rawData = response.data['data'];
+    if (rawData is! Map<String, dynamic>) {
+      return ReportActionResult.error('Respons server tidak valid.');
+    }
+
+    return ReportActionResult.success(
+      type == ReportType.hazard
+          ? _mapHazardReport(rawData)
+          : _mapInspectionReport(rawData),
+    );
+  }
+
   static Future<ReportLogsResult> getLogs(Report report) async {
     final endpoint = report.type == ReportType.hazard
         ? '/hazard-reports/${report.id}/logs'
         : '/inspection-reports/${report.id}/logs';
+
     final response = await ApiService.get(endpoint);
 
     if (!response.success) {
@@ -226,7 +281,7 @@ class ReportService {
         id: m['id']?.toString() ?? '',
         fullName: m['full_name']?.toString() ?? '',
         department: m['department']?.toString(),
-        photoUrl: m['photo_url']?.toString(),
+        photoUrl: normalizeStorageUrl(m['photo_url']?.toString()),
       );
     }).where((u) => u.id.isNotEmpty).toList();
   }
@@ -238,9 +293,33 @@ class ReportService {
     return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
   }
 
+  static Future<List<HazardCategoryData>> getHazardCategories() async {
+    final response = await ApiService.get('/hazard-categories');
+    if (!response.success) return const [];
+    final raw = _asList(response.data['data']);
+    return raw.map((e) {
+      final m = Map<String, dynamic>.from(e);
+      final subs = _asList(m['subcategories']).map((s) {
+        final sm = Map<String, dynamic>.from(s);
+        return HazardSubcategoryData(
+          id: sm['id']?.toString() ?? '',
+          name: sm['name']?.toString() ?? '',
+        );
+      }).where((s) => s.name.isNotEmpty).toList();
+      return HazardCategoryData(
+        id: m['id']?.toString() ?? '',
+        name: m['name']?.toString() ?? '',
+        code: m['code']?.toString() ?? '',
+        subcategories: subs,
+      );
+    }).where((c) => c.name.isNotEmpty).toList();
+  }
+
   static Report _mapHazardReport(Map<String, dynamic> json) {
     final severity =
         _severityFromApi(json['severity']?.toString()) ?? ReportSeverity.medium;
+    final rawStatus = json['status']?.toString();
+    final rawSubStatus = json['sub_status']?.toString();
     return Report(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '-',
@@ -249,22 +328,43 @@ class ReportService {
       category: _hazardCategoryFromApi(json['hazard_category']?.toString()),
       subkategori: json['hazard_subcategory']?.toString(),
       severity: severity,
-      status: _statusFromApi(json['status']?.toString()),
-      subStatus: _subStatusFromApi(json['sub_status']?.toString()),
+      status: _statusFromApi(rawStatus),
+      subStatus: _subStatusFromApi(rawSubStatus) ??
+          (rawStatus == 'rejected' ? ReportSubStatus.rejected : null),
       location: json['location']?.toString() ?? '-',
       saran: json['suggestion']?.toString(),
       departemen: json['reported_department']?.toString(),
-      tagOrang: json['name_pja']?.toString(),
+      picDepartment: json['pic_department']?.toString() ?? json['name_pja']?.toString(),
+      pelakuPelanggaran: json['pelaku_pelanggaran']?.toString(),
+      pelaporLocation: json['pelapor_location']?.toString(),
+      kejadianLocation: json['kejadian_location']?.toString(),
+      company: json['company']?.toString() ?? (json['reported_by'] is Map ? json['reported_by']['company']?.toString() : null),
+      isPublic: json['is_public'] as bool?,
+      dueDate: json['due_date']?.toString(),
+      sisaHari: (json['sisa_hari'] as num?)?.toInt(),
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
       reporterId: _reporterId(json['reported_by']),
       imageUrl: _safeImageUrl(json['image_url']?.toString()),
       ticketNumber: json['ticket_number']?.toString(),
+      area: json['area']?.toString(),
+      nameInspector: json['name_inspector']?.toString(),
+      notes: json['notes']?.toString(),
     );
   }
 
   static Report _mapInspectionReport(Map<String, dynamic> json) {
     final result = json['result']?.toString();
+    final rawStatus = json['status']?.toString();
+    final rawSubStatus = json['sub_status']?.toString();
+    final checklistRaw = json['checklist_items'];
+    List<ChecklistItem>? checklistItems;
+    if (checklistRaw is List) {
+      checklistItems = checklistRaw
+          .map((e) => ChecklistItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+
     return Report(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '-',
@@ -272,27 +372,35 @@ class ReportService {
       type: ReportType.inspection,
       category: _inspectionCategoryFromArea(json['area']?.toString()),
       severity: _severityFromInspectionResult(result),
-      status: _statusFromApi(json['status']?.toString()),
-      subStatus: _subStatusFromApi(json['sub_status']?.toString()),
+      status: _statusFromApi(rawStatus),
+      subStatus: _subStatusFromApi(rawSubStatus) ??
+          (rawStatus == 'rejected' ? ReportSubStatus.rejected : null),
       location: json['location']?.toString() ?? '-',
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
       reporterId: _reporterId(json['reported_by']),
       imageUrl: _safeImageUrl(json['image_url']?.toString()),
       ticketNumber: json['ticket_number']?.toString(),
+      area: json['area']?.toString(),
+      nameInspector: json['name_inspector']?.toString() ?? json['inspector']?.toString(),
+      notes: json['notes']?.toString(),
+      checklistItems: checklistItems,
     );
   }
 
   static ReportLogEntry _mapLogEntry(Map<String, dynamic> json) {
+    final rawStatus = json['status']?.toString();
+    final rawSubStatus = json['sub_status']?.toString();
     return ReportLogEntry(
-      status: _statusFromApi(json['status']?.toString()),
-      subStatus: _subStatusFromApi(json['sub_status']?.toString()),
+      status: _statusFromApi(rawStatus),
+      subStatus: _subStatusFromApi(rawSubStatus) ??
+          (rawStatus == 'rejected' ? ReportSubStatus.rejected : null),
       timestamp: _parseDate(json['created_at']),
       actor: json['user_name']?.toString().trim().isNotEmpty == true
           ? json['user_name'].toString()
           : 'System',
       note: json['message']?.toString(),
-      photoUrl: json['image_url']?.toString(),
+      photoUrl: normalizeStorageUrl(json['image_url']?.toString()),
     );
   }
 
@@ -324,8 +432,9 @@ class ReportService {
   }
 
   static String _safeImageUrl(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return _placeholderImage;
-    return raw;
+    final normalized = normalizeStorageUrl(raw);
+    if (normalized == null || normalized.trim().isEmpty) return _placeholderImage;
+    return normalized;
   }
 
   static ReportStatus _statusFromApi(String? status) {
@@ -333,7 +442,10 @@ class ReportService {
       case 'in_progress':
         return ReportStatus.inProgress;
       case 'closed':
+      case 'rejected':
         return ReportStatus.closed;
+      case 'pending':
+        return ReportStatus.pending;
       case 'open':
       default:
         return ReportStatus.open;
@@ -342,6 +454,8 @@ class ReportService {
 
   static String _statusToApi(ReportStatus status) {
     switch (status) {
+      case ReportStatus.pending:
+        return 'pending';
       case ReportStatus.inProgress:
         return 'in_progress';
       case ReportStatus.closed:
@@ -406,75 +520,6 @@ class ReportService {
       return HazardCategory.equipmentInspection;
     }
     return HazardCategory.routineInspection;
-  }
-
-  static Future<_MultipartResult> _sendMultipart({
-    required String endpoint,
-    required String method,
-    required Map<String, String> fields,
-    String? imagePath,
-  }) async {
-    try {
-      final token = await StorageService.getToken();
-      final req = http.MultipartRequest(
-        method,
-        Uri.parse('${ApiService.baseUrl}$endpoint'),
-      );
-
-      req.headers['Accept'] = 'application/json';
-      if (token != null && token.isNotEmpty) {
-        req.headers['Authorization'] = 'Bearer $token';
-      }
-
-      req.fields.addAll(fields);
-      if (imagePath != null && imagePath.isNotEmpty) {
-        req.files.add(await http.MultipartFile.fromPath('image', imagePath));
-      }
-
-      final streamed = await req.send().timeout(const Duration(seconds: 45));
-      final response = await http.Response.fromStream(streamed);
-
-      final decoded = _safeDecode(response.body);
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (decoded is Map && decoded['status'] == 'success') {
-          return _MultipartResult.success(Map<String, dynamic>.from(decoded));
-        }
-        return _MultipartResult.error(
-          _extractMessage(decoded) ?? 'Respons server tidak valid.',
-          response.statusCode,
-        );
-      }
-
-      return _MultipartResult.error(
-        _extractMessage(decoded) ?? 'Terjadi kesalahan server.',
-        response.statusCode,
-      );
-    } catch (e) {
-      return _MultipartResult.error('Unexpected error: $e', null);
-    }
-  }
-
-  static dynamic _safeDecode(String body) {
-    try {
-      return jsonDecode(body);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static String? _extractMessage(dynamic body) {
-    if (body is Map<String, dynamic>) {
-      final errors = body['errors'];
-      if (errors is Map && errors.isNotEmpty) {
-        final first = errors.values.first;
-        if (first is List && first.isNotEmpty) {
-          return first.first.toString();
-        }
-      }
-      final msg = body['message'];
-      if (msg != null) return msg.toString();
-    }
-    return null;
   }
 }
 
@@ -546,26 +591,21 @@ class UserEntry {
   });
 }
 
-class _MultipartResult {
-  final bool success;
-  final Map<String, dynamic> data;
-  final String? errorMessage;
-  final int? statusCode;
+class HazardSubcategoryData {
+  final String id;
+  final String name;
+  const HazardSubcategoryData({required this.id, required this.name});
+}
 
-  _MultipartResult._({
-    required this.success,
-    this.data = const {},
-    this.errorMessage,
-    this.statusCode,
+class HazardCategoryData {
+  final String id;
+  final String name;
+  final String code;
+  final List<HazardSubcategoryData> subcategories;
+  const HazardCategoryData({
+    required this.id,
+    required this.name,
+    required this.code,
+    required this.subcategories,
   });
-
-  factory _MultipartResult.success(Map<String, dynamic> data) =>
-      _MultipartResult._(success: true, data: data);
-
-  factory _MultipartResult.error(String message, int? statusCode) =>
-      _MultipartResult._(
-        success: false,
-        errorMessage: message,
-        statusCode: statusCode,
-      );
 }

@@ -1,3 +1,5 @@
+import '../utils/url_helper.dart';
+
 class NewsArticle {
   final String id;
   final String title;
@@ -30,7 +32,7 @@ class NewsArticle {
       category: json['category']?.toString() ?? '',
       author: json['author_name']?.toString() ?? '',
       date: json['date']?.toString() ?? '',
-      imageUrl: json['image_url']?.toString() ?? '',
+      imageUrl: normalizeStorageUrl(json['image_url']?.toString()) ?? '',
       isFeatured: json['is_featured'] == true,
     );
   }

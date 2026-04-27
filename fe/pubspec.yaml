@@ -25,6 +25,9 @@ dependencies:
   flutter_map: ^7.0.2            # OpenStreetMap
   latlong2: ^0.9.1               # Map coordinates
   url_launcher: ^6.3.2
+  fl_chart: ^1.2.0
+  open_filex: ^4.7.0
+  syncfusion_flutter_xlsio: ^33.1.49
  
 dev_dependencies:
   flutter_test:

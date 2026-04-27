@@ -235,9 +235,6 @@ class AuthController extends Controller
     {
         $search = $request->query('search');
 
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('s3');
-
         $users = User::when($request->department, fn($q) => $q->where('department', $request->department))
             ->when($search, fn($q) => $q->where(function ($sub) use ($search) {
                 $sub->where('full_name', 'like', "%{$search}%")
@@ -253,7 +250,7 @@ class AuthController extends Controller
                 'department'  => $u->department,
                 'position'    => $u->position,
                 'role'        => $u->role,
-                'photo_url'   => $u->profile_photo ? $disk->url($u->profile_photo) : null,
+                'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
             ]);
 
         return response()->json([
@@ -396,9 +393,6 @@ class AuthController extends Controller
 
     private function formatUser(User $user): array
     {
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('s3');
-
         return [
             'id'             => $user->id,
             'employee_id'    => $user->employee_id,
@@ -415,7 +409,7 @@ class AuthController extends Controller
             'sub_kontraktor' => $user->sub_kontraktor,
             'simper'         => $user->simper,
             'profile_photo'  => $user->profile_photo
-                ? $disk->url($user->profile_photo)
+                ? asset('storage/' . $user->profile_photo)
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,

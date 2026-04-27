@@ -9,8 +9,10 @@ import '../services/report_service.dart';
 import 'report_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../services/storage_service.dart';
+import '../services/cloud_save_service.dart';
 
 enum _SubFilter { unread, read }
+enum _MyPostFilter { all, draft, pending, approved, rejected }
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
@@ -23,6 +25,7 @@ class _InboxScreenState extends State<InboxScreen>
     with SingleTickerProviderStateMixin {
   late TabController _mainTabController;
   _SubFilter _activeFilter = _SubFilter.unread;
+  _MyPostFilter _activeMyPostFilter = _MyPostFilter.all;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -32,13 +35,13 @@ class _InboxScreenState extends State<InboxScreen>
   List<InboxItem> _reports = [];
   List<InboxItem> _announcements = [];
   List<Report> _myRawReports = [];
+  List<ReportDraft> _myDrafts = [];
   bool _loadingReports = false;
   bool _loadingAnnouncements = false;
   bool _loadingMyReports = false;
   String? _errorReports;
   String? _errorAnnouncements;
   String? _errorMyReports;
-  String? _currentUserName;
   String? _currentUserId;
 
   @override
@@ -62,7 +65,6 @@ class _InboxScreenState extends State<InboxScreen>
     final user = await StorageService.getUser();
     if (user != null) {
       setState(() {
-        _currentUserName = user['full_name']?.toString();
         _currentUserId = user['id']?.toString();
       });
       _loadMyReports();
@@ -126,16 +128,25 @@ class _InboxScreenState extends State<InboxScreen>
       _loadingMyReports = true;
       _errorMyReports = null;
     });
-    final result = await ReportService.getReports();
+
+    final results = await Future.wait([
+      ReportService.getReports(),
+      CloudSaveService.instance.getDrafts(),
+    ]);
+
+    final reportResult = results[0] as ReportListResult;
+    final drafts = results[1] as List<ReportDraft>;
+
     if (!mounted) return;
     setState(() {
       _loadingMyReports = false;
-      if (result.success) {
-        _myRawReports = result.reports
+      _myDrafts = drafts;
+      if (reportResult.success) {
+        _myRawReports = reportResult.reports
             .where((r) => r.reporterId == _currentUserId)
             .toList();
       } else {
-        _errorMyReports = result.errorMessage;
+        _errorMyReports = reportResult.errorMessage;
       }
     });
   }
@@ -150,6 +161,7 @@ class _InboxScreenState extends State<InboxScreen>
       reportType: r.type,
       description: r.description,
       status: r.status,
+      subStatus: r.subStatus,
       location: r.location,
       imageUrl: r.imageUrl,
       severity: r.severity,
@@ -218,12 +230,52 @@ class _InboxScreenState extends State<InboxScreen>
 
   List<InboxItem> get _activeAnnouncements =>
       _filterByReadState(_announcements);
-  List<InboxItem> get _activeMyReports => _filterByReadState(_myReports);
+      
+  List<InboxItem> get _activeMyReports {
+    final drafts = _myDrafts.map((d) => InboxItem(
+          id: d.id,
+          itemType: InboxItemType.report,
+          isRead: true,
+          title: '[DRAFT] ${d.title}',
+          createdAt: d.createdAt,
+          reportType: d.type == DraftType.hazard ? ReportType.hazard : ReportType.inspection,
+          description: d.data['description']?.toString() ?? d.data['kronologi']?.toString() ?? '',
+          status: ReportStatus.open, // Placeholder for draft
+          subStatus: null,
+          location: d.data['location']?.toString() ?? '-',
+          severity: _parseSeverity(d.data['severity']),
+        )).toList();
 
-  int get _readReportCount => _personalReports.where((i) => i.isRead).length;
+    switch (_activeMyPostFilter) {
+      case _MyPostFilter.all:
+        final all = [...drafts, ..._myReports];
+        all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return all;
+      case _MyPostFilter.draft:
+        return drafts;
+      case _MyPostFilter.pending:
+        return _myReports.where((i) => i.subStatus == ReportSubStatus.validating).toList();
+      case _MyPostFilter.approved:
+        return _myReports.where((i) =>
+          i.subStatus != ReportSubStatus.validating &&
+          i.subStatus != ReportSubStatus.rejected &&
+          i.status != ReportStatus.closed
+        ).toList();
+      case _MyPostFilter.rejected:
+        return _myReports.where((i) => i.subStatus == ReportSubStatus.rejected).toList();
+    }
+  }
+
+  ReportSeverity _parseSeverity(dynamic raw) {
+    final s = raw?.toString().toLowerCase();
+    if (s == 'low') return ReportSeverity.low;
+    if (s == 'high') return ReportSeverity.high;
+    if (s == 'critical') return ReportSeverity.critical;
+    return ReportSeverity.medium;
+  }
+
   int get _readAnnouncementCount =>
       _announcements.where((i) => i.isRead).length;
-  int get _readMyReportCount => _myReports.where((i) => i.isRead).length;
 
   int get _unreadReports => _personalReports.where((i) => !i.isRead).length;
   int get _unreadAnnouncements => _announcements.where((i) => !i.isRead).length;
@@ -290,6 +342,8 @@ class _InboxScreenState extends State<InboxScreen>
 
   Color _statusColor(ReportStatus s) {
     switch (s) {
+      case ReportStatus.pending:
+        return const Color(0xFFFF9800); // Amber
       case ReportStatus.open:
         return const Color(0xFF2196F3); // Biru
       case ReportStatus.inProgress:
@@ -314,12 +368,24 @@ class _InboxScreenState extends State<InboxScreen>
 
   String _statusLabel(ReportStatus s) {
     switch (s) {
+      case ReportStatus.pending:
+        return 'Pengecekan Admin';
       case ReportStatus.open:
         return 'Open';
       case ReportStatus.inProgress:
         return 'In Progress';
       case ReportStatus.closed:
         return 'Closed';
+    }
+  }
+
+  String _myPostFilterLabel(_MyPostFilter f) {
+    switch (f) {
+      case _MyPostFilter.all: return 'Semua Laporan';
+      case _MyPostFilter.draft: return 'Draft';
+      case _MyPostFilter.pending: return 'Pending Approval';
+      case _MyPostFilter.approved: return 'Approved';
+      case _MyPostFilter.rejected: return 'Rejected';
     }
   }
 
@@ -407,49 +473,120 @@ class _InboxScreenState extends State<InboxScreen>
             ),
             const Divider(height: 1),
 
-            // ── Sub-filter: Unread | Read ──────────────────────────────
+            // ── Sub-filter: Unread | Read OR MyPost Status ────────────────────────
             Container(
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _SubFilterChip(
-                      label: _mainTabController.index == 1 ? 'Aktif' : 'Unread',
-                      isActive: _activeFilter == _SubFilter.unread,
-                      badge: _mainTabController.index == 0
-                          ? (_unreadAnnouncements > 0
-                              ? _unreadAnnouncements
-                              : null)
-                          : _mainTabController.index == 1
-                              ? (_aktifReportCount > 0 ? _aktifReportCount : null)
-                              : (_unreadMyReports > 0
-                                  ? _unreadMyReports
-                                  : null),
-                      onTap: () =>
-                          setState(() => _activeFilter = _SubFilter.unread),
+              child: _mainTabController.index == 2
+                  ? Row(
+                      children: [
+                        const Text(
+                          'Filter:',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Container(
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<_MyPostFilter>(
+                                value: _activeMyPostFilter,
+                                isExpanded: true,
+                                icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1A56C4),
+                                ),
+                                items: _MyPostFilter.values.map((f) {
+                                  int count = 0;
+                                  if (f == _MyPostFilter.all) {
+                                    count = _myDrafts.length + _myReports.length;
+                                  } else if (f == _MyPostFilter.draft) {
+                                    count = _myDrafts.length;
+                                  } else if (f == _MyPostFilter.pending) {
+                                    count = _myReports.where((i) => i.subStatus == ReportSubStatus.validating).length;
+                                  } else if (f == _MyPostFilter.approved) {
+                                    count = _myReports.where((i) =>
+                                      i.subStatus != ReportSubStatus.validating &&
+                                      i.subStatus != ReportSubStatus.rejected &&
+                                      i.status != ReportStatus.closed
+                                    ).length;
+                                  } else if (f == _MyPostFilter.rejected) {
+                                    count = _myReports.where((i) => i.subStatus == ReportSubStatus.rejected).length;
+                                  }
+                                  
+                                  return DropdownMenuItem(
+                                    value: f,
+                                    child: Row(
+                                      children: [
+                                        Text(_myPostFilterLabel(f)),
+                                        const Spacer(),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade200,
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            '$count',
+                                            style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _activeMyPostFilter = val);
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: _SubFilterChip(
+                            label: _mainTabController.index == 1 ? 'Aktif' : 'Unread',
+                            isActive: _activeFilter == _SubFilter.unread,
+                            badge: _mainTabController.index == 0
+                                ? (_unreadAnnouncements > 0
+                                    ? _unreadAnnouncements
+                                    : null)
+                                : (_aktifReportCount > 0 ? _aktifReportCount : null),
+                            onTap: () =>
+                                setState(() => _activeFilter = _SubFilter.unread),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _SubFilterChip(
+                            label: _mainTabController.index == 1 ? 'Selesai' : 'Read',
+                            isActive: _activeFilter == _SubFilter.read,
+                            badge: _mainTabController.index == 0
+                                ? (_readAnnouncementCount > 0
+                                    ? _readAnnouncementCount
+                                    : null)
+                                : (_selesaiReportCount > 0 ? _selesaiReportCount : null),
+                            onTap: () =>
+                                setState(() => _activeFilter = _SubFilter.read),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _SubFilterChip(
-                      label: _mainTabController.index == 1 ? 'Selesai' : 'Read',
-                      isActive: _activeFilter == _SubFilter.read,
-                      badge: _mainTabController.index == 0
-                          ? (_readAnnouncementCount > 0
-                              ? _readAnnouncementCount
-                              : null)
-                          : _mainTabController.index == 1
-                              ? (_selesaiReportCount > 0 ? _selesaiReportCount : null)
-                              : (_readMyReportCount > 0
-                                  ? _readMyReportCount
-                                  : null),
-                      onTap: () =>
-                          setState(() => _activeFilter = _SubFilter.read),
-                    ),
-                  ),
-                ],
-              ),
             ),
 
             // ── Tugas Butuh Tindakan Segera Banner ───────────────────────
@@ -559,9 +696,11 @@ class _InboxScreenState extends State<InboxScreen>
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    _activeFilter == _SubFilter.unread
-                        ? (_mainTabController.index == 1 ? 'Tidak ada tugas aktif!' : 'Semua sudah dibaca!')
-                        : (_mainTabController.index == 1 ? 'Tidak ada tugas selesai.' : 'Belum ada yang dibaca.'),
+                    _mainTabController.index == 2
+                      ? 'Tidak ada laporan dengan status ini.'
+                      : (_activeFilter == _SubFilter.unread
+                          ? (_mainTabController.index == 1 ? 'Tidak ada tugas aktif!' : 'Semua sudah dibaca!')
+                          : (_mainTabController.index == 1 ? 'Tidak ada tugas selesai.' : 'Belum ada yang dibaca.')),
                     style: const TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ],
@@ -825,7 +964,7 @@ class _SubFilterChip extends StatelessWidget {
   }
 }
 
-// ── INBOX CARD (Report) ──────────────────────────────────────────────────────
+
 class _InboxCard extends StatelessWidget {
   final InboxItem item;
   final String Function(DateTime) formatDate;
@@ -873,6 +1012,21 @@ class _InboxCard extends StatelessWidget {
     final ReportStatus status = item.status ?? ReportStatus.open;
     final ReportSeverity severity = item.severity ?? ReportSeverity.medium;
     final String imageUrl = item.imageUrl ?? '';
+
+    // Sub-status overrides label/warna agar fase 'validating' tampil sebagai
+    // "Pending Approval" (warna pending) meski status bertukar ke 'open'.
+    final String badgeLabel;
+    final Color badgeColor;
+    if (item.subStatus == ReportSubStatus.validating) {
+      badgeLabel = 'Pending Approval';
+      badgeColor = statusColor(ReportStatus.pending);
+    } else if (item.subStatus == ReportSubStatus.rejected) {
+      badgeLabel = 'Rejected';
+      badgeColor = statusColor(ReportStatus.closed);
+    } else {
+      badgeLabel = statusLabel(status);
+      badgeColor = statusColor(status);
+    }
 
     return GestureDetector(
       onTap: onDetail,
@@ -1016,17 +1170,15 @@ class _InboxCard extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: statusColor(status)
-                                        .withValues(alpha: 0.1),
+                                    color: badgeColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                     border: Border.all(
-                                        color: statusColor(status)
-                                            .withValues(alpha: 0.3)),
+                                        color: badgeColor.withValues(alpha: 0.3)),
                                   ),
                                   child: Text(
-                                    statusLabel(status),
+                                    badgeLabel,
                                     style: TextStyle(
-                                        color: statusColor(status),
+                                        color: badgeColor,
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold),
                                   ),

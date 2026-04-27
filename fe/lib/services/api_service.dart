@@ -92,6 +92,70 @@ class ApiService {
     }
   }
 
+  // ── PUT ───────────────────────────────────────────────────────────────────
+  static Future<ApiResponse> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool auth = true,
+  }) async {
+    try {
+      final response = await http
+          .put(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: await _headers(auth: auth),
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
+      return await _handleResponse(response);
+    } on SocketException {
+      return ApiResponse.error('No internet connection.');
+    } catch (e) {
+      return ApiResponse.error('Unexpected error: $e');
+    }
+  }
+
+  // ── Multipart ─────────────────────────────────────────────────────────────
+  static Future<ApiResponse> postMultipart(
+    String endpoint,
+    Map<String, String> fields,
+    List<http.MultipartFile> files, {
+    bool auth = true,
+  }) async {
+    return _sendMultipart('POST', endpoint, fields, files, auth: auth);
+  }
+
+  static Future<ApiResponse> putMultipart(
+    String endpoint,
+    Map<String, String> fields,
+    List<http.MultipartFile> files, {
+    bool auth = true,
+  }) async {
+    return _sendMultipart('PUT', endpoint, fields, files, auth: auth);
+  }
+
+  static Future<ApiResponse> _sendMultipart(
+    String method,
+    String endpoint,
+    Map<String, String> fields,
+    List<http.MultipartFile> files, {
+    bool auth = true,
+  }) async {
+    try {
+      final request = http.MultipartRequest(method, Uri.parse('$baseUrl$endpoint'));
+      request.headers.addAll(await _headers(auth: auth));
+      request.fields.addAll(fields);
+      request.files.addAll(files);
+
+      final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+      final response = await http.Response.fromStream(streamedResponse);
+      return await _handleResponse(response);
+    } on SocketException {
+      return ApiResponse.error('No internet connection.');
+    } catch (e) {
+      return ApiResponse.error('Unexpected error: $e');
+    }
+  }
+
   // ── DELETE ────────────────────────────────────────────────────────────────
   static Future<ApiResponse> delete(String endpoint, {bool auth = true}) async {
     try {

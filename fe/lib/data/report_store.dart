@@ -44,16 +44,28 @@ class ReportStore {
     }
   }
 
+  Future<Report> fetchReport(String id, ReportType type) async {
+    final result = await ReportService.getReportDetails(id, type);
+    if (!result.success || result.report == null) {
+      throw Exception(result.errorMessage ?? 'Gagal memuat detail laporan dari server.');
+    }
+    _upsertReport(result.report!);
+    return result.report!;
+  }
+
   Future<Report> createHazardReport({
     required String title,
     required String description,
     required String location,
     required String severity,
-    String? namePja,
+    String? picDepartment,
     String? department,
     String? hazardCategory,
     String? hazardSubcategory,
     String? suggestion,
+    String? pelakuPelanggaran,
+    String? pelaporLocation,
+    String? kejadianLocation,
     String? imagePath,
     bool isPublic = true,
   }) async {
@@ -62,11 +74,14 @@ class ReportStore {
       description: description,
       location: location,
       severity: severity,
-      namePja: namePja,
+      picDepartment: picDepartment,
       department: department,
       hazardCategory: hazardCategory,
       hazardSubcategory: hazardSubcategory,
       suggestion: suggestion,
+      pelakuPelanggaran: pelakuPelanggaran,
+      pelaporLocation: pelaporLocation,
+      kejadianLocation: kejadianLocation,
       imagePath: imagePath,
       isPublic: isPublic,
     );
@@ -115,6 +130,8 @@ class ReportStore {
     String? note,
     String? photoPath,
     String? taggedUserId,
+    String? department,
+    String? picDepartment,
   }) async {
     final report = getById(id);
     if (report == null) {
@@ -128,6 +145,8 @@ class ReportStore {
       message: note,
       imagePath: photoPath,
       taggedUserId: taggedUserId,
+      department: department,
+      picDepartment: picDepartment,
     );
     if (!result.success || result.report == null) {
       throw Exception(result.errorMessage ?? 'Gagal memperbarui status laporan.');
@@ -202,11 +221,14 @@ class ReportStore {
           description: (draft.data['kronologi']?.toString() ?? '').trim(),
           location: (draft.data['location']?.toString() ?? '').trim(),
           severity: severityApi,
-          namePja: draft.data['pja']?.toString(),
+          picDepartment: draft.data['pic']?.toString(),
           department: draft.data['departemen']?.toString(),
           hazardCategory: draft.data['kategori']?.toString(),
           hazardSubcategory: draft.data['subkategori']?.toString(),
           suggestion: draft.data['saran']?.toString(),
+          pelakuPelanggaran: draft.data['pelakuPelanggaran']?.toString(),
+          pelaporLocation: draft.data['pelaporLocation']?.toString(),
+          kejadianLocation: draft.data['kejadianLocation']?.toString(),
           imagePath: draft.data['photoPath']?.toString(),
           isPublic: isPublic,
         );

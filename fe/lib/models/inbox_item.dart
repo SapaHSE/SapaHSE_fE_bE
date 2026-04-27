@@ -1,3 +1,4 @@
+import '../utils/url_helper.dart';
 import 'report.dart';
 
 enum InboxItemType { report, announcement }
@@ -74,6 +75,7 @@ class InboxItem {
   final ReportType? reportType;
   final String? description;
   final ReportStatus? status;
+  final ReportSubStatus? subStatus;
   final String? location;
   final String? imageUrl;
   final ReportSeverity? severity;
@@ -112,6 +114,7 @@ class InboxItem {
     this.checklistItems = const [],
     this.reportedBy,
     this.ticketNumber,
+    this.subStatus,
     this.body,
     this.fromName,
     this.createdBy,
@@ -151,6 +154,9 @@ class InboxItem {
             .toList()
         : const <InboxChecklistItem>[];
 
+    final rawStatus = json['status']?.toString();
+    final rawSubStatus = json['sub_status']?.toString();
+
     return InboxItem(
       id: json['id']?.toString() ?? '',
       itemType: InboxItemType.report,
@@ -160,9 +166,11 @@ class InboxItem {
       timeAgo: json['time_ago']?.toString(),
       reportType: _parseReportType(json['type']?.toString() ?? json['item_type']?.toString()),
       description: json['description']?.toString() ?? '',
-      status: _parseStatus(json['status']?.toString()),
+      status: _parseStatus(rawStatus),
+      subStatus: _parseSubStatus(rawSubStatus) ??
+          (rawStatus == 'rejected' ? ReportSubStatus.rejected : null),
       location: json['location']?.toString() ?? '-',
-      imageUrl: json['image_url']?.toString(),
+      imageUrl: normalizeStorageUrl(json['image_url']?.toString()),
       severity: _parseSeverity(json['severity']?.toString() ?? _severityFromInspectionResult(json['result']?.toString())),
       namePja: json['name_pja']?.toString(),
       reportedDepartment: json['reported_department']?.toString(),
@@ -186,6 +194,7 @@ class InboxItem {
       type: reportType ?? ReportType.hazard,
       severity: severity ?? ReportSeverity.medium,
       status: status ?? ReportStatus.open,
+      subStatus: subStatus,
       location: location ?? '-',
       createdAt: createdAt,
       reportedBy: reportedBy?.fullName ?? 'Unknown User',
@@ -215,10 +224,22 @@ class InboxItem {
       case 'in_progress':
         return ReportStatus.inProgress;
       case 'closed':
+      case 'rejected':
         return ReportStatus.closed;
+      case 'pending':
+        return ReportStatus.pending;
       case 'open':
       default:
         return ReportStatus.open;
+    }
+  }
+
+  static ReportSubStatus? _parseSubStatus(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return ReportSubStatus.values.firstWhere((e) => e.name == raw);
+    } catch (_) {
+      return null;
     }
   }
 
