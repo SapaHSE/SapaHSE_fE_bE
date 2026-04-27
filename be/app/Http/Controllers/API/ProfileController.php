@@ -39,6 +39,8 @@ class ProfileController extends Controller
             'position'      => 'nullable|string|max:100',
             'department'   => 'nullable|string|max:100',
             'company'      => 'nullable|string|max:100',
+            // Supabase URL (uploaded by client). Legacy file upload still accepted.
+            'profile_photo_url' => 'nullable|url|max:500',
             'profile_photo'  => 'nullable|image|max:2048',
         ]);
 
@@ -50,8 +52,16 @@ class ProfileController extends Controller
         if ($request->filled('department'))   $user->department   = $request->department;
         if ($request->filled('company'))      $user->company      = $request->company;
 
-        if ($request->hasFile('profile_photo')) {
-            if ($user->profile_photo) {
+        // Prefer Supabase Storage URL from client; fall back to multipart file.
+        if ($request->filled('profile_photo_url')) {
+            // Best-effort cleanup of old local-disk photo if the value didn't
+            // already look like a remote URL.
+            if ($user->profile_photo && !str_starts_with($user->profile_photo, 'http')) {
+                Storage::disk('public')->delete($user->profile_photo);
+            }
+            $user->profile_photo = $request->input('profile_photo_url');
+        } elseif ($request->hasFile('profile_photo')) {
+            if ($user->profile_photo && !str_starts_with($user->profile_photo, 'http')) {
                 Storage::disk('public')->delete($user->profile_photo);
             }
             $user->profile_photo = $request->file('profile_photo')->store('avatars', 'public');
@@ -413,7 +423,9 @@ class ProfileController extends Controller
             'department'     => $user->department,
             'company'        => $user->company,
             'profile_photo'  => $user->profile_photo
-                ? asset('storage/' . $user->profile_photo)
+                ? (str_starts_with($user->profile_photo, 'http')
+                    ? $user->profile_photo
+                    : asset('storage/' . $user->profile_photo))
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,

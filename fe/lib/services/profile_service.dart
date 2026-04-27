@@ -1,7 +1,7 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import '../config/supabase_config.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
+import 'supabase_storage_service.dart';
 import '../models/profile_model.dart';
 
 class ProfileService {
@@ -95,9 +95,21 @@ class ProfileService {
     if (department != null) body['department'] = department;
     if (company != null) body['company'] = company;
 
-    final response = imagePath != null && imagePath.isNotEmpty
-        ? await _postMultipart('/profile', body, imagePath: imagePath)
-        : await ApiService.post('/profile', body);
+    // Upload avatar to Supabase Storage first (if provided)
+    if (imagePath != null && imagePath.isNotEmpty) {
+      final imageUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imagePath,
+        folder: SupabaseConfig.avatarsFolder,
+      );
+      if (imageUrl == null) {
+        return ProfileResult.error(
+          'Gagal mengunggah foto profil ke Supabase.',
+        );
+      }
+      body['profile_photo_url'] = imageUrl;
+    }
+
+    final response = await ApiService.post('/profile', body);
 
     if (!response.success) {
       return ProfileResult.error(
@@ -112,84 +124,6 @@ class ProfileService {
 
     await StorageService.saveUser(userData);
     return ProfileResult.success(ProfileData.fromJson(userData));
-  }
-
-  static Future<ApiResponse> _postMultipart(
-    String endpoint,
-    Map<String, dynamic> fields, {
-    String? imagePath,
-  }) async {
-    try {
-      final token = await StorageService.getToken();
-      final req = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiService.baseUrl}$endpoint'),
-      );
-
-      req.headers['Accept'] = 'application/json';
-      if (token != null && token.isNotEmpty) {
-        req.headers['Authorization'] = 'Bearer $token';
-      }
-
-      fields.forEach((key, value) {
-        if (value != null) {
-          req.fields[key] = value.toString();
-        }
-      });
-
-      if (imagePath != null && imagePath.isNotEmpty) {
-        req.files.add(
-          await http.MultipartFile.fromPath('profile_photo', imagePath),
-        );
-      }
-
-      final streamed = await req.send().timeout(const Duration(seconds: 45));
-      final response = await http.Response.fromStream(streamed);
-      return _handleMultipartResponse(response);
-    } catch (e) {
-      return ApiResponse.error('Unexpected error: $e');
-    }
-  }
-
-  static ApiResponse _handleMultipartResponse(http.Response response) {
-    dynamic body;
-    try {
-      body = jsonDecode(response.body);
-    } catch (_) {
-      body = null;
-    }
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (body is Map<String, dynamic> && body['status'] == 'success') {
-        return ApiResponse.success(body);
-      }
-      return ApiResponse.error('Respons server tidak valid.');
-    }
-
-    if (response.statusCode == 422 && body is Map<String, dynamic>) {
-      final errors = body['errors'];
-      if (errors is Map && errors.isNotEmpty) {
-        final firstError = errors.values.first;
-        if (firstError is List && firstError.isNotEmpty) {
-          return ApiResponse.error(
-            firstError.first.toString(),
-            statusCode: response.statusCode,
-          );
-        }
-      }
-    }
-
-    if (body is Map<String, dynamic>) {
-      return ApiResponse.error(
-        body['message']?.toString() ?? 'Terjadi kesalahan.',
-        statusCode: response.statusCode,
-      );
-    }
-
-    return ApiResponse.error(
-      'Terjadi kesalahan.',
-      statusCode: response.statusCode,
-    );
   }
 
   // ── Change password ───────────────────────────────────────────────────────

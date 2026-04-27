@@ -74,6 +74,9 @@ class InspectionReportController extends Controller
             'title'               => 'required|string|max:200',
             'description'         => 'required|string',
             'location'            => 'required|string|max:200',
+            // Supabase Storage URL (uploaded by client). Legacy `image` (file)
+            // is still accepted as a fallback for older app builds.
+            'image_url'           => 'nullable|url|max:500',
             'image'               => 'nullable|image|max:4096',
             'company'             => 'nullable|string|max:150',
             'area'                => 'nullable|string|max:100',
@@ -83,8 +86,10 @@ class InspectionReportController extends Controller
             'checklist_items'     => 'nullable',
         ]);
 
-        $imageUrl = null;
-        if ($request->hasFile('image')) {
+        // Prefer the Supabase URL the client uploaded directly. Fall back to
+        // multipart file upload (legacy path) only if no URL was provided.
+        $imageUrl = $request->input('image_url');
+        if (!$imageUrl && $request->hasFile('image')) {
             $path = $request->file('image')->store('reports', 'public');
             $imageUrl = asset('storage/' . $path);
         }
@@ -191,6 +196,8 @@ class InspectionReportController extends Controller
             'status'         => 'required|in:open,in_progress,closed,rejected',
             'sub_status'     => 'nullable|string|max:50',
             'message'        => 'nullable|string',
+            // Supabase URL preferred; legacy file upload still accepted.
+            'image_url'      => 'nullable|url|max:500',
             'image'          => 'nullable|image|max:8192',
             'tagged_user_id' => 'nullable|uuid|exists:users,id',
         ]);
@@ -227,8 +234,9 @@ class InspectionReportController extends Controller
             }
         }
 
-        $imageUrl = null;
-        if ($request->hasFile('image')) {
+        // Prefer client-supplied Supabase URL; fall back to legacy file upload.
+        $imageUrl = $request->input('image_url');
+        if (!$imageUrl && $request->hasFile('image')) {
             $path = $request->file('image')->store('report_logs', 'public');
             $imageUrl = asset('storage/' . $path);
         }

@@ -71,6 +71,12 @@ class UserModel {
       };
 
   bool get isAdmin      => role == 'admin';
+  bool get isSuperadmin => role == 'superadmin';
   bool get isSupervisor => role == 'supervisor';
   bool get isUser       => role == 'user';
+
+  /// Roles that have full read access across all reports (admin + superadmin).
+  /// Note: ability to *update* status is gated separately — only `isAdmin` can update,
+  /// `isSuperadmin` is read-only.
+  bool get hasFullReadAccess => isAdmin || isSuperadmin;
 }

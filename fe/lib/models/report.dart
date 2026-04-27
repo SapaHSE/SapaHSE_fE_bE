@@ -80,8 +80,9 @@ class Report {
   final String? kejadianLocation;
   final String? company;
   final bool? isPublic;
-  final String? dueDate;
+  final DateTime? dueDate;
   final int? sisaHari;
+  final bool isOverdue;
   final DateTime createdAt;
   final String reportedBy;
   final String? reporterId;
@@ -115,6 +116,7 @@ class Report {
     this.isPublic,
     this.dueDate,
     this.sisaHari,
+    this.isOverdue = false,
     required this.createdAt,
     required this.reportedBy,
     this.reporterId,
@@ -167,8 +169,10 @@ class Report {
               ? json['reported_by']['company']?.toString()
               : null),
       isPublic: json['is_public'] as bool?,
-      dueDate: json['due_date']?.toString(),
+      dueDate: _parseDateOrNull(json['due_date']),
       sisaHari: (json['sisa_hari'] as num?)?.toInt(),
+      isOverdue: json['is_overdue'] == true ||
+          ((json['sisa_hari'] as num?)?.toInt() ?? 0) < 0,
       createdAt: _parseDate(json['created_at']),
       reportedBy: _parseReportedBy(json['reported_by']),
       reporterId: _parseReporterId(json['reported_by']),
@@ -257,6 +261,13 @@ class Report {
     if (raw == null) return DateTime.now();
     final parsed = DateTime.tryParse(raw.toString().replaceFirst(' ', 'T'));
     return parsed?.toLocal() ?? DateTime.now();
+  }
+
+  static DateTime? _parseDateOrNull(dynamic raw) {
+    if (raw == null) return null;
+    final s = raw.toString();
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s.replaceFirst(' ', 'T'))?.toLocal();
   }
 
   static String _parseReportedBy(dynamic raw) {

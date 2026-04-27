@@ -94,6 +94,9 @@ class HazardReportController extends Controller
             'title'               => 'required|string|max:200',
             'description'         => 'required|string',
             'location'            => 'required|string|max:200',
+            // Supabase Storage URL (uploaded by client). Legacy `image` (file)
+            // is still accepted as a fallback for older app builds.
+            'image_url'           => 'nullable|url|max:500',
             'image'               => 'nullable|image|max:4096',
             'severity'            => 'required|in:low,medium,high',
             'pic_department'      => 'nullable|string|max:100',
@@ -109,8 +112,10 @@ class HazardReportController extends Controller
             'isPublic'            => 'nullable|string',
         ]);
 
-        $imageUrl = null;
-        if ($request->hasFile('image')) {
+        // Prefer the Supabase URL the client uploaded directly. Fall back to
+        // the multipart file upload (legacy path) only if no URL was provided.
+        $imageUrl = $request->input('image_url');
+        if (!$imageUrl && $request->hasFile('image')) {
             $path = $request->file('image')->store('reports', 'public');
             $imageUrl = asset('storage/' . $path);
         }
@@ -201,6 +206,8 @@ class HazardReportController extends Controller
             'status'              => 'required|in:pending,open,in_progress,closed,rejected',
             'sub_status'          => 'nullable|string|max:50',
             'message'             => 'nullable|string',
+            // Supabase URL preferred; legacy file upload still accepted.
+            'image_url'           => 'nullable|url|max:500',
             'image'               => 'nullable|image|max:8192',
             'tagged_user_id'      => 'nullable|uuid|exists:users,id',
             'pic_department'      => 'nullable|string|max:100',
@@ -239,12 +246,14 @@ class HazardReportController extends Controller
             }
         }
 
-        if ($normalizedSubStatus === 'reviewing' && !$request->hasFile('image')) {
+        $hasAttachment = $request->filled('image_url') || $request->hasFile('image');
+        if ($normalizedSubStatus === 'reviewing' && !$hasAttachment) {
             return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
         }
 
-        $imageUrl = null;
-        if ($request->hasFile('image')) {
+        // Prefer client-supplied Supabase URL; fall back to legacy file upload.
+        $imageUrl = $request->input('image_url');
+        if (!$imageUrl && $request->hasFile('image')) {
             $path = $request->file('image')->store('report_logs', 'public');
             $imageUrl = asset('storage/' . $path);
         }

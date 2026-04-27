@@ -28,6 +28,8 @@ dependencies:
   fl_chart: ^1.2.0
   open_filex: ^4.7.0
   syncfusion_flutter_xlsio: ^33.1.49
+  supabase_flutter: ^2.6.0
+  supabase: ^2.1.0
  
 dev_dependencies:
   flutter_test:

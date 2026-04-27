@@ -87,6 +87,9 @@ class InboxItem {
   final List<InboxChecklistItem> checklistItems;
   final InboxReporter? reportedBy;
   final String? ticketNumber;
+  final DateTime? dueDate;
+  final int? sisaHari;
+  final bool isOverdue;
 
   // Announcement-only
   final String? body;
@@ -114,6 +117,9 @@ class InboxItem {
     this.checklistItems = const [],
     this.reportedBy,
     this.ticketNumber,
+    this.dueDate,
+    this.sisaHari,
+    this.isOverdue = false,
     this.subStatus,
     this.body,
     this.fromName,
@@ -182,6 +188,10 @@ class InboxItem {
           ? InboxReporter.fromJson(rawReporter)
           : null,
       ticketNumber: json['ticket_number']?.toString(),
+      dueDate: _parseDateOrNull(json['due_date']),
+      sisaHari: (json['sisa_hari'] as num?)?.toInt(),
+      isOverdue: json['is_overdue'] == true ||
+          ((json['sisa_hari'] as num?)?.toInt() ?? 0) < 0,
     );
   }
 
@@ -202,6 +212,9 @@ class InboxItem {
           ? 'https://placehold.co/600x400?text=No+Image'
           : imageUrl!,
       ticketNumber: ticketNumber,
+      dueDate: dueDate,
+      sisaHari: sisaHari,
+      isOverdue: isOverdue,
     );
   }
 
@@ -209,6 +222,13 @@ class InboxItem {
     if (raw == null) return DateTime.now();
     final parsed = DateTime.tryParse(raw.toString().replaceFirst(' ', 'T'));
     return parsed?.toLocal() ?? DateTime.now();
+  }
+
+  static DateTime? _parseDateOrNull(dynamic raw) {
+    if (raw == null) return null;
+    final s = raw.toString();
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s.replaceFirst(' ', 'T'))?.toLocal();
   }
 
   static ReportType? _parseReportType(String? raw) {

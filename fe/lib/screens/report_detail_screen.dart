@@ -70,8 +70,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     _refreshData();
   }
 
+  // Admin and Superadmin both have full update authority — treat them the same here.
   bool get _isAdmin =>
-      _currentUser?.isAdmin ?? _currentUser?.role == 'superadmin' ?? false;
+      (_currentUser?.isAdmin ?? false) || (_currentUser?.isSuperadmin ?? false);
   bool get _isPJA =>
       _currentUser != null &&
       _report.picDepartment != null &&
@@ -167,6 +168,14 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       'Des'
     ];
     return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
+  }
+
+  String _formatDueLabel(DateTime due, int? sisa) {
+    final dateStr = _formatDateShort(due);
+    if (sisa == null) return dateStr;
+    if (sisa < 0) return '$dateStr — Terlambat ${-sisa} hari';
+    if (sisa == 0) return '$dateStr — Hari ini';
+    return '$dateStr — $sisa hari lagi';
   }
 
   void _showImagePreview(BuildContext context, String imageUrl, int index) {
@@ -494,14 +503,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         icon: Icons.access_time,
                         label: 'Waktu Laporan',
                         value: _formatDate(_report.createdAt)),
-                    if (_report.dueDate != null &&
-                        _report.dueDate!.isNotEmpty) ...[
+                    if (_report.dueDate != null) ...[
                       const SizedBox(height: 12),
                       _DetailRow(
                           icon: Icons.event_available_outlined,
                           label: 'Tenggat Waktu',
-                          value:
-                              '${_report.dueDate!} (${_report.sisaHari ?? 0} hari tersisa)'),
+                          value: _formatDueLabel(
+                              _report.dueDate!, _report.sisaHari)),
                     ],
                     if (_report.pelakuPelanggaran != null &&
                         _report.pelakuPelanggaran!.isNotEmpty) ...[

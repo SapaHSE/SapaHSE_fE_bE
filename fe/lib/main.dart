@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'app_globals.dart';
+import 'config/supabase_config.dart';
 import 'services/storage_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -13,10 +14,17 @@ import 'screens/profile_screen.dart';
 import 'screens/create_hazard_screen.dart';
 import 'screens/create_inspection_screen.dart';
 import 'screens/qr_scan_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SharedPreferences.getInstance();
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+  );
+
   runApp(const BBEApp());
 }
 

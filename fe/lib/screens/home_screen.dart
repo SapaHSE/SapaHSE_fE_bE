@@ -687,6 +687,58 @@ class _ReportCard extends StatelessWidget {
     }
   }
 
+  Widget? _dueChip() {
+    if (report.type != ReportType.hazard) return null;
+    if (report.dueDate == null) return null;
+    final sisa = report.sisaHari ?? 0;
+
+    Color color;
+    IconData icon;
+    String label;
+
+    if (sisa < 0) {
+      color = const Color(0xFFF44336);
+      icon = Icons.warning_amber_rounded;
+      label = 'Terlambat ${-sisa} hari';
+    } else if (sisa == 0) {
+      color = const Color(0xFFF44336);
+      icon = Icons.today;
+      label = 'Hari ini';
+    } else if (sisa <= 3) {
+      color = const Color(0xFFFF9800);
+      icon = Icons.schedule;
+      label = '$sisa hari lagi';
+    } else {
+      color = const Color(0xFF4CAF50);
+      icon = Icons.event_available_outlined;
+      label = '$sisa hari lagi';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -710,7 +762,10 @@ class _ReportCard extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(
-                height: 135,
+                height: report.type == ReportType.hazard &&
+                        report.dueDate != null
+                    ? 155
+                    : 135,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -809,6 +864,13 @@ class _ReportCard extends StatelessWidget {
                                             fontSize: 10, color: Colors.grey))),
                               ],
                             ),
+                            if (_dueChip() != null) ...[
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: _dueChip()!,
+                              ),
+                            ],
                             const SizedBox(height: 10),
 
                             // Status & Priority

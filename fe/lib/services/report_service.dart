@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import '../config/supabase_config.dart';
 import '../models/report.dart';
 import '../utils/url_helper.dart';
 import 'api_service.dart';
+import 'supabase_storage_service.dart';
 
 class ReportLogEntry {
   final ReportStatus status;
@@ -74,7 +75,7 @@ class ReportService {
     String? imagePath,
     bool isPublic = true,
   }) async {
-    final fields = <String, String>{
+    final fields = <String, dynamic>{
       'title': title,
       'description': description,
       'location': location,
@@ -98,12 +99,21 @@ class ReportService {
       'isPublic': isPublic.toString(),
     };
 
-    final List<http.MultipartFile> files = [];
+    // 1) Upload image to Supabase Storage first (if provided)
     if (imagePath != null && imagePath.isNotEmpty) {
-      files.add(await http.MultipartFile.fromPath('image', imagePath));
+      final imageUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imagePath,
+        folder: SupabaseConfig.hazardFolder,
+      );
+      if (imageUrl == null) {
+        return ReportActionResult.error('Gagal mengunggah gambar ke Supabase.');
+      }
+      fields['image_url'] = imageUrl;
     }
 
-    final response = await ApiService.postMultipart('/hazard-reports', fields, files);
+    // 2) Send only JSON fields (including image_url) to Laravel
+    final response =
+        await ApiService.post('/hazard-reports', fields);
 
     if (!response.success) {
       return ReportActionResult.error(
@@ -129,7 +139,7 @@ class ReportService {
     List<Map<String, dynamic>>? checklistItems,
     String? imagePath,
   }) async {
-    final fields = <String, String>{
+    final fields = <String, dynamic>{
       'title': title,
       'description': description,
       'location': location,
@@ -141,12 +151,21 @@ class ReportService {
         'checklist_items': jsonEncode(checklistItems),
     };
 
-    final List<http.MultipartFile> files = [];
+    // 1) Upload image to Supabase Storage first (if provided)
     if (imagePath != null && imagePath.isNotEmpty) {
-      files.add(await http.MultipartFile.fromPath('image', imagePath));
+      final imageUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imagePath,
+        folder: SupabaseConfig.inspectionFolder,
+      );
+      if (imageUrl == null) {
+        return ReportActionResult.error('Gagal mengunggah gambar ke Supabase.');
+      }
+      fields['image_url'] = imageUrl;
     }
 
-    final response = await ApiService.postMultipart('/inspection-reports', fields, files);
+    // 2) Send only JSON fields (including image_url) to Laravel
+    final response =
+        await ApiService.post('/inspection-reports', fields);
 
     if (!response.success) {
       return ReportActionResult.error(
@@ -176,7 +195,7 @@ class ReportService {
         ? '/hazard-reports/${report.id}/status'
         : '/inspection-reports/${report.id}/status';
 
-    final fields = <String, String>{
+    final fields = <String, dynamic>{
       'status': _statusToApi(status),
     };
     if (subStatus != null) fields['sub_status'] = subStatus.name;
@@ -193,13 +212,21 @@ class ReportService {
       fields['pic_department'] = picDepartment;
     }
 
-    final List<http.MultipartFile> files = [];
+    // Upload status-update image to Supabase Storage first (if provided)
     if (imagePath != null && imagePath.isNotEmpty) {
-      files.add(await http.MultipartFile.fromPath('image', imagePath));
+      final imageUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imagePath,
+        folder: SupabaseConfig.reportLogsFolder,
+      );
+      if (imageUrl == null) {
+        return ReportActionResult.error(
+            'Gagal mengunggah gambar ke Supabase.');
+      }
+      fields['image_url'] = imageUrl;
     }
 
     debugPrint('Updating status for report ${report.id} to ${status.name}');
-    final response = await ApiService.postMultipart(endpoint, fields, files);
+    final response = await ApiService.post(endpoint, fields);
 
     if (!response.success) {
       debugPrint('Update status failed: ${response.errorMessage}');
@@ -340,8 +367,10 @@ class ReportService {
       kejadianLocation: json['kejadian_location']?.toString(),
       company: json['company']?.toString() ?? (json['reported_by'] is Map ? json['reported_by']['company']?.toString() : null),
       isPublic: json['is_public'] as bool?,
-      dueDate: json['due_date']?.toString(),
+      dueDate: _parseDateOrNull(json['due_date']),
       sisaHari: (json['sisa_hari'] as num?)?.toInt(),
+      isOverdue: json['is_overdue'] == true ||
+          ((json['sisa_hari'] as num?)?.toInt() ?? 0) < 0,
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
       reporterId: _reporterId(json['reported_by']),
@@ -429,6 +458,13 @@ class ReportService {
     if (raw == null) return DateTime.now();
     final parsed = DateTime.tryParse(raw.toString().replaceFirst(' ', 'T'));
     return parsed?.toLocal() ?? DateTime.now();
+  }
+
+  static DateTime? _parseDateOrNull(dynamic raw) {
+    if (raw == null) return null;
+    final s = raw.toString();
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s.replaceFirst(' ', 'T'))?.toLocal();
   }
 
   static String _safeImageUrl(String? raw) {
