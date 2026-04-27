@@ -1,8 +1,8 @@
 class SupabaseConfig {
-  static const String supabaseUrl = 'https://gwzlqpukshwgmphsynkv.supabase.co';
+  static const String supabaseUrl = 'PROJECT_URL';
 
   /// The "anon public" API key (safe for client-side use)
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3emxxcHVrc2h3Z21waHN5bmt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNjUyNDksImV4cCI6MjA5Mjg0MTI0OX0._q8lZ0vgqNgULcXfIayg5pGbGhrHlFxAuJd7LI1xtl0';
+  static const String supabaseAnonKey = 'ANON_KEY';
 
   /// The bucket name on Supabase Storage where images are stored.
   /// Create this bucket in the Supabase dashboard under Storage.
