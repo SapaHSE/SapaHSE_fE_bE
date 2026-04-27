@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class InspectionReportController extends Controller
 {
@@ -85,8 +86,8 @@ class InspectionReportController extends Controller
 
         $imageUrl = null;
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('reports', 'public');
-            $imageUrl = asset('storage/' . $path);
+            $path = $request->file('image')->store('reports', 's3');
+            $imageUrl = Storage::disk('s3')->url($path);
         }
 
         $report = InspectionReport::create([
@@ -228,8 +229,8 @@ class InspectionReportController extends Controller
 
         $imageUrl = null;
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('report_logs', 'public');
-            $imageUrl = asset('storage/' . $path);
+            $path = $request->file('image')->store('report_logs', 's3');
+            $imageUrl = Storage::disk('s3')->url($path);
         }
 
         $report->update([

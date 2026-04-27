@@ -52,9 +52,9 @@ class ProfileController extends Controller
 
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo) {
-                Storage::disk('public')->delete($user->profile_photo);
+                Storage::disk('s3')->delete($user->profile_photo);
             }
-            $user->profile_photo = $request->file('profile_photo')->store('avatars', 'public');
+            $user->profile_photo = $request->file('profile_photo')->store('avatars', 's3');
         }
 
         $user->save();
@@ -413,7 +413,7 @@ class ProfileController extends Controller
             'department'     => $user->department,
             'company'        => $user->company,
             'profile_photo'  => $user->profile_photo
-                ? asset('storage/' . $user->profile_photo)
+                ? Storage::disk('s3')->url($user->profile_photo)
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,

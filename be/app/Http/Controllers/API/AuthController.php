@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -249,7 +250,7 @@ class AuthController extends Controller
                 'department'  => $u->department,
                 'position'    => $u->position,
                 'role'        => $u->role,
-                'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
+                'photo_url'   => $u->profile_photo ? Storage::disk('s3')->url($u->profile_photo) : null,
             ]);
 
         return response()->json([
@@ -408,7 +409,7 @@ class AuthController extends Controller
             'sub_kontraktor' => $user->sub_kontraktor,
             'simper'         => $user->simper,
             'profile_photo'  => $user->profile_photo
-                ? asset('storage/' . $user->profile_photo)
+                ? Storage::disk('s3')->url($user->profile_photo)
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,

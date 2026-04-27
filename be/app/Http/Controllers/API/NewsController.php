@@ -72,7 +72,8 @@ class NewsController extends Controller
 
         $imageUrl = null;
         if ($request->hasFile('image')) {
-            $imageUrl = asset('storage/' . $request->file('image')->store('news', 'public'));
+            $path = $request->file('image')->store('news', 's3');
+            $imageUrl = Storage::disk('s3')->url($path);
         }
 
         $news = News::create([
@@ -100,8 +101,11 @@ class NewsController extends Controller
         $news = News::findOrFail($id);
 
         if ($news->image_url) {
-            $path = str_replace(asset('storage/') . '/', '', $news->image_url);
-            Storage::disk('public')->delete($path);
+            $base = rtrim(Storage::disk('s3')->url(''), '/') . '/';
+            $path = str_starts_with($news->image_url, $base)
+                ? substr($news->image_url, strlen($base))
+                : $news->image_url;
+            Storage::disk('s3')->delete($path);
         }
 
         $news->delete();
