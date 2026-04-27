@@ -113,7 +113,9 @@ class HazardReportController extends Controller
         $imageUrl = null;
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('reports', 's3');
-            $imageUrl = Storage::disk('s3')->url($path);
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+            $disk = Storage::disk('s3');
+            $imageUrl = $disk->url($path);
         }
 
         $report = HazardReport::create([
@@ -246,7 +248,9 @@ class HazardReportController extends Controller
         $imageUrl = null;
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('report_logs', 's3');
-            $imageUrl = Storage::disk('s3')->url($path);
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $logDisk */
+            $logDisk = Storage::disk('s3');
+            $imageUrl = $logDisk->url($path);
         }
 
         $updateData = [

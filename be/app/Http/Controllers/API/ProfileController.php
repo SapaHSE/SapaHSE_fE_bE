@@ -51,8 +51,10 @@ class ProfileController extends Controller
         if ($request->filled('company'))      $user->company      = $request->company;
 
         if ($request->hasFile('profile_photo')) {
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+            $disk = Storage::disk('s3');
             if ($user->profile_photo) {
-                Storage::disk('s3')->delete($user->profile_photo);
+                $disk->delete($user->profile_photo);
             }
             $user->profile_photo = $request->file('profile_photo')->store('avatars', 's3');
         }
@@ -402,6 +404,9 @@ class ProfileController extends Controller
 
     private function formatUser($user): array
     {
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk('s3');
+
         return [
             'id'             => $user->id,
             'employee_id'    => $user->employee_id,
@@ -413,7 +418,7 @@ class ProfileController extends Controller
             'department'     => $user->department,
             'company'        => $user->company,
             'profile_photo'  => $user->profile_photo
-                ? Storage::disk('s3')->url($user->profile_photo)
+                ? $disk->url($user->profile_photo)
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,
