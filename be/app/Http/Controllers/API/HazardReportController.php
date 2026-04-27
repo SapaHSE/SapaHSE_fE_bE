@@ -26,17 +26,28 @@ class HazardReportController extends Controller
         $user   = Auth::user();
         $userId = $user->id;
 
-        // Apply privacy filter: private reports are visible only to the creator, the targeted PJA, or admins
+        // Apply visibility filter: while sub_status='validating', only the creator and admins can see.
+        // After approval (sub_status != 'validating'), tagged PJA, Tersangka Pelanggaran, and public viewers may see.
         if (!in_array($user->role, ['admin', 'superadmin'])) {
-            $query->where(function ($q) use ($user) {
-                $q->where(function ($sq) {
-                    $sq->where('is_public', true)
-                       ->where('status', '!=', 'pending');
+            $notValidating = function ($sq) {
+                $sq->where(function ($x) {
+                    $x->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                });
+            };
+
+            $query->where(function ($q) use ($user, $notValidating) {
+                $q->where(function ($sq) use ($notValidating) {
+                    $sq->where('is_public', true);
+                    $notValidating($sq);
                 })
-                ->orWhere('user_id', $user->id) // Creator can see their own reports (including pending)
-                ->orWhere(function ($sq) use ($user) {
-                    $sq->where('pic_department', 'like', '%' . $user->full_name . '%')
-                       ->where('status', '!=', 'pending');
+                ->orWhere('user_id', $user->id) // Creator selalu lihat (termasuk validating)
+                ->orWhere(function ($sq) use ($user, $notValidating) {
+                    $sq->where('pic_department', 'like', '%' . $user->full_name . '%');
+                    $notValidating($sq);
+                })
+                ->orWhere(function ($sq) use ($user, $notValidating) {
+                    $sq->where('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
+                    $notValidating($sq);
                 });
             });
         }
@@ -108,7 +119,7 @@ class HazardReportController extends Controller
             'user_id'             => Auth::id(),
             'title'               => $request->title,
             'description'         => $request->description,
-            'status'              => 'pending',
+            'status'              => 'open',
             'sub_status'          => 'validating',
             'location'            => $request->location,
             'pelapor_location'    => $request->pelapor_location,
@@ -128,7 +139,7 @@ class HazardReportController extends Controller
 
         $report->logs()->create([
             'user_id'    => Auth::id(),
-            'status'     => 'pending',
+            'status'     => 'open',
             'sub_status' => 'validating',
             'message'    => 'Laporan hazard baru dibuat dan sedang dalam proses validasi admin.',
         ]);

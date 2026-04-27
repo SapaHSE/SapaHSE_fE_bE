@@ -30,14 +30,18 @@ class InboxController extends Controller
             ->where('item_type', 'inspection_report')
             ->pluck('item_id');
 
-        // Personal: reports where user is PJA, Inspector, or tagged
+        // Personal: reports where user is PJA, Tersangka Pelanggaran, Inspector, or tagged.
+        // Hazard hanya muncul setelah lolos validasi admin (sub_status != 'validating').
         $personalHazardUnread = HazardReport::where(function($q) use ($user) {
-                $q->where('pic_department', 'like', '%' . $user->full_name . '%');
+                $q->where('pic_department', 'like', '%' . $user->full_name . '%')
+                  ->orWhere('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
             })
-            ->where('status', '!=', 'pending')
+            ->where(function($q) {
+                $q->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+            })
             ->whereNotIn('id', $readHazardIds)
             ->count();
-            
+
         $personalInspectionUnread = InspectionReport::where(function($q) use ($user) {
                 $q->where('name_inspector', $user->full_name);
             })
@@ -76,10 +80,16 @@ class InboxController extends Controller
             $data  = $paged->getCollection()->map(fn($a) => $this->formatAnnouncement($a, $userId));
 
         } else {
-            // Gabungkan Hazard dan Inspection yang relevan, exclude pending (hanya tampil setelah approved)
+            // Gabungkan Hazard dan Inspection yang relevan.
+            // Hazard: tampil bagi PJA atau Tersangka Pelanggaran, hanya setelah lolos validasi admin.
             $hQuery = HazardReport::with(['user'])
-                ->where('pic_department', 'like', '%' . $user->full_name . '%')
-                ->where('status', '!=', 'pending');
+                ->where(function ($q) use ($user) {
+                    $q->where('pic_department', 'like', '%' . $user->full_name . '%')
+                      ->orWhere('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
+                })
+                ->where(function ($q) {
+                    $q->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                });
             $iQuery = InspectionReport::with(['user', 'checklistItems'])
                 ->where('name_inspector', $user->full_name)
                 ->where('status', '!=', 'pending');
@@ -214,6 +224,7 @@ class InboxController extends Controller
             'title'               => $report->title,
             'description'         => $report->description,
             'status'              => $report->status,
+            'sub_status'          => $report->sub_status,
             'location'            => $report->location,
             'image_url'           => $report->image_url,
             'is_read'             => $userId ? $report->isReadBy($userId) : false,
