@@ -72,7 +72,7 @@ class NewsController extends Controller
 
         $imageUrl = null;
         if ($request->hasFile('image')) {
-            $imageUrl = asset('storage/' . $request->file('image')->store('news', 'public'));            
+            $imageUrl = asset('storage/' . $request->file('image')->store('news', 'public'));
         }
 
         $news = News::create([
@@ -101,8 +101,8 @@ class NewsController extends Controller
 
         if ($news->image_url) {
             $path = str_replace(asset('storage/') . '/', '', $news->image_url);
-            Storage::disk('public')->delete($path);        
-            }
+            Storage::disk('public')->delete($path);
+        }
 
         $news->delete();
 

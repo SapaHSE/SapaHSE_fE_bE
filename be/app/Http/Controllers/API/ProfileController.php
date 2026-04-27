@@ -52,7 +52,7 @@ class ProfileController extends Controller
 
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo) {
-                    Storage::disk('public')->delete($user->profile_photo);
+                Storage::disk('public')->delete($user->profile_photo);
             }
             $user->profile_photo = $request->file('profile_photo')->store('avatars', 'public');
         }
@@ -402,9 +402,6 @@ class ProfileController extends Controller
 
     private function formatUser($user): array
     {
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('s3');
-
         return [
             'id'             => $user->id,
             'employee_id'    => $user->employee_id,
