@@ -188,7 +188,7 @@ class InspectionReportController extends Controller
     public function updateStatus(Request $request, string $id)
     {
         $request->validate([
-            'status'         => 'required|in:open,in_progress,closed',
+            'status'         => 'required|in:open,in_progress,closed,rejected',
             'sub_status'     => 'nullable|string|max:50',
             'message'        => 'nullable|string',
             'image'          => 'nullable|image|max:8192',
@@ -207,14 +207,21 @@ class InspectionReportController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
         }
 
+        $requestedStatus = $request->status;
+        $normalizedStatus = $requestedStatus === 'rejected' ? 'closed' : $requestedStatus;
+        $normalizedSubStatus = $request->sub_status;
+        if ($requestedStatus === 'rejected' && !$normalizedSubStatus) {
+            $normalizedSubStatus = 'rejected';
+        }
+
         // Additional restrictions for non-admins
         if (!$isAdmin) {
             // Cannot select 'validating' or 'approved'
-            if (in_array($request->sub_status, ['validating', 'approved'])) {
+            if (in_array($normalizedSubStatus, ['validating', 'approved'])) {
                 return response()->json(['status' => 'error', 'message' => 'Izin ditolak untuk status ini.'], 403);
             }
-            // Cannot select 'closed' status
-            if ($request->status === 'closed') {
+            // Cannot select final closed status (including explicit rejected request)
+            if (in_array($requestedStatus, ['closed', 'rejected'])) {
                 return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang dapat menutup laporan.'], 403);
             }
         }
@@ -226,15 +233,15 @@ class InspectionReportController extends Controller
         }
 
         $report->update([
-            'status'     => $request->status,
-            'sub_status' => $request->sub_status,
+            'status'     => $normalizedStatus,
+            'sub_status' => $normalizedSubStatus,
         ]);
 
         $report->logs()->create([
             'user_id'        => Auth::id(),
             'tagged_user_id' => $request->tagged_user_id,
-            'status'         => $request->status,
-            'sub_status'     => $request->sub_status,
+            'status'         => $normalizedStatus,
+            'sub_status'     => $normalizedSubStatus,
             'message'        => $request->message ?? "Status diubah",
             'image_url'      => $imageUrl,
         ]);
