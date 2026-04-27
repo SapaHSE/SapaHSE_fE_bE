@@ -5,9 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
+// Model for Hazard Reports
 class HazardReport extends Model
 {
     use HasFactory, HasUuids;
@@ -28,18 +29,21 @@ class HazardReport extends Model
         'severity',
         'pic_department',
         'pelaku_pelanggaran',
+        'company',
+        'area',
         'reported_department',
         'hazard_category',
         'hazard_subcategory',
         'suggestion',
         'is_public',
-        'due_date',        
+        'due_date',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
 
     public function logs()
     {
@@ -60,6 +64,7 @@ class HazardReport extends Model
         parent::boot();
 
         static::creating(function ($model) {
+            // 1. Calculate Due Date based on Severity
             if (empty($model->due_date)) {
                 $days = match ($model->severity) {
                     'high'   => 3,
@@ -69,7 +74,8 @@ class HazardReport extends Model
                 };
                 $model->due_date = now()->addDays($days);
             }
-            
+
+            // 2. Generate Ticket Number
             if (empty($model->ticket_number)) {
                 DB::transaction(function () use ($model) {
                     // Gunakan company dari model, fallback ke company user, lalu 'UNK'

@@ -13,11 +13,17 @@ use App\Http\Controllers\API\InboxController;
 use App\Http\Controllers\API\ForgotPasswordController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\HazardCategoryController;
+use App\Http\Controllers\API\CompanyController;
+use App\Http\Controllers\API\AreaController;
 
 // ── Public Routes ─────────────────────────────────────────────────────────────
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
+
+// Master Data (Public for Registration & Dropdowns)
+Route::get('/companies', [CompanyController::class, 'index']);
+Route::get('/areas',     [AreaController::class, 'index']);
 
 // ── Email Verification ────────────────────────────────────────────────────────
 Route::get('/email/verify/{id}/{token}', [AuthController::class, 'verifyEmail']);  // dibuka via browser
@@ -89,6 +95,28 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'updateSubcategory'])
         ->middleware('role:superadmin');
     Route::delete('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'destroySubcategory'])
+        ->middleware('role:superadmin');
+    
+    // ── Companies ─────────────────────────────────────────────────────────────
+    Route::get('/companies', [CompanyController::class, 'index']);
+    Route::post('/companies', [CompanyController::class, 'store'])
+        ->middleware('role:superadmin');
+    Route::put('/companies/{id}', [CompanyController::class, 'update'])
+        ->middleware('role:superadmin');
+    Route::delete('/companies/{id}', [CompanyController::class, 'destroy'])
+        ->middleware('role:superadmin');
+    Route::post('/companies/{id}/toggle', [CompanyController::class, 'toggle'])
+        ->middleware('role:superadmin');
+
+    // ── Areas ─────────────────────────────────────────────────────────────────
+    Route::get('/areas', [AreaController::class, 'index']);
+    Route::post('/areas', [AreaController::class, 'store'])
+        ->middleware('role:superadmin');
+    Route::put('/areas/{id}', [AreaController::class, 'update'])
+        ->middleware('role:superadmin');
+    Route::delete('/areas/{id}', [AreaController::class, 'destroy'])
+        ->middleware('role:superadmin');
+    Route::post('/areas/{id}/toggle', [AreaController::class, 'toggle'])
         ->middleware('role:superadmin');
 
 

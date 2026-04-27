@@ -21,7 +21,11 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call(HazardCategorySeeder::class);
+        $this->call([
+            HazardCategorySeeder::class,
+            CompanySeeder::class,
+            AreaSeeder::class,
+        ]);
         // ══════════════════════════════════════════════════════════════════
         // USERS
         // Kolom login: staff_id + password_hash
