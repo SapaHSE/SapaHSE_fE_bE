@@ -29,9 +29,15 @@ class HazardReportController extends Controller
         // Apply privacy filter: private reports are visible only to the creator, the targeted PJA, or admins
         if (!in_array($user->role, ['admin', 'superadmin'])) {
             $query->where(function ($q) use ($user) {
-                $q->where('is_public', true)
-                ->orWhere('user_id', $user->id)
-                ->orWhere('pic_department', 'like', '%' . $user->full_name . '%');
+                $q->where(function ($sq) {
+                    $sq->where('is_public', true)
+                       ->where('status', '!=', 'pending');
+                })
+                ->orWhere('user_id', $user->id) // Creator can see their own reports (including pending)
+                ->orWhere(function ($sq) use ($user) {
+                    $sq->where('pic_department', 'like', '%' . $user->full_name . '%')
+                       ->where('status', '!=', 'pending');
+                });
             });
         }
 
@@ -100,7 +106,8 @@ class HazardReportController extends Controller
             'user_id'             => Auth::id(),
             'title'               => $request->title,
             'description'         => $request->description,
-            'status'              => 'open',
+            'status'              => 'pending',
+            'sub_status'          => 'validating',
             'location'            => $request->location,
             'pelapor_location'    => $request->pelapor_location,
             'kejadian_location'   => $request->kejadian_location,
@@ -116,9 +123,10 @@ class HazardReportController extends Controller
         ]);
 
         $report->logs()->create([
-            'user_id' => Auth::id(),
-            'status'  => 'open',
-            'message' => 'Laporan hazard baru dibuat.',
+            'user_id'    => Auth::id(),
+            'status'     => 'pending',
+            'sub_status' => 'validating',
+            'message'    => 'Laporan hazard baru dibuat dan sedang dalam proses validasi admin.',
         ]);
 
         $report->load('user');
@@ -175,7 +183,7 @@ class HazardReportController extends Controller
     public function updateStatus(Request $request, string $id)
     {
         $request->validate([
-            'status'              => 'required|in:open,in_progress,closed',
+            'status'              => 'required|in:pending,open,in_progress,closed',
             'sub_status'          => 'nullable|string|max:50',
             'message'             => 'nullable|string',
             'image'               => 'nullable|image|max:8192',

@@ -24,7 +24,16 @@ class InspectionReportController extends Controller
     public function index(Request $request)
     {
         $query  = InspectionReport::with(['user', 'checklistItems'])->latest();
-        $userId = Auth::id();
+        $user   = Auth::user();
+        $userId = $user->id;
+
+        // Apply privacy filter: pending reports are visible only to the creator or admins
+        if (!in_array($user->role, ['admin', 'superadmin'])) {
+            $query->where(function ($q) use ($user) {
+                $q->where('status', '!=', 'pending')
+                ->orWhere('user_id', $user->id);
+            });
+        }
 
         if ($request->filled('status'))     $query->where('status', $request->status);
         if ($request->filled('area'))       $query->where('area', $request->area);
@@ -84,7 +93,8 @@ class InspectionReportController extends Controller
             'user_id'             => Auth::id(),
             'title'               => $request->title,
             'description'         => $request->description,
-            'status'              => 'open',
+            'status'              => 'pending',
+            'sub_status'          => 'validating',
             'location'            => $request->location,
             'image_url'           => $imageUrl,
             'company'             => $request->company ? strtoupper(trim($request->company)) : null,
@@ -116,9 +126,10 @@ class InspectionReportController extends Controller
         }
 
         $report->logs()->create([
-            'user_id' => Auth::id(),
-            'status'  => 'open',
-            'message' => 'Laporan inspeksi baru dibuat.',
+            'user_id'    => Auth::id(),
+            'status'     => 'pending',
+            'sub_status' => 'validating',
+            'message'    => 'Laporan inspeksi baru dibuat dan sedang dalam proses validasi admin.',
         ]);
 
         $report->load(['user', 'checklistItems']);
