@@ -30,14 +30,25 @@ class InboxController extends Controller
             ->where('item_type', 'inspection_report')
             ->pluck('item_id');
 
+        // Admin / Superadmin act as the verification queue and see all `validating` hazards
+        // in addition to reports where they are the PJA / Tersangka.
+        $isAdminOrSA = in_array($user->role, ['admin', 'superadmin']);
+
         // Personal: reports where user is PJA, Tersangka Pelanggaran, Inspector, or tagged.
-        // Hazard hanya muncul setelah lolos validasi admin (sub_status != 'validating').
-        $personalHazardUnread = HazardReport::where(function($q) use ($user) {
-                $q->where('pic_department', 'like', '%' . $user->full_name . '%')
-                  ->orWhere('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
-            })
-            ->where(function($q) {
-                $q->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+        // Hazard hanya muncul setelah lolos validasi admin (sub_status != 'validating'),
+        // KECUALI untuk admin/superadmin — mereka justru perlu melihat antrian validasi.
+        $personalHazardUnread = HazardReport::where(function ($q) use ($user, $isAdminOrSA) {
+                $q->where(function ($qq) use ($user) {
+                    $qq->where(function ($pj) use ($user) {
+                        $pj->where('pic_department', 'like', '%' . $user->full_name . '%')
+                           ->orWhere('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
+                    })->where(function ($v) {
+                        $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                    });
+                });
+                if ($isAdminOrSA) {
+                    $q->orWhere('sub_status', 'validating');
+                }
             })
             ->whereNotIn('id', $readHazardIds)
             ->count();
@@ -82,13 +93,21 @@ class InboxController extends Controller
         } else {
             // Gabungkan Hazard dan Inspection yang relevan.
             // Hazard: tampil bagi PJA atau Tersangka Pelanggaran, hanya setelah lolos validasi admin.
+            // Tambahan: admin/superadmin juga melihat semua laporan dengan sub_status 'validating'
+            // sebagai antrian verifikasi mereka.
             $hQuery = HazardReport::with(['user'])
-                ->where(function ($q) use ($user) {
-                    $q->where('pic_department', 'like', '%' . $user->full_name . '%')
-                      ->orWhere('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
-                })
-                ->where(function ($q) {
-                    $q->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                ->where(function ($q) use ($user, $isAdminOrSA) {
+                    $q->where(function ($qq) use ($user) {
+                        $qq->where(function ($pj) use ($user) {
+                            $pj->where('pic_department', 'like', '%' . $user->full_name . '%')
+                               ->orWhere('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
+                        })->where(function ($v) {
+                            $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                        });
+                    });
+                    if ($isAdminOrSA) {
+                        $q->orWhere('sub_status', 'validating');
+                    }
                 });
             $iQuery = InspectionReport::with(['user', 'checklistItems'])
                 ->where('name_inspector', $user->full_name)
@@ -217,6 +236,12 @@ class InboxController extends Controller
 
     private function formatHazard(HazardReport $report, ?string $userId): array
     {
+        $dueDate  = $report->due_date; // Carbon|null (cast on model)
+        $today    = now()->startOfDay();
+        $sisaHari = $dueDate
+            ? (int) $today->diffInDays($dueDate->copy()->startOfDay(), false)
+            : null;
+
         return [
             'id'                  => $report->id,
             'item_type'           => 'hazard_report',
@@ -240,6 +265,10 @@ class InboxController extends Controller
             'hazard_category'     => $report->hazard_category,
             'hazard_subcategory'  => $report->hazard_subcategory,
             'suggestion'          => $report->suggestion,
+            'due_date'            => $dueDate?->toDateTimeString(),
+            'due_date_human'      => $dueDate?->translatedFormat('d M Y'),
+            'sisa_hari'           => $sisaHari,
+            'is_overdue'          => $sisaHari !== null && $sisaHari < 0,
         ];
     }
 

@@ -210,7 +210,8 @@ class HazardReportController extends Controller
         $report = HazardReport::findOrFail($id);
         $user = Auth::user();
 
-        // Check if user is Admin, Superadmin, the original Reporter, or tagged PJA
+        // Admin and Superadmin both have full update authority regardless of tagging.
+        // Reporter and tagged PJA can also update (with the non-admin restrictions below).
         $isPja = $report->pic_department && stripos($report->pic_department, $user->full_name) !== false;
         $isAdmin = in_array($user->role, ['admin', 'superadmin']);
         $isReporter = $report->user_id === $user->id;
@@ -297,6 +298,12 @@ class HazardReportController extends Controller
 
     private function formatReport(HazardReport $report, ?string $userId): array
     {
+        $dueDate  = $report->due_date; // Carbon|null (cast on model)
+        $today    = now()->startOfDay();
+        $sisaHari = $dueDate
+            ? (int) $today->diffInDays($dueDate->copy()->startOfDay(), false)
+            : null;
+
         return [
             'id'                  => $report->id,
             'ticket_number'       => $report->ticket_number,
@@ -322,8 +329,10 @@ class HazardReportController extends Controller
             'hazard_subcategory'  => $report->hazard_subcategory,
             'suggestion'          => $report->suggestion,
             'is_public'           => (bool)$report->is_public,
-            'due_date'            => $report->due_date,
-            'sisa_hari'           => $report->due_date ? (now()->diffInDays($report->due_date, false)) : null,
+            'due_date'            => $dueDate?->toDateTimeString(),
+            'due_date_human'      => $dueDate?->translatedFormat('d M Y'),
+            'sisa_hari'           => $sisaHari,
+            'is_overdue'          => $sisaHari !== null && $sisaHari < 0,
         ];
     }
 }

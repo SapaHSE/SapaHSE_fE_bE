@@ -198,7 +198,8 @@ class InspectionReportController extends Controller
         $report = InspectionReport::findOrFail($id);
         $user = Auth::user();
 
-        // Check if user is Admin, Superadmin, the original Reporter, or the Inspector
+        // Admin and Superadmin both have full update authority regardless of tagging.
+        // Reporter and assigned Inspector can also update (with the non-admin restrictions below).
         $isInspector = $report->name_inspector && stripos($report->name_inspector, $user->full_name) !== false;
         $isAdmin = in_array($user->role, ['admin', 'superadmin']);
         $isReporter = $report->user_id === $user->id;

@@ -39,6 +39,11 @@ class HazardReport extends Model
         'due_date',
     ];
 
+    protected $casts = [
+        'due_date'  => 'datetime',
+        'is_public' => 'boolean',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
