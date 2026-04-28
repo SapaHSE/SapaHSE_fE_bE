@@ -26,6 +26,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   bool _isLoading = false;
   UserModel? _currentUser;
   bool _showScrollToBottom = false;
+  bool _showTimeline = false;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -478,8 +479,45 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                       const SizedBox(height: 12),
                       _DetailRow(
                           icon: Icons.lightbulb_outline,
-                          label: 'Saran Perbaikan',
+                          label: 'Saran',
                           value: _report.saran!),
+                    ],
+                    const SizedBox(height: 12),
+                    _DetailRow(
+                        icon: Icons.category_outlined,
+                        label: 'Kategori',
+                        value: _report.category?.label ?? _report.type.label),
+                    if (_report.subkategori != null &&
+                        _report.subkategori!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _DetailRow(
+                          icon: Icons.subdirectory_arrow_right,
+                          label: 'Sub-kategori',
+                          value: _report.subkategori!),
+                    ],
+                    if (_report.company != null &&
+                        _report.company!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _DetailRow(
+                          icon: Icons.business_outlined,
+                          label: 'Perusahaan',
+                          value: _report.company!),
+                    ],
+                    if (_report.pelaporLocation != null &&
+                        _report.pelaporLocation!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _DetailRow(
+                          icon: Icons.my_location_outlined,
+                          label: 'Koordinat Pelapor',
+                          value: _report.pelaporLocation!),
+                    ],
+                    if (_report.ticketNumber != null &&
+                        _report.ticketNumber!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _DetailRow(
+                          icon: Icons.confirmation_number_outlined,
+                          label: 'No. Tiket',
+                          value: _report.ticketNumber!),
                     ],
                   ],
                 ),
@@ -555,14 +593,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                           label: 'Penugasan Lanjutan',
                           value: _report.subStatus!.label),
                     ],
-                    if (_report.location != null &&
-                        _report.location!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _DetailRow(
-                          icon: Icons.location_on_outlined,
-                          label: 'Lokasi Penugasan',
-                          value: _report.location!),
-                    ],
+                    const SizedBox(height: 12),
+                    _DetailRow(
+                        icon: Icons.location_on_outlined,
+                        label: 'Lokasi Penugasan',
+                        value: _report.location),
                     if (_report.kejadianLocation != null &&
                         _report.kejadianLocation!.isNotEmpty) ...[
                       const SizedBox(height: 12),
@@ -629,72 +664,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   ],
                 ),
               ),
-
-              // ── Card: Klasifikasi ──────────────────────────────────────────
-              _card(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionHeader(
-                        icon: Icons.category_outlined, title: 'Klasifikasi'),
-                    const SizedBox(height: 12),
-                    _DetailRow(
-                        icon: Icons.category_outlined,
-                        label: 'Kategori',
-                        value: _report.category?.label ?? _report.type.label),
-                    if (_report.subkategori != null &&
-                        _report.subkategori!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _DetailRow(
-                          icon: Icons.subdirectory_arrow_right,
-                          label: 'Sub-kategori',
-                          value: _report.subkategori!),
-                    ],
-                    if (_report.company != null &&
-                        _report.company!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _DetailRow(
-                          icon: Icons.business_outlined,
-                          label: 'Perusahaan',
-                          value: _report.company!),
-                    ],
-                  ],
-                ),
-              ),
-
-              // ── Card: Informasi Tambahan ───────────────────────────────────
-              if ((_report.pelaporLocation != null &&
-                      _report.pelaporLocation!.isNotEmpty) ||
-                  (_report.ticketNumber != null &&
-                      _report.ticketNumber!.isNotEmpty))
-                _card(
-                  margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SectionHeader(
-                          icon: Icons.info_outline,
-                          title: 'Informasi Tambahan'),
-                      if (_report.pelaporLocation != null &&
-                          _report.pelaporLocation!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        _DetailRow(
-                            icon: Icons.my_location_outlined,
-                            label: 'Koordinat Pelapor',
-                            value: _report.pelaporLocation!),
-                      ],
-                      if (_report.ticketNumber != null &&
-                          _report.ticketNumber!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        _DetailRow(
-                            icon: Icons.confirmation_number_outlined,
-                            label: 'No. Tiket',
-                            value: _report.ticketNumber!),
-                      ],
-                    ],
-                  ),
-                ),
 
               // ── Card: Informasi Inspeksi ───────────────────────────────────
               if (_report.type == ReportType.inspection)
@@ -815,26 +784,66 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                         ]),
                         const SizedBox(height: 6),
                         _buildStepBar(timeline),
-                        const SizedBox(height: 20),
-                        if (snapshot.connectionState ==
-                                ConnectionState.waiting &&
-                            timeline.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
-                              child: CircularProgressIndicator(),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () =>
+                              setState(() => _showTimeline = !_showTimeline),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: _blueLight,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: _blue.withValues(alpha: 0.15)),
                             ),
-                          )
-                        else if (timeline.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
-                              child: Text('Belum ada aktivitas.',
-                                  style: TextStyle(color: Colors.grey)),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _showTimeline
+                                      ? Icons.keyboard_arrow_up_rounded
+                                      : Icons.keyboard_arrow_down_rounded,
+                                  color: _blue,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _showTimeline
+                                      ? 'Sembunyikan Detail'
+                                      : 'Lihat Detail Aktivitas',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: _blue,
+                                  ),
+                                ),
+                              ],
                             ),
-                          )
-                        else
-                          ..._buildGroupedTimeline(timeline),
+                          ),
+                        ),
+                        if (_showTimeline) ...[
+                          const SizedBox(height: 16),
+                          if (snapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              timeline.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          else if (timeline.isEmpty)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Text('Belum ada aktivitas.',
+                                    style: TextStyle(color: Colors.grey)),
+                              ),
+                            )
+                          else
+                            ..._buildGroupedTimeline(timeline),
+                        ],
                       ],
                     ),
                   );
