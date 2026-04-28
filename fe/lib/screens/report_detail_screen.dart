@@ -243,24 +243,74 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final List<String> images = [_report.imageUrl];
+    final showFloatingActions = _canUpdate || _showScrollToBottom;
 
     return Scaffold(
       backgroundColor: widget.isDialog ? Colors.white : const Color(0xFFF0F0F0),
-      floatingActionButton: AnimatedSlide(
-        duration: const Duration(milliseconds: 300),
-        offset: _showScrollToBottom ? Offset.zero : const Offset(0, 2),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 300),
-          opacity: _showScrollToBottom ? 1.0 : 0.0,
-          child: FloatingActionButton.small(
-            onPressed: _showScrollToBottom ? _scrollToBottom : null,
-            backgroundColor: _blue,
-            foregroundColor: Colors.white,
-            elevation: 4,
-            child: const Icon(Icons.keyboard_double_arrow_down, size: 22),
-          ),
-        ),
-      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: showFloatingActions
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_showScrollToBottom)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: AnimatedSlide(
+                          duration: const Duration(milliseconds: 300),
+                          offset:
+                              _showScrollToBottom ? Offset.zero : const Offset(0, 2),
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 300),
+                            opacity: _showScrollToBottom ? 1.0 : 0.0,
+                            child: FloatingActionButton.small(
+                              onPressed: _scrollToBottom,
+                              backgroundColor: _blue,
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              child: const Icon(Icons.keyboard_double_arrow_down,
+                                  size: 22),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_canUpdate && _showScrollToBottom)
+                      const SizedBox(height: 10),
+                    if (_canUpdate)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: _showUpdateStatusModal,
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text('Update Status'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       appBar: widget.isDialog
           ? null
           : AppBar(
@@ -850,27 +900,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 },
               ),
 
-              // ── Action button ──────────────────────────────────────────────
-              if (_canUpdate)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showUpdateStatusModal(),
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Update Status'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ),
+              SizedBox(height: _canUpdate ? 112 : 32),
             ],
           ),
         ),
