@@ -1108,7 +1108,7 @@ class _InboxCard extends StatelessWidget {
               SizedBox(
                 height: item.reportType == ReportType.hazard &&
                         item.dueDate != null
-                    ? 155
+                    ? 130
                     : 135,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -467,28 +467,39 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Dots + Indicator (News Style)
+          // Dots +  author/date
           Positioned(
             left: 16,
             right: 16,
             bottom: 12,
             child: Row(
               children: [
+                // dots
                 Row(
                   children: List.generate(
-                    _carouselItems.length,
-                    (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: i == _currentPage ? 20 : 7,
-                      height: 7,
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(
-                        color: i == _currentPage
-                            ? const Color(0xFF1A56C4)
-                            : Colors.white54,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
+                      _carouselItems.length,
+                      (i) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: i == _currentPage ? 20 : 7,
+                            height: 7,
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: BoxDecoration(
+                              color: i == _currentPage
+                                  ? Colors.white
+                                  : Colors.white38,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          )),
+                ),
+                const SizedBox(width: 10),
+                const Icon(Icons.person_outline,
+                    color: Colors.white70, size: 13),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    '${_carouselItems[_currentPage].author}  •  ${_carouselItems[_currentPage].date}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -764,7 +775,7 @@ class _ReportCard extends StatelessWidget {
               SizedBox(
                 height: report.type == ReportType.hazard &&
                         report.dueDate != null
-                    ? 155
+                    ? 130
                     : 135,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
