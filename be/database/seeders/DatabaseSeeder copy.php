@@ -95,7 +95,7 @@ class DatabaseSeeder extends Seeder
             'password_hash'  => Hash::make('123'),
             'is_active'      => true,
             'role'           => 'user',
-            'tipe_afiliasi'  => 'owner',            
+            'tipe_afiliasi'  => 'owner',
             'email_verified_at' => now(),
         ]);
 
@@ -113,7 +113,7 @@ class DatabaseSeeder extends Seeder
             'role'           => 'user',
             'tipe_afiliasi'  => 'kontraktor',
             'perusahaan_kontraktor' => 'PT PAMA',
-            'simper'         => 'PAMA-OP-12345',            
+            'simper'         => 'PAMA-OP-12345',
             'email_verified_at' => now(),
         ]);
 
@@ -397,7 +397,6 @@ class DatabaseSeeder extends Seeder
             'status'              => 'in_progress',
             'sub_status'          => 'executing',
             'location'            => 'Hauling Road KM 3',
-            'image_url'           => 'https://commons.wikimedia.org/wiki/Special:FilePath/Warning_sign_West_Bank.JPG',
             'pic_department'      => 'Budi Santoso, Sari Dewi Rahayu',
             'reported_department' => 'Operational',
             'hazard_category'     => 'KTA',
@@ -418,7 +417,6 @@ class DatabaseSeeder extends Seeder
             'status'              => 'open',
             'sub_status'          => 'validating',
             'location'            => 'Depan Workshop Utama',
-            'image_url'           => 'https://commons.wikimedia.org/wiki/Special:FilePath/Garage_Workbench_Clutter.jpg',
             'pic_department'      => 'Hendra Wijaya',
             'reported_department' => 'Operational',
             'hazard_category'     => 'TTA',
@@ -437,7 +435,6 @@ class DatabaseSeeder extends Seeder
             'status'              => 'open',
             'sub_status'          => 'approved',
             'location'            => 'Ruang Server - Lantai 3',
-            'image_url'           => 'https://commons.wikimedia.org/wiki/Special:FilePath/Outdoor_wiring.JPG',
             'pic_department'      => 'Rudi Hartono, IT Department',
             'reported_department' => 'IT',
             'hazard_category'     => 'KTA',
@@ -455,7 +452,6 @@ class DatabaseSeeder extends Seeder
             'status'              => 'closed',
             'sub_status'          => 'resolved',
             'location'            => 'Parkir Alat Berat - Sektor B',
-            'image_url'           => 'https://commons.wikimedia.org/wiki/Special:FilePath/Oil-spill.jpg',
             'pic_department'      => 'Budi Santoso',
             'reported_department' => 'Operational',
             'hazard_category'     => 'KTA',
@@ -473,7 +469,6 @@ class DatabaseSeeder extends Seeder
             'status'              => 'in_progress',
             'sub_status'          => 'preparing',
             'location'            => 'Belakang Gudang Material',
-            'image_url'           => 'https://commons.wikimedia.org/wiki/Special:FilePath/37hazwaste_%284085488575%29.jpg',
             'pic_department'      => 'Sari Dewi Rahayu, Environmental Dept',
             'reported_department' => 'Environmental',
             'hazard_category'     => 'TTA',
@@ -490,7 +485,6 @@ class DatabaseSeeder extends Seeder
             'status'         => 'closed',
             'sub_status'     => 'resolved',
             'location'       => 'Area Parkir Excavator - Sektor B',
-            'image_url'      => 'https://commons.wikimedia.org/wiki/Special:FilePath/Mining_excavator_in_Russia.jpg',
             'area'           => 'Mining Area Sektor B',
             'name_inspector' => 'Budi Santoso',
             'result'         => 'needs_follow_up',
@@ -505,7 +499,6 @@ class DatabaseSeeder extends Seeder
             'status'         => 'open',
             'sub_status'     => 'assigned',
             'location'       => 'Gedung Kantor Pusat BBE',
-            'image_url'      => 'https://commons.wikimedia.org/wiki/Special:FilePath/FireExtinguisherABC.jpg',
             'area'           => 'Gedung Kantor',
             'name_inspector' => 'Sari Dewi Rahayu',
             'result'         => 'compliant',
@@ -520,14 +513,12 @@ class DatabaseSeeder extends Seeder
             'status'         => 'in_progress',
             'sub_status'     => 'reviewing',
             'location'       => 'Area Tambang Aktif Sektor A',
-            'image_url'      => 'https://commons.wikimedia.org/wiki/Special:FilePath/Safetyequipment3030.jpg',
             'area'           => 'Mining Area Sektor A',
             'name_inspector' => 'Budi Santoso',
             'result'         => 'non_compliant',
             'notes'          => '3 dari 12 karyawan tidak menggunakan safety glasses. Diberikan teguran dan APD pengganti.',
         ]);
 
-        
         // Checklist items
         foreach ([
             ['label' => 'Cek level oli mesin',         'is_checked' => true,  'sort_order' => 0],
@@ -628,8 +619,6 @@ class DatabaseSeeder extends Seeder
             'is_active'  => true,
         ]);
 
-
-        
         // ══════════════════════════════════════════════════════════════════
         // NEWS & ARTICLES
         // ══════════════════════════════════════════════════════════════════

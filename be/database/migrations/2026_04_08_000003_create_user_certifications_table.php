@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('issuer', 100);
             $table->integer('year');
             $table->enum('status', ['active', 'expired'])->default('active');
+            $table->boolean('is_verified')->default(false);
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();

@@ -16,22 +16,23 @@ return new class extends Migration {
             $table->enum('status', ['open', 'in_progress', 'closed'])->default('open');
             $table->string('sub_status', 50)->nullable();
             $table->string('location', 200);
-            $table->string('pelapor_location', 200)->nullable();
-            $table->string('kejadian_location', 200)->nullable();
             $table->text('image_url')->nullable();
-
+            
             // Hazard-specific
             $table->enum('severity', ['low', 'medium', 'high'])->nullable();
-            $table->string('pic_department', 100)->nullable();
-            $table->string('pelaku_pelanggaran', 100)->nullable();
+            $table->string('name_pja', 100)->nullable();
             $table->string('company', 150)->nullable();
-            $table->string('area', 200)->nullable();            
+            $table->string('area', 200)->nullable();
             $table->string('reported_department', 100)->nullable();
-            $table->enum('hazard_category', ['TTA', 'KTA'])->nullable();
+            $table->string('pic_department', 100)->nullable();
+            $table->string('pelaku_pelanggaran', 150)->nullable();
+            $table->string('pelapor_location', 100)->nullable();
+            $table->string('kejadian_location', 100)->nullable();
+            $table->date('due_date')->nullable();
+            $table->string('hazard_category', 50)->nullable(); // e.g. TTA / KTA
             $table->string('hazard_subcategory', 150)->nullable();
             $table->text('suggestion')->nullable();
             $table->boolean('is_public')->default(true);
-            $table->dateTime('due_date')->nullable();
 
             $table->timestamps();
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();

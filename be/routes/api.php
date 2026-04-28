@@ -193,4 +193,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/activity',           [NotificationController::class, 'registerFcmToken']); // legacy alias
 
     Route::get('/me', [AuthController::class, 'me']);
+
+    // ── Users (admin/superadmin only) ────────────────────────────────────────
+    Route::get('/admin/users', [AuthController::class, 'adminIndex'])->middleware('role:admin,superadmin');
+    Route::post('/admin/users', [AuthController::class, 'adminStore'])->middleware('role:admin,superadmin');
+    Route::put('/admin/users/{id}', [AuthController::class, 'adminUpdate'])->middleware('role:admin,superadmin');
+    Route::put('/admin/users/{id}/approve', [AuthController::class, 'adminApprove'])->middleware('role:admin,superadmin');
+    Route::delete('/admin/users/{id}', [AuthController::class, 'adminDestroy'])->middleware('role:admin,superadmin');
+
+    // Admin: Manage Violations
+    Route::post('/admin/users/{id}/violations', [AuthController::class, 'adminStoreViolation'])->middleware('role:admin,superadmin');
+    Route::put('/admin/violations/{violationId}', [AuthController::class, 'adminUpdateViolation'])->middleware('role:admin,superadmin');
+    Route::delete('/admin/violations/{violationId}', [AuthController::class, 'adminDestroyViolation'])->middleware('role:admin,superadmin');
+
+    // Admin: Verification
+    Route::put('/admin/licenses/{id}/verify', [AuthController::class, 'adminVerifyLicense'])->middleware('role:admin,superadmin');
+    Route::put('/admin/certifications/{id}/verify', [AuthController::class, 'adminVerifyCertification'])->middleware('role:admin,superadmin');
+        
 });

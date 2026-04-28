@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->string('sub_status', 50)->nullable();
             $table->string('location', 200);
             $table->text('image_url')->nullable();
+            $table->string('company', 150)->nullable();
             
             // Inspection-specific
             $table->string('area', 100)->nullable();

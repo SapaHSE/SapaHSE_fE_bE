@@ -15,7 +15,9 @@ class ProfileController extends Controller
     public function getProfile()
     {
         /** @var User $user */
-        $user = User::with(['licenses', 'certifications', 'medicals' => function ($q) {
+        $user = User::with(['licenses', 'certifications', 'violations' => function ($q) {
+            $q->orderBy('date_of_violation', 'desc');
+        }, 'medicals' => function ($q) {
             $q->orderBy('checkup_date', 'desc');
         }])->findOrFail(Auth::id());
 
@@ -436,13 +438,15 @@ class ProfileController extends Controller
                 'license_number' => $l->license_number,
                 'expired_at'     => $l->expired_at?->format('Y-m-d'),
                 'status'         => $l->status,
+                'is_verified'    => (bool) $l->is_verified,                
             ]) : [],
             'certifications' => $user->relationLoaded('certifications') ? $user->certifications->map(fn($c) => [
-                'id'     => $c->id,
-                'name'   => $c->name,
-                'issuer' => $c->issuer,
-                'year'   => $c->year,
-                'status' => $c->status,
+                'id'          => $c->id,
+                'name'        => $c->name,
+                'issuer'      => $c->issuer,
+                'year'        => $c->year,
+                'status'      => $c->status,
+                'is_verified' => (bool) $c->is_verified,
             ]) : [],
                 'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
                 'id'                => $m->id,
@@ -463,6 +467,14 @@ class ProfileController extends Controller
                 'doctor_notes'      => $m->doctor_notes,
                 'checklist_items'   => $m->checklist_items ?? [],
             ]) : [],
+            'violations'     => $user->relationLoaded('violations') ? $user->violations->map(fn($v) => [
+                'id'                => $v->id,
+                'title'             => $v->title,
+                'location'          => $v->location,
+                'date_of_violation' => $v->date_of_violation?->format('Y-m-d'),
+                'status'            => $v->status,
+                'sanction'          => $v->sanction,
+            ]) : [],            
         ];
     }
 }

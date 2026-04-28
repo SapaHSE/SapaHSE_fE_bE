@@ -14,12 +14,21 @@ return new class extends Migration
             $table->string('full_name', 100);
             $table->string('personal_email', 150)->unique();         // Personal email — used for login & email verification
             $table->string('work_email', 150)->nullable()->unique();  // Work / office email (optional)
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('email_verification_token')->nullable();
             $table->string('phone_number', 20)->nullable();
             $table->string('position', 100)->nullable();              // Job title / jabatan
             $table->string('department', 100)->nullable();            // Division / divisi
             $table->string('company', 100)->nullable();               // Company / perusahaan
+            $table->string('tipe_afiliasi', 50)->nullable();
+            $table->string('perusahaan_kontraktor', 100)->nullable();
+            $table->string('sub_kontraktor', 100)->nullable();
+            $table->string('simper', 50)->nullable();
             $table->string('password_hash', 255);
             $table->text('profile_photo')->nullable();
+            $table->string('fcm_token')->nullable();
+            $table->timestamp('last_activity_at')->nullable();
+            $table->timestamp('last_notification_sent_at')->nullable();
             $table->boolean('is_active')->default(true);
             $table->enum('role', ['superadmin', 'admin', 'user'])->default('user');
             $table->rememberToken();

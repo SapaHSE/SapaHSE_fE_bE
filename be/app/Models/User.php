@@ -96,5 +96,10 @@ class User extends Authenticatable
     public function medicals()
     {
         return $this->hasMany(UserMedical::class, 'user_id');
-    }
+    }   
+
+    public function violations()
+    {
+        return $this->hasMany(UserViolation::class, 'user_id');
+    }    
 }

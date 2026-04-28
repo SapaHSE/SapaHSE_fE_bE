@@ -5,6 +5,9 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Mail\VerifyEmailMail;
 use App\Models\User;
+use App\Models\UserViolation;
+use App\Models\UserLicense;
+use App\Models\UserCertification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -57,6 +60,7 @@ class AuthController extends Controller
             'sub_kontraktor'            => $request->sub_kontraktor,
             'simper'                    => $request->simper,
             'role'                      => 'user',
+            'is_active'                 => false, // Require admin approval            
             'email_verification_token'  => $verificationToken,
         ]);
 
@@ -266,6 +270,7 @@ class AuthController extends Controller
         $search = $request->query('search');
         $role = $request->query('role');
         $department = $request->query('department');
+        $isActive = $request->query('is_active');        
 
         $users = User::when($search, function ($q) use ($search) {
             $q->where(function ($sub) use ($search) {
@@ -276,8 +281,9 @@ class AuthController extends Controller
         })
             ->when($role, fn($q) => $q->where('role', $role))
             ->when($department, fn($q) => $q->where('department', $department))
+            ->when($isActive !== null, fn($q) => $q->where('is_active', filter_var($isActive, FILTER_VALIDATE_BOOLEAN)))            
             ->orderBy('full_name')
-            ->paginate(10);
+            ->paginate($request->query('per_page', 10));
 
         return response()->json([
             'status' => 'success',
@@ -386,6 +392,105 @@ class AuthController extends Controller
         return response()->json([
             'status'  => 'success',
             'message' => 'User deleted successfully',
+        ]);
+    }
+
+    // POST /api/admin/users/{id}/violations
+    public function adminStoreViolation(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $request->validate([
+            'title'             => 'required|string|max:150',
+            'location'          => 'nullable|string|max:150',
+            'date_of_violation' => 'required|date',
+            'status'            => 'nullable|string|max:50',
+            'sanction'          => 'nullable|string|max:200',
+        ]);
+
+        $violation = $user->violations()->create($request->only(
+            'title', 'location', 'date_of_violation', 'status', 'sanction'
+        ));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Violation recorded successfully.',
+            'data'    => $violation,
+        ], 201);
+    }
+
+    // PUT /api/admin/violations/{violationId}
+    public function adminUpdateViolation(Request $request, $violationId)
+    {
+        $violation = UserViolation::findOrFail($violationId);
+
+        $request->validate([
+            'title'             => 'required|string|max:150',
+            'location'          => 'nullable|string|max:150',
+            'date_of_violation' => 'required|date',
+            'status'            => 'nullable|string|max:50',
+            'sanction'          => 'nullable|string|max:200',
+        ]);
+
+        $violation->update($request->only(
+            'title', 'location', 'date_of_violation', 'status', 'sanction'
+        ));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Violation updated successfully.',
+            'data'    => $violation,
+        ]);
+    }
+
+    // DELETE /api/admin/violations/{violationId}
+    public function adminDestroyViolation($violationId)
+    {
+        $violation = UserViolation::findOrFail($violationId);
+        $violation->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Violation deleted successfully.',
+        ]);
+    }
+
+    // PUT /api/admin/licenses/{id}/verify
+    public function adminVerifyLicense(Request $request, $id)
+    {
+        $license = UserLicense::findOrFail($id);
+        $license->update(['is_verified' => $request->boolean('is_verified', true)]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'License verification updated successfully.',
+            'data'    => $license,
+        ]);
+    }
+
+    // PUT /api/admin/certifications/{id}/verify
+    public function adminVerifyCertification(Request $request, $id)
+    {
+        $cert = UserCertification::findOrFail($id);
+        $cert->update(['is_verified' => $request->boolean('is_verified', true)]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Certification verification updated successfully.',
+            'data'    => $cert,
+        ]);
+    }
+
+    // PUT /api/admin/users/{id}/approve
+    public function adminApprove($id)
+    {
+        $user = User::findOrFail($id);
+        $user->update(['is_active' => true]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'User approved successfully',
+            'data'    => $user,
         ]);
     }
 
