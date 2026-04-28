@@ -320,6 +320,20 @@ class ReportService {
     return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
   }
 
+  static Future<List<String>> getCompanies({String? category}) async {
+    final query = StringBuffer('?active=1');
+    if (category != null && category.trim().isNotEmpty) {
+      query.write('&category=${Uri.encodeQueryComponent(category.trim())}');
+    }
+    final response = await ApiService.get('/companies$query');
+    if (!response.success) return const [];
+    final raw = _asList(response.data['data']);
+    return raw
+        .map((e) => Map<String, dynamic>.from(e)['name']?.toString() ?? '')
+        .where((name) => name.trim().isNotEmpty)
+        .toList();
+  }
+
   static Future<List<HazardCategoryData>> getHazardCategories() async {
     final response = await ApiService.get('/hazard-categories');
     if (!response.success) return const [];
