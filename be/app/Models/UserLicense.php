@@ -15,6 +15,8 @@ class UserLicense extends Model
         'license_number',
         'expired_at',
         'status',
+        'is_verified',
+        'file_path',
     ];
 
     protected $casts = [

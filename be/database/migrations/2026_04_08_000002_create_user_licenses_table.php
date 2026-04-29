@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('license_number', 50);
             $table->date('expired_at');
             $table->enum('status', ['active', 'expired', 'suspended'])->default('active');
+            $table->string('file_path')->nullable();            
             $table->boolean('is_verified')->default(false);
             $table->timestamps();
 

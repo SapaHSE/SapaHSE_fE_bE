@@ -157,14 +157,19 @@ class ProfileController extends Controller
             'license_number' => 'required|string|max:100',
             'expired_at'     => 'nullable|date', 
             'status'         => 'required|string|in:active,expired,suspended',
+            'file'           => 'nullable|file|max:5120', // Max 5MB            
         ]);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        $license = $user->licenses()->create($request->only(
-            'name', 'license_number', 'expired_at', 'status'
-        ));
+        $data = $request->only('name', 'license_number', 'expired_at', 'status');
+        
+        if ($request->hasFile('file')) {
+            $data['file_path'] = $request->file('file')->store('licenses', 'public');
+        }
+
+        $license = $user->licenses()->create($data);
 
         return response()->json([
             'status'  => 'success',
@@ -246,14 +251,19 @@ class ProfileController extends Controller
             'issuer' => 'required|string|max:150',
             'year'   => 'nullable|integer',
             'status' => 'required|string|in:active,expired',
+            'file'   => 'nullable|file|max:5120', // Max 5MB            
         ]);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
+        
+        $data = $request->only('name', 'issuer', 'year', 'status');
 
-        $cert = $user->certifications()->create($request->only(
-            'name', 'issuer', 'year', 'status'
-        ));
+        if ($request->hasFile('file')) {
+            $data['file_path'] = $request->file('file')->store('certifications', 'public');
+        }
+
+        $cert = $user->certifications()->create($data);
 
         return response()->json([
             'status'  => 'success',
@@ -424,6 +434,10 @@ class ProfileController extends Controller
             'position'       => $user->position,
             'department'     => $user->department,
             'company'        => $user->company,
+            'tipe_afiliasi'  => $user->tipe_afiliasi,
+            'perusahaan_kontraktor' => $user->perusahaan_kontraktor,
+            'sub_kontraktor' => $user->sub_kontraktor,
+            'simper'         => $user->simper,            
             'profile_photo'  => $user->profile_photo
                 ? (str_starts_with($user->profile_photo, 'http')
                     ? $user->profile_photo
@@ -438,7 +452,8 @@ class ProfileController extends Controller
                 'license_number' => $l->license_number,
                 'expired_at'     => $l->expired_at?->format('Y-m-d'),
                 'status'         => $l->status,
-                'is_verified'    => (bool) $l->is_verified,                
+                'is_verified'    => (bool) $l->is_verified,  
+                'file_url'       => $l->file_path ? asset('storage/' . $l->file_path) : null,                              
             ]) : [],
             'certifications' => $user->relationLoaded('certifications') ? $user->certifications->map(fn($c) => [
                 'id'          => $c->id,
@@ -447,6 +462,7 @@ class ProfileController extends Controller
                 'year'        => $c->year,
                 'status'      => $c->status,
                 'is_verified' => (bool) $c->is_verified,
+                'file_url'    => $c->file_path ? asset('storage/' . $c->file_path) : null,                
             ]) : [],
                 'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
                 'id'                => $m->id,

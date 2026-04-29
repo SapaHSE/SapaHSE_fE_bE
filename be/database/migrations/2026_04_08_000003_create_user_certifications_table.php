@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('issuer', 100);
             $table->integer('year');
             $table->enum('status', ['active', 'expired'])->default('active');
+            $table->string('file_path')->nullable();            
             $table->boolean('is_verified')->default(false);
             $table->timestamps();
 

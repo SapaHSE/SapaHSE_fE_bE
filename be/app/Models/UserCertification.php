@@ -15,6 +15,7 @@ class UserCertification extends Model
         'issuer',
         'year',
         'status',
+        'file_path',
     ];
 
     public function user()
