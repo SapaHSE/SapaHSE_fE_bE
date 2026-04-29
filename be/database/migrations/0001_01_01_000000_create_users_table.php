@@ -31,6 +31,8 @@ return new class extends Migration
             $table->timestamp('last_notification_sent_at')->nullable();
             $table->boolean('is_active')->default(true);
             $table->enum('role', ['superadmin', 'admin', 'user'])->default('user');
+            $table->string('registration_status')->default('pending');
+            $table->text('rejection_reason')->nullable();            
             $table->rememberToken();
             $table->timestamps();
         });
