@@ -28,7 +28,7 @@ return new class extends Migration {
             $table->string('pelaku_pelanggaran', 150)->nullable();
             $table->string('pelapor_location', 100)->nullable();
             $table->string('kejadian_location', 100)->nullable();
-            $table->date('due_date')->nullable();
+            $table->dateTime('due_date')->nullable();
             $table->string('hazard_category', 50)->nullable(); // e.g. TTA / KTA
             $table->string('hazard_subcategory', 150)->nullable();
             $table->text('suggestion')->nullable();

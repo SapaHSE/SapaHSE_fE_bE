@@ -317,9 +317,9 @@ class HazardReportController extends Controller
     private function formatReport(HazardReport $report, ?string $userId): array
     {
         $dueDate  = $report->due_date; // Carbon|null (cast on model)
-        $today    = now()->startOfDay();
+        $now      = now();
         $sisaHari = $dueDate
-            ? (int) $today->diffInDays($dueDate->copy()->startOfDay(), false)
+            ? (int) $now->diffInDays($dueDate, false)
             : null;
 
         return [
@@ -350,7 +350,7 @@ class HazardReportController extends Controller
             'due_date'            => $dueDate?->toDateTimeString(),
             'due_date_human'      => $dueDate?->translatedFormat('d M Y'),
             'sisa_hari'           => $sisaHari,
-            'is_overdue'          => $sisaHari !== null && $sisaHari < 0,
+            'is_overdue'          => $dueDate !== null && $dueDate->isPast(),
         ];
     }
 }
