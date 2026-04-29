@@ -27,6 +27,7 @@ class InspectionReport extends Model
         'company',
         'area',
         'name_inspector',
+        'reported_department',
         'notes',
         'result',
     ];

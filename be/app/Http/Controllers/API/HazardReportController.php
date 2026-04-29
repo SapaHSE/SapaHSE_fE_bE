@@ -49,6 +49,12 @@ class HazardReportController extends Controller
                     $sq->where('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
                     $notValidating($sq);
                 });
+                if (!empty($user->department)) {
+                    $q->orWhere(function ($sq) use ($user, $notValidating) {
+                        $sq->where('reported_department', 'like', '%' . $user->department . '%');
+                        $notValidating($sq);
+                    });
+                }
             });
         }
 
@@ -219,7 +225,10 @@ class HazardReportController extends Controller
 
         // Admin and Superadmin both have full update authority regardless of tagging.
         // Reporter and tagged PJA can also update (with the non-admin restrictions below).
-        $isPja = $report->pic_department && stripos($report->pic_department, $user->full_name) !== false;
+        // PJA = name tagged in pic_department OR user's department tagged in reported_department.
+        $isPja = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
+              || (!empty($user->department) && $report->reported_department
+                  && stripos($report->reported_department, $user->department) !== false);
         $isAdmin = in_array($user->role, ['admin', 'superadmin']);
         $isReporter = $report->user_id === $user->id;
 

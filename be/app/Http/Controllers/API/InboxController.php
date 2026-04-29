@@ -101,6 +101,9 @@ class InboxController extends Controller
                         $qq->where(function ($pj) use ($user) {
                             $pj->where('pic_department', 'like', '%' . $user->full_name . '%')
                                ->orWhere('pelaku_pelanggaran', 'like', '%' . $user->full_name . '%');
+                            if (!empty($user->department)) {
+                                $pj->orWhere('reported_department', 'like', '%' . $user->department . '%');
+                            }
                         })->where(function ($v) {
                             $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
                         });
@@ -110,7 +113,12 @@ class InboxController extends Controller
                     }
                 });
             $iQuery = InspectionReport::with(['user', 'checklistItems'])
-                ->where('name_inspector', $user->full_name)
+                ->where(function ($q) use ($user) {
+                    $q->where('name_inspector', $user->full_name);
+                    if (!empty($user->department)) {
+                        $q->orWhere('reported_department', 'like', '%' . $user->department . '%');
+                    }
+                })
                 ->where('status', '!=', 'pending');
 
             if ($isRead !== null) {

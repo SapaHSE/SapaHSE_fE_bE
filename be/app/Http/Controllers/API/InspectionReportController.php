@@ -81,6 +81,7 @@ class InspectionReportController extends Controller
             'company'             => 'nullable|string|max:150',
             'area'                => 'nullable|string|max:100',
             'inspector'           => 'nullable|string|max:150',
+            'reported_department' => 'nullable|string|max:100',
             'result'              => 'nullable|in:compliant,non_compliant,needs_follow_up',
             'notes'               => 'nullable|string',
             'checklist_items'     => 'nullable',
@@ -105,6 +106,7 @@ class InspectionReportController extends Controller
             'company'             => $request->company ? strtoupper(trim($request->company)) : null,
             'area'                => $request->area,
             'name_inspector'      => $request->inspector,
+            'reported_department' => $request->reported_department,
             'result'              => $request->result,
             'notes'               => $request->notes,
         ]);
@@ -193,13 +195,14 @@ class InspectionReportController extends Controller
     public function updateStatus(Request $request, string $id)
     {
         $request->validate([
-            'status'         => 'required|in:open,in_progress,closed,rejected',
-            'sub_status'     => 'nullable|string|max:50',
-            'message'        => 'nullable|string',
+            'status'              => 'required|in:open,in_progress,closed,rejected',
+            'sub_status'          => 'nullable|string|max:50',
+            'message'             => 'nullable|string',
             // Supabase URL preferred; legacy file upload still accepted.
-            'image_url'      => 'nullable|url|max:500',
-            'image'          => 'nullable|image|max:8192',
-            'tagged_user_id' => 'nullable|uuid|exists:users,id',
+            'image_url'           => 'nullable|url|max:500',
+            'image'               => 'nullable|image|max:8192',
+            'tagged_user_id'      => 'nullable|uuid|exists:users,id',
+            'reported_department' => 'nullable|string|max:100',
         ]);
 
         $report = InspectionReport::findOrFail($id);
@@ -207,7 +210,10 @@ class InspectionReportController extends Controller
 
         // Admin and Superadmin both have full update authority regardless of tagging.
         // Reporter and assigned Inspector can also update (with the non-admin restrictions below).
-        $isInspector = $report->name_inspector && stripos($report->name_inspector, $user->full_name) !== false;
+        // Inspector = name tagged in name_inspector OR user's department tagged in reported_department.
+        $isInspector = ($report->name_inspector && stripos($report->name_inspector, $user->full_name) !== false)
+                    || (!empty($user->department) && $report->reported_department
+                        && stripos($report->reported_department, $user->department) !== false);
         $isAdmin = in_array($user->role, ['admin', 'superadmin']);
         $isReporter = $report->user_id === $user->id;
 
@@ -241,10 +247,14 @@ class InspectionReportController extends Controller
             $imageUrl = asset('storage/' . $path);
         }
 
-        $report->update([
+        $updateData = [
             'status'     => $normalizedStatus,
             'sub_status' => $normalizedSubStatus,
-        ]);
+        ];
+        if ($request->has('reported_department')) {
+            $updateData['reported_department'] = $request->reported_department;
+        }
+        $report->update($updateData);
 
         $report->logs()->create([
             'user_id'        => Auth::id(),
@@ -300,9 +310,10 @@ class InspectionReportController extends Controller
             'created_at'      => $report->created_at,
             'time_ago'        => $report->created_at?->diffForHumans(),
             'company'         => $report->company,
-            'area'            => $report->area,
-            'name_inspector'  => $report->name_inspector,
-            'result'          => $report->result,
+            'area'                => $report->area,
+            'name_inspector'      => $report->name_inspector,
+            'reported_department' => $report->reported_department,
+            'result'              => $report->result,
             'notes'           => $report->notes,
             'checklist_items' => $report->checklistItems->map(fn($item) => $item->only(['id', 'label', 'is_checked', 'sort_order'])),
         ];
