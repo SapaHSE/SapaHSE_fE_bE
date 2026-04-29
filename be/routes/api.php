@@ -171,6 +171,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/statistics', [DashboardController::class, 'statistics'])
         ->middleware('role:admin,superadmin');
 
+    // GET /api/users  — daftar user untuk fitur Tag Orang
+    Route::get('/users', [AuthController::class, 'listUsers']);
+
     // ── QR Assets ─────────────────────────────────────────────────────────────
     // GET /api/qr-assets              → list all assets
     // GET /api/qr-assets/scan         → scan by qr_code (?qr_code=BBE-APAR-...)
@@ -199,6 +202,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/users', [AuthController::class, 'adminStore'])->middleware('role:admin,superadmin');
     Route::put('/admin/users/{id}', [AuthController::class, 'adminUpdate'])->middleware('role:admin,superadmin');
     Route::put('/admin/users/{id}/approve', [AuthController::class, 'adminApprove'])->middleware('role:admin,superadmin');
+    Route::post('/admin/users/{id}/reject', [AuthController::class, 'adminReject'])->middleware('role:admin,superadmin');
+    Route::get('/admin/registration-logs', [AuthController::class, 'adminRejectedLogs'])->middleware('role:admin,superadmin');    
     Route::delete('/admin/users/{id}', [AuthController::class, 'adminDestroy'])->middleware('role:admin,superadmin');
 
     // Admin: Manage Violations

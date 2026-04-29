@@ -4,10 +4,12 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Mail\VerifyEmailMail;
+use App\Models\RegistrationLog;
 use App\Models\User;
 use App\Models\UserViolation;
 use App\Models\UserLicense;
 use App\Models\UserCertification;
+use App\Mail\RegistrationRejectedMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -70,7 +72,7 @@ class AuthController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Registrasi berhasil. Link verifikasi telah dikirim ke email pribadi Anda. Silakan cek inbox dan verifikasi sebelum login.',
+            'message' => 'Registrasi berhasil. Akun Anda sedang menunggu persetujuan administrator. Anda akan menerima email verifikasi setelah akun disetujui.',
             'data'    => ['personal_email' => $user->personal_email],
         ], 201);
     }
@@ -244,7 +246,7 @@ class AuthController extends Controller
                     ->orWhere('employee_id', 'like', "%{$search}%");
             }))->where('is_active', true)
             ->orderBy('full_name')
-            ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'role', 'profile_photo'])
+            ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'company', 'role', 'profile_photo'])
             ->get()
             ->map(fn($u) => [
                 'id'          => $u->id,
@@ -252,6 +254,7 @@ class AuthController extends Controller
                 'employee_id' => $u->employee_id,
                 'department'  => $u->department,
                 'position'    => $u->position,
+                'company'     => $u->company,
                 'role'        => $u->role,
                 'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
             ]);
@@ -270,7 +273,8 @@ class AuthController extends Controller
         $search = $request->query('search');
         $role = $request->query('role');
         $department = $request->query('department');
-        $isActive = $request->query('is_active');        
+        $isActive = $request->query('is_active');   
+        $regStatus = $request->query('registration_status');             
 
         $users = User::when($search, function ($q) use ($search) {
             $q->where(function ($sub) use ($search) {
@@ -281,7 +285,9 @@ class AuthController extends Controller
         })
             ->when($role, fn($q) => $q->where('role', $role))
             ->when($department, fn($q) => $q->where('department', $department))
-            ->when($isActive !== null, fn($q) => $q->where('is_active', filter_var($isActive, FILTER_VALIDATE_BOOLEAN)))            
+            ->when($isActive !== null, fn($q) => $q->where('is_active', filter_var($isActive, FILTER_VALIDATE_BOOLEAN)))
+            ->when($regStatus, fn($q) => $q->where('registration_status', $regStatus))
+            ->orderBy('registration_status', 'desc') // Pending first usually if alphabetical                                  
             ->orderBy('full_name')
             ->paginate($request->query('per_page', 10));
 
@@ -485,7 +491,29 @@ class AuthController extends Controller
     public function adminApprove($id)
     {
         $user = User::findOrFail($id);
-        $user->update(['is_active' => true]);
+        if ($user->is_active) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'User sudah aktif sebelumnya.',
+            ], 422);
+        }
+
+        $user->update([
+            'is_active' => true,
+            'registration_status' => 'approved'
+        ]);
+
+        // Kirim email verifikasi saat di-approve (jika belum pernah diverifikasi)
+        if (!$user->email_verified_at) {
+            $token = $user->email_verification_token;
+            if (!$token) {
+                $token = Str::random(64);
+                $user->update(['email_verification_token' => $token]);
+            }
+            
+            $verificationUrl = url("/api/email/verify/{$user->id}/{$token}");
+            Mail::to($user->personal_email)->send(new \App\Mail\VerifyEmailMail($verificationUrl, $user->full_name));
+        }
 
         return response()->json([
             'status'  => 'success',
@@ -494,6 +522,55 @@ class AuthController extends Controller
         ]);
     }
 
+        // POST /api/admin/users/{id}/reject
+    public function adminReject(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->registration_status !== 'pending') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya pendaftaran pending yang dapat ditolak.',
+            ], 422);
+        }
+
+        $reason = $request->input('reason');
+        
+        // Create registration log entry
+        RegistrationLog::create([
+            'full_name'        => $user->full_name,
+            'employee_id'      => $user->employee_id,
+            'personal_email'   => $user->personal_email,
+            'phone_number'     => $user->phone_number,
+            'company'          => $user->company,
+            'department'       => $user->department,
+            'rejection_reason' => $reason,
+            'rejected_at'      => now(),
+        ]);
+
+        // Kirim email penolakan SEBELUM di-delete (agar data email masih ada)
+        Mail::to($user->personal_email)->send(new RegistrationRejectedMail($user->full_name, $reason));
+
+        // Delete the user record completely from users table
+        $user->delete();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Pendaftaran berhasil ditolak dan data telah dibersihkan. Riwayat tersimpan di log.',
+        ]);
+    }
+
+    // GET /api/admin/registration-logs
+    public function adminRejectedLogs(Request $request)
+    {
+        $logs = RegistrationLog::orderBy('rejected_at', 'desc')->paginate($request->query('per_page', 10));
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Registration logs retrieved successfully',
+            'data'    => $logs,
+        ]);
+    }
 
     private function formatUser(User $user): array
     {

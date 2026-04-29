@@ -31,6 +31,8 @@ class User extends Authenticatable
         'profile_photo',
         'is_active',
         'role',
+        'registration_status',
+        'rejection_reason',        
         'fcm_token',
         'last_activity_at',
         'last_notification_sent_at',
