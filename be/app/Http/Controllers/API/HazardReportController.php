@@ -126,6 +126,17 @@ class HazardReportController extends Controller
             $imageUrl = asset('storage/' . $path);
         }
 
+       // Auto-tag Departemen HSE
+        $picDepartment = $request->pic_department;
+        if (empty($picDepartment)) {
+            $picDepartment = 'Departemen HSE';
+        } else {
+            // Append if not already there
+            if (stripos($picDepartment, 'HSE') === false) {
+                $picDepartment .= ', Departemen HSE';
+            }
+        }
+
         $report = HazardReport::create([
             'user_id'             => Auth::id(),
             'title'               => $request->title,

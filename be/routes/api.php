@@ -130,7 +130,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // GET /api/users  — daftar user untuk fitur Tag Orang
     Route::get('/users', [AuthController::class, 'listUsers']);
-
+    
     // GET /api/departments  — daftar departemen unik (semua role yang login)
     Route::get('/departments', [AuthController::class, 'listDepartments']);
 
