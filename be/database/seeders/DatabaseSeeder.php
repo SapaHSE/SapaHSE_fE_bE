@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             HazardCategorySeeder::class,
             CompanySeeder::class,
             AreaSeeder::class,
+            DepartmentSeeder::class,            
         ]);
         // ══════════════════════════════════════════════════════════════════
         // USERS
