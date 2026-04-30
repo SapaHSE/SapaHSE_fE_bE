@@ -103,6 +103,8 @@ class HazardReportController extends Controller
             // Supabase Storage URL (uploaded by client). Legacy `image` (file)
             // is still accepted as a fallback for older app builds.
             'image_url'           => 'nullable|url|max:500',
+            'image_urls'          => 'nullable|array|max:10',
+            'image_urls.*'        => 'url|max:500',
             'image'               => 'nullable|image|max:4096',
             'severity'            => 'required|in:low,medium,high',
             'pic_department'      => 'nullable|string|max:100',
@@ -118,12 +120,20 @@ class HazardReportController extends Controller
             'isPublic'            => 'nullable|string',
         ]);
 
-        // Prefer the Supabase URL the client uploaded directly. Fall back to
+        // Prefer the Supabase URLs the client uploaded directly. Fall back to
         // the multipart file upload (legacy path) only if no URL was provided.
+        $imageUrls = $request->input('image_urls', []);
+        if (!is_array($imageUrls)) $imageUrls = [];
+        $imageUrls = array_values(array_filter($imageUrls, fn($u) => is_string($u) && $u !== ''));
+
         $imageUrl = $request->input('image_url');
+        if (!$imageUrl && !empty($imageUrls)) {
+            $imageUrl = $imageUrls[0];
+        }
         if (!$imageUrl && $request->hasFile('image')) {
             $path = $request->file('image')->store('reports', 'public');
             $imageUrl = asset('storage/' . $path);
+            $imageUrls = [$imageUrl];
         }
 
        // Auto-tag Departemen HSE
@@ -147,6 +157,7 @@ class HazardReportController extends Controller
             'pelapor_location'    => $request->pelapor_location,
             'kejadian_location'   => $request->kejadian_location,
             'image_url'           => $imageUrl,
+            'image_urls'          => empty($imageUrls) ? null : $imageUrls,
             'severity'            => $request->severity,
             'pic_department'      => $request->pic_department,
             'pelaku_pelanggaran'  => $request->pelaku_pelanggaran,
@@ -344,6 +355,7 @@ class HazardReportController extends Controller
             'pelapor_location'    => $report->pelapor_location,
             'kejadian_location'   => $report->kejadian_location,
             'image_url'           => $report->image_url,
+            'image_urls'          => $report->image_urls ?? [],
             'is_read'             => $userId ? $report->isReadBy($userId) : false,
             'reported_by'         => $report->user ? $report->user->only(['id', 'full_name', 'employee_id', 'department', 'company']) : null,
             'created_at'          => $report->created_at,

@@ -26,6 +26,7 @@ class HazardReport extends Model
         'pelapor_location',
         'kejadian_location',
         'image_url',
+        'image_urls',
         'severity',
         'pic_department',
         'pelaku_pelanggaran',
@@ -40,8 +41,9 @@ class HazardReport extends Model
     ];
 
     protected $casts = [
-        'due_date'  => 'datetime',
-        'is_public' => 'boolean',
+        'due_date'   => 'datetime',
+        'is_public'  => 'boolean',
+        'image_urls' => 'array',
     ];
 
     public function user()
