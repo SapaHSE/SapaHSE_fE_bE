@@ -79,7 +79,10 @@ class HazardReport extends Model
                     'low'    => 14,
                     default  => 7,
                 };
-                $model->due_date = now()->addDays($days);
+                // Keep exact timestamp baseline from creation time (hour/min/sec),
+                // not day-rounded calculation.
+                $baseTime = $model->created_at ?? now();
+                $model->due_date = $baseTime->copy()->addDays($days);
             }
 
             // 2. Generate Ticket Number

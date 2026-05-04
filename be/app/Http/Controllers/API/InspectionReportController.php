@@ -247,6 +247,20 @@ class InspectionReportController extends Controller
             $imageUrl = asset('storage/' . $path);
         }
 
+        if (in_array($normalizedSubStatus, ['preparing', 'executing', 'reviewing', 'resolved'])) {
+            $hasAssignedLog = $report->logs()->where('sub_status', 'assigned')->exists();
+            if (!$hasAssignedLog) {
+                $report->logs()->create([
+                    'user_id'        => Auth::id(),
+                    'tagged_user_id' => $request->tagged_user_id,
+                    'status'         => 'open',
+                    'sub_status'     => 'assigned',
+                    'message'        => null,
+                    'image_url'      => null,
+                ]);
+            }
+        }
+
         $updateData = [
             'status'     => $normalizedStatus,
             'sub_status' => $normalizedSubStatus,
@@ -276,20 +290,30 @@ class InspectionReportController extends Controller
     {
         $report = InspectionReport::findOrFail($id);
         $logs = $report->logs()->with(['user', 'taggedUser'])->get();
+        $assignmentName = collect([
+            $report->reported_department,
+            $report->name_inspector,
+        ])->filter(fn($value) => !empty(trim((string) $value)))->implode(', ');
 
         return response()->json([
             'status' => 'success',
-            'data'   => $logs->map(fn($log) => [
-                'id'          => $log->id,
-                'status'      => $log->status,
-                'sub_status'  => $log->sub_status,
-                'message'     => $log->message,
-                'image_url'   => $log->image_url,
-                'user_name'   => $log->user->full_name ?? 'System',
-                'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
-                'created_at'  => $log->created_at->format('Y-m-d H:i:s'),
-                'date_human'  => $log->created_at->format('d M Y, H:i'),
-            ])
+            'data'   => $logs->map(function ($log) use ($assignmentName) {
+                $userName = $log->sub_status === 'assigned'
+                    ? ($log->taggedUser->full_name ?? $assignmentName)
+                    : ($log->user->full_name ?? 'System');
+
+                return [
+                    'id'          => $log->id,
+                    'status'      => $log->status,
+                    'sub_status'  => $log->sub_status,
+                    'message'     => $log->message,
+                    'image_url'   => $log->image_url,
+                    'user_name'   => $userName,
+                    'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
+                    'created_at'  => $log->created_at->format('Y-m-d H:i:s'),
+                    'date_human'  => $log->created_at->format('d M Y, H:i'),
+                ];
+            })
         ]);
     }
 
