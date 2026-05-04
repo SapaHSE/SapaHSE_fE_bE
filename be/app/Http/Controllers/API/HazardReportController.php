@@ -265,28 +265,7 @@ class HazardReportController extends Controller
             $normalizedSubStatus = 'rejected';
         }
 
-        // ========== NEW: STATE MACHINE VALIDATION ==========
-        $validationResult = \App\Services\ReportStatusValidator::validateTransition(
-            $report,
-            $normalizedStatus,
-            $normalizedSubStatus,
-            $isAdmin
-        );
-
-        if (!$validationResult['valid']) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $validationResult['error'],
-                'current_state' => [
-                    'status' => $report->status,
-                    'sub_status' => $report->sub_status,
-                ],
-                'suggestion' => \App\Services\ReportStatusValidator::getNextStepSuggestion($report),
-            ], 422);
-        }
-        // ========== END STATE MACHINE VALIDATION ==========
-
-        // Additional restrictions for non-admins (kept for compatibility)
+        // Additional restrictions for non-admins
         if (!$isAdmin) {
             // Cannot select 'validating' or 'approved'
             if (in_array($normalizedSubStatus, ['validating', 'approved'])) {
@@ -300,7 +279,7 @@ class HazardReportController extends Controller
 
         $hasAttachment = $request->filled('image_url') || $request->hasFile('image');
         if ($normalizedSubStatus === 'reviewing' && !$hasAttachment) {
-            return response()->json(['status' => 'error', 'message' => 'Lampiran wajib. Bukti foto harus dilampirkan untuk tahap verifikasi.'], 422);
+            return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
         }
 
         // Prefer client-supplied Supabase URL; fall back to legacy file upload.
