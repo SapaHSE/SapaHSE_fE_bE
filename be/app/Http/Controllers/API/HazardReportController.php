@@ -297,7 +297,7 @@ class HazardReportController extends Controller
                     'tagged_user_id' => $request->tagged_user_id,
                     'status'         => 'open',
                     'sub_status'     => 'assigned',
-                    'message'        => null,
+                    'message'        => $this->buildAssignmentTagMessage($report, $request),
                     'image_url'      => null,
                 ]);
             }
@@ -341,9 +341,10 @@ class HazardReportController extends Controller
         return response()->json([
             'status' => 'success',
             'data'   => $logs->map(function ($log) use ($assignmentName) {
-                $userName = $log->sub_status === 'assigned'
-                    ? ($log->taggedUser->full_name ?? $assignmentName)
-                    : ($log->user->full_name ?? 'System');
+                $userName = $log->user->full_name
+                    ?? ($log->sub_status === 'assigned'
+                        ? ($log->taggedUser->full_name ?? $assignmentName)
+                        : 'System');
 
                 return [
                     'id'          => $log->id,
@@ -358,6 +359,38 @@ class HazardReportController extends Controller
                 ];
             })
         ]);
+    }
+
+    private function buildAssignmentTagMessage(HazardReport $report, Request $request): ?string
+    {
+        $targets = collect();
+
+        if ($request->filled('tagged_user_id')) {
+            $taggedUser = User::find($request->tagged_user_id);
+            if ($taggedUser && trim((string) $taggedUser->full_name) !== '') {
+                $targets->push(trim($taggedUser->full_name));
+            }
+        }
+
+        foreach ([$report->pic_department, $report->reported_department] as $field) {
+            if (empty($field)) {
+                continue;
+            }
+
+            foreach (preg_split('/[,;]+/', (string) $field) ?: [] as $value) {
+                $value = trim($value);
+                if ($value !== '') {
+                    $targets->push($value);
+                }
+            }
+        }
+
+        $targets = $targets->filter()->unique()->values();
+        if ($targets->isEmpty()) {
+            return null;
+        }
+
+        return 'TAG: ' . $targets->implode(', ');
     }
 
     private function formatReport(HazardReport $report, ?string $userId): array
