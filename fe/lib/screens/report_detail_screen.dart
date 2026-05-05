@@ -50,6 +50,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     super.initState();
     _report = ReportStore.instance.getById(widget.report.id) ?? widget.report;
     _timelineFuture = ReportStore.instance.loadTimeline(_report.id);
+    // Rebuild after timeline first loads so carousel can include log images.
+    _timelineFuture.whenComplete(() {
+      if (mounted) setState(() {});
+    });
     _loadUserAndRefresh();
     _updateStatusFabController = AnimationController(
       vsync: this,
@@ -287,7 +291,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final List<String> images = [_report.imageUrl];
+    final timelineEvents = ReportStore.instance.getTimeline(_report.id);
+    final List<String> images = [
+      ..._report.imageUrls,
+      ...timelineEvents
+          .where((e) => e.photoPaths.isNotEmpty)
+          .expand((e) => e.photoPaths),
+    ];
+    if (images.isEmpty) {
+      images.add('https://placehold.co/600x400?text=No+Image');
+    }
 
     return Scaffold(
       backgroundColor: widget.isDialog ? Colors.white : const Color(0xFFF0F0F0),
@@ -1525,7 +1538,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   static const _hseKeywords = ['hse', 'k3'];
 
   List<String> _departments = [];
-  XFile? _attachedPhoto;
+  final List<XFile> _attachedPhotos = [];
   bool _isSaving = false;
 
   final _blue = const Color(0xFF1A56C4);
@@ -1597,8 +1610,17 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
 
   Future<void> _pickPhoto(ImageSource source) async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, imageQuality: 70);
-    if (picked != null) setState(() => _attachedPhoto = picked);
+    if (source == ImageSource.gallery) {
+      final picked = await picker.pickMultiImage(imageQuality: 70);
+      if (picked.isNotEmpty) {
+        setState(() => _attachedPhotos.addAll(picked));
+      }
+    } else {
+      final picked = await picker.pickImage(source: source, imageQuality: 70);
+      if (picked != null) {
+        setState(() => _attachedPhotos.add(picked));
+      }
+    }
   }
 
   void _showPhotoOptions() {
@@ -1917,7 +1939,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   }
 
   Future<void> _handleSave() async {
-    if (_selectedSub == ReportSubStatus.reviewing && _attachedPhoto == null) {
+    if (_selectedSub == ReportSubStatus.reviewing && _attachedPhotos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Foto bukti wajib dilampirkan!')),
       );
@@ -1955,7 +1977,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
         _selectedStatus,
         newSubStatus: _selectedSub,
         note: finalNote,
-        photoPath: _attachedPhoto?.path,
+        photoPaths: _attachedPhotos.map((f) => f.path).toList(),
         department: department,
         picDepartment: picDepartment,
         taggedUserId: taggedUserId,
@@ -2221,26 +2243,74 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                 child: CustomPaint(
                   painter: _DashedRectPainter(color: Colors.grey.shade300),
                   child: Center(
-                    child: _attachedPhoto != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(File(_attachedPhoto!.path),
-                                height: 60, width: 60, fit: BoxFit.cover))
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.camera_alt,
-                                  size: 20, color: Colors.grey),
-                              const SizedBox(width: 8),
-                              Text('Tambah foto bukti penyelesaian',
-                                  style: TextStyle(
-                                      color: Colors.grey.shade400,
-                                      fontSize: 14)),
-                            ]),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _attachedPhotos.isEmpty
+                              ? Icons.camera_alt
+                              : Icons.add_a_photo,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _attachedPhotos.isEmpty
+                              ? 'Tambah foto bukti penyelesaian'
+                              : 'Tambah foto lagi (${_attachedPhotos.length})',
+                          style: TextStyle(
+                              color: Colors.grey.shade500, fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
+            if (_attachedPhotos.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 72,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _attachedPhotos.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, idx) {
+                    final photo = _attachedPhotos[idx];
+                    return Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(photo.path),
+                            height: 72,
+                            width: 72,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: -4,
+                          right: -4,
+                          child: InkWell(
+                            onTap: () => setState(
+                                () => _attachedPhotos.removeAt(idx)),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              padding: const EdgeInsets.all(2),
+                              child: const Icon(Icons.close,
+                                  size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
 
             TextField(

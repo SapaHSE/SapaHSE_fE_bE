@@ -13,6 +13,7 @@ class ReportLogEntry {
   final String actor;
   final String? note;
   final String? photoUrl;
+  final List<String> photoUrls;
 
   const ReportLogEntry({
     required this.status,
@@ -21,6 +22,7 @@ class ReportLogEntry {
     this.subStatus,
     this.note,
     this.photoUrl,
+    this.photoUrls = const [],
   });
 }
 
@@ -74,7 +76,7 @@ class ReportService {
     String? pelakuPelanggaran,
     String? pelaporLocation,
     String? kejadianLocation,
-    String? imagePath,
+    List<String> imagePaths = const [],
     bool isPublic = true,
   }) async {
     final fields = <String, dynamic>{
@@ -103,19 +105,25 @@ class ReportService {
       'isPublic': isPublic.toString(),
     };
 
-    // 1) Upload image to Supabase Storage first (if provided)
-    if (imagePath != null && imagePath.isNotEmpty) {
+    // 1) Upload semua image ke Supabase Storage dulu (jika ada)
+    final uploadedUrls = <String>[];
+    for (final path in imagePaths) {
+      if (path.isEmpty) continue;
       final imageUrl = await SupabaseStorageService.uploadImage(
-        imagePath: imagePath,
+        imagePath: path,
         folder: SupabaseConfig.hazardFolder,
       );
       if (imageUrl == null) {
         return ReportActionResult.error('Gagal mengunggah gambar ke Supabase.');
       }
-      fields['image_url'] = imageUrl;
+      uploadedUrls.add(imageUrl);
+    }
+    if (uploadedUrls.isNotEmpty) {
+      fields['image_url'] = uploadedUrls.first; // back-compat
+      fields['image_urls'] = uploadedUrls;
     }
 
-    // 2) Send only JSON fields (including image_url) to Laravel
+    // 2) Send only JSON fields (including image_url(s)) to Laravel
     final response =
         await ApiService.post('/hazard-reports', fields);
 
@@ -142,7 +150,7 @@ class ReportService {
     String? result,
     String? notes,
     List<Map<String, dynamic>>? checklistItems,
-    String? imagePath,
+    List<String> imagePaths = const [],
   }) async {
     final fields = <String, dynamic>{
       'title': title,
@@ -158,19 +166,25 @@ class ReportService {
         'checklist_items': jsonEncode(checklistItems),
     };
 
-    // 1) Upload image to Supabase Storage first (if provided)
-    if (imagePath != null && imagePath.isNotEmpty) {
+    // 1) Upload semua image ke Supabase Storage dulu (jika ada)
+    final uploadedUrls = <String>[];
+    for (final path in imagePaths) {
+      if (path.isEmpty) continue;
       final imageUrl = await SupabaseStorageService.uploadImage(
-        imagePath: imagePath,
+        imagePath: path,
         folder: SupabaseConfig.inspectionFolder,
       );
       if (imageUrl == null) {
         return ReportActionResult.error('Gagal mengunggah gambar ke Supabase.');
       }
-      fields['image_url'] = imageUrl;
+      uploadedUrls.add(imageUrl);
+    }
+    if (uploadedUrls.isNotEmpty) {
+      fields['image_url'] = uploadedUrls.first; // back-compat
+      fields['image_urls'] = uploadedUrls;
     }
 
-    // 2) Send only JSON fields (including image_url) to Laravel
+    // 2) Send only JSON fields (including image_url(s)) to Laravel
     final response =
         await ApiService.post('/inspection-reports', fields);
 
@@ -193,7 +207,7 @@ class ReportService {
     required ReportStatus status,
     ReportSubStatus? subStatus,
     String? message,
-    String? imagePath,
+    List<String> imagePaths = const [],
     String? taggedUserId,
     String? department,
     String? picDepartment,
@@ -219,17 +233,23 @@ class ReportService {
       fields['pic_department'] = picDepartment;
     }
 
-    // Upload status-update image to Supabase Storage first (if provided)
-    if (imagePath != null && imagePath.isNotEmpty) {
+    // Upload semua status-update image ke Supabase Storage dulu (jika ada)
+    final uploadedUrls = <String>[];
+    for (final path in imagePaths) {
+      if (path.isEmpty) continue;
       final imageUrl = await SupabaseStorageService.uploadImage(
-        imagePath: imagePath,
+        imagePath: path,
         folder: SupabaseConfig.reportLogsFolder,
       );
       if (imageUrl == null) {
         return ReportActionResult.error(
             'Gagal mengunggah gambar ke Supabase.');
       }
-      fields['image_url'] = imageUrl;
+      uploadedUrls.add(imageUrl);
+    }
+    if (uploadedUrls.isNotEmpty) {
+      fields['image_url'] = uploadedUrls.first; // back-compat
+      fields['image_urls'] = uploadedUrls;
     }
 
     debugPrint('Updating status for report ${report.id} to ${status.name}');
@@ -503,11 +523,28 @@ class ReportService {
     return response.success;
   }
 
+  static List<String> _parseImageUrls(Map<String, dynamic> json) {
+    final urls = <String>[];
+    final raw = json['image_urls'];
+    if (raw is List) {
+      for (final item in raw) {
+        final n = normalizeStorageUrl(item?.toString());
+        if (n != null && n.isNotEmpty) urls.add(n);
+      }
+    }
+    if (urls.isEmpty) {
+      final n = normalizeStorageUrl(json['image_url']?.toString());
+      if (n != null && n.isNotEmpty) urls.add(n);
+    }
+    return urls;
+  }
+
   static Report _mapHazardReport(Map<String, dynamic> json) {
     final severity =
         _severityFromApi(json['severity']?.toString()) ?? ReportSeverity.medium;
     final rawStatus = json['status']?.toString();
     final rawSubStatus = json['sub_status']?.toString();
+    final imageUrls = _parseImageUrls(json);
     return Report(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '-',
@@ -535,7 +572,8 @@ class ReportService {
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
       reporterId: _reporterId(json['reported_by']),
-      imageUrl: _safeImageUrl(json['image_url']?.toString()),
+      imageUrl: imageUrls.isNotEmpty ? imageUrls.first : _placeholderImage,
+      imageUrls: imageUrls,
       ticketNumber: json['ticket_number']?.toString(),
       area: json['area']?.toString(),
       nameInspector: json['name_inspector']?.toString(),
@@ -554,6 +592,7 @@ class ReportService {
           .map((e) => ChecklistItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
     }
+    final imageUrls = _parseImageUrls(json);
 
     return Report(
       id: json['id']?.toString() ?? '',
@@ -569,7 +608,8 @@ class ReportService {
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
       reporterId: _reporterId(json['reported_by']),
-      imageUrl: _safeImageUrl(json['image_url']?.toString()),
+      imageUrl: imageUrls.isNotEmpty ? imageUrls.first : _placeholderImage,
+      imageUrls: imageUrls,
       ticketNumber: json['ticket_number']?.toString(),
       area: json['area']?.toString(),
       nameInspector: json['name_inspector']?.toString() ?? json['inspector']?.toString(),
@@ -581,6 +621,7 @@ class ReportService {
   static ReportLogEntry _mapLogEntry(Map<String, dynamic> json) {
     final rawStatus = json['status']?.toString();
     final rawSubStatus = json['sub_status']?.toString();
+    final photoUrls = _parseImageUrls(json);
     return ReportLogEntry(
       status: _statusFromApi(rawStatus),
       subStatus: _subStatusFromApi(rawSubStatus) ??
@@ -590,7 +631,8 @@ class ReportService {
           ? json['user_name'].toString()
           : 'System',
       note: json['message']?.toString(),
-      photoUrl: normalizeStorageUrl(json['image_url']?.toString()),
+      photoUrl: photoUrls.isNotEmpty ? photoUrls.first : null,
+      photoUrls: photoUrls,
     );
   }
 

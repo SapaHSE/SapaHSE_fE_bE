@@ -87,6 +87,7 @@ class Report {
   final String reportedBy;
   final String? reporterId;
   final String imageUrl;
+  final List<String> imageUrls;
   final String? ticketNumber;
 
   // Inspection specific fields
@@ -121,6 +122,7 @@ class Report {
     required this.reportedBy,
     this.reporterId,
     required this.imageUrl,
+    this.imageUrls = const [],
     this.ticketNumber,
     this.area,
     this.nameInspector,
@@ -141,6 +143,22 @@ class Report {
       checklistItems = checklistRaw
           .map((e) => ChecklistItem.fromJson(Map<String, dynamic>.from(e)))
           .toList();
+    }
+
+    // Parse image_urls (multi-image). Fallback to [image_url] for legacy reports.
+    final List<String> parsedImageUrls = [];
+    final rawImageUrls = json['image_urls'];
+    if (rawImageUrls is List) {
+      for (final raw in rawImageUrls) {
+        final normalized = normalizeStorageUrl(raw?.toString());
+        if (normalized != null && normalized.isNotEmpty) {
+          parsedImageUrls.add(normalized);
+        }
+      }
+    }
+    final singleImageUrl = normalizeStorageUrl(json['image_url']?.toString());
+    if (parsedImageUrls.isEmpty && singleImageUrl != null) {
+      parsedImageUrls.add(singleImageUrl);
     }
 
     return Report(
@@ -176,8 +194,10 @@ class Report {
       createdAt: _parseDate(json['created_at']),
       reportedBy: _parseReportedBy(json['reported_by']),
       reporterId: _parseReporterId(json['reported_by']),
-      imageUrl: normalizeStorageUrl(json['image_url']?.toString()) ??
-          'https://placehold.co/600x400?text=No+Image',
+      imageUrl: parsedImageUrls.isNotEmpty
+          ? parsedImageUrls.first
+          : 'https://placehold.co/600x400?text=No+Image',
+      imageUrls: parsedImageUrls,
       ticketNumber: json['ticket_number']?.toString(),
       area: json['area']?.toString(),
       nameInspector: json['name_inspector']?.toString(),

@@ -515,7 +515,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           pelakuPelanggaran: pelakuStr,
           pelaporLocation: _pelaporLocationCtrl.text.trim(),
           kejadianLocation: _kejadianLocationCtrl.text.trim(),
-          imagePath: _photoFiles.isNotEmpty ? _photoFiles.first.path : null,
+          imagePaths: _photoFiles.map((f) => f.path).toList(),
           isPublic: _isPublic,
         );
 

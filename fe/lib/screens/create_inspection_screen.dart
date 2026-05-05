@@ -1,5 +1,10 @@
+import 'dart:io' show File;
 import 'dart:math' show Random;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../data/report_store.dart';
 import '../services/cloud_save_service.dart';
 import '../services/report_service.dart';
@@ -27,6 +32,10 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
   String _selectedArea = 'Area Tambang';
   String _selectedResult = 'Sesuai';
   bool _isSubmitting = false;
+
+  // ── Foto inspeksi (multi-image) ────────────────────────────────────────────
+  final List<XFile> _photoFiles = [];
+  final _picker = ImagePicker();
 
   // ── Department tagging ─────────────────────────────────────────────────────
   // Departemen yang di-tag akan disimpan ke `reported_department` (comma-joined).
@@ -189,6 +198,113 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
     super.dispose();
   }
 
+  // ── Photo picker (mengikuti pola create_hazard_screen) ────────────────────
+  Future<XFile?> _compressAndConvertImage(XFile file) async {
+    try {
+      if (kIsWeb) return file;
+      final dir = await getTemporaryDirectory();
+      final targetPath =
+          '${dir.path}/${DateTime.now().millisecondsSinceEpoch}_compressed.jpg';
+      final result = await FlutterImageCompress.compressAndGetFile(
+        file.path,
+        targetPath,
+        quality: 80,
+        format: CompressFormat.jpeg,
+      );
+      return result == null ? file : XFile(result.path);
+    } catch (e) {
+      debugPrint('Compression error: $e');
+      return file;
+    }
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    try {
+      if (source == ImageSource.gallery) {
+        final picked = await _picker.pickMultiImage(
+          imageQuality: 80,
+          maxWidth: 1280,
+        );
+        if (picked.isNotEmpty) {
+          for (final file in picked) {
+            final compressed = await _compressAndConvertImage(file);
+            if (compressed != null) {
+              setState(() => _photoFiles.add(compressed));
+            }
+          }
+        }
+      } else {
+        final picked = await _picker.pickImage(
+          source: source,
+          imageQuality: 80,
+          maxWidth: 1280,
+        );
+        if (picked != null) {
+          final compressed = await _compressAndConvertImage(picked);
+          if (compressed != null) setState(() => _photoFiles.add(compressed));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Gagal mengambil foto: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
+  }
+
+  void _showPhotoSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Tambah Foto Inspeksi',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _pickPhoto(ImageSource.camera);
+                        },
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Kamera'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _pickPhoto(ImageSource.gallery);
+                        },
+                        icon: const Icon(Icons.photo),
+                        label: const Text('Galeri'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // ── Submit ─────────────────────────────────────────────────────────────────
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -213,6 +329,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
           'checklist': _checklistItems
               .map((e) => {'label': e['label'], 'checked': e['checked']})
               .toList(),
+          'photoPaths': _photoFiles.map((f) => f.path).toList(),
         },
         createdAt: DateTime.now(),
       );
@@ -248,6 +365,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                     'checked': e['checked'],
                   })
               .toList(),
+          imagePaths: _photoFiles.map((f) => f.path).toList(),
         );
 
         if (!mounted) return;
@@ -410,46 +528,100 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Photo placeholder ─────────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                      color: _blue.withValues(alpha: 0.3), width: 1.5),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: const BoxDecoration(
-                          color: _blueLight, shape: BoxShape.circle),
-                      child: const Icon(Icons.camera_alt_outlined,
-                          color: _blue, size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Tambah Foto Inspeksi',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: _blue,
-                                fontSize: 12)),
-                        Text('Kamera atau Galeri',
-                            style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      ],
-                    ),
-                    const Spacer(),
-                    const Icon(Icons.chevron_right,
-                        color: Colors.grey, size: 18),
-                  ],
+              // ── Photo picker (multi-image) ────────────────────────────
+              InkWell(
+                onTap: _showPhotoSourceSheet,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: _blue.withValues(alpha: 0.3), width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                            color: _blueLight, shape: BoxShape.circle),
+                        child: const Icon(Icons.camera_alt_outlined,
+                            color: _blue, size: 16),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Tambah Foto Inspeksi',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: _blue,
+                                  fontSize: 12)),
+                          Text(
+                            _photoFiles.isEmpty
+                                ? 'Kamera atau Galeri'
+                                : '${_photoFiles.length} foto dipilih',
+                            style: const TextStyle(
+                                fontSize: 10, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      const Icon(Icons.chevron_right,
+                          color: Colors.grey, size: 18),
+                    ],
+                  ),
                 ),
               ),
+              if (_photoFiles.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _photoFiles.length,
+                    itemBuilder: (context, index) {
+                      final photo = _photoFiles[index];
+                      return Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        width: 100,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: kIsWeb
+                                  ? Image.network(photo.path, fit: BoxFit.cover)
+                                  : Image.file(File(photo.path),
+                                      fit: BoxFit.cover),
+                            ),
+                            Positioned(
+                              right: 4,
+                              top: 4,
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                    () => _photoFiles.removeAt(index)),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle),
+                                  child: const Icon(Icons.close,
+                                      color: Colors.white, size: 14),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 16),
 

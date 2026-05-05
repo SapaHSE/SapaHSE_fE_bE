@@ -9,7 +9,7 @@ class TimelineEvent {
   final DateTime timestamp;
   final String actor;
   final String? note;
-  final String? photoPath;
+  final List<String> photoPaths;
 
   const TimelineEvent({
     required this.status,
@@ -17,8 +17,11 @@ class TimelineEvent {
     required this.timestamp,
     required this.actor,
     this.note,
-    this.photoPath,
+    this.photoPaths = const [],
   });
+
+  /// Konvenien: ambil foto pertama (untuk UI lama yang baru perlu satu).
+  String? get photoPath => photoPaths.isNotEmpty ? photoPaths.first : null;
 }
 
 class ReportStore {
@@ -68,7 +71,7 @@ class ReportStore {
     String? pelakuPelanggaran,
     String? pelaporLocation,
     String? kejadianLocation,
-    String? imagePath,
+    List<String> imagePaths = const [],
     bool isPublic = true,
   }) async {
     final result = await ReportService.createHazardReport(
@@ -86,7 +89,7 @@ class ReportStore {
       pelakuPelanggaran: pelakuPelanggaran,
       pelaporLocation: pelaporLocation,
       kejadianLocation: kejadianLocation,
-      imagePath: imagePath,
+      imagePaths: imagePaths,
       isPublic: isPublic,
     );
     if (!result.success || result.report == null) {
@@ -107,7 +110,7 @@ class ReportStore {
     String? result,
     String? notes,
     List<Map<String, dynamic>>? checklistItems,
-    String? imagePath,
+    List<String> imagePaths = const [],
   }) async {
     final response = await ReportService.createInspectionReport(
       title: title,
@@ -119,7 +122,7 @@ class ReportStore {
       result: result,
       notes: notes,
       checklistItems: checklistItems,
-      imagePath: imagePath,
+      imagePaths: imagePaths,
     );
     if (!response.success || response.report == null) {
       throw Exception(response.errorMessage ?? 'Gagal mengirim laporan inspeksi.');
@@ -134,7 +137,7 @@ class ReportStore {
     ReportStatus newStatus, {
     ReportSubStatus? newSubStatus,
     String? note,
-    String? photoPath,
+    List<String> photoPaths = const [],
     String? taggedUserId,
     String? department,
     String? picDepartment,
@@ -149,7 +152,7 @@ class ReportStore {
       status: newStatus,
       subStatus: newSubStatus,
       message: note,
-      imagePath: photoPath,
+      imagePaths: photoPaths,
       taggedUserId: taggedUserId,
       department: department,
       picDepartment: picDepartment,
@@ -194,7 +197,7 @@ class ReportStore {
         timestamp: entry.timestamp,
         actor: entry.actor,
         note: entry.note,
-        photoPath: entry.photoUrl,
+        photoPaths: entry.photoUrls,
       );
     }).toList();
 
@@ -239,7 +242,7 @@ class ReportStore {
           pelakuPelanggaran: draft.data['pelakuPelanggaran']?.toString(),
           pelaporLocation: draft.data['pelaporLocation']?.toString(),
           kejadianLocation: draft.data['kejadianLocation']?.toString(),
-          imagePath: draft.data['photoPath']?.toString(),
+          imagePaths: _draftPhotoPaths(draft),
           isPublic: isPublic,
         );
       } else {
@@ -262,7 +265,7 @@ class ReportStore {
           result: _inspectionResultUiToApi(draft.data['result']?.toString()),
           notes: draft.data['notes']?.toString(),
           checklistItems: checklistItems,
-          imagePath: draft.data['photoPath']?.toString(),
+          imagePaths: _draftPhotoPaths(draft),
         );
       }
       return true;
@@ -342,7 +345,7 @@ class ReportStore {
         timestamp: event.timestamp,
         actor: event.actor,
         note: _sanitizeTimelineNote(event.note, event.subStatus),
-        photoPath: event.photoPath,
+        photoPaths: event.photoPaths,
       ));
     }
 
@@ -405,6 +408,21 @@ class ReportStore {
         .toList();
     final cleaned = lines.join('\n').trim();
     return cleaned.isEmpty ? null : cleaned;
+  }
+
+  /// Ambil daftar path foto dari draft offline.
+  /// Mendukung key baru `photoPaths` (list) dan key lama `photoPath` (string).
+  List<String> _draftPhotoPaths(ReportDraft draft) {
+    final raw = draft.data['photoPaths'];
+    if (raw is List) {
+      return raw
+          .map((e) => e?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    final single = draft.data['photoPath']?.toString();
+    if (single != null && single.isNotEmpty) return [single];
+    return const [];
   }
 
   String? _inspectionResultUiToApi(String? uiValue) {
