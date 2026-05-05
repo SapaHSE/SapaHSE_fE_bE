@@ -24,12 +24,17 @@ class InspectionReport extends Model
         'sub_status',
         'location',
         'image_url',
+        'image_urls',
         'company',
         'area',
         'name_inspector',
         'reported_department',
         'notes',
         'result',
+    ];
+
+    protected $casts = [
+        'image_urls' => 'array',
     ];
 
     public function user()

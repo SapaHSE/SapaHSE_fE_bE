@@ -77,6 +77,8 @@ class InspectionReportController extends Controller
             // Supabase Storage URL (uploaded by client). Legacy `image` (file)
             // is still accepted as a fallback for older app builds.
             'image_url'           => 'nullable|url|max:500',
+            'image_urls'          => 'nullable|array|max:10',
+            'image_urls.*'        => 'url|max:500',
             'image'               => 'nullable|image|max:4096',
             'company'             => 'nullable|string|max:150',
             'area'                => 'nullable|string|max:100',
@@ -87,12 +89,20 @@ class InspectionReportController extends Controller
             'checklist_items'     => 'nullable',
         ]);
 
-        // Prefer the Supabase URL the client uploaded directly. Fall back to
+        // Prefer the Supabase URLs the client uploaded directly. Fall back to
         // multipart file upload (legacy path) only if no URL was provided.
+        $imageUrls = $request->input('image_urls', []);
+        if (!is_array($imageUrls)) $imageUrls = [];
+        $imageUrls = array_values(array_filter($imageUrls, fn($u) => is_string($u) && $u !== ''));
+
         $imageUrl = $request->input('image_url');
+        if (!$imageUrl && !empty($imageUrls)) {
+            $imageUrl = $imageUrls[0];
+        }
         if (!$imageUrl && $request->hasFile('image')) {
             $path = $request->file('image')->store('reports', 'public');
             $imageUrl = asset('storage/' . $path);
+            $imageUrls = [$imageUrl];
         }
 
         $report = InspectionReport::create([
@@ -103,6 +113,7 @@ class InspectionReportController extends Controller
             'sub_status'          => 'validating',
             'location'            => $request->location,
             'image_url'           => $imageUrl,
+            'image_urls'          => empty($imageUrls) ? null : $imageUrls,
             'company'             => $request->company ? strtoupper(trim($request->company)) : null,
             'area'                => $request->area,
             'name_inspector'      => $request->inspector,
@@ -200,6 +211,8 @@ class InspectionReportController extends Controller
             'message'             => 'nullable|string',
             // Supabase URL preferred; legacy file upload still accepted.
             'image_url'           => 'nullable|url|max:500',
+            'image_urls'          => 'nullable|array|max:10',
+            'image_urls.*'        => 'url|max:500',
             'image'               => 'nullable|image|max:8192',
             'tagged_user_id'      => 'nullable|uuid|exists:users,id',
             'reported_department' => 'nullable|string|max:100',
@@ -240,11 +253,23 @@ class InspectionReportController extends Controller
             }
         }
 
+        // Normalize multi-image URLs (Supabase URLs uploaded by client).
+        $imageUrls = $request->input('image_urls', []);
+        if (!is_array($imageUrls)) $imageUrls = [];
+        $imageUrls = array_values(array_filter($imageUrls, fn($u) => is_string($u) && $u !== ''));
+
         // Prefer client-supplied Supabase URL; fall back to legacy file upload.
         $imageUrl = $request->input('image_url');
+        if (!$imageUrl && !empty($imageUrls)) {
+            $imageUrl = $imageUrls[0];
+        }
         if (!$imageUrl && $request->hasFile('image')) {
             $path = $request->file('image')->store('report_logs', 'public');
             $imageUrl = asset('storage/' . $path);
+            $imageUrls = [$imageUrl];
+        }
+        if (empty($imageUrls) && $imageUrl) {
+            $imageUrls = [$imageUrl];
         }
 
         if (in_array($normalizedSubStatus, ['preparing', 'executing', 'reviewing', 'resolved'])) {
@@ -257,6 +282,7 @@ class InspectionReportController extends Controller
                     'sub_status'     => 'assigned',
                     'message'        => $this->buildAssignmentTagMessage($report, $request),
                     'image_url'      => null,
+                    'image_urls'     => null,
                 ]);
             }
         }
@@ -277,6 +303,7 @@ class InspectionReportController extends Controller
             'sub_status'     => $normalizedSubStatus,
             'message'        => $request->message ?? "Status diubah",
             'image_url'      => $imageUrl,
+            'image_urls'     => empty($imageUrls) ? null : $imageUrls,
         ]);
 
         return response()->json([
@@ -303,12 +330,18 @@ class InspectionReportController extends Controller
                         ? ($log->taggedUser->full_name ?? $assignmentName)
                         : 'System');
 
+                $logImageUrls = $log->image_urls;
+                if (empty($logImageUrls)) {
+                    $logImageUrls = $log->image_url ? [$log->image_url] : [];
+                }
+
                 return [
                     'id'          => $log->id,
                     'status'      => $log->status,
                     'sub_status'  => $log->sub_status,
                     'message'     => $log->message,
                     'image_url'   => $log->image_url,
+                    'image_urls'  => $logImageUrls,
                     'user_name'   => $userName,
                     'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
                     'created_at'  => $log->created_at->format('Y-m-d H:i:s'),
@@ -362,6 +395,7 @@ class InspectionReportController extends Controller
             'sub_status'      => $report->sub_status,
             'location'        => $report->location,
             'image_url'       => $report->image_url,
+            'image_urls'      => $report->image_urls ?? [],
             'is_read'         => $userId ? $report->isReadBy($userId) : false,
             'reported_by'     => $report->user ? $report->user->only(['id', 'full_name', 'employee_id', 'department', 'company']) : null,
             'created_at'      => $report->created_at,

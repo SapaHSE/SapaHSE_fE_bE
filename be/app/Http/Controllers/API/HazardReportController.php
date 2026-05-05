@@ -236,6 +236,8 @@ class HazardReportController extends Controller
             'message'             => 'nullable|string',
             // Supabase URL preferred; legacy file upload still accepted.
             'image_url'           => 'nullable|url|max:500',
+            'image_urls'          => 'nullable|array|max:10',
+            'image_urls.*'        => 'url|max:500',
             'image'               => 'nullable|image|max:8192',
             'tagged_user_id'      => 'nullable|uuid|exists:users,id',
             'pic_department'      => 'nullable|string|max:100',
@@ -277,16 +279,28 @@ class HazardReportController extends Controller
             }
         }
 
-        $hasAttachment = $request->filled('image_url') || $request->hasFile('image');
-        if ($normalizedSubStatus === 'reviewing' && !$hasAttachment) {
-            return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
-        }
+        // Normalize multi-image URLs (Supabase URLs uploaded by client).
+        $imageUrls = $request->input('image_urls', []);
+        if (!is_array($imageUrls)) $imageUrls = [];
+        $imageUrls = array_values(array_filter($imageUrls, fn($u) => is_string($u) && $u !== ''));
 
         // Prefer client-supplied Supabase URL; fall back to legacy file upload.
         $imageUrl = $request->input('image_url');
+        if (!$imageUrl && !empty($imageUrls)) {
+            $imageUrl = $imageUrls[0];
+        }
         if (!$imageUrl && $request->hasFile('image')) {
             $path = $request->file('image')->store('report_logs', 'public');
             $imageUrl = asset('storage/' . $path);
+            $imageUrls = [$imageUrl];
+        }
+        if (empty($imageUrls) && $imageUrl) {
+            $imageUrls = [$imageUrl];
+        }
+
+        $hasAttachment = !empty($imageUrls);
+        if ($normalizedSubStatus === 'reviewing' && !$hasAttachment) {
+            return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
         }
 
         if (in_array($normalizedSubStatus, ['preparing', 'executing', 'reviewing', 'resolved'])) {
@@ -299,6 +313,7 @@ class HazardReportController extends Controller
                     'sub_status'     => 'assigned',
                     'message'        => $this->buildAssignmentTagMessage($report, $request),
                     'image_url'      => null,
+                    'image_urls'     => null,
                 ]);
             }
         }
@@ -320,6 +335,7 @@ class HazardReportController extends Controller
             'sub_status'     => $normalizedSubStatus,
             'message'        => $request->message ?? "Status diubah",
             'image_url'      => $imageUrl,
+            'image_urls'     => empty($imageUrls) ? null : $imageUrls,
         ]);
 
         return response()->json([
@@ -346,12 +362,18 @@ class HazardReportController extends Controller
                         ? ($log->taggedUser->full_name ?? $assignmentName)
                         : 'System');
 
+                $logImageUrls = $log->image_urls;
+                if (empty($logImageUrls)) {
+                    $logImageUrls = $log->image_url ? [$log->image_url] : [];
+                }
+
                 return [
                     'id'          => $log->id,
                     'status'      => $log->status,
                     'sub_status'  => $log->sub_status,
                     'message'     => $log->message,
                     'image_url'   => $log->image_url,
+                    'image_urls'  => $logImageUrls,
                     'user_name'   => $userName,
                     'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
                     'created_at'  => $log->created_at->format('Y-m-d H:i:s'),

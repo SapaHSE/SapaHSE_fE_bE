@@ -21,6 +21,11 @@ class ReportLog extends Model
         'sub_status',
         'message',
         'image_url',
+        'image_urls',
+    ];
+
+    protected $casts = [
+        'image_urls' => 'array',
     ];
 
     public function reportable(): MorphTo
