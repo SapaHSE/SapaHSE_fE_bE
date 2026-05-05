@@ -256,7 +256,15 @@ class InspectionReportController extends Controller
         // Normalize multi-image URLs (Supabase URLs uploaded by client).
         $imageUrls = $request->input('image_urls', []);
         if (!is_array($imageUrls)) $imageUrls = [];
-        $imageUrls = array_values(array_filter($imageUrls, fn($u) => is_string($u) && $u !== ''));
+        // Sanitize: filter empty/non-strings, normalize to array, deduplicate
+        $imageUrls = array_values(
+            array_filter(
+                array_unique(
+                    array_map('strval', $imageUrls)
+                ),
+                fn($u) => is_string($u) && $u !== '' && filter_var($u, FILTER_VALIDATE_URL) !== false
+            )
+        );
 
         // Prefer client-supplied Supabase URL; fall back to legacy file upload.
         $imageUrl = $request->input('image_url');
@@ -271,6 +279,13 @@ class InspectionReportController extends Controller
         if (empty($imageUrls) && $imageUrl) {
             $imageUrls = [$imageUrl];
         }
+
+        // Debug log for multi-photo tracking
+        \Log::debug('updateStatus image_urls count: ' . count($imageUrls), [
+            'report_id' => $id,
+            'has_image_url' => !empty($imageUrl),
+            'image_urls_sample' => array_slice($imageUrls, 0, 3),
+        ]);
 
         if (in_array($normalizedSubStatus, ['preparing', 'executing', 'reviewing', 'resolved'])) {
             $hasAssignedLog = $report->logs()->where('sub_status', 'assigned')->exists();
