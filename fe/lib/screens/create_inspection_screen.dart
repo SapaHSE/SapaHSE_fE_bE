@@ -2,6 +2,7 @@ import 'dart:math' show Random;
 import 'package:flutter/material.dart';
 import '../data/report_store.dart';
 import '../services/cloud_save_service.dart';
+import '../services/report_service.dart';
 
 class CreateInspectionScreen extends StatefulWidget {
   const CreateInspectionScreen({super.key});
@@ -27,6 +28,14 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
   String _selectedResult = 'Sesuai';
   bool _isSubmitting = false;
 
+  // ── Department tagging ─────────────────────────────────────────────────────
+  // Departemen yang di-tag akan disimpan ke `reported_department` (comma-joined).
+  // User dengan `users.department` cocok akan menerima laporan ini di tab Tugas
+  // dan punya akses update yang sama dengan inspector yang di-tag namanya.
+  List<String> _apiDepartments = [];
+  bool _isLoadingDepts = true;
+  final Set<String> _selectedDepts = {};
+
   final List<String> _areas = [
     'Area Tambang',
     'Workshop',
@@ -44,6 +53,132 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
     {'label': 'Alat berat dalam kondisi prima', 'checked': false},
     {'label': 'Instalasi listrik aman', 'checked': false},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDepartments();
+  }
+
+  Future<void> _loadDepartments() async {
+    try {
+      final list = await ReportService.getDepartments();
+      if (!mounted) return;
+      setState(() {
+        _apiDepartments = list;
+        _isLoadingDepts = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingDepts = false);
+    }
+  }
+
+  String? get _reportedDepartment =>
+      _selectedDepts.isEmpty ? null : _selectedDepts.join(', ');
+
+  Future<void> _openDeptPicker() async {
+    if (_isLoadingDepts) return;
+    final tempSelected = Set<String>.from(_selectedDepts);
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Tag Departemen',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Pilih departemen yang bertanggung jawab. User dengan dept tsb akan menerima laporan di tab Tugas.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: _apiDepartments.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(
+                                child: Text('Tidak ada data departemen.',
+                                    style: TextStyle(color: Colors.grey)),
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _apiDepartments.length,
+                              itemBuilder: (_, i) {
+                                final dept = _apiDepartments[i];
+                                final selected = tempSelected.contains(dept);
+                                return CheckboxListTile(
+                                  dense: true,
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  activeColor: _blue,
+                                  value: selected,
+                                  title: Text(dept,
+                                      style: const TextStyle(fontSize: 13)),
+                                  onChanged: (v) => setSheet(() {
+                                    if (v == true) {
+                                      tempSelected.add(dept);
+                                    } else {
+                                      tempSelected.remove(dept);
+                                    }
+                                  }),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Batal'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _blue,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () => Navigator.pop(ctx, tempSelected),
+                            child: const Text('Simpan'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedDepts
+          ..clear()
+          ..addAll(result);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -71,6 +206,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
           'title': _titleController.text.trim(),
           'location': _locationController.text.trim(),
           'inspector': _inspectorController.text.trim(),
+          'reported_department': _reportedDepartment,
           'notes': _notesController.text.trim(),
           'area': _selectedArea,
           'result': _selectedResult,
@@ -103,6 +239,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
           location: _locationController.text.trim(),
           area: _selectedArea,
           inspector: _inspectorController.text.trim(),
+          reportedDepartment: _reportedDepartment,
           result: _resultToApi(_selectedResult),
           notes: notes,
           checklistItems: _checklistItems
@@ -350,6 +487,9 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                   validator: (v) => v!.trim().isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 14),
+                _label('Tag Departemen'),
+                _buildDeptPickerField(),
+                const SizedBox(height: 14),
                 _label('Hasil Inspeksi *'),
                 _buildResultSelector(),
               ]),
@@ -455,6 +595,61 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
               const SizedBox(height: 80),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // ── Department picker field ────────────────────────────────────────────────
+  Widget _buildDeptPickerField() {
+    final hasSelection = _selectedDepts.isNotEmpty;
+    return InkWell(
+      onTap: _isLoadingDepts ? null : _openDeptPicker,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F9FF),
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.apartment_outlined,
+                size: 20, color: Colors.grey),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _isLoadingDepts
+                  ? const Text('Memuat departemen…',
+                      style: TextStyle(color: Colors.grey, fontSize: 13))
+                  : hasSelection
+                      ? Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: _selectedDepts
+                              .map((d) => Chip(
+                                    label: Text(d,
+                                        style: const TextStyle(fontSize: 11)),
+                                    backgroundColor:
+                                        _blue.withValues(alpha: 0.1),
+                                    labelStyle: const TextStyle(color: _blue),
+                                    visualDensity: VisualDensity.compact,
+                                    materialTapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                    onDeleted: () => setState(() {
+                                      _selectedDepts.remove(d);
+                                    }),
+                                  ))
+                              .toList(),
+                        )
+                      : const Text(
+                          'Pilih departemen yang ditugaskan (opsional)',
+                          style:
+                              TextStyle(color: Colors.grey, fontSize: 13)),
+            ),
+            const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+          ],
         ),
       ),
     );

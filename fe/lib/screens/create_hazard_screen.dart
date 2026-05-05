@@ -2,33 +2,18 @@ import 'dart:io' show File;
 import 'dart:math' show Random;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:path_provider/path_provider.dart';
 import '../data/report_store.dart';
+import '../models/company_model.dart';
 import '../models/report.dart';
 import '../services/cloud_save_service.dart';
+import '../services/company_service.dart';
 import '../services/report_service.dart';
 import 'map_picker_screen.dart';
-
-// ── Static reference data ─────────────────────────────────────────────────────
-
-const _perusahaanList = [
-  'PT. Bukit Baiduri Energi',
-  'PT. Khotai Makmur Insan Abadi',
-];
-
-const _lokasiList = [
-  'Area Pit A',
-  'Area Pit B',
-  'Workshop Utama',
-  'Mess Karyawan',
-  'Jalan Hauling KM 10',
-  'Jalan Hauling KM 15',
-  'Pelabuhan (Jetty)',
-  'Office Utama',
-  'Gudang Logistik',
-];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -58,25 +43,60 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   List<HazardCategoryData> _apiCategories = [];
   List<String> _apiDepartments = [];
   List<UserEntry> _apiUsers = [];
+  List<CompanyData> _apiCompanies = [];
+  List<AreaData> _apiAreas = [];
   bool _isLoadingData = true;
+  bool _isLoadingAreas = false;
 
   // ── Step 1 state ─────────────────────────────────────────────────────────────
   String? _selectedKategori;
   String? _selectedKategoriCode; // TTA / KTA for API
   String? _selectedSubkategori;
   String? _selectedPerusahaan;
+  int? _selectedCompanyId;
   final Set<String> _selectedDepts = {};
   final Set<UserEntry> _selectedUsers = {};
+  static const _hseKeywords = ['hse', 'k3'];
 
   bool get _hasPicSelection =>
       _selectedDepts.isNotEmpty || _selectedUsers.isNotEmpty;
+  bool get _canPickSubcategory =>
+      !_isLoadingData &&
+      _selectedKategori != null &&
+      _selectedKategori!.trim().isNotEmpty;
+  bool get _canPickCompany =>
+      _canPickSubcategory &&
+      _selectedSubkategori != null &&
+      _selectedSubkategori!.trim().isNotEmpty;
+  bool get _canOpenTagPicker =>
+      _canPickCompany &&
+      _selectedPerusahaan != null &&
+      _selectedPerusahaan!.trim().isNotEmpty;
+  bool get _canPickSeverity =>
+      _canPickCompany &&
+      _selectedPerusahaan != null &&
+      _selectedPerusahaan!.trim().isNotEmpty &&
+      _selectedCompanyId != null &&
+      !_isLoadingAreas;
+  bool _isLockedDept(String dept) {
+    final normalized = dept.toLowerCase();
+    return _hseKeywords.any(normalized.contains);
+  }
+
+  Set<String> get _lockedDepts =>
+      _apiDepartments.where(_isLockedDept).toSet();
+
+  void _ensureLockedDeptsSelected() {
+    if (_lockedDepts.isEmpty) return;
+    _selectedDepts.addAll(_lockedDepts);
+  }
 
   // ── Step 2 state ─────────────────────────────────────────────────────────────
   final _titleCtrl = TextEditingController();
   ReportSeverity? _selectedSeverity;
   final _kronologiCtrl = TextEditingController();
   final _saranCtrl = TextEditingController();
-  final List<String> _selectedPelaku = [];
+  final Set<UserEntry> _selectedPelaku = {};
   String? _selectedLokasi;
   final _locationCtrl = TextEditingController();
   final _pelaporLocationCtrl = TextEditingController();
@@ -100,14 +120,45 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       ReportService.getHazardCategories(),
       ReportService.getDepartments(),
       ReportService.getUsers(),
+      CompanyService.getCompanies(category: 'owner'),
     ]);
     if (!mounted) return;
     setState(() {
       _apiCategories = results[0] as List<HazardCategoryData>;
       _apiDepartments = results[1] as List<String>;
       _apiUsers = results[2] as List<UserEntry>;
+      _apiCompanies = results[3] as List<CompanyData>;
+      _ensureLockedDeptsSelected();
       _isLoadingData = false;
     });
+  }
+
+  Future<void> _loadAreasForCompany(int? companyId) async {
+    if (companyId == null) {
+      if (!mounted) return;
+      setState(() {
+        _apiAreas = [];
+        _isLoadingAreas = false;
+      });
+      return;
+    }
+
+    setState(() => _isLoadingAreas = true);
+    try {
+      final areas = await CompanyService.getAreas(companyId: companyId, active: true);
+      if (!mounted) return;
+      setState(() {
+        _apiAreas = areas;
+        _isLoadingAreas = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _apiAreas = [];
+        _isLoadingAreas = false;
+      });
+      debugPrint('Gagal load area company: $e');
+    }
   }
 
   Future<void> _fetchPelaporLocationSilent() async {
@@ -161,10 +212,30 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     return cat.first.subcategories.map((s) => s.name).toList();
   }
 
-  List<String> get _pelakuOptions => _apiUsers.map((u) {
-        final dept = u.department ?? '';
-        return '${u.fullName}${dept.isNotEmpty ? ' ($dept)' : ''}';
-      }).toList();
+  List<String> get _perusahaanList =>
+      _apiCompanies.map((company) => company.name).toList();
+
+  List<String> get _lokasiList =>
+      _apiAreas.map((area) => area.name).toList();
+
+  void _handleCompanySelected(String? value) {
+    final selectedCompany = _apiCompanies
+        .cast<CompanyData?>()
+        .firstWhere((company) => company?.name == value, orElse: () => null);
+
+    setState(() {
+      _selectedPerusahaan = value;
+      _selectedCompanyId = selectedCompany?.id;
+      _selectedDepts.clear();
+      _ensureLockedDeptsSelected();
+      _selectedUsers.clear();
+      _selectedLokasi = null;
+      _locationCtrl.clear();
+      _apiAreas = [];
+    });
+
+    _loadAreasForCompany(_selectedCompanyId);
+  }
 
   // ── Navigation ────────────────────────────────────────────────────────────────
 
@@ -189,8 +260,10 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         ));
         return;
       }
-      setState(() => _currentStep++);
-      _scrollToTop();
+      _showPinpointConfirmationDialog(() {
+        setState(() => _currentStep++);
+        _scrollToTop();
+      });
     } else {
       _submitReport();
     }
@@ -251,6 +324,25 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
 
   // ── Photo picker ──────────────────────────────────────────────────────────────
 
+  Future<XFile?> _compressAndConvertImage(XFile file) async {
+    try {
+      if (kIsWeb) return file;
+      final dir = await getTemporaryDirectory();
+      final targetPath =
+          '${dir.path}/${DateTime.now().millisecondsSinceEpoch}_compressed.jpg';
+      final result = await FlutterImageCompress.compressAndGetFile(
+        file.path,
+        targetPath,
+        quality: 80,
+        format: CompressFormat.jpeg,
+      );
+      return result == null ? file : XFile(result.path);
+    } catch (e) {
+      debugPrint('Compression error: $e');
+      return file;
+    }
+  }
+
   Future<void> _pickPhoto(ImageSource source) async {
     try {
       if (source == ImageSource.gallery) {
@@ -258,14 +350,24 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           imageQuality: 80,
           maxWidth: 1280,
         );
-        if (picked.isNotEmpty) setState(() => _photoFiles.addAll(picked));
+        if (picked.isNotEmpty) {
+          for (final file in picked) {
+            final compressed = await _compressAndConvertImage(file);
+            if (compressed != null) {
+              setState(() => _photoFiles.add(compressed));
+            }
+          }
+        }
       } else {
         final picked = await _picker.pickImage(
           source: source,
           imageQuality: 80,
           maxWidth: 1280,
         );
-        if (picked != null) setState(() => _photoFiles.add(picked));
+        if (picked != null) {
+          final compressed = await _compressAndConvertImage(picked);
+          if (compressed != null) setState(() => _photoFiles.add(compressed));
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -277,24 +379,66 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     }
   }
 
-  // ── Person picker bottom sheet ────────────────────────────────────────────────
-
-  Future<String?> _showPersonPicker({
-    required String title,
-    required List<String> options,
-    String hint = 'Cari...',
-  }) async {
-    return showModalBottomSheet<String>(
+  void _showPinpointConfirmationDialog(VoidCallback onConfirm) {
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => _PersonPickerContent(
-        title: title,
-        options: options,
-        hint: hint,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Konfirmasi Pinpoint',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Apakah lokasi kejadian (pinpoint) sudah sesuai?',
+              style: TextStyle(color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FF),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.place, color: _blue, size: 24),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _kejadianLocationCtrl.text,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              onConfirm();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Ya, Lanjut',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -313,8 +457,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     final String? picDepartment = _selectedUsers.isEmpty
         ? null
         : _selectedUsers.map((u) => u.fullName).join(', ');
-    final pelakuStr =
-        _selectedPelaku.isNotEmpty ? _selectedPelaku.join(', ') : null;
+    final pelakuStr = _selectedPelaku.isNotEmpty
+        ? _selectedPelaku.map((u) => u.fullName).join(', ')
+        : null;
     final severity = _selectedSeverity?.name ?? 'medium';
 
     final data = {
@@ -322,6 +467,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       'kronologi': _kronologiCtrl.text.trim(),
       'saran': _saranCtrl.text.trim(),
       'location': _locationCtrl.text.trim(),
+      'area': _selectedLokasi,
       'pelaporLocation': _pelaporLocationCtrl.text.trim(),
       'kejadianLocation': _kejadianLocationCtrl.text.trim(),
       'perusahaan': _selectedPerusahaan,
@@ -359,6 +505,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           description: _kronologiCtrl.text.trim(),
           location: _locationCtrl.text.trim(),
           severity: severity,
+          company: _selectedPerusahaan,
+          area: _selectedLokasi,
           picDepartment: picDepartment,
           department: department,
           hazardCategory: categoryCode,
@@ -505,24 +653,37 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       children: [
         _label('PIC / Departemen Terkait *'),
         GestureDetector(
-          onTap: _isLoadingData ? null : _showUnifiedPicker,
+          onTap: _canOpenTagPicker ? _showUnifiedPicker : null,
           child: Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FF),
+              color: _canOpenTagPicker
+                  ? const Color(0xFFF8F9FF)
+                  : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(
+                color:
+                    _canOpenTagPicker ? Colors.grey.shade300 : Colors.grey.shade200,
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.person_add_outlined,
-                    size: 20, color: Colors.grey),
+                Icon(Icons.person_add_outlined,
+                    size: 20,
+                    color: _canOpenTagPicker
+                        ? Colors.grey
+                        : Colors.grey.shade400),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Ketuk untuk tag orang atau departemen',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    style: TextStyle(
+                      color: _canOpenTagPicker
+                          ? Colors.grey
+                          : Colors.grey.shade500,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
                 if (_isLoadingData)
@@ -533,12 +694,15 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                           strokeWidth: 2, color: Colors.grey))
                 else
                   Icon(Icons.arrow_forward_ios,
-                      size: 14, color: Colors.grey.shade400),
+                      size: 14,
+                      color: _canOpenTagPicker
+                          ? Colors.grey.shade400
+                          : Colors.grey.shade300),
               ],
             ),
           ),
         ),
-        if (_hasPicSelection) ...[
+        if (_canOpenTagPicker && _hasPicSelection) ...[
           const SizedBox(height: 10),
           Wrap(
             spacing: 6,
@@ -546,9 +710,11 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             children: [
               ..._selectedDepts.map((dept) => Chip(
                     label: Text(dept, style: const TextStyle(fontSize: 12)),
-                    onDeleted: () =>
-                        setState(() => _selectedDepts.remove(dept)),
-                    deleteIcon: const Icon(Icons.close, size: 14),
+                    onDeleted: _isLockedDept(dept)
+                        ? null
+                        : () => setState(() => _selectedDepts.remove(dept)),
+                    deleteIcon:
+                        _isLockedDept(dept) ? null : const Icon(Icons.close, size: 14),
                     backgroundColor: _blue.withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
@@ -652,13 +818,16 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                     label: Text(dept,
                                         style:
                                             const TextStyle(fontSize: 12)),
-                                    onDeleted: () {
-                                      setState(() =>
-                                          _selectedDepts.remove(dept));
-                                      setSheetState(() {});
-                                    },
-                                    deleteIcon:
-                                        const Icon(Icons.close, size: 14),
+                                    onDeleted: _isLockedDept(dept)
+                                        ? null
+                                        : () {
+                                            setState(() =>
+                                                _selectedDepts.remove(dept));
+                                            setSheetState(() {});
+                                          },
+                                    deleteIcon: _isLockedDept(dept)
+                                        ? null
+                                        : const Icon(Icons.close, size: 14),
                                     backgroundColor:
                                         _blue.withValues(alpha: 0.1),
                                     shape: RoundedRectangleBorder(
@@ -706,18 +875,30 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                         ),
                         ...filteredDepts.map((dept) {
                           final isSelected = _selectedDepts.contains(dept);
+                          final isLocked = _isLockedDept(dept);
                           return ListTile(
                             leading: const Icon(Icons.business_outlined,
                                 size: 20),
-                            title: Text(dept,
-                                style: const TextStyle(fontSize: 14)),
+                            title: Text(
+                              dept,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isLocked ? Colors.grey.shade500 : null,
+                              ),
+                            ),
                             trailing: Icon(
                               isSelected
                                   ? Icons.check_circle
                                   : Icons.add_circle_outline,
-                              color: isSelected ? _blue : Colors.grey,
+                              color: isLocked
+                                  ? Colors.grey.shade400
+                                  : isSelected
+                                      ? _blue
+                                      : Colors.grey,
                             ),
-                            onTap: () {
+                            onTap: isLocked
+                                ? null
+                                : () {
                               setState(() {
                                 if (isSelected) {
                                   _selectedDepts.remove(dept);
@@ -817,36 +998,44 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       children: [
         _label('Pelaku Pelanggaran (Opsional)'),
         GestureDetector(
-          onTap: () async {
-            final result = await _showPersonPicker(
-              title: 'Tag Pelaku Pelanggaran',
-              options: _pelakuOptions,
-            );
-            if (result != null && !_selectedPelaku.contains(result)) {
-              setState(() => _selectedPelaku.add(result));
-            }
-          },
+          onTap: _isLoadingData ? null : _showPelakuPicker,
           child: Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FF),
+              color:
+                  _isLoadingData ? Colors.grey.shade100 : const Color(0xFFF8F9FF),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(
+                color: _isLoadingData
+                    ? Colors.grey.shade200
+                    : Colors.grey.shade300,
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.person_add_outlined,
-                    size: 20, color: Colors.grey),
+                Icon(Icons.person_add_outlined,
+                    size: 20,
+                    color: _isLoadingData ? Colors.grey.shade400 : Colors.grey),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Ketuk untuk tag pelaku',
-                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                    style: TextStyle(
+                      color: _isLoadingData ? Colors.grey.shade500 : Colors.grey,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios,
-                    size: 14, color: Colors.grey.shade400),
+                if (_isLoadingData)
+                  const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.grey))
+                else
+                  Icon(Icons.arrow_forward_ios,
+                      size: 14, color: Colors.grey.shade400),
               ],
             ),
           ),
@@ -857,16 +1046,193 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             spacing: 6,
             runSpacing: 6,
             children: _selectedPelaku
-                .map((e) => Chip(
-                      label: Text(e, style: const TextStyle(fontSize: 12)),
+                .map((user) => Chip(
+                      label: Text(user.fullName,
+                          style: const TextStyle(fontSize: 12)),
                       padding: EdgeInsets.zero,
-                      onDeleted: () =>
-                          setState(() => _selectedPelaku.remove(e)),
+                      onDeleted: () => setState(() => _selectedPelaku
+                          .removeWhere((u) => u.fullName == user.fullName)),
                     ))
                 .toList(),
           ),
         ],
       ],
+    );
+  }
+
+  void _showPelakuPicker() {
+    String query = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final q = query.toLowerCase();
+          final filteredUsers = _apiUsers
+              .where((u) =>
+                  u.fullName.toLowerCase().contains(q) ||
+                  (u.department?.toLowerCase().contains(q) ?? false))
+              .toList();
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Tag Pelaku Pelanggaran',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 18)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama user...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (v) => setSheetState(() => query = v),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      if (_selectedPelaku.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text('TERPILIH',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
+                                  letterSpacing: 0.5)),
+                        ),
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _selectedPelaku.map((user) {
+                              return Chip(
+                                label: Text(user.fullName,
+                                    style: const TextStyle(fontSize: 12)),
+                                onDeleted: () {
+                                  setState(() => _selectedPelaku.removeWhere(
+                                      (u) => u.fullName == user.fullName));
+                                  setSheetState(() {});
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 14),
+                                backgroundColor:
+                                    Colors.orange.withValues(alpha: 0.1),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                side: BorderSide(
+                                    color:
+                                        Colors.orange.withValues(alpha: 0.2)),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const Divider(height: 32),
+                      ],
+                      if (filteredUsers.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text('USER',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                  letterSpacing: 0.5)),
+                        ),
+                        ...filteredUsers.map((user) {
+                          final isSelected = _selectedPelaku
+                              .any((u) => u.fullName == user.fullName);
+                          return ListTile(
+                            leading: const Icon(Icons.person_outline,
+                                size: 20),
+                            title: Text(user.fullName,
+                                style: const TextStyle(fontSize: 14)),
+                            subtitle: user.department != null
+                                ? Text(user.department!,
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.grey))
+                                : null,
+                            trailing: Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.add_circle_outline,
+                              color: isSelected ? _blue : Colors.grey,
+                            ),
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedPelaku.removeWhere(
+                                      (u) => u.fullName == user.fullName);
+                                } else {
+                                  _selectedPelaku.add(user);
+                                }
+                              });
+                              setSheetState(() {});
+                            },
+                          );
+                        }),
+                      ],
+                      if (filteredUsers.isEmpty)
+                        const Center(
+                            child: Padding(
+                                padding: EdgeInsets.all(40),
+                                child: Text('Tidak ditemukan',
+                                    style:
+                                        TextStyle(color: Colors.grey)))),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Selesai',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -883,7 +1249,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             const Center(child: CircularProgressIndicator())
           else
             DropdownButtonFormField<String>(
-              value: _selectedKategori,
+              key: ValueKey('kategori_$_selectedKategori'),
+              initialValue: _selectedKategori,
               validator: (v) => v == null ? 'Wajib dipilih' : null,
               decoration: _inputDeco(
                   hint: 'Pilih Kategori', icon: Icons.category_outlined),
@@ -893,45 +1260,71 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
               onChanged: (v) => setState(() {
                 _selectedKategori = v;
                 _selectedSubkategori = null;
+                _selectedPerusahaan = null;
+                _selectedCompanyId = null;
+                _apiAreas = [];
+                _selectedLokasi = null;
+                _locationCtrl.clear();
+                _selectedDepts.clear();
+                _selectedUsers.clear();
                 final cat = _apiCategories.where((c) => c.name == v);
                 _selectedKategoriCode =
                     cat.isNotEmpty ? cat.first.code : null;
               }),
-            ),
+          ),
           const SizedBox(height: 14),
           _label('Subkategori Hazard *'),
-          DropdownButtonFormField<String>(
-            value: _selectedSubkategori,
-            validator: (v) => v == null ? 'Wajib dipilih' : null,
-            decoration: _inputDeco(
-                hint: 'Pilih Subkategori',
-                icon: Icons.subdirectory_arrow_right),
-            items: _subkategoriList
-                .map((e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(e, style: const TextStyle(fontSize: 13))))
-                .toList(),
-            onChanged: (v) => setState(() => _selectedSubkategori = v),
+          Opacity(
+            opacity: _canPickSubcategory ? 1 : 0.6,
+            child: IgnorePointer(
+              ignoring: !_canPickSubcategory,
+              child: DropdownButtonFormField<String>(
+                key: ValueKey('subkategori_$_selectedSubkategori'),
+                initialValue: _selectedSubkategori,
+                validator: (v) => v == null ? 'Wajib dipilih' : null,
+                decoration: _inputDeco(
+                    hint: 'Pilih Subkategori',
+                    icon: Icons.subdirectory_arrow_right),
+                items: _subkategoriList
+                    .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e, style: const TextStyle(fontSize: 13))))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  _selectedSubkategori = v;
+                  _selectedPerusahaan = null;
+                  _selectedCompanyId = null;
+                  _apiAreas = [];
+                  _selectedLokasi = null;
+                  _locationCtrl.clear();
+                  _selectedDepts.clear();
+                  _selectedUsers.clear();
+                }),
+              ),
+            ),
           ),
           const SizedBox(height: 14),
           _label('Perusahaan (Ketik untuk mencari) *'),
-          LayoutBuilder(
-            builder: (context, constraints) => DropdownMenu<String>(
-              width: constraints.maxWidth,
-              enableSearch: true,
-              enableFilter: true,
-              requestFocusOnTap: true,
-              initialSelection: _selectedPerusahaan,
-              hintText: 'Pilih / Cari Perusahaan',
-              inputDecorationTheme: _dropdownTheme(),
-              onSelected: (v) => setState(() {
-                _selectedPerusahaan = v;
-                _selectedDepts.clear();
-                _selectedUsers.clear();
-              }),
-              dropdownMenuEntries: _perusahaanList
-                  .map((e) => DropdownMenuEntry(value: e, label: e))
-                  .toList(),
+          Opacity(
+            opacity: _canPickCompany ? 1 : 0.6,
+            child: IgnorePointer(
+              ignoring: !_canPickCompany,
+              child: LayoutBuilder(
+                builder: (context, constraints) => DropdownMenu<String>(
+                  enabled: _canPickCompany,
+                  width: constraints.maxWidth,
+                  enableSearch: true,
+                  enableFilter: true,
+                  requestFocusOnTap: true,
+                  initialSelection: _selectedPerusahaan,
+                  hintText: 'Pilih / Cari Perusahaan',
+                  inputDecorationTheme: _dropdownTheme(),
+                  onSelected: _handleCompanySelected,
+                  dropdownMenuEntries: _perusahaanList
+                      .map((e) => DropdownMenuEntry(value: e, label: e))
+                      .toList(),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -957,44 +1350,56 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           ),
           const SizedBox(height: 14),
           _label('Status Resiko *'),
-          Row(
-            children: [
-              ReportSeverity.low,
-              ReportSeverity.medium,
-              ReportSeverity.high,
-            ].map((s) {
-              final isSelected = _selectedSeverity == s;
-              final colors = {
-                ReportSeverity.low: Colors.green,
-                ReportSeverity.medium: Colors.orange,
-                ReportSeverity.high: Colors.red,
-              };
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedSeverity = s),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colors[s]
-                          : colors[s]!.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: colors[s]!, width: isSelected ? 2 : 1),
-                    ),
-                    child: Text(
-                      s.name.toUpperCase(),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: isSelected ? Colors.white : colors[s],
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
+          Opacity(
+            opacity: _canPickSeverity ? 1 : 0.45,
+            child: IgnorePointer(
+              ignoring: !_canPickSeverity,
+              child: Row(
+                children: [
+                  ReportSeverity.low,
+                  ReportSeverity.medium,
+                  ReportSeverity.high,
+                ].map((s) {
+                  final isSelected = _selectedSeverity == s;
+                  final colors = {
+                    ReportSeverity.low: Colors.green,
+                    ReportSeverity.medium: Colors.orange,
+                    ReportSeverity.high: Colors.red,
+                  };
+                  final baseColor = colors[s]!;
+                  return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedSeverity = s),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? baseColor
+                            : Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: _canPickSeverity
+                                ? (isSelected ? baseColor : Colors.grey.shade300)
+                                : Colors.grey.shade300,
+                            width: isSelected ? 2 : 1),
+                      ),
+                      child: Text(
+                        s.name.toUpperCase(),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.grey.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+                }).toList(),
+              ),
+            ),
           ),
           const SizedBox(height: 14),
           _label('Deskripsi Kronologi *'),
@@ -1015,19 +1420,30 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           _pelakuTagField(),
           const SizedBox(height: 14),
           _label('Lokasi Kejadian *'),
-          DropdownButtonFormField<String>(
-            value: _selectedLokasi,
-            validator: (v) => v == null ? 'Wajib dipilih' : null,
-            decoration: _inputDeco(
-                hint: 'Pilih Lokasi Kejadian',
-                icon: Icons.location_city),
-            items: _lokasiList
-                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                .toList(),
-            onChanged: (v) => setState(() {
-              _selectedLokasi = v;
-              _locationCtrl.text = v ?? '';
-            }),
+          Opacity(
+            opacity: _selectedCompanyId != null && !_isLoadingAreas ? 1 : 0.5,
+            child: IgnorePointer(
+              ignoring: _selectedCompanyId == null || _isLoadingAreas,
+              child: DropdownButtonFormField<String>(
+                key: ValueKey('lokasi_$_selectedLokasi'),
+                initialValue: _selectedLokasi,
+                validator: (v) => v == null ? 'Wajib dipilih' : null,
+                decoration: _inputDeco(
+                    hint: _isLoadingAreas
+                        ? 'Memuat lokasi...'
+                        : (_selectedCompanyId == null
+                            ? 'Pilih company di Step 1'
+                            : 'Pilih Lokasi Kejadian'),
+                    icon: Icons.location_city),
+                items: _lokasiList
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (v) => setState(() {
+                  _selectedLokasi = v;
+                  _locationCtrl.text = v ?? '';
+                }),
+              ),
+            ),
           ),
           const SizedBox(height: 14),
           _label('Pinpoint Lokasi Kejadian *'),
@@ -1157,7 +1573,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                 _previewItem('Saran', _saranCtrl.text),
               if (_selectedPelaku.isNotEmpty)
                 _previewItem(
-                    'Pelaku Pelanggaran', _selectedPelaku.join(', ')),
+                    'Pelaku Pelanggaran',
+                    _selectedPelaku.map((u) => u.fullName).join(', ')),
               _previewItem('Lokasi', _selectedLokasi ?? '-'),
               if (_photoFiles.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -1217,8 +1634,10 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                     'Laporan dapat dilihat oleh semua orang di menu Utama',
                     style: TextStyle(fontSize: 12)),
                 value: true,
+                // ignore: deprecated_member_use
                 groupValue: _isPublic,
                 activeColor: _blue,
+                // ignore: deprecated_member_use
                 onChanged: (v) => setState(() => _isPublic = v!),
               ),
               RadioListTile<bool>(
@@ -1227,8 +1646,10 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                     'Laporan hanya dilihat oleh Anda dan pihak terkait',
                     style: TextStyle(fontSize: 12)),
                 value: false,
+                // ignore: deprecated_member_use
                 groupValue: _isPublic,
                 activeColor: _blue,
+                // ignore: deprecated_member_use
                 onChanged: (v) => setState(() => _isPublic = v!),
               ),
             ],
@@ -1254,34 +1675,49 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 GestureDetector(
-                  onTap: _isLoadingData ? null : _showUnifiedPicker,
+                  onTap: _canOpenTagPicker ? _showUnifiedPicker : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 13),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FF),
+                      color: _canOpenTagPicker
+                          ? const Color(0xFFF8F9FF)
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(
+                        color: _canOpenTagPicker
+                            ? Colors.grey.shade300
+                            : Colors.grey.shade200,
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.person_add_outlined,
-                            size: 20, color: Colors.grey),
+                        Icon(Icons.person_add_outlined,
+                            size: 20,
+                            color: _canOpenTagPicker
+                                ? Colors.grey
+                                : Colors.grey.shade400),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             'Ketuk untuk tag orang atau departemen',
                             style: TextStyle(
-                                color: Colors.grey, fontSize: 13),
+                                color: _canOpenTagPicker
+                                    ? Colors.grey
+                                    : Colors.grey.shade500,
+                                fontSize: 13),
                           ),
                         ),
                         Icon(Icons.arrow_forward_ios,
-                            size: 14, color: Colors.grey.shade400),
+                            size: 14,
+                            color: _canOpenTagPicker
+                                ? Colors.grey.shade400
+                                : Colors.grey.shade300),
                       ],
                     ),
                   ),
                 ),
-                if (_hasPicSelection) ...[
+                if (_canOpenTagPicker && _hasPicSelection) ...[
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 6,
@@ -1290,10 +1726,13 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                       ..._selectedDepts.map((dept) => Chip(
                             label: Text(dept,
                                 style: const TextStyle(fontSize: 12)),
-                            onDeleted: () => setState(
-                                () => _selectedDepts.remove(dept)),
-                            deleteIcon:
-                                const Icon(Icons.close, size: 14),
+                            onDeleted: _isLockedDept(dept)
+                                ? null
+                                : () => setState(
+                                    () => _selectedDepts.remove(dept)),
+                            deleteIcon: _isLockedDept(dept)
+                                ? null
+                                : const Icon(Icons.close, size: 14),
                             backgroundColor:
                                 _blue.withValues(alpha: 0.1),
                             shape: RoundedRectangleBorder(
@@ -1490,115 +1929,3 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   }
 }
 
-// ── Person Picker Bottom Sheet ─────────────────────────────────────────────────
-
-class _PersonPickerContent extends StatefulWidget {
-  final String title;
-  final List<String> options;
-  final String hint;
-
-  const _PersonPickerContent({
-    required this.title,
-    required this.options,
-    required this.hint,
-  });
-
-  @override
-  State<_PersonPickerContent> createState() => _PersonPickerContentState();
-}
-
-class _PersonPickerContentState extends State<_PersonPickerContent> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  String _query = '';
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered = widget.options
-        .where((opt) => opt.toLowerCase().contains(_query.toLowerCase()))
-        .toList();
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                widget.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A56C4),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _searchCtrl,
-            autofocus: true,
-            onChanged: (v) => setState(() => _query = v),
-            decoration: InputDecoration(
-              hintText: widget.hint,
-              prefixIcon:
-                  const Icon(Icons.search, color: Colors.grey),
-              filled: true,
-              fillColor: Colors.grey.shade100,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.search_off,
-                            size: 48, color: Colors.grey.shade300),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Tidak menemukan hasil',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) =>
-                        const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final opt = filtered[index];
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(opt,
-                            style: const TextStyle(fontSize: 14)),
-                        trailing: const Icon(Icons.add_circle_outline,
-                            size: 20, color: Color(0xFF1A56C4)),
-                        onTap: () => Navigator.pop(context, opt),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -207,6 +207,31 @@ class _InboxScreenState extends State<InboxScreen>
     }
   }
 
+  Duration? _remainingDuration(InboxItem item) {
+    final due = item.dueDate;
+    if (due == null) return null;
+    return due.difference(DateTime.now());
+  }
+
+  bool _isValidating(InboxItem item) =>
+      item.subStatus == ReportSubStatus.validating;
+
+  bool _needsImmediateAction(InboxItem item) {
+    if (item.status == ReportStatus.closed) return false;
+    final remaining = _remainingDuration(item);
+    final nearDeadline =
+        remaining != null && remaining <= const Duration(hours: 24);
+    final highSeverity = item.severity == ReportSeverity.high ||
+        item.severity == ReportSeverity.critical;
+    return nearDeadline || highSeverity;
+  }
+
+  int _remainingMinutesRank(InboxItem item) {
+    final remaining = _remainingDuration(item);
+    if (remaining == null) return 1 << 30;
+    return remaining.inMinutes;
+  }
+
   List<InboxItem> get _activeReports {
     final list = _personalReports.where((i) {
       if (_activeFilter == _SubFilter.unread) {
@@ -217,6 +242,24 @@ class _InboxScreenState extends State<InboxScreen>
     }).toList();
     
     list.sort((a, b) {
+      final urgentA = _needsImmediateAction(a);
+      final urgentB = _needsImmediateAction(b);
+      if (urgentA != urgentB) {
+        return urgentB ? 1 : -1;
+      }
+
+      final validatingA = _isValidating(a);
+      final validatingB = _isValidating(b);
+      if (validatingA != validatingB) {
+        return validatingB ? 1 : -1;
+      }
+
+      final remainA = _remainingMinutesRank(a);
+      final remainB = _remainingMinutesRank(b);
+      if (remainA != remainB) {
+        return remainA.compareTo(remainB);
+      }
+
       final sevA = _severityValue(a.severity);
       final sevB = _severityValue(b.severity);
       if (sevA != sevB) {
@@ -383,7 +426,7 @@ class _InboxScreenState extends State<InboxScreen>
     switch (f) {
       case _MyPostFilter.all: return 'Semua Laporan';
       case _MyPostFilter.draft: return 'Draft';
-      case _MyPostFilter.pending: return 'Pending Approval';
+      case _MyPostFilter.pending: return 'Validating';
       case _MyPostFilter.approved: return 'Approved';
       case _MyPostFilter.rejected: return 'Rejected';
     }
@@ -593,8 +636,8 @@ class _InboxScreenState extends State<InboxScreen>
             if (_mainTabController.index == 1)
               Builder(builder: (context) {
                 final urgentCount = _personalReports.where((i) =>
-                  i.status == ReportStatus.open && 
-                  (i.severity == ReportSeverity.high || i.severity == ReportSeverity.critical)
+                  i.status != ReportStatus.closed &&
+                  _needsImmediateAction(i)
                 ).length;
                 
                 if (urgentCount == 0) return const SizedBox.shrink();
@@ -1006,31 +1049,77 @@ class _InboxCard extends StatelessWidget {
     }
   }
 
-  Widget? _dueChip() {
+  Duration? _remainingDuration() {
+    if (item.dueDate == null) return null;
+    return item.dueDate!.difference(DateTime.now());
+  }
+
+  bool _needsImmediateAction(ReportStatus status, ReportSeverity severity) {
+    if (status == ReportStatus.closed) return false;
+    final remaining = _remainingDuration();
+    final nearDeadline =
+        remaining != null && remaining <= const Duration(hours: 24);
+    final highSeverity =
+        severity == ReportSeverity.high || severity == ReportSeverity.critical;
+    return nearDeadline || highSeverity;
+  }
+
+  ({Color border, Color background}) _urgencyStyle(
+      ReportStatus status, ReportSeverity severity) {
+    final remaining = _remainingDuration();
+    if (status == ReportStatus.closed || remaining == null) {
+      return (border: Colors.grey.shade200, background: Colors.white);
+    }
+    if (remaining <= Duration.zero || remaining <= const Duration(hours: 24)) {
+      return (
+        border: const Color(0xFFF44336).withValues(alpha: 0.45),
+        background: const Color(0xFFFFEBEE),
+      );
+    }
+    if (remaining <= const Duration(hours: 72)) {
+      return (
+        border: const Color(0xFFFF9800).withValues(alpha: 0.35),
+        background: const Color(0xFFFFF8E1),
+      );
+    }
+    return (border: Colors.grey.shade200, background: Colors.white);
+  }
+
+  String _formatRemaining(Duration diff) {
+    final abs = diff.isNegative ? diff.abs() : diff;
+    if (abs < const Duration(days: 1)) {
+      final hours = abs.inHours;
+      final minutes = abs.inMinutes.remainder(60);
+      return '$hours jam $minutes menit';
+    }
+    final days = abs.inDays;
+    final hours = abs.inHours.remainder(24);
+    return '$days hari $hours jam';
+  }
+
+  Widget? _dueChip(ReportStatus status) {
     if (item.reportType != ReportType.hazard) return null;
     if (item.dueDate == null) return null;
-    final sisa = item.sisaHari ?? 0;
+    if (status == ReportStatus.closed) return null;
+    final diff = _remainingDuration();
+    if (diff == null) return null;
 
     Color color;
-    IconData icon;
+    const icon = Icons.alarm_outlined;
     String label;
 
-    if (sisa < 0) {
+    if (diff <= Duration.zero) {
       color = const Color(0xFFF44336);
-      icon = Icons.warning_amber_rounded;
-      label = 'Terlambat ${-sisa} hari';
-    } else if (sisa == 0) {
+      label = 'Terlambat ${_formatRemaining(diff)}';
+    } else if (diff < const Duration(days: 1)) {
       color = const Color(0xFFF44336);
-      icon = Icons.today;
-      label = 'Hari ini';
-    } else if (sisa <= 3) {
+      label = _formatRemaining(diff);
+    } else if (diff <= const Duration(hours: 72)) {
       color = const Color(0xFFFF9800);
-      icon = Icons.schedule;
-      label = '$sisa hari lagi';
+      label = _formatRemaining(diff);
     } else {
       color = const Color(0xFF4CAF50);
-      icon = Icons.event_available_outlined;
-      label = '$sisa hari lagi';
+      label = _formatRemaining(diff);
     }
 
     return Container(
@@ -1064,14 +1153,16 @@ class _InboxCard extends StatelessWidget {
     final ReportStatus status = item.status ?? ReportStatus.open;
     final ReportSeverity severity = item.severity ?? ReportSeverity.medium;
     final String imageUrl = item.imageUrl ?? '';
+    final dueChip = _dueChip(status);
+    final urgencyStyle = _urgencyStyle(status, severity);
 
-    // Sub-status overrides label/warna agar fase 'validating' tampil sebagai
-    // "Pending Approval" (warna pending) meski status bertukar ke 'open'.
+    // Sub-status 'validating' ditampilkan sebagai "Validating" dengan warna
+    // parent status 'open' (biru) agar konsisten dengan hierarki status.
     final String badgeLabel;
     final Color badgeColor;
     if (item.subStatus == ReportSubStatus.validating) {
-      badgeLabel = 'Pending Approval';
-      badgeColor = statusColor(ReportStatus.pending);
+      badgeLabel = 'Validating';
+      badgeColor = statusColor(ReportStatus.open);
     } else if (item.subStatus == ReportSubStatus.rejected) {
       badgeLabel = 'Rejected';
       badgeColor = statusColor(ReportStatus.closed);
@@ -1082,17 +1173,17 @@ class _InboxCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onDetail,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color: isRead ? Colors.white : const Color(0xFFF0F7FF),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(
             color: isRead
-                ? Colors.grey.shade200
-                : const Color(0xFF1A56C4).withValues(alpha: 0.3),
-            width: 1,
-          ),
+                ? urgencyStyle.background
+                : const Color(0xFFF0F7FF),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isRead ? urgencyStyle.border : const Color(0xFF1A56C4).withValues(alpha: 0.3),
+              width: 1,
+            ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -1107,8 +1198,8 @@ class _InboxCard extends StatelessWidget {
             children: [
               SizedBox(
                 height: item.reportType == ReportType.hazard &&
-                        item.dueDate != null
-                    ? 130
+                        dueChip != null
+                    ? 155
                     : 135,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1215,11 +1306,11 @@ class _InboxCard extends StatelessWidget {
                                             fontSize: 10, color: Colors.grey))),
                               ],
                             ),
-                            if (_dueChip() != null) ...[
+                            if (dueChip != null) ...[
                               const SizedBox(height: 6),
                               Align(
                                 alignment: Alignment.centerLeft,
-                                child: _dueChip()!,
+                                child: dueChip,
                               ),
                             ],
                             const SizedBox(height: 10),
@@ -1271,8 +1362,7 @@ class _InboxCard extends StatelessWidget {
               ),
 
               // ── BOTTOM: Warning Banner if Open ───────────────────────────
-              if (status == ReportStatus.open &&
-                  (severity == ReportSeverity.high))
+              if (_needsImmediateAction(status, severity))
                 Container(
                   width: double.infinity,
                   padding:

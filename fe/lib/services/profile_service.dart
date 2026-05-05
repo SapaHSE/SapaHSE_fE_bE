@@ -1,4 +1,5 @@
 import '../config/supabase_config.dart';
+import 'package:image_picker/image_picker.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
 import 'supabase_storage_service.dart';
@@ -124,6 +125,102 @@ class ProfileService {
 
     await StorageService.saveUser(userData);
     return ProfileResult.success(ProfileData.fromJson(userData));
+  }
+
+  // ── Update Medical ──────────────────────────────────────────────────────────
+  static Future<SimpleResult> updateMedical({
+    String? bloodType,
+    String? height,
+    String? weight,
+    String? bloodPressure,
+    String? allergies,
+  }) async {
+    final response = await ApiService.post('/profile/medical', {
+      'blood_type': bloodType,
+      'height': height,
+      'weight': weight,
+      'blood_pressure': bloodPressure,
+      'allergies': allergies,
+    });
+
+    if (!response.success) {
+      return SimpleResult.error(
+        response.errorMessage ?? 'Gagal menyimpan data medis.',
+      );
+    }
+    return SimpleResult.success('Data medis berhasil disimpan.');
+  }
+
+  // ── Add License ─────────────────────────────────────────────────────────────
+  static Future<SimpleResult> addLicense({
+    required String name,
+    required String licenseNumber,
+    String? expiredAt,
+    String status = 'active',
+    XFile? imageFile,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'license_number': licenseNumber,
+      'expired_at': expiredAt ?? '',
+      'status': status,
+    };
+
+    if (imageFile != null && imageFile.path.isNotEmpty) {
+      final fileUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imageFile.path,
+        folder: SupabaseConfig.licensesFolder,
+      );
+      if (fileUrl == null) {
+        return SimpleResult.error('Gagal mengunggah file lisensi ke Supabase.');
+      }
+      body['file_url'] = fileUrl;
+    }
+
+    final response = await ApiService.post('/profile/license', body);
+    if (!response.success) {
+      return SimpleResult.error(
+        response.errorMessage ?? 'Gagal menambah lisensi.',
+      );
+    }
+    return SimpleResult.success('Lisensi berhasil ditambahkan.');
+  }
+
+  // ── Add Certification ───────────────────────────────────────────────────────
+  static Future<SimpleResult> addCertification({
+    required String name,
+    required String issuer,
+    int? year,
+    String status = 'active',
+    XFile? imageFile,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'issuer': issuer,
+      'year': year?.toString() ?? '',
+      'status': status,
+    };
+
+    if (imageFile != null && imageFile.path.isNotEmpty) {
+      final fileUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imageFile.path,
+        folder: SupabaseConfig.certificationsFolder,
+      );
+      if (fileUrl == null) {
+        return SimpleResult.error(
+          'Gagal mengunggah file sertifikasi ke Supabase.',
+        );
+      }
+      body['file_url'] = fileUrl;
+    }
+
+    final response = await ApiService.post('/profile/certification', body);
+    if (!response.success) {
+      return SimpleResult.error(
+        response.errorMessage ?? 'Gagal menambah sertifikasi.',
+      );
+    }
+    return SimpleResult.success('Sertifikasi berhasil ditambahkan.');
   }
 
   // ── Change password ───────────────────────────────────────────────────────

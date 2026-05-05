@@ -64,6 +64,8 @@ class ReportService {
     required String description,
     required String location,
     String? severity,
+    String? company,
+    String? area,
     String? picDepartment,
     String? department,
     String? hazardCategory,
@@ -80,6 +82,8 @@ class ReportService {
       'description': description,
       'location': location,
       if (severity != null && severity.isNotEmpty) 'severity': severity,
+      if (company != null && company.isNotEmpty) 'company': company,
+      if (area != null && area.isNotEmpty) 'area': area,
       if (picDepartment != null && picDepartment.isNotEmpty)
         'pic_department': picDepartment,
       if (department != null && department.isNotEmpty)
@@ -134,6 +138,7 @@ class ReportService {
     required String location,
     String? area,
     String? inspector,
+    String? reportedDepartment,
     String? result,
     String? notes,
     List<Map<String, dynamic>>? checklistItems,
@@ -145,6 +150,8 @@ class ReportService {
       'location': location,
       if (area != null && area.isNotEmpty) 'area': area,
       if (inspector != null && inspector.isNotEmpty) 'inspector': inspector,
+      if (reportedDepartment != null && reportedDepartment.isNotEmpty)
+        'reported_department': reportedDepartment,
       if (result != null && result.isNotEmpty) 'result': result,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
       if (checklistItems != null)
@@ -310,14 +317,27 @@ class ReportService {
         department: m['department']?.toString(),
         photoUrl: normalizeStorageUrl(m['photo_url']?.toString()),
       );
-    }).where((u) => u.id.isNotEmpty).toList();
+    }).where((u) => u.id.isNotEmpty && u.fullName.trim().isNotEmpty).toList();
   }
 
   static Future<List<String>> getDepartments() async {
     final response = await ApiService.get('/departments');
     if (!response.success) return const [];
     final raw = _asList(response.data['data']);
-    return raw.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    final seen = <String>{};
+    return raw
+        .map((e) {
+          if (e is Map) {
+            final m = Map<String, dynamic>.from(e);
+            return m['name']?.toString() ??
+                m['department']?.toString() ??
+                '';
+          }
+          return e.toString();
+        })
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty && seen.add(s.toLowerCase()))
+        .toList();
   }
 
   static Future<List<String>> getCompanies({String? category}) async {
@@ -338,22 +358,149 @@ class ReportService {
     final response = await ApiService.get('/hazard-categories');
     if (!response.success) return const [];
     final raw = _asList(response.data['data']);
-    return raw.map((e) {
-      final m = Map<String, dynamic>.from(e);
-      final subs = _asList(m['subcategories']).map((s) {
-        final sm = Map<String, dynamic>.from(s);
-        return HazardSubcategoryData(
-          id: sm['id']?.toString() ?? '',
-          name: sm['name']?.toString() ?? '',
-        );
-      }).where((s) => s.name.isNotEmpty).toList();
-      return HazardCategoryData(
-        id: m['id']?.toString() ?? '',
-        name: m['name']?.toString() ?? '',
-        code: m['code']?.toString() ?? '',
-        subcategories: subs,
-      );
-    }).where((c) => c.name.isNotEmpty).toList();
+    return raw
+        .map((e) => _mapCategoryData(e))
+        .where((c) => c.name.isNotEmpty)
+        .toList();
+  }
+
+  static HazardCategoryData _mapCategoryData(dynamic e) {
+    final m = Map<String, dynamic>.from(e);
+    final subs = _asList(m['subcategories']);
+    return HazardCategoryData(
+      id: m['id']?.toString() ?? '',
+      name: m['name']?.toString() ?? '',
+      code: m['code']?.toString() ?? '',
+      subcategories: subs
+          .map((s) => _mapSubcategoryData(s))
+          .where((s) => s.name.isNotEmpty)
+          .toList(),
+    );
+  }
+
+  static HazardSubcategoryData _mapSubcategoryData(dynamic s) {
+    final sm = Map<String, dynamic>.from(s);
+    return HazardSubcategoryData(
+      id: sm['id']?.toString() ?? '',
+      name: sm['name']?.toString() ?? '',
+      abbreviation: sm['abbreviation']?.toString(),
+      description: sm['description']?.toString(),
+      isActive: sm['is_active'] == true || sm['is_active'] == 1,
+      status: sm['status']?.toString() ?? 'approved',
+      categoryId:
+          sm['category_id']?.toString() ?? sm['category']?['id']?.toString(),
+      categoryName: sm['category']?['name']?.toString(),
+      proposedByName: sm['proposed_by']?['full_name']?.toString() ??
+          sm['proposed_by_name']?.toString(),
+    );
+  }
+
+  static Future<HazardCategoryData?> createCategory(
+    String name, {
+    String? code,
+  }) async {
+    final response = await ApiService.post('/hazard-categories', {
+      'name': name,
+      if (code != null) 'code': code,
+    });
+    if (!response.success) return null;
+    return _mapCategoryData(response.data['data']);
+  }
+
+  static Future<HazardCategoryData?> updateCategory(
+    String id,
+    String name, {
+    String? code,
+  }) async {
+    final response = await ApiService.put('/hazard-categories/$id', {
+      'name': name,
+      if (code != null) 'code': code,
+    });
+    if (!response.success) return null;
+    return _mapCategoryData(response.data['data']);
+  }
+
+  static Future<bool> deleteCategory(String id) async {
+    final response = await ApiService.delete('/hazard-categories/$id');
+    return response.success;
+  }
+
+  static Future<List<HazardSubcategoryData>> getPendingSubcategories() async {
+    final response =
+        await ApiService.get('/hazard-categories/subcategories/pending');
+    if (!response.success) return const [];
+    final raw = _asList(response.data['data']);
+    return raw.map((e) => _mapSubcategoryData(e)).toList();
+  }
+
+  static Future<HazardSubcategoryData?> createSubcategory(
+    String categoryId,
+    String name, {
+    String? abbreviation,
+    String? description,
+  }) async {
+    final response = await ApiService.post(
+      '/hazard-categories/$categoryId/subcategories',
+      {
+        'name': name,
+        'abbreviation': abbreviation,
+        'description': description,
+      },
+    );
+    if (!response.success) return null;
+    return _mapSubcategoryData(response.data['data']);
+  }
+
+  static Future<bool> approveSubcategory(String subId) async {
+    final response = await ApiService.post(
+      '/hazard-categories/subcategories/$subId/approve',
+      {},
+    );
+    return response.success;
+  }
+
+  static Future<bool> rejectSubcategory(String subId) async {
+    final response = await ApiService.post(
+      '/hazard-categories/subcategories/$subId/reject',
+      {},
+    );
+    return response.success;
+  }
+
+  static Future<HazardSubcategoryData?> updateSubcategory(
+    String categoryId,
+    String subId,
+    String name, {
+    String? abbreviation,
+    String? description,
+    bool? isActive,
+  }) async {
+    final response = await ApiService.put(
+      '/hazard-categories/$categoryId/subcategories/$subId',
+      {
+        'name': name,
+        'abbreviation': abbreviation,
+        'description': description,
+        'is_active': isActive,
+      },
+    );
+    if (!response.success) return null;
+    return _mapSubcategoryData(response.data['data']);
+  }
+
+  static Future<bool> deleteSubcategory(String categoryId, String subId) async {
+    final response = await ApiService.delete(
+      '/hazard-categories/$categoryId/subcategories/$subId',
+    );
+    return response.success;
+  }
+
+  static Future<bool> toggleSubcategoryStatus(String subId) async {
+    final response = await ApiService.post(
+      '/hazard-categories/subcategories/$subId/toggle',
+      {},
+    );
+    return response.success;
   }
 
   static Report _mapHazardReport(Map<String, dynamic> json) {
@@ -644,7 +791,25 @@ class UserEntry {
 class HazardSubcategoryData {
   final String id;
   final String name;
-  const HazardSubcategoryData({required this.id, required this.name});
+  final String? abbreviation;
+  final String? description;
+  final bool isActive;
+  final String status;
+  final String? categoryId;
+  final String? categoryName;
+  final String? proposedByName;
+
+  const HazardSubcategoryData({
+    required this.id,
+    required this.name,
+    this.abbreviation,
+    this.description,
+    this.isActive = true,
+    this.status = 'approved',
+    this.categoryId,
+    this.categoryName,
+    this.proposedByName,
+  });
 }
 
 class HazardCategoryData {

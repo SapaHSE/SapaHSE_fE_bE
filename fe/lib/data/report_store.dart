@@ -58,6 +58,8 @@ class ReportStore {
     required String description,
     required String location,
     required String severity,
+    String? company,
+    String? area,
     String? picDepartment,
     String? department,
     String? hazardCategory,
@@ -74,6 +76,8 @@ class ReportStore {
       description: description,
       location: location,
       severity: severity,
+      company: company,
+      area: area,
       picDepartment: picDepartment,
       department: department,
       hazardCategory: hazardCategory,
@@ -99,6 +103,7 @@ class ReportStore {
     required String location,
     String? area,
     String? inspector,
+    String? reportedDepartment,
     String? result,
     String? notes,
     List<Map<String, dynamic>>? checklistItems,
@@ -110,6 +115,7 @@ class ReportStore {
       location: location,
       area: area,
       inspector: inspector,
+      reportedDepartment: reportedDepartment,
       result: result,
       notes: notes,
       checklistItems: checklistItems,
@@ -192,8 +198,10 @@ class ReportStore {
       );
     }).toList();
 
-    _timelines[reportId] =
-        events.isEmpty ? _buildFallbackTimeline(report) : events;
+    _timelines[reportId] = _normalizeTimeline(
+      events.isEmpty ? _buildFallbackTimeline(report) : events,
+      report,
+    );
     return getTimeline(reportId);
   }
 
@@ -221,6 +229,8 @@ class ReportStore {
           description: (draft.data['kronologi']?.toString() ?? '').trim(),
           location: (draft.data['location']?.toString() ?? '').trim(),
           severity: severityApi,
+          company: draft.data['perusahaan']?.toString(),
+          area: draft.data['area']?.toString(),
           picDepartment: draft.data['pic']?.toString(),
           department: draft.data['departemen']?.toString(),
           hazardCategory: draft.data['kategori']?.toString(),
@@ -247,6 +257,7 @@ class ReportStore {
               : (draft.data['notes']?.toString() ?? '').trim(),
           location: (draft.data['location']?.toString() ?? '').trim(),
           inspector: draft.data['inspector']?.toString(),
+          reportedDepartment: draft.data['reported_department']?.toString(),
           area: draft.data['area']?.toString(),
           result: _inspectionResultUiToApi(draft.data['result']?.toString()),
           notes: draft.data['notes']?.toString(),
@@ -283,15 +294,117 @@ class ReportStore {
   }
 
   List<TimelineEvent> _buildFallbackTimeline(Report report) {
-    return [
-      TimelineEvent(
-        status: report.status,
-        subStatus: report.subStatus,
-        timestamp: report.createdAt,
-        actor: report.reportedBy,
-        note: 'Laporan dibuat.',
-      ),
+    return _normalizeTimeline(
+      [
+        TimelineEvent(
+          status: report.status,
+          subStatus: report.subStatus,
+          timestamp: report.createdAt,
+          actor: report.reportedBy,
+          note: 'Laporan dibuat.',
+        ),
+      ],
+      report,
+    );
+  }
+
+  List<TimelineEvent> _normalizeTimeline(
+    List<TimelineEvent> rawEvents,
+    Report report,
+  ) {
+    final events = List<TimelineEvent>.from(rawEvents)
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    if (events.isEmpty) return events;
+
+    final normalized = <TimelineEvent>[];
+    final seen = <ReportSubStatus>{};
+
+    for (final event in events) {
+      final subStatus = event.subStatus;
+      if (subStatus != null) {
+        final missing = _missingPrerequisites(subStatus, seen);
+        for (var i = 0; i < missing.length; i++) {
+          final sub = missing[i];
+          normalized.add(_implicitTimelineEvent(
+            sub,
+            report,
+            event.timestamp.subtract(
+              Duration(milliseconds: missing.length - i),
+            ),
+          ));
+          seen.add(sub);
+        }
+        seen.add(subStatus);
+      }
+      normalized.add(TimelineEvent(
+        status: event.status,
+        subStatus: event.subStatus,
+        timestamp: event.timestamp,
+        actor: event.actor,
+        note: _sanitizeTimelineNote(event.note, event.subStatus),
+        photoPath: event.photoPath,
+      ));
+    }
+
+    return normalized;
+  }
+
+  List<ReportSubStatus> _missingPrerequisites(
+    ReportSubStatus target,
+    Set<ReportSubStatus> seen,
+  ) {
+    final index = _normalFlow.indexOf(target);
+    if (index <= 0) return const <ReportSubStatus>[];
+    return _normalFlow.take(index).where((sub) => !seen.contains(sub)).toList();
+  }
+
+  TimelineEvent _implicitTimelineEvent(
+    ReportSubStatus subStatus,
+    Report report,
+    DateTime timestamp,
+  ) {
+    return TimelineEvent(
+      status: subStatus.parentStatus,
+      subStatus: subStatus,
+      timestamp: timestamp,
+      actor: subStatus == ReportSubStatus.assigned
+          ? _assignmentActor(report)
+          : (subStatus == ReportSubStatus.validating ? report.reportedBy : ''),
+      note: null,
+    );
+  }
+
+  String _assignmentActor(Report report) {
+    final values = <String>[
+      if (report.departemen?.trim().isNotEmpty == true) report.departemen!.trim(),
+      if (report.picDepartment?.trim().isNotEmpty == true)
+        report.picDepartment!.trim(),
+      if (report.nameInspector?.trim().isNotEmpty == true)
+        report.nameInspector!.trim(),
     ];
+    return values.join(', ');
+  }
+
+  static const List<ReportSubStatus> _normalFlow = [
+    ReportSubStatus.validating,
+    ReportSubStatus.approved,
+    ReportSubStatus.assigned,
+    ReportSubStatus.preparing,
+    ReportSubStatus.executing,
+    ReportSubStatus.reviewing,
+    ReportSubStatus.resolved,
+  ];
+
+  String? _sanitizeTimelineNote(String? note, ReportSubStatus? subStatus) {
+    if (note == null || note.trim().isEmpty) return null;
+    if (subStatus == ReportSubStatus.assigned) return note;
+
+    final lines = note
+        .split('\n')
+        .where((line) => !line.trimLeft().toLowerCase().startsWith('tag:'))
+        .toList();
+    final cleaned = lines.join('\n').trim();
+    return cleaned.isEmpty ? null : cleaned;
   }
 
   String? _inspectionResultUiToApi(String? uiValue) {

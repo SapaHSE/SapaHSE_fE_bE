@@ -12,12 +12,16 @@ class ProfileData {
   final String? position;
   final String? department;
   final String? company;
+  final String? tipeAfiliasi;
+  final String? perusahaanKontraktor;
+  final String? subKontraktor;
   final String? profilePhoto;
   final String role;
   final bool isActive;
   final List<UserLicense> licenses;
   final List<UserCertification> certifications;
   final List<UserMedical> medicals;
+  final List<UserViolation> violations;
 
   ProfileData({
     required this.id,
@@ -29,12 +33,16 @@ class ProfileData {
     this.position,
     this.department,
     this.company,
+    this.tipeAfiliasi,
+    this.perusahaanKontraktor,
+    this.subKontraktor,
     this.profilePhoto,
     required this.role,
     required this.isActive,
     this.licenses = const [],
     this.certifications = const [],
     this.medicals = const [],
+    this.violations = const [],
   });
 
   factory ProfileData.fromJson(Map<String, dynamic> json) {
@@ -48,6 +56,9 @@ class ProfileData {
       position: json['position']?.toString(),
       department: json['department']?.toString(),
       company: json['company']?.toString(),
+      tipeAfiliasi: json['tipe_afiliasi']?.toString(),
+      perusahaanKontraktor: json['perusahaan_kontraktor']?.toString(),
+      subKontraktor: json['sub_kontraktor']?.toString(),
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
       role: json['role']?.toString() ?? 'user',
       isActive: json['is_active'] == true || json['is_active'] == 1,
@@ -63,6 +74,10 @@ class ProfileData {
               ?.map((m) => UserMedical.fromJson(m as Map<String, dynamic>))
               .toList() ??
           [],
+      violations: (json['violations'] as List<dynamic>?)
+              ?.map((v) => UserViolation.fromJson(v as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -75,6 +90,8 @@ class UserLicense {
   final String licenseNumber;
   final String? expiredAt;
   final String status;
+  final bool isVerified;
+  final String? fileUrl;
 
   UserLicense({
     required this.id,
@@ -82,6 +99,8 @@ class UserLicense {
     required this.licenseNumber,
     this.expiredAt,
     required this.status,
+    this.isVerified = false,
+    this.fileUrl,
   });
 
   factory UserLicense.fromJson(Map<String, dynamic> json) {
@@ -91,6 +110,8 @@ class UserLicense {
       licenseNumber: json['license_number']?.toString() ?? '',
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'active',
+      isVerified: json['is_verified'] == true || json['is_verified'] == 1,
+      fileUrl: normalizeStorageUrl(json['file_url']?.toString()),
     );
   }
 
@@ -103,6 +124,8 @@ class UserCertification {
   final String issuer;
   final int? year;
   final String status;
+  final bool isVerified;
+  final String? fileUrl;
 
   UserCertification({
     required this.id,
@@ -110,6 +133,8 @@ class UserCertification {
     required this.issuer,
     this.year,
     required this.status,
+    this.isVerified = false,
+    this.fileUrl,
   });
 
   factory UserCertification.fromJson(Map<String, dynamic> json) {
@@ -119,6 +144,8 @@ class UserCertification {
       issuer: json['issuer']?.toString() ?? '',
       year: json['year'] as int?,
       status: json['status']?.toString() ?? 'active',
+      isVerified: json['is_verified'] == true || json['is_verified'] == 1,
+      fileUrl: normalizeStorageUrl(json['file_url']?.toString()),
     );
   }
 
@@ -220,6 +247,35 @@ class MedicalChecklistItem {
     return MedicalChecklistItem(
       label: json['label']?.toString() ?? '',
       done: json['done'] == true || json['done'] == 1,
+    );
+  }
+}
+
+class UserViolation {
+  final String id;
+  final String title;
+  final String? location;
+  final String? dateOfViolation;
+  final String status;
+  final String? sanction;
+
+  UserViolation({
+    required this.id,
+    required this.title,
+    this.location,
+    this.dateOfViolation,
+    required this.status,
+    this.sanction,
+  });
+
+  factory UserViolation.fromJson(Map<String, dynamic> json) {
+    return UserViolation(
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      location: json['location']?.toString(),
+      dateOfViolation: json['date_of_violation']?.toString(),
+      status: json['status']?.toString() ?? 'Aktif',
+      sanction: json['sanction']?.toString(),
     );
   }
 }

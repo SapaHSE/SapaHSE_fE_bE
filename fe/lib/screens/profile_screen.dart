@@ -8,6 +8,8 @@ import 'user_management.dart';
 import 'kategori_laporan.dart';
 import 'settings_screen.dart';
 import 'neztek_admin_screen.dart';
+import 'company_management.dart';
+import 'location_management.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -140,50 +142,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     MaterialPageRoute(builder: (_) => const SettingsScreen()));
               },
             ),
-            _buildSectionHeader('ALAT ADMIN',
-                badge: 'CHIEF', badgeColor: const Color(0xFFE65100)),
-            _buildMenuItem(
-              icon: Icons.people,
-              iconBg: const Color(0xFFE3F2FD),
-              iconColor: const Color(0xFF1565C0),
-              title: 'User Management',
-              subtitle: 'Roles, access, approvals',
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const UserManagementScreen()));
-              },
-            ),
-            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-            _buildMenuItem(
-              icon: Icons.folder_special,
-              iconBg: const Color(0xFFFBE9E7),
-              iconColor: const Color(0xFFD84315),
-              title: 'Kategori Laporan',
-              subtitle: 'Kelola TTA, KTA & subkategori',
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const KategoriLaporanScreen()));
-              },
-            ),
-            _buildSectionHeader('PLATFORM',
-                badge: 'NEZTEK ADMIN', badgeColor: const Color(0xFFD32F2F)),
-            _buildMenuItem(
-              icon: Icons.admin_panel_settings,
-              iconBg: const Color(0xFFE8EAF6),
-              iconColor: const Color(0xFF283593),
-              title: 'Neztek Admin Panel',
-              subtitle: 'Tenants, billing, modules',
-              onTap: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const NeztekAdminScreen()));
-              },
-            ),
+            if (_profileData?.role == 'admin' ||
+                _profileData?.role == 'superadmin') ...[
+              _buildSectionHeader('ALAT ADMIN',
+                  badge: 'CHIEF', badgeColor: const Color(0xFFE65100)),
+              _buildMenuItem(
+                icon: Icons.people,
+                iconBg: const Color(0xFFE3F2FD),
+                iconColor: const Color(0xFF1565C0),
+                title: 'User Management',
+                subtitle: 'Roles, access, approvals',
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const UserManagementScreen()));
+                },
+              ),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+              _buildMenuItem(
+                icon: Icons.folder_special,
+                iconBg: const Color(0xFFFBE9E7),
+                iconColor: const Color(0xFFD84315),
+                title: 'Kategori Laporan',
+                subtitle: 'Daftar TTA, KTA & subkategori',
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const KategoriLaporanScreen()));
+                },
+              ),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+              _buildMenuItem(
+                icon: Icons.business,
+                iconBg: const Color(0xFFE8F5E9),
+                iconColor: const Color(0xFF2E7D32),
+                title: 'Company Management',
+                subtitle: 'Owner, kontraktor & sub kontraktor',
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const CompanyManagementScreen()));
+                },
+              ),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+              _buildMenuItem(
+                icon: Icons.location_on,
+                iconBg: const Color(0xFFFFF3E0),
+                iconColor: const Color(0xFFEF6C00),
+                title: 'Location Management',
+                subtitle: 'Lokasi kerja tiap perusahaan owner',
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const LocationManagementScreen()));
+                },
+              ),
+            ],
+            if (_profileData?.role == 'superadmin') ...[
+              _buildSectionHeader('PLATFORM',
+                  badge: 'NEZTEK ADMIN', badgeColor: const Color(0xFFD32F2F)),
+              _buildMenuItem(
+                icon: Icons.admin_panel_settings,
+                iconBg: const Color(0xFFE8EAF6),
+                iconColor: const Color(0xFF283593),
+                title: 'Neztek Admin Panel',
+                subtitle: 'Tenants, billing, modules',
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const NeztekAdminScreen()));
+                },
+              ),
+            ],
             const SizedBox(height: 80),
           ],
         ),
@@ -254,8 +289,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       decoration: BoxDecoration(
                           color: const Color(0xFFF3E5F5),
                           borderRadius: BorderRadius.circular(12)),
-                      child: const Text('User',
-                          style: TextStyle(
+                      child: Text(_profileData?.role.toUpperCase() ?? 'USER',
+                          style: const TextStyle(
                               fontSize: 11,
                               color: Color(0xFF6A1B9A),
                               fontWeight: FontWeight.w700)),
@@ -265,12 +300,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
+                          color: _profileData?.isActive == true ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
                           borderRadius: BorderRadius.circular(12)),
-                      child: const Text('Aktif',
+                      child: Text(_profileData?.isActive == true ? 'Karyawan : Aktif' : 'Karyawan : Nonaktif',
                           style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF2E7D32),
+                              color: _profileData?.isActive == true ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F),
                               fontWeight: FontWeight.w700)),
                     ),
                   ],

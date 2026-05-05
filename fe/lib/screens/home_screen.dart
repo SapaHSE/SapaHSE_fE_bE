@@ -775,7 +775,7 @@ class _ReportCard extends StatelessWidget {
               SizedBox(
                 height: report.type == ReportType.hazard &&
                         report.dueDate != null
-                    ? 130
+                    ? 155
                     : 135,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -899,7 +899,9 @@ class _ReportCard extends StatelessWidget {
                                             alpha: 0.3)),
                                   ),
                                   child: Text(
-                                    report.status.label,
+                                    report.subStatus == ReportSubStatus.validating
+                                        ? 'Validating'
+                                        : report.status.label,
                                     style: TextStyle(
                                         color: _statusColor,
                                         fontSize: 9,

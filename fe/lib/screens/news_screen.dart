@@ -33,8 +33,10 @@ class _NewsScreenState extends State<NewsScreen> {
 
   List<NewsArticle> get _allFilteredArticles {
     return _articles.where((a) {
-      final matchCat = _selectedCategory == 'All News' || a.category == _selectedCategory;
-      final matchSearch = _searchQuery.isEmpty || a.title.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchCat =
+          _selectedCategory == 'All News' || a.category == _selectedCategory;
+      final matchSearch = _searchQuery.isEmpty ||
+          a.title.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchCat && matchSearch;
     }).toList();
   }
@@ -102,11 +104,16 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Color _categoryColor(String cat) {
     switch (cat) {
-      case 'K3 / HSE':   return const Color(0xFF1A56C4);
-      case 'Operasional': return const Color(0xFF1565C0);
-      case 'Regulasi':   return const Color(0xFFE65100);
-      case 'Prestasi':   return const Color(0xFF6A1B9A);
-      default:           return const Color(0xFF37474F);
+      case 'K3 / HSE':
+        return const Color(0xFF1A56C4);
+      case 'Operasional':
+        return const Color(0xFF1565C0);
+      case 'Regulasi':
+        return const Color(0xFFE65100);
+      case 'Prestasi':
+        return const Color(0xFF6A1B9A);
+      default:
+        return const Color(0xFF37474F);
     }
   }
 
@@ -132,7 +139,6 @@ class _NewsScreenState extends State<NewsScreen> {
                 });
               },
             ),
-
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -160,12 +166,14 @@ class _NewsScreenState extends State<NewsScreen> {
                                     )
                                   : SliverList(
                                       delegate: SliverChildBuilderDelegate(
-                                        (_, i) => _buildArticleCard(_allFilteredArticles[i]),
+                                        (_, i) => _buildArticleCard(
+                                            _allFilteredArticles[i]),
                                         childCount: _allFilteredArticles.length,
                                       ),
                                     ),
 
-                              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                              const SliverToBoxAdapter(
+                                  child: SizedBox(height: 80)),
                             ],
                           ),
                         ),
@@ -207,7 +215,9 @@ class _NewsScreenState extends State<NewsScreen> {
     if (featured.isEmpty) {
       return const SizedBox(
         height: 240,
-        child: Center(child: Text('Tidak ada berita unggulan', style: TextStyle(color: Colors.grey))),
+        child: Center(
+            child: Text('Tidak ada berita unggulan',
+                style: TextStyle(color: Colors.grey))),
       );
     }
     return SizedBox(
@@ -226,7 +236,9 @@ class _NewsScreenState extends State<NewsScreen> {
 
           // Left arrow
           Positioned(
-            left: 8, top: 0, bottom: 0,
+            left: 8,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: GestureDetector(
                 onTap: () {
@@ -238,9 +250,12 @@ class _NewsScreenState extends State<NewsScreen> {
                       curve: Curves.easeInOut);
                 },
                 child: Container(
-                  width: 32, height: 32,
-                  decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
-                  child: const Icon(Icons.chevron_left, color: Colors.white, size: 22),
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                      color: Colors.black38, shape: BoxShape.circle),
+                  child: const Icon(Icons.chevron_left,
+                      color: Colors.white, size: 22),
                 ),
               ),
             ),
@@ -248,7 +263,9 @@ class _NewsScreenState extends State<NewsScreen> {
 
           // Right arrow
           Positioned(
-            right: 8, top: 0, bottom: 0,
+            right: 8,
+            top: 0,
+            bottom: 0,
             child: Center(
               child: GestureDetector(
                 onTap: () {
@@ -258,9 +275,12 @@ class _NewsScreenState extends State<NewsScreen> {
                       curve: Curves.easeInOut);
                 },
                 child: Container(
-                  width: 32, height: 32,
-                  decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
-                  child: const Icon(Icons.chevron_right, color: Colors.white, size: 22),
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                      color: Colors.black38, shape: BoxShape.circle),
+                  child: const Icon(Icons.chevron_right,
+                      color: Colors.white, size: 22),
                 ),
               ),
             ),
@@ -268,24 +288,31 @@ class _NewsScreenState extends State<NewsScreen> {
 
           // Dots + author/date
           Positioned(
-            left: 16, right: 16, bottom: 12,
+            left: 16,
+            right: 16,
+            bottom: 12,
             child: Row(
               children: [
                 // Dots
                 Row(
-                  children: List.generate(featured.length, (i) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: i == _currentCarouselPage ? 20 : 7,
-                    height: 7,
-                    margin: const EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: i == _currentCarouselPage ? Colors.white : Colors.white38,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  )),
+                  children: List.generate(
+                      featured.length,
+                      (i) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: i == _currentCarouselPage ? 20 : 7,
+                            height: 7,
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: BoxDecoration(
+                              color: i == _currentCarouselPage
+                                  ? Colors.white
+                                  : Colors.white38,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          )),
                 ),
                 const SizedBox(width: 10),
-                const Icon(Icons.person_outline, color: Colors.white70, size: 13),
+                const Icon(Icons.person_outline,
+                    color: Colors.white70, size: 13),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -306,27 +333,42 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildCategoryFilter() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: _selectedCategory,
-            isExpanded: true,
-            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-            style: const TextStyle(fontSize: 14, color: Colors.black87),
-            items: newsCategories
-                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                .toList(),
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedCategory = val);
-            },
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      margin: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'NEWS TYPE',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey,
+                letterSpacing: 0.6),
           ),
-        ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedCategory,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
+                items: newsCategories
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedCategory = val);
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -342,7 +384,10 @@ class _NewsScreenState extends State<NewsScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 2)),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 6,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: ClipRRect(
@@ -397,7 +442,9 @@ class _NewsScreenState extends State<NewsScreen> {
 
                   // Gradient + title + author + date
                   Positioned(
-                    left: 0, right: 0, bottom: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
                     child: Container(
                       padding: const EdgeInsets.fromLTRB(12, 60, 12, 10),
                       decoration: BoxDecoration(
@@ -507,14 +554,19 @@ class _CarouselItem extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.88)],
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.88)
+                ],
                 stops: const [0.3, 1.0],
               ),
             ),
           ),
           // Title
           Positioned(
-            left: 16, right: 52, bottom: 38,
+            left: 16,
+            right: 52,
+            bottom: 38,
             child: Text(
               article.title,
               maxLines: 3,

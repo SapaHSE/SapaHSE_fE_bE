@@ -9,6 +9,16 @@ import '../data/report_store.dart';
 import '../services/report_service.dart';
 import '../models/user_model.dart';
 import '../services/storage_service.dart';
+import '../main.dart';
+
+/// A curve that wraps another curve and clamps the input t to [0.0, 1.0].
+/// This prevents assertions when the parent animation's value goes slightly out of bounds.
+class _ClampedCurve extends Curve {
+  final Curve curve;
+  const _ClampedCurve(this.curve);
+  @override
+  double transform(double t) => curve.transform(t.clamp(0.0, 1.0));
+}
 
 class ReportDetailScreen extends StatefulWidget {
   final Report report;
@@ -20,7 +30,8 @@ class ReportDetailScreen extends StatefulWidget {
   State<ReportDetailScreen> createState() => _ReportDetailScreenState();
 }
 
-class _ReportDetailScreenState extends State<ReportDetailScreen> {
+class _ReportDetailScreenState extends State<ReportDetailScreen>
+    with SingleTickerProviderStateMixin {
   late Report _report;
   late Future<List<TimelineEvent>> _timelineFuture;
   bool _isLoading = false;
@@ -29,6 +40,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   bool _showTimeline = false;
 
   final ScrollController _scrollController = ScrollController();
+  late final AnimationController _updateStatusFabController;
 
   static const _blue = Color(0xFF1A56C4);
   static const _blueLight = Color(0xFFEFF4FF);
@@ -39,6 +51,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     _report = ReportStore.instance.getById(widget.report.id) ?? widget.report;
     _timelineFuture = ReportStore.instance.loadTimeline(_report.id);
     _loadUserAndRefresh();
+    _updateStatusFabController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _canUpdate) {
+        _updateStatusFabController.forward();
+      }
+    });
   }
 
   /// Evaluates scroll metrics and shows/hides the FAB accordingly.
@@ -63,10 +84,24 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
+  void _onTabTapped(int index) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => MainScreen(initialIndex: index)),
+      (route) => false,
+    );
+  }
+
   Future<void> _loadUserAndRefresh() async {
     final userData = await StorageService.getUser();
     if (userData != null && mounted) {
       setState(() => _currentUser = UserModel.fromJson(userData));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_canUpdate) return;
+        _updateStatusFabController
+          ..reset()
+          ..forward();
+      });
     }
     _refreshData();
   }
@@ -74,14 +109,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   // Admin and Superadmin both have full update authority — treat them the same here.
   bool get _isAdmin =>
       (_currentUser?.isAdmin ?? false) || (_currentUser?.isSuperadmin ?? false);
-  bool get _isPJA =>
-      _currentUser != null &&
-      _report.picDepartment != null &&
-      _report.picDepartment!
-          .toLowerCase()
-          .contains(_currentUser!.fullName.toLowerCase());
+  bool get _isPJA {
+    if (_currentUser == null) return false;
+    final fullName = _currentUser!.fullName.toLowerCase();
+    final dept = (_currentUser!.department ?? '').toLowerCase();
+    final pic = _report.picDepartment?.toLowerCase() ?? '';
+    final repDept = _report.departemen?.toLowerCase() ?? '';
+    return pic.contains(fullName) || (dept.isNotEmpty && repDept.contains(dept));
+  }
   bool get _canUpdate => _isAdmin || _isPJA;
-  bool get _isRestrictedPJA => _isPJA && !_isAdmin;
 
   Future<void> _refreshData() async {
     setState(() => _isLoading = true);
@@ -109,6 +145,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   void dispose() {
     _scrollController.dispose();
     _pageController.dispose();
+    _updateStatusFabController.dispose();
     super.dispose();
   }
 
@@ -171,12 +208,24 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
   }
 
-  String _formatDueLabel(DateTime due, int? sisa) {
+  String _formatDueLabel(DateTime due) {
     final dateStr = _formatDateShort(due);
-    if (sisa == null) return dateStr;
-    if (sisa < 0) return '$dateStr — Terlambat ${-sisa} hari';
-    if (sisa == 0) return '$dateStr — Hari ini';
-    return '$dateStr — $sisa hari lagi';
+    final diff = due.difference(DateTime.now());
+    final abs = diff.abs();
+
+    String span;
+    if (abs < const Duration(days: 1)) {
+      final hours = abs.inHours;
+      final minutes = abs.inMinutes.remainder(60);
+      span = '$hours jam $minutes menit';
+    } else {
+      final days = abs.inDays;
+      final hours = abs.inHours.remainder(24);
+      span = '$days hari $hours jam';
+    }
+
+    if (diff.isNegative) return '$dateStr — Terlambat $span';
+    return '$dateStr — $span lagi';
   }
 
   void _showImagePreview(BuildContext context, String imageUrl, int index) {
@@ -229,12 +278,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => _UpdateStatusSheet(
         report: _report,
-        isRestrictedPJA: _isRestrictedPJA,
         onUpdate: (updatedReport) {
-          setState(() {
-            _report = updatedReport;
-            _timelineFuture = ReportStore.instance.loadTimeline(_report.id);
-          });
+          setState(() => _report = updatedReport);
         },
       ),
     );
@@ -243,74 +288,44 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final List<String> images = [_report.imageUrl];
-    final showFloatingActions = _canUpdate || _showScrollToBottom;
 
     return Scaffold(
       backgroundColor: widget.isDialog ? Colors.white : const Color(0xFFF0F0F0),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: showFloatingActions
-          ? SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
+      floatingActionButtonLocation: widget.isDialog
+          ? FloatingActionButtonLocation.centerFloat
+          : FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: _canUpdate
+          ? FloatingActionButton(
+              onPressed: _showUpdateStatusModal,
+              backgroundColor: const Color(0xFF1A56C4),
+              foregroundColor: Colors.white,
+              shape: const CircleBorder(),
+              elevation: 4,
+              child: const Icon(Icons.edit_outlined, size: 26),
+            )
+          : null,
+      bottomNavigationBar: widget.isDialog
+          ? null
+          : BottomAppBar(
+              shape: const CircularNotchedRectangle(),
+              notchMargin: 8,
+              color: Colors.white,
+              elevation: 8,
+              child: SizedBox(
+                height: 60,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    if (_showScrollToBottom)
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: AnimatedSlide(
-                          duration: const Duration(milliseconds: 300),
-                          offset:
-                              _showScrollToBottom ? Offset.zero : const Offset(0, 2),
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 300),
-                            opacity: _showScrollToBottom ? 1.0 : 0.0,
-                            child: FloatingActionButton.small(
-                              onPressed: _scrollToBottom,
-                              backgroundColor: _blue,
-                              foregroundColor: Colors.white,
-                              elevation: 4,
-                              child: const Icon(Icons.keyboard_double_arrow_down,
-                                  size: 22),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (_canUpdate && _showScrollToBottom)
-                      const SizedBox(height: 10),
-                    if (_canUpdate)
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton.icon(
-                          onPressed: _showUpdateStatusModal,
-                          icon: const Icon(Icons.edit_outlined, size: 18),
-                          label: const Text('Update Status'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            elevation: 0,
-                          ),
-                        ),
-                      ),
+                    _ReportDetailNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: -1, onTap: _onTabTapped),
+                    _ReportDetailNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: -1, onTap: _onTabTapped),
+                    const SizedBox(width: 48),
+                    _ReportDetailNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: -1, onTap: _onTabTapped),
+                    _ReportDetailNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: -1, onTap: _onTabTapped),
                   ],
                 ),
               ),
-            )
-          : null,
+            ),
       appBar: widget.isDialog
           ? null
           : AppBar(
@@ -345,15 +360,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 ),
               ],
             ),
-      body: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          _updateScrollVisibility(notification.metrics);
-          return false; // don't consume the notification
-        },
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: Stack(
+        children: [
+          NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              _updateScrollVisibility(notification.metrics);
+              return false; // don't consume the notification
+            },
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Hero image ─────────────────────────────────────────────────
               SizedBox(
@@ -594,10 +611,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                     if (_report.dueDate != null) ...[
                       const SizedBox(height: 12),
                       _DetailRow(
-                          icon: Icons.event_available_outlined,
+                          icon: Icons.alarm_outlined,
                           label: 'Tenggat Waktu',
-                          value: _formatDueLabel(
-                              _report.dueDate!, _report.sisaHari)),
+                          value: _formatDueLabel(_report.dueDate!)),
                     ],
                     if (_report.pelakuPelanggaran != null &&
                         _report.pelakuPelanggaran!.isNotEmpty) ...[
@@ -619,7 +635,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   children: [
                     _SectionHeader(
                         icon: Icons.assignment_ind_outlined,
-                        title: 'Penugasan'),
+                        title: 'Informasi Penugasan'),
                     const SizedBox(height: 12),
                     if (_report.departemen != null &&
                         _report.departemen!.isNotEmpty) ...[
@@ -905,6 +921,61 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           ),
         ),
       ),
+          // ── Floating scroll-to-bottom button (kept stationary on SnackBar) ──
+          Positioned(
+            right: 16,
+            // Reserve room above the Update Status FAB when it is visible,
+            // so the scroll-to-bottom button never overlaps it.
+            bottom: _canUpdate ? 84 : 16,
+            child: SafeArea(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 320),
+                switchInCurve: const _ClampedCurve(Curves.easeOutBack),
+                switchOutCurve: const _ClampedCurve(Curves.easeInCubic),
+                transitionBuilder: (child, animation) {
+                  // Clamp the raw animation to [0, 1] to prevent curve assertion failures.
+                  final clampedAnim = CurvedAnimation(
+                    parent: animation,
+                    curve: const _ClampedCurve(Curves.linear),
+                  );
+                  final slide = Tween<Offset>(
+                    begin: const Offset(0, 0.22),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(
+                    parent: animation,
+                    curve: const _ClampedCurve(Curves.easeOutCubic),
+                  ));
+                  final scale = Tween<double>(begin: 0.9, end: 1.0).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: const _ClampedCurve(Curves.easeOutBack),
+                    ),
+                  );
+                  return FadeTransition(
+                    opacity: clampedAnim,
+                    child: SlideTransition(
+                      position: slide,
+                      child: ScaleTransition(scale: scale, child: child),
+                    ),
+                  );
+                },
+                child: _showScrollToBottom
+                    ? FloatingActionButton.small(
+                        key: const ValueKey('scroll_fab_visible'),
+                        onPressed: _scrollToBottom,
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        elevation: 4,
+                        child: const Icon(Icons.keyboard_double_arrow_down,
+                            size: 22),
+                      )
+                    : const SizedBox.shrink(
+                        key: ValueKey('scroll_fab_hidden')),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1049,7 +1120,20 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                 style: TextStyle(
                     fontSize: 10,
                     fontWeight: isCur ? FontWeight.bold : FontWeight.normal,
-                    color: isDone ? color : Colors.grey)),
+                    color: isDone ? color : Colors.grey),
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (isCur && _report.subStatus != null) ...[
+              const SizedBox(height: 2),
+              Text(_report.subStatus!.label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                    color: color.withValues(alpha: 0.85),
+                  ),
+                  overflow: TextOverflow.ellipsis),
+            ],
           ],
         );
       }),
@@ -1157,56 +1241,56 @@ class _TimelineItem extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          // ── Right column: content ────────────────────────────────────
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sub-status label + "TERKINI" badge
-                  Row(children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isCurrent
-                            ? statusColor
-                            : statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        event.subStatus?.label ?? event.status.label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: isCurrent ? Colors.white : statusColor,
-                        ),
-                      ),
-                    ),
-                    if (isCurrent) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF4FF),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: const Color(0xFF1A56C4)
-                                  .withValues(alpha: 0.3)),
-                        ),
-                        child: const Text('TERKINI',
-                            style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A56C4),
-                                letterSpacing: 0.5)),
-                      ),
-                    ],
-                  ]),
-
-                  const SizedBox(height: 6),
+           // ── Right column: content ────────────────────────────────────
+           Expanded(
+             child: Padding(
+               padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   // Sub-status label + "TERKINI" badge
+                   Row(children: [
+                     Container(
+                       padding: const EdgeInsets.symmetric(
+                           horizontal: 10, vertical: 4),
+                       decoration: BoxDecoration(
+                         color: isCurrent
+                             ? statusColor
+                             : statusColor.withValues(alpha: 0.1),
+                         borderRadius: BorderRadius.circular(20),
+                       ),
+                       child: Text(
+                         event.subStatus?.label ?? event.status.label,
+                         style: TextStyle(
+                           fontSize: 12,
+                           fontWeight: FontWeight.bold,
+                           color: isCurrent ? Colors.white : statusColor,
+                         ),
+                         overflow: TextOverflow.ellipsis,
+                       ),
+                     ),
+                     if (isCurrent) ...[
+                       const SizedBox(width: 8),
+                       Container(
+                         padding: const EdgeInsets.symmetric(
+                             horizontal: 8, vertical: 3),
+                         decoration: BoxDecoration(
+                           color: const Color(0xFFF8F9FF),
+                           borderRadius: BorderRadius.circular(20),
+                           border: Border.all(
+                               color: const Color(0xFF1A56C4)
+                                   .withValues(alpha: 0.3)),
+                         ),
+                         child: const Text('TERKINI',
+                             style: TextStyle(
+                                 fontSize: 9,
+                                 fontWeight: FontWeight.bold,
+                                 color: Color(0xFF1A56C4),
+                                 letterSpacing: 0.5)),
+                       ),
+                     ],
+                   ]),
+                   const SizedBox(height: 6),
 
                   // Actor + timestamp
                   Row(children: [
@@ -1419,12 +1503,10 @@ class _DetailRow extends StatelessWidget {
 
 class _UpdateStatusSheet extends StatefulWidget {
   final Report report;
-  final bool isRestrictedPJA;
   final Function(Report) onUpdate;
 
   const _UpdateStatusSheet({
     required this.report,
-    required this.isRestrictedPJA,
     required this.onUpdate,
   });
 
@@ -1440,6 +1522,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   // Separate sets for better sync and ID tracking
   final Set<String> _selectedDepts = {};
   final Set<UserEntry> _selectedUsers = {};
+  static const _hseKeywords = ['hse', 'k3'];
 
   List<String> _departments = [];
   XFile? _attachedPhoto;
@@ -1449,6 +1532,18 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   final _purple = const Color(0xFF9C27B0);
   final _grey = const Color(0xFF757575);
 
+  bool _isLockedDept(String dept) {
+    final normalized = dept.toLowerCase();
+    return _hseKeywords.any(normalized.contains);
+  }
+
+  Set<String> get _lockedDepts => _departments.where(_isLockedDept).toSet();
+
+  void _ensureLockedDeptsSelected() {
+    if (_lockedDepts.isEmpty) return;
+    _selectedDepts.addAll(_lockedDepts);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1456,8 +1551,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     _selectedSub = widget.report.subStatus;
 
     // Load initial tags from database - split by comma for individual tracking
-    if (widget.report.departemen != null &&
-        widget.report.departemen!.isNotEmpty) {
+    if (widget.report.departemen != null && widget.report.departemen!.isNotEmpty) {
       final depts = widget.report.departemen!
           .split(',')
           .map((e) => e.trim())
@@ -1465,8 +1559,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
       _selectedDepts.addAll(depts);
     }
 
-    if (widget.report.picDepartment != null &&
-        widget.report.picDepartment!.isNotEmpty) {
+    if (widget.report.picDepartment != null && widget.report.picDepartment!.isNotEmpty) {
       final pjas = widget.report.picDepartment!
           .split(',')
           .map((e) => e.trim())
@@ -1485,7 +1578,12 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   Future<void> _loadDepartments() async {
     try {
       final depts = await ReportService.getDepartments();
-      if (mounted) setState(() => _departments = depts);
+      if (mounted) {
+        setState(() {
+          _departments = depts;
+          _ensureLockedDeptsSelected();
+        });
+      }
     } catch (e) {
       debugPrint('Error loading departments: $e');
     }
@@ -1495,6 +1593,54 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   void dispose() {
     _noteCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: source, imageQuality: 70);
+    if (picked != null) setState(() => _attachedPhoto = picked);
+  }
+
+  void _showPhotoOptions() {
+    if (kIsWeb) {
+      _pickPhoto(ImageSource.gallery);
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Pilih Sumber Foto',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF1A56C4)),
+              title: const Text('Kamera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickPhoto(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
+              title: const Text('Galeri'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickPhoto(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showUnifiedPicker() {
@@ -1509,8 +1655,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
           if (isLoadingUsers) {
-            ReportService.getUsers(search: query.isEmpty ? null : query)
-                .then((res) {
+            ReportService.getUsers().then((res) {
               if (ctx.mounted) {
                 setSheetState(() {
                   users = res;
@@ -1524,8 +1669,14 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
             });
           }
 
+          final normalizedQuery = query.toLowerCase();
           final filteredDepts = _departments
-              .where((d) => d.toLowerCase().contains(query.toLowerCase()))
+              .where((d) => d.toLowerCase().contains(normalizedQuery))
+              .toList();
+          final filteredUsers = users
+              .where((u) =>
+                  u.fullName.toLowerCase().contains(normalizedQuery) ||
+                  (u.department?.toLowerCase().contains(normalizedQuery) ?? false))
               .toList();
 
           return Container(
@@ -1547,8 +1698,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                 const Padding(
                   padding: EdgeInsets.all(20),
                   child: Text('Tag Departemen / PJA',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1563,7 +1713,6 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                     onChanged: (v) {
                       setSheetState(() {
                         query = v;
-                        isLoadingUsers = true;
                       });
                     },
                   ),
@@ -1572,8 +1721,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                 Expanded(
                   child: ListView(
                     children: [
-                      if (_selectedDepts.isNotEmpty ||
-                          _selectedUsers.isNotEmpty) ...[
+                      if (_selectedDepts.isNotEmpty || _selectedUsers.isNotEmpty) ...[
                         const Padding(
                           padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
                           child: Text('TERPILIH',
@@ -1591,13 +1739,16 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                               ..._selectedDepts.map((dept) => Chip(
                                     label: Text(dept,
                                         style: const TextStyle(fontSize: 12)),
-                                    onDeleted: () {
-                                      setState(
-                                          () => _selectedDepts.remove(dept));
-                                      setSheetState(() {});
-                                    },
-                                    deleteIcon:
-                                        const Icon(Icons.close, size: 14),
+                                    onDeleted: _isLockedDept(dept)
+                                        ? null
+                                        : () {
+                                            setState(() =>
+                                                _selectedDepts.remove(dept));
+                                            setSheetState(() {});
+                                          },
+                                    deleteIcon: _isLockedDept(dept)
+                                        ? null
+                                        : const Icon(Icons.close, size: 14),
                                     backgroundColor: const Color(0xFF1A56C4)
                                         .withValues(alpha: 0.1),
                                     shape: RoundedRectangleBorder(
@@ -1643,23 +1794,36 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                         ),
                         ...filteredDepts.map((dept) {
                           final isSelected = _selectedDepts.contains(dept);
+                          final isLocked = _isLockedDept(dept);
                           return ListTile(
                             leading:
                                 const Icon(Icons.business_outlined, size: 20),
-                            title: Text(dept,
-                                style: const TextStyle(fontSize: 14)),
+                            title: Text(
+                              dept,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: isLocked ? Colors.grey.shade500 : null,
+                              ),
+                            ),
                             trailing: Icon(
                               isSelected
                                   ? Icons.check_circle
                                   : Icons.add_circle_outline,
-                              color: isSelected ? _blue : Colors.grey,
+                              color: isLocked
+                                  ? Colors.grey.shade400
+                                  : isSelected
+                                      ? _blue
+                                      : Colors.grey,
                             ),
-                            onTap: () {
+                            onTap: isLocked
+                                ? null
+                                : () {
                               setState(() {
-                                if (isSelected)
+                                if (isSelected) {
                                   _selectedDepts.remove(dept);
-                                else
+                                } else {
                                   _selectedDepts.add(dept);
+                                }
                               });
                               setSheetState(() {});
                             },
@@ -1671,7 +1835,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                             child: Padding(
                                 padding: EdgeInsets.all(24),
                                 child: CircularProgressIndicator())),
-                      if (!isLoadingUsers && users.isNotEmpty) ...[
+                      if (!isLoadingUsers && filteredUsers.isNotEmpty) ...[
                         const Padding(
                           padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
                           child: Text('PJA (PERSON IN CHARGE)',
@@ -1681,7 +1845,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                                   color: Colors.grey,
                                   letterSpacing: 0.5)),
                         ),
-                        ...users.map((user) {
+                        ...filteredUsers.map((user) {
                           final isSelected = _selectedUsers
                               .any((u) => u.fullName == user.fullName);
                           return ListTile(
@@ -1714,7 +1878,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                         }),
                       ],
                       if (!isLoadingUsers &&
-                          users.isEmpty &&
+                          filteredUsers.isEmpty &&
                           filteredDepts.isEmpty)
                         const Center(
                             child: Padding(
@@ -1763,8 +1927,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     setState(() => _isSaving = true);
 
     try {
-      String? finalNote =
-          _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
+      String? finalNote = _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
 
       // Collect all tags for the note
       final List<String> allTags = [
@@ -1783,10 +1946,9 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
       final String? picDepartment = _selectedUsers.isEmpty
           ? null
           : _selectedUsers.map((u) => u.fullName).join(', ');
-      final String? taggedUserId =
-          _selectedUsers.isNotEmpty && _selectedUsers.first.id.isNotEmpty
-              ? _selectedUsers.first.id
-              : null;
+      final String? taggedUserId = _selectedUsers.isNotEmpty && _selectedUsers.first.id.isNotEmpty
+          ? _selectedUsers.first.id
+          : null;
 
       final updated = await ReportStore.instance.updateStatus(
         widget.report.id,
@@ -1803,8 +1965,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
         widget.onUpdate(updated);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('Status berhasil diperbarui ke ${_selectedStatus.label}'),
+          content: Text('Status berhasil diperbarui ke ${_selectedStatus.label}'),
           backgroundColor: _selectedStatus == ReportStatus.open
               ? _blue
               : (_selectedStatus == ReportStatus.inProgress ? _purple : _grey),
@@ -1849,18 +2010,10 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-                child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2)))),
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
             const SizedBox(height: 20),
-            const Text('Perbarui Status Laporan',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Perbarui Status Laporan', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            // Current status banner
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
@@ -1868,11 +2021,12 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.blue.shade100),
               ),
-              child: Row(children: [
-                Icon(Icons.history, size: 18, color: _blue),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
+              child: Row(
+                children: [
+                  Icon(Icons.history, size: 18, color: _blue),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('STATUS SAAT INI',
@@ -1885,17 +2039,16 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                         Text(
                           '${widget.report.status.label}${widget.report.subStatus != null ? ' → ${widget.report.subStatus!.label}' : ''}',
                           style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: _blue),
+                              fontSize: 14, fontWeight: FontWeight.bold, color: _blue),
                         ),
-                      ]),
-                ),
-              ]),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
 
-            // Main status buttons
             const Text('STATUS UTAMA',
                 style: TextStyle(
                     fontSize: 12,
@@ -1903,38 +2056,17 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                     color: Colors.grey,
                     letterSpacing: 0.5)),
             const SizedBox(height: 12),
-            Row(children: [
-              _StatusBtn(
-                  label: 'Open',
-                  color: _blue,
-                  isSelected: _selectedStatus == ReportStatus.open,
-                  onTap: () => setState(() {
-                        _selectedStatus = ReportStatus.open;
-                        _selectedSub = null;
-                      })),
-              const SizedBox(width: 10),
-              _StatusBtn(
-                  label: 'In Progress',
-                  color: _purple,
-                  isSelected: _selectedStatus == ReportStatus.inProgress,
-                  onTap: () => setState(() {
-                        _selectedStatus = ReportStatus.inProgress;
-                        _selectedSub = null;
-                      })),
-              const SizedBox(width: 10),
-              _StatusBtn(
-                  label: 'Closed',
-                  color: _grey,
-                  isSelected: _selectedStatus == ReportStatus.closed,
-                  isDisabled: widget.isRestrictedPJA,
-                  onTap: () => setState(() {
-                        _selectedStatus = ReportStatus.closed;
-                        _selectedSub = null;
-                      })),
-            ]),
+            Row(
+              children: [
+                _StatusBtn(label: 'Open', color: _blue, isSelected: _selectedStatus == ReportStatus.open, onTap: () => setState(() { _selectedStatus = ReportStatus.open; _selectedSub = null; })),
+                const SizedBox(width: 10),
+                _StatusBtn(label: 'In Progress', color: _purple, isSelected: _selectedStatus == ReportStatus.inProgress, onTap: () => setState(() { _selectedStatus = ReportStatus.inProgress; _selectedSub = null; })),
+                const SizedBox(width: 10),
+                 _StatusBtn(label: 'Closed', color: _grey, isSelected: _selectedStatus == ReportStatus.closed, onTap: () => setState(() { _selectedStatus = ReportStatus.closed; _selectedSub = null; })),
+              ],
+            ),
             const SizedBox(height: 24),
 
-            // Sub-status chips
             const Text('SUB-STATUS',
                 style: TextStyle(
                     fontSize: 12,
@@ -1945,20 +2077,8 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
             Wrap(
               spacing: 8,
               runSpacing: 10,
-              children:
-                  ReportSubStatusInfo.forStatus(_selectedStatus).map((sub) {
+              children: ReportSubStatusInfo.forStatus(_selectedStatus).map((sub) {
                 final isSelected = _selectedSub == sub;
-
-                // Restriction logic for sub-statuses
-                bool isSubDisabled = false;
-                if (widget.isRestrictedPJA &&
-                    _selectedStatus == ReportStatus.open) {
-                  if (sub == ReportSubStatus.validating ||
-                      sub == ReportSubStatus.approved) {
-                    isSubDisabled = true;
-                  }
-                }
-
                 final color = isSelected
                     ? (_selectedStatus == ReportStatus.open
                         ? _blue
@@ -1966,47 +2086,35 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                             ? _purple
                             : _grey))
                     : Colors.grey.shade400;
-
                 return SizedBox(
                   width: (MediaQuery.of(context).size.width - 66) / 3,
                   child: ChoiceChip(
                     label: Center(
-                        child: Text(sub.label,
-                            style: TextStyle(
-                                color: isSubDisabled
-                                    ? Colors.grey.shade400
-                                    : (isSelected
-                                        ? Colors.white
-                                        : Colors.black87),
-                                fontSize: 12),
-                            overflow: TextOverflow.ellipsis)),
+                      child: Text(sub.label,
+                          style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black87,
+                              fontSize: 12),
+                          overflow: TextOverflow.ellipsis),
+                    ),
                     selected: isSelected,
-                    onSelected: isSubDisabled
-                        ? null
-                        : (val) =>
-                            setState(() => _selectedSub = val ? sub : null),
+                    onSelected: (val) => setState(() => _selectedSub = val ? sub : null),
                     selectedColor: color,
-                    backgroundColor:
-                        isSubDisabled ? Colors.grey.shade100 : Colors.white,
+                    backgroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                            color: isSubDisabled
-                                ? Colors.grey.shade200
-                                : (isSelected ? color : Colors.grey.shade300))),
+                            color: isSelected ? color : Colors.grey.shade300)),
                     showCheckmark: false,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
                   ),
                 );
               }).toList(),
             ),
             const SizedBox(height: 24),
 
-            // Tag Dept/PJA (shown for assigned/deferred)
             if (_selectedSub == ReportSubStatus.assigned ||
                 _selectedSub == ReportSubStatus.deferred) ...[
-              const Text('🏷️ TAG DEPARTEMEN / PJA',
+              const Text('TAG DEPARTEMEN / PJA',
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -2043,7 +2151,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                             Icon(Icons.arrow_forward_ios,
                                 size: 14, color: Colors.grey.shade400),
                           ]),
-                        ),
+                          ),
                         if (_selectedDepts.isNotEmpty ||
                             _selectedUsers.isNotEmpty) ...[
                           const SizedBox(height: 12),
@@ -2054,8 +2162,10 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                               ..._selectedDepts.map((dept) => Chip(
                                     label: Text(dept,
                                         style: const TextStyle(fontSize: 11)),
-                                    onDeleted: () => setState(
-                                        () => _selectedDepts.remove(dept)),
+                                    onDeleted: _isLockedDept(dept)
+                                        ? null
+                                        : () => setState(
+                                            () => _selectedDepts.remove(dept)),
                                     backgroundColor:
                                         _blue.withValues(alpha: 0.1),
                                     side: BorderSide.none,
@@ -2084,28 +2194,25 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
               const SizedBox(height: 24),
             ],
 
-            // Photo evidence
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('📸 PHOTO EVIDENCE',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey)),
-              if (_selectedSub == ReportSubStatus.reviewing)
-                const Text('* WAJIB UNTUK REVIEWING',
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('PHOTO EVIDENCE',
                     style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold)),
-            ]),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey)),
+                if (_selectedSub == ReportSubStatus.reviewing)
+                  const Text('* WAJIB UNTUK REVIEWING',
+                      style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+              ],
+            ),
             const SizedBox(height: 10),
             GestureDetector(
-              onTap: () async {
-                final picker = ImagePicker();
-                final picked =
-                    await picker.pickImage(source: ImageSource.camera);
-                if (picked != null) setState(() => _attachedPhoto = picked);
-              },
+              onTap: _showPhotoOptions,
               child: Container(
                 height: 80,
                 width: double.infinity,
@@ -2122,21 +2229,20 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                                const Icon(Icons.camera_alt,
-                                    size: 20, color: Colors.grey),
-                                const SizedBox(width: 8),
-                                Text('Tambah foto bukti penyelesaian',
-                                    style: TextStyle(
-                                        color: Colors.grey.shade400,
-                                        fontSize: 14)),
-                              ]),
+                              const Icon(Icons.camera_alt,
+                                  size: 20, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              Text('Tambah foto bukti penyelesaian',
+                                  style: TextStyle(
+                                      color: Colors.grey.shade400,
+                                      fontSize: 14)),
+                            ]),
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 24),
 
-            // Note field
             TextField(
               controller: _noteCtrl,
               maxLines: 2,
@@ -2156,46 +2262,49 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
             ),
             const SizedBox(height: 24),
 
-            // Action buttons
-            Row(children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade100,
                       foregroundColor: Colors.black87,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 16)),
-                  child: const Text('Batal',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: const Text('Batal',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _handleSave,
-                  style: ElevatedButton.styleFrom(
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _handleSave,
+                    style: ElevatedButton.styleFrom(
                       backgroundColor: _blue,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 16)),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : const Text('Simpan Perubahan',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text('Simpan Perubahan',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 10),
           ],
         ),
@@ -2208,47 +2317,22 @@ class _StatusBtn extends StatelessWidget {
   final String label;
   final Color color;
   final bool isSelected;
-  final bool isDisabled;
   final VoidCallback onTap;
-
-  const _StatusBtn({
-    required this.label,
-    required this.color,
-    required this.isSelected,
-    this.isDisabled = false,
-    required this.onTap,
-  });
-
+  const _StatusBtn({required this.label, required this.color, required this.isSelected, required this.onTap});
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
-        onTap: isDisabled ? null : onTap,
+        onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isDisabled
-                ? Colors.grey.shade100
-                : (isSelected ? color.withValues(alpha: 0.1) : Colors.white),
+            color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isDisabled
-                  ? Colors.grey.shade200
-                  : (isSelected ? color : Colors.grey.shade300),
-              width: isSelected ? 2 : 1,
-            ),
+            border: Border.all(color: isSelected ? color : Colors.grey.shade300, width: isSelected ? 2 : 1),
           ),
           child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: isDisabled
-                    ? Colors.grey.shade400
-                    : (isSelected ? color : Colors.black87),
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 14,
-              ),
-            ),
+            child: Text(label, style: TextStyle(color: isSelected ? color : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 14)),
           ),
         ),
       ),
@@ -2290,882 +2374,46 @@ class _DashedRectPainter extends CustomPainter {
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// UPDATE STATUS PAGE (FULLSCREEN)
-// ══════════════════════════════════════════════════════════════════════════════
-class UpdateStatusPage extends StatefulWidget {
-  final Report report;
-  final bool isRestrictedPJA;
-  const UpdateStatusPage({
-    super.key,
-    required this.report,
-    this.isRestrictedPJA = false,
+// ── Bottom Nav Item for ReportDetailScreen ──────────────────────────────────
+class _ReportDetailNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int index;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  const _ReportDetailNavItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+    required this.currentIndex,
+    required this.onTap,
   });
 
   @override
-  State<UpdateStatusPage> createState() => _UpdateStatusPageState();
-}
-
-class _UpdateStatusPageState extends State<UpdateStatusPage> {
-  late ReportStatus _selectedStatus;
-  ReportSubStatus? _selectedSub;
-  final _noteCtrl = TextEditingController();
-  final _deferredKeteranganCtrl = TextEditingController();
-
-  // Unified tagging
-  final Set<String> _selectedDepts = {};
-  final Set<UserEntry> _selectedUsers = {};
-  List<String> _departments = [];
-
-  XFile? _attachedPhoto;
-  bool _isSaving = false;
-
-  final _blue = const Color(0xFF1A56C4);
-  final _purple = const Color(0xFF9C27B0);
-  final _grey = const Color(0xFF757575);
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedStatus = widget.report.status;
-    _selectedSub = widget.report.subStatus;
-
-    // Load initial tags from database - split by comma for individual tracking
-    if (widget.report.departemen != null &&
-        widget.report.departemen!.isNotEmpty) {
-      final depts = widget.report.departemen!
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty);
-      _selectedDepts.addAll(depts);
-    }
-
-    if (widget.report.picDepartment != null &&
-        widget.report.picDepartment!.isNotEmpty) {
-      final pjas = widget.report.picDepartment!
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty);
-      for (final pja in pjas) {
-        _selectedUsers.add(UserEntry(
-          id: '', // ID unknown yet
-          fullName: pja,
-        ));
-      }
-    }
-
-    _loadDepartments();
-  }
-
-  Future<void> _loadDepartments() async {
-    final depts = await ReportService.getDepartments();
-    if (mounted) setState(() => _departments = depts);
-  }
-
-  @override
-  void dispose() {
-    _noteCtrl.dispose();
-    _deferredKeteranganCtrl.dispose();
-    super.dispose();
-  }
-
-  List<ReportStatus> get _allowedStatuses => ReportStatus.values;
-
-  Color _statusColor(ReportStatus s) => switch (s) {
-        ReportStatus.pending => const Color(0xFFFF9800),
-        ReportStatus.open => const Color(0xFF2196F3),
-        ReportStatus.inProgress => const Color(0xFF9C27B0),
-        ReportStatus.closed => const Color(0xFF757575),
-      };
-
-  Future<void> _pickPhoto(ImageSource source) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source, imageQuality: 70);
-    if (picked != null) setState(() => _attachedPhoto = picked);
-  }
-
-  void _showPhotoOptions() {
-    if (kIsWeb) {
-      _pickPhoto(ImageSource.gallery);
-      return;
-    }
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
+  Widget build(BuildContext context) {
+    final isActive = currentIndex == index;
+    return GestureDetector(
+      onTap: () => onTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 60,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('Pilih Sumber Foto',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF1A56C4)),
-              title: const Text('Kamera'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickPhoto(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
-              title: const Text('Galeri'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickPhoto(ImageSource.gallery);
-              },
+            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  void _showUnifiedPicker() {
-    String query = '';
-    List<UserEntry> users = [];
-    bool isLoadingUsers = true;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          if (isLoadingUsers) {
-            ReportService.getUsers(search: query.isEmpty ? null : query)
-                .then((res) {
-              if (ctx.mounted) {
-                setSheetState(() {
-                  users = res;
-                  isLoadingUsers = false;
-                });
-              }
-            }).catchError((e) {
-              if (ctx.mounted) {
-                setSheetState(() => isLoadingUsers = false);
-              }
-            });
-          }
-
-          final filteredDepts = _departments
-              .where((d) => d.toLowerCase().contains(query.toLowerCase()))
-              .toList();
-
-          return Container(
-            height: MediaQuery.of(context).size.height * 0.8,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2)),
-                ),
-                const Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text('Tag Departemen / PJA',
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Cari departemen atau nama...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (v) {
-                      setSheetState(() {
-                        query = v;
-                        isLoadingUsers = true;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      if (_selectedDepts.isNotEmpty ||
-                          _selectedUsers.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-                          child: Text('TERPILIH',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
-                                  letterSpacing: 0.5)),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Wrap(
-                            spacing: 8,
-                            children: [
-                              ..._selectedDepts.map((dept) => Chip(
-                                    label: Text(dept,
-                                        style: const TextStyle(fontSize: 12)),
-                                    onDeleted: () {
-                                      setState(
-                                          () => _selectedDepts.remove(dept));
-                                      setSheetState(() {});
-                                    },
-                                    deleteIcon:
-                                        const Icon(Icons.close, size: 14),
-                                    backgroundColor: const Color(0xFF1A56C4)
-                                        .withValues(alpha: 0.1),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(20)),
-                                    side: BorderSide(
-                                        color: const Color(0xFF1A56C4)
-                                            .withValues(alpha: 0.2)),
-                                  )),
-                              ..._selectedUsers.map((user) => Chip(
-                                    label: Text(user.fullName,
-                                        style: const TextStyle(fontSize: 12)),
-                                    onDeleted: () {
-                                      setState(() => _selectedUsers.removeWhere(
-                                          (u) => u.fullName == user.fullName));
-                                      setSheetState(() {});
-                                    },
-                                    deleteIcon:
-                                        const Icon(Icons.close, size: 14),
-                                    backgroundColor:
-                                        Colors.orange.withValues(alpha: 0.1),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(20)),
-                                    side: BorderSide(
-                                        color: Colors.orange
-                                            .withValues(alpha: 0.2)),
-                                  )),
-                            ],
-                          ),
-                        ),
-                        const Divider(height: 32),
-                      ],
-                      if (filteredDepts.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-                          child: Text('DEPARTEMEN',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey,
-                                  letterSpacing: 0.5)),
-                        ),
-                        ...filteredDepts.map((dept) {
-                          final isSelected = _selectedDepts.contains(dept);
-                          return ListTile(
-                            leading:
-                                const Icon(Icons.business_outlined, size: 20),
-                            title: Text(dept,
-                                style: const TextStyle(fontSize: 14)),
-                            trailing: Icon(
-                              isSelected
-                                  ? Icons.check_circle
-                                  : Icons.add_circle_outline,
-                              color: isSelected
-                                  ? const Color(0xFF1A56C4)
-                                  : Colors.grey,
-                            ),
-                            onTap: () {
-                              setState(() {
-                                if (isSelected)
-                                  _selectedDepts.remove(dept);
-                                else
-                                  _selectedDepts.add(dept);
-                              });
-                              setSheetState(() {});
-                            },
-                          );
-                        }),
-                      ],
-                      if (isLoadingUsers)
-                        const Center(
-                            child: Padding(
-                                padding: EdgeInsets.all(24),
-                                child: CircularProgressIndicator())),
-                      if (!isLoadingUsers && users.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-                          child: Text('PJA (PERSON IN CHARGE)',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey,
-                                  letterSpacing: 0.5)),
-                        ),
-                        ...users.map((user) {
-                          final isSelected = _selectedUsers
-                              .any((u) => u.fullName == user.fullName);
-                          return ListTile(
-                            leading: const Icon(Icons.person_outline, size: 20),
-                            title: Text(user.fullName,
-                                style: const TextStyle(fontSize: 14)),
-                            subtitle: user.department != null
-                                ? Text(user.department!,
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.grey))
-                                : null,
-                            trailing: Icon(
-                              isSelected
-                                  ? Icons.check_circle
-                                  : Icons.add_circle_outline,
-                              color: isSelected
-                                  ? const Color(0xFF1A56C4)
-                                  : Colors.grey,
-                            ),
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedUsers.removeWhere(
-                                      (u) => u.fullName == user.fullName);
-                                } else {
-                                  _selectedUsers.add(user);
-                                }
-                              });
-                              setSheetState(() {});
-                            },
-                          );
-                        }),
-                      ],
-                      if (!isLoadingUsers &&
-                          users.isEmpty &&
-                          filteredDepts.isEmpty)
-                        const Center(
-                            child: Padding(
-                                padding: EdgeInsets.all(40),
-                                child: Text('Tidak ditemukan',
-                                    style: TextStyle(color: Colors.grey)))),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1A56C4),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('Selesai',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _handleSave() async {
-    if (_selectedSub == ReportSubStatus.reviewing && _attachedPhoto == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Foto bukti wajib dilampirkan untuk tahap Reviewing!'),
-        backgroundColor: Colors.red,
-      ));
-      return;
-    }
-
-    setState(() => _isSaving = true);
-
-    try {
-      String? finalNote =
-          _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim();
-
-      // Collect all tags for the note
-      final List<String> allTags = [
-        ..._selectedDepts,
-        ..._selectedUsers.map((u) => '${u.fullName} (PJA)')
-      ];
-
-      if (allTags.isNotEmpty) {
-        final tagStr = 'Tag: ${allTags.join(", ")}';
-        finalNote = finalNote == null ? tagStr : '$finalNote\n\n$tagStr';
-      }
-
-      if (_selectedSub == ReportSubStatus.assigned ||
-          _selectedSub == ReportSubStatus.deferred) {
-        final ket = _deferredKeteranganCtrl.text.trim().isEmpty
-            ? ''
-            : 'Keterangan: ${_deferredKeteranganCtrl.text.trim()}';
-        if (ket.isNotEmpty) {
-          finalNote = finalNote == null ? ket : '$finalNote\n\n$ket';
-        }
-      }
-
-      // Extract values for dedicated database fields
-      final String? department =
-          _selectedDepts.isEmpty ? null : _selectedDepts.join(', ');
-      final String? picDepartment = _selectedUsers.isEmpty
-          ? null
-          : _selectedUsers.map((u) => u.fullName).join(', ');
-      final String? taggedUserId =
-          _selectedUsers.isNotEmpty && _selectedUsers.first.id.isNotEmpty
-              ? _selectedUsers.first.id
-              : null;
-
-      final updated = await ReportStore.instance.updateStatus(
-        widget.report.id,
-        _selectedStatus,
-        newSubStatus: _selectedSub,
-        note: finalNote,
-        photoPath: _attachedPhoto?.path,
-        department: department,
-        picDepartment: picDepartment,
-        taggedUserId: taggedUserId,
-      );
-
-      if (mounted) {
-        Navigator.pop(context, updated);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('Status berhasil diperbarui ke ${_selectedStatus.label}'),
-          backgroundColor: _statusColor(_selectedStatus),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Gagal menyimpan: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('Update Status Laporan',
-            style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 16)),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Status Selection ──────────────────────────────────────────
-            const _Label('Status Utama (Berurutan)'),
-            const SizedBox(height: 8),
-            ..._allowedStatuses.map((s) {
-              final isSelected = _selectedStatus == s;
-              final isStatusDisabled =
-                  widget.isRestrictedPJA && s == ReportStatus.closed;
-              final color = isStatusDisabled ? Colors.grey : _statusColor(s);
-
-              return GestureDetector(
-                onTap: isStatusDisabled
-                    ? null
-                    : () => setState(() {
-                          _selectedStatus = s;
-                          _selectedSub = null;
-                        }),
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color:
-                        isStatusDisabled ? Colors.grey.shade50 : Colors.white,
-                    border: Border.all(
-                        color: isStatusDisabled
-                            ? Colors.grey.shade200
-                            : (isSelected ? color : Colors.grey.shade300),
-                        width: isSelected ? 2 : 1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                          isSelected
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_off,
-                          color:
-                              isStatusDisabled ? Colors.grey.shade300 : color),
-                      const SizedBox(width: 12),
-                      Text(s.label,
-                          style: TextStyle(
-                              color: isStatusDisabled
-                                  ? Colors.grey.shade400
-                                  : Colors.black87,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              fontSize: 15)),
-                      const Spacer(),
-                      if (isSelected)
-                        Icon(Icons.check_circle, color: color, size: 20),
-                    ],
-                  ),
-                ),
-              );
-            }),
-
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-
-            // ── Sub Status ───────────────────────────────────────────────
-            const _Label('Sub-Status'),
-            const SizedBox(height: 8),
-            Column(
-              children:
-                  ReportSubStatusInfo.forStatus(_selectedStatus).map((sub) {
-                final isSubSelected = _selectedSub == sub;
-
-                // Restriction logic for sub-statuses
-                bool isSubDisabled = false;
-                if (widget.isRestrictedPJA &&
-                    _selectedStatus == ReportStatus.open) {
-                  if (sub == ReportSubStatus.validating ||
-                      sub == ReportSubStatus.approved) {
-                    isSubDisabled = true;
-                  }
-                }
-
-                final color =
-                    isSubDisabled ? Colors.grey : _statusColor(_selectedStatus);
-
-                return GestureDetector(
-                  onTap: isSubDisabled
-                      ? null
-                      : () => setState(() => _selectedSub = sub),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSubDisabled
-                          ? Colors.grey.shade50
-                          : (isSubSelected
-                              ? color.withValues(alpha: 0.1)
-                              : Colors.white),
-                      border: Border.all(
-                          color: isSubDisabled
-                              ? Colors.grey.shade200
-                              : (isSubSelected ? color : Colors.grey.shade200)),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(sub.label,
-                            style: TextStyle(
-                                color: isSubDisabled
-                                    ? Colors.grey.shade400
-                                    : (isSubSelected ? color : Colors.black87),
-                                fontWeight: isSubSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal)),
-                        const Spacer(),
-                        if (isSubSelected)
-                          Icon(Icons.check, color: color, size: 18),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-
-            // ── Note ─────────────────────────────────────────────────────
-            const _Label('Catatan Perubahan'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _noteCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Masukkan keterangan...',
-                fillColor: Colors.white,
-                filled: true,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300)),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300)),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ── Assigned/Deferred: Departemen, Tag PJA, Keterangan ───────
-            // ── Assigned/Deferred: Tagging ───────
-            if (_selectedSub == ReportSubStatus.assigned ||
-                _selectedSub == ReportSubStatus.deferred) ...[
-              const _Label('Tag Departemen / PJA'),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: _showUnifiedPicker,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 13),
-                        decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FF),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300)),
-                        child: Row(children: [
-                          const Icon(Icons.person_add_outlined,
-                              size: 20, color: Colors.grey),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                              child: Text(
-                                  'Ketuk untuk tag orang atau departemen',
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 13))),
-                          Icon(Icons.arrow_forward_ios,
-                              size: 14, color: Colors.grey.shade400),
-                        ]),
-                      ),
-                      if (_selectedDepts.isNotEmpty ||
-                          _selectedUsers.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            ..._selectedDepts.map((dept) => Chip(
-                                  label: Text(dept,
-                                      style: const TextStyle(fontSize: 11)),
-                                  onDeleted: () => setState(
-                                      () => _selectedDepts.remove(dept)),
-                                  backgroundColor: const Color(0xFF1A56C4)
-                                      .withValues(alpha: 0.1),
-                                  side: BorderSide.none,
-                                  padding: EdgeInsets.zero,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                )),
-                            ..._selectedUsers.map((user) => Chip(
-                                  label: Text('${user.fullName} (PJA)',
-                                      style: const TextStyle(fontSize: 11)),
-                                  onDeleted: () => setState(
-                                      () => _selectedUsers.remove(user)),
-                                  backgroundColor: const Color(0xFF1A56C4)
-                                      .withValues(alpha: 0.1),
-                                  side: BorderSide.none,
-                                  padding: EdgeInsets.zero,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                )),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const _Label('Keterangan Laporan'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _deferredKeteranganCtrl,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: 'Masukkan keterangan laporan...',
-                  fillColor: Colors.white,
-                  filled: true,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300)),
-                  enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade300)),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // ── Photo ────────────────────────────────────────────────────
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const _Label('Bukti Foto'),
-                if (_selectedSub == ReportSubStatus.reviewing)
-                  const Text('* Wajib di tahap Reviewing',
-                      style: TextStyle(
-                          color: Colors.red,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: _showPhotoOptions,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 13),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.camera_alt_outlined,
-                              color: Colors.grey, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _attachedPhoto != null
-                                  ? _attachedPhoto!.name
-                                  : 'Pilih / Ambil Foto...',
-                              style: TextStyle(
-                                  color: _attachedPhoto != null
-                                      ? Colors.black87
-                                      : Colors.grey,
-                                  fontSize: 13),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (_attachedPhoto != null)
-                            GestureDetector(
-                              onTap: () =>
-                                  setState(() => _attachedPhoto = null),
-                              child: const Icon(Icons.close,
-                                  size: 18, color: Colors.red),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                if (_attachedPhoto != null) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => Scaffold(
-                            backgroundColor: Colors.black,
-                            appBar: AppBar(
-                                backgroundColor: Colors.transparent,
-                                elevation: 0,
-                                iconTheme:
-                                    const IconThemeData(color: Colors.white)),
-                            body: Center(
-                              child: InteractiveViewer(
-                                child: kIsWeb
-                                    ? Image.network(_attachedPhoto!.path)
-                                    : Image.file(File(_attachedPhoto!.path)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: kIsWeb
-                          ? Image.network(_attachedPhoto!.path,
-                              width: 48, height: 48, fit: BoxFit.cover)
-                          : Image.file(File(_attachedPhoto!.path),
-                              width: 48, height: 48, fit: BoxFit.cover),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-
-            const SizedBox(height: 40),
-
-            // ── Save Button ──────────────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _handleSave,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A56C4),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Simpan Perubahan',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-            ),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Label extends StatelessWidget {
-  final String text;
-  const _Label(this.text);
-  @override
-  Widget build(BuildContext context) {
-    return Text(text,
-        style: const TextStyle(
-            fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black54));
   }
 }

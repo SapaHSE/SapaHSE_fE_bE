@@ -13,6 +13,8 @@ class SupabaseConfig {
   static const String inspectionFolder = 'inspection-reports';
   static const String reportLogsFolder = 'report-logs';
   static const String avatarsFolder = 'avatars';
+  static const String licensesFolder = 'licenses';
+  static const String certificationsFolder = 'certifications';
   static const String newsFolder = 'news';
   static const String carouselFolder = 'carousel';
 }
