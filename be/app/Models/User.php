@@ -60,9 +60,14 @@ class User extends Authenticatable
         ];
     }
 
-    public function reports()
+    public function hazardReports()
     {
-        return $this->hasMany(Report::class, 'user_id');
+        return $this->hasMany(HazardReport::class, 'user_id');
+    }
+
+    public function inspectionReports()
+    {
+        return $this->hasMany(InspectionReport::class, 'user_id');
     }
 
     public function announcements()

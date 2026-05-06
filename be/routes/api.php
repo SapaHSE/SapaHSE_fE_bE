@@ -100,7 +100,7 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('role:superadmin');
     
     // ── Companies ─────────────────────────────────────────────────────────────
-    Route::get('/companies', [CompanyController::class, 'index']);
+    // GET /companies is public (top of file) for registration dropdowns.
     Route::post('/companies', [CompanyController::class, 'store'])
         ->middleware('role:superadmin');
     Route::put('/companies/{id}', [CompanyController::class, 'update'])
@@ -111,7 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('role:superadmin');
 
     // ── Areas ─────────────────────────────────────────────────────────────────
-    Route::get('/areas', [AreaController::class, 'index']);
+    // GET /areas is public (top of file) for registration / reference.
     Route::post('/areas', [AreaController::class, 'store'])
         ->middleware('role:superadmin');
     Route::put('/areas/{id}', [AreaController::class, 'update'])

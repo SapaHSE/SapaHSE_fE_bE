@@ -23,6 +23,22 @@ class UserLicense extends Model
         'expired_at' => 'date',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($model) {
+            if ($model->expired_at) {
+                if ($model->expired_at->isPast()) {
+                    $model->status = 'expired';
+                } elseif ($model->status === 'expired') {
+                    // Re-activate if date is updated to future
+                    $model->status = 'active';
+                }
+            }
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);

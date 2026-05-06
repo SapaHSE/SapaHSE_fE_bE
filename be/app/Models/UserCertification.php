@@ -13,7 +13,8 @@ class UserCertification extends Model
         'user_id',
         'name',
         'issuer',
-        'year',
+        'obtained_at',
+        'expired_at',
         'status',
         'file_path',
     ];
