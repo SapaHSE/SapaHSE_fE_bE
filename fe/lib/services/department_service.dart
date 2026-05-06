@@ -3,7 +3,7 @@ import 'api_service.dart';
 
 class DepartmentService {
   static Future<List<DepartmentData>> getDepartments() async {
-    final response = await ApiService.get('/departments');
+    final response = await ApiService.get('/departments', auth: false);
     if (response.success && response.data['data'] != null) {
       final list = response.data['data'] as List;
       return list.map((e) => DepartmentData.fromJson(e)).toList();

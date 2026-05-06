@@ -49,11 +49,17 @@ class AuthService {
     String? position,
     String? department,
     String? company,
+    String? tipeAfiliasi,
+    String? perusahaanKontraktor,
+    String? subKontraktor,
+    String? simper,
   }) async {
     final response = await ApiService.post(
       '/register',
       {
-        'employee_id': nik,
+        'employee_id': (employeeId != null && employeeId.isNotEmpty)
+            ? employeeId
+            : nik,
         'full_name': fullName,
         'personal_email': personalEmail,
         if (workEmail != null && workEmail.isNotEmpty) 'work_email': workEmail,
@@ -62,6 +68,13 @@ class AuthService {
         if (position != null) 'position': position,
         if (department != null) 'department': department,
         if (company != null) 'company': company,
+        if (tipeAfiliasi != null && tipeAfiliasi.isNotEmpty)
+          'tipe_afiliasi': tipeAfiliasi,
+        if (perusahaanKontraktor != null && perusahaanKontraktor.isNotEmpty)
+          'perusahaan_kontraktor': perusahaanKontraktor,
+        if (subKontraktor != null && subKontraktor.isNotEmpty)
+          'sub_kontraktor': subKontraktor,
+        if (simper != null && simper.isNotEmpty) 'simper': simper,
       },
       auth: false,
     );

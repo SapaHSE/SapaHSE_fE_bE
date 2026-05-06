@@ -11,7 +11,7 @@ class CompanyService {
     if (category != null) params.add('category=$category');
     if (params.isNotEmpty) query = '?${params.join('&')}';
 
-    final response = await ApiService.get('/companies$query');
+    final response = await ApiService.get('/companies$query', auth: false);
     if (response.success && response.data['data'] != null) {
       final list = response.data['data'] as List;
       return list.map((e) => CompanyData.fromJson(e)).toList();
@@ -62,7 +62,7 @@ class CompanyService {
     if (active != null) params.add('active=$active');
     if (params.isNotEmpty) query = '?${params.join('&')}';
 
-    final response = await ApiService.get('/areas$query');
+    final response = await ApiService.get('/areas$query', auth: false);
     if (response.success && response.data['data'] != null) {
       final list = response.data['data'] as List;
       return list.map((e) => AreaData.fromJson(e)).toList();

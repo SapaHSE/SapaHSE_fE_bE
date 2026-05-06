@@ -292,8 +292,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     // Actually, _checkAccessAndLoad already handles the logic.
     // We just need to make sure we don't show the blank screen if not superadmin.
 
-    final users = _filteredUsers;
-    final filters = ['Semua', 'User', 'Admin', 'Superadmin', 'Inactive'];
 
     return DefaultTabController(
       length: 3,
@@ -486,7 +484,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
-                                  BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))
+                                  BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2))
                                 ],
                               ),
                               child: Row(
@@ -519,7 +517,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       else
                                         Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(color: avatarColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                                          decoration: BoxDecoration(color: avatarColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                                           child: Text(
                                             role.toUpperCase(), 
                                             style: TextStyle(color: avatarColor, fontSize: 11, fontWeight: FontWeight.bold)
@@ -569,7 +567,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         final user = _unapprovedUsers[index];
         final name = user['full_name'] ?? 'Unknown';
         final initials = name.isNotEmpty ? name.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase() : '?';
-        final dept = user['department'] ?? '-';
         final email = user['personal_email'] ?? user['email'] ?? '-';
 
         return GestureDetector(
@@ -587,7 +584,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   Row(
                     children: [
                       CircleAvatar(
-                        backgroundColor: Colors.orange.withOpacity(0.1),
+                        backgroundColor: Colors.orange.withValues(alpha: 0.1),
                         child: Text(initials, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 12),
@@ -1010,7 +1007,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                     decoration: BoxDecoration(
                       color: Colors.white, 
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))]
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))]
                     ),
                     child: Column(
                       children: [
@@ -1150,7 +1147,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   Widget _buildStatusBadge(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
       child: Text(text, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
@@ -1195,10 +1192,10 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? _blue.withOpacity(0.05) : Colors.white,
+          color: isSelected ? _blue.withValues(alpha: 0.05) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: isSelected ? _blue : Colors.grey.shade200, width: isSelected ? 2 : 1),
-          boxShadow: isSelected ? [BoxShadow(color: _blue.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))] : [],
+          boxShadow: isSelected ? [BoxShadow(color: _blue.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4))] : [],
         ),
         child: Row(
           children: [
@@ -1463,7 +1460,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
               const Text('Role Akses', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _role,
+                initialValue: _role,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1534,7 +1531,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
           Text(label + (required ? ' *' : ''), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: value,
+            initialValue: value,
             decoration: InputDecoration(
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),

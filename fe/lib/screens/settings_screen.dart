@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/profile_service.dart';
 import '../services/storage_service.dart';
 import 'login_screen.dart';
+import '../main.dart';
+import 'create_hazard_screen.dart';
+import 'create_inspection_screen.dart';
+import 'qr_scan_screen.dart';
+import 'my_profile.dart';
+import 'package:local_auth/local_auth.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,7 +21,167 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _selectedLanguage = 'Indonesia';
   bool _isDarkMode = false;
   bool _isPushEnabled = true;
-  bool _isBiometricEnabled = true;
+  bool _isBiometricEnabled = false;
+  static const _blue = Color(0xFF1A56C4);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final bioEnabled = await StorageService.isBiometricEnabled();
+    if (mounted) {
+      setState(() {
+        _isBiometricEnabled = bioEnabled;
+      });
+    }
+  }
+
+  Future<void> _toggleBiometric(bool enable) async {
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login Biometrik tidak didukung di platform Web.')));
+      return;
+    }
+
+    if (!enable) {
+      await StorageService.setBiometricEnabled(false);
+      setState(() => _isBiometricEnabled = false);
+      return;
+    }
+
+    final user = await StorageService.getUser();
+    final employeeId = user?['employee_id'] as String?;
+    if (employeeId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sesi tidak valid.')));
+      return;
+    }
+
+    final localAuth = LocalAuthentication();
+    try {
+      final canCheck = await localAuth.canCheckBiometrics || await localAuth.isDeviceSupported();
+      if (!canCheck) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perangkat tidak mendukung biometrik.')));
+        return;
+      }
+
+      final authenticated = await localAuth.authenticate(
+        localizedReason: 'Gunakan biometrik untuk mengaktifkan login otomatis',
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
+      );
+
+      if (authenticated) {
+        if (!mounted) return;
+        final password = await _showPasswordPromptDialog(context);
+        if (password != null && password.isNotEmpty) {
+          await StorageService.saveBiometricCredentials(employeeId, password);
+          await StorageService.setBiometricEnabled(true);
+          setState(() => _isBiometricEnabled = true);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login biometrik diaktifkan.')));
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<String?> _showPasswordPromptDialog(BuildContext context) {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Konfirmasi Password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Masukkan password Anda untuk disimpan dengan aman sebagai kredensial biometrik.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ctrl,
+              obscureText: true,
+              decoration: InputDecoration(
+                hintText: 'Password',
+                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1A56C4),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onTabTapped(int index) {
+    if (index == 4) {
+      Navigator.pop(context);
+      return;
+    }
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => MainScreen(initialIndex: index)),
+      (route) => false,
+    );
+  }
+
+  void _openFabMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _SettingsFabMenuSheet(
+        onScanQr: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
+        },
+        onCreateHazard: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateHazardScreen()));
+        },
+        onCreateInspection: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateInspectionScreen()));
+        },
+        onEditBiodata: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen(initialAction: 'edit_biodata')));
+        },
+        onAddLicense: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen(initialAction: 'add_license')));
+        },
+        onAddCertification: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen(initialAction: 'add_certification')));
+        },
+        onEditMedical: () {
+          Navigator.pop(context);
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen(initialAction: 'edit_medical')));
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +200,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -106,7 +274,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 label: 'Login Biometrik',
                 subtitle: 'Face ID / Sidik Jari',
                 value: _isBiometricEnabled,
-                onChanged: (v) => setState(() => _isBiometricEnabled = v),
+                onChanged: _toggleBiometric,
               ),
             ]),
             _buildSectionHeader('AKUN'),
@@ -123,6 +291,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
             const SizedBox(height: 40),
           ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openFabMenu,
+        backgroundColor: _blue,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 4,
+        child: const Icon(Icons.add, size: 30),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        color: Colors.white,
+        elevation: 8,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _SettingsNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
+              _SettingsNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+              const SizedBox(width: 48),
+              _SettingsNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
+              _SettingsNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+            ],
+          ),
         ),
       ),
     );
@@ -465,6 +661,206 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
+class _SettingsFabMenuSheet extends StatelessWidget {
+  final VoidCallback onScanQr;
+  final VoidCallback onCreateHazard;
+  final VoidCallback onCreateInspection;
+  final VoidCallback onEditBiodata;
+  final VoidCallback onAddLicense;
+  final VoidCallback onAddCertification;
+  final VoidCallback onEditMedical;
+
+  const _SettingsFabMenuSheet({
+    required this.onScanQr,
+    required this.onCreateHazard,
+    required this.onCreateInspection,
+    required this.onEditBiodata,
+    required this.onAddLicense,
+    required this.onAddCertification,
+    required this.onEditMedical,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, -4)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 8),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
+            child: Text(
+              'Pilih Aksi',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black87),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _SettingsFabMenuTile(
+            icon: Icons.qr_code_scanner,
+            iconBgColor: const Color(0xFFEFF4FF),
+            iconColor: const Color(0xFF1A56C4),
+            title: 'Scan QR Code',
+            subtitle: 'Pindai QR untuk verifikasi peralatan',
+            onTap: onScanQr,
+          ),
+          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+          _SettingsFabMenuTile(
+            icon: Icons.warning_amber_rounded,
+            iconBgColor: const Color(0xFFFFEBEE),
+            iconColor: const Color(0xFFF44336),
+            title: 'Buat Laporan Hazard',
+            subtitle: 'Laporkan potensi bahaya di area kerja',
+            onTap: onCreateHazard,
+          ),
+          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+          _SettingsFabMenuTile(
+            icon: Icons.search,
+            iconBgColor: const Color(0xFFE3F2FD),
+            iconColor: const Color(0xFF1565C0),
+            title: 'Buat Laporan Inspeksi',
+            subtitle: 'Catat hasil inspeksi rutin area kerja',
+            onTap: onCreateInspection,
+          ),
+          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+          _SettingsFabMenuTile(
+            icon: Icons.person_outline,
+            iconBgColor: const Color(0xFFF3E5F5),
+            iconColor: const Color(0xFF8E24AA),
+            title: 'Edit Biodata',
+            subtitle: 'Perbarui nomor telepon & email',
+            onTap: onEditBiodata,
+          ),
+          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+          _SettingsFabMenuTile(
+            icon: Icons.badge_outlined,
+            iconBgColor: const Color(0xFFE3F2FD),
+            iconColor: const Color(0xFF1E88E5),
+            title: 'Tambah Lisensi',
+            subtitle: 'Tambahkan SIM/SIO/KIMPER',
+            onTap: onAddLicense,
+          ),
+          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+          _SettingsFabMenuTile(
+            icon: Icons.workspace_premium_outlined,
+            iconBgColor: const Color(0xFFFFF3E0),
+            iconColor: const Color(0xFFEF6C00),
+            title: 'Tambah Sertifikat',
+            subtitle: 'Tambahkan sertifikasi keahlian',
+            onTap: onAddCertification,
+          ),
+          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+          _SettingsFabMenuTile(
+            icon: Icons.medical_services_outlined,
+            iconBgColor: const Color(0xFFFFEBEE),
+            iconColor: const Color(0xFFE53935),
+            title: 'Edit Data Medis',
+            subtitle: 'Perbarui info kesehatan & alergi',
+            onTap: onEditMedical,
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: const Text('Batal', style: TextStyle(fontSize: 14)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsFabMenuTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconBgColor;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SettingsFabMenuTile({
+    required this.icon,
+    required this.iconBgColor,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Colors.black87)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right,
+                  color: Colors.grey.shade400, size: 20),
+            ],
+          ),
+        ),
+      );
+}
+
 class _PasswordField extends StatefulWidget {
   final TextEditingController controller;
   final String hint;
@@ -507,4 +903,47 @@ class _PasswordFieldState extends State<_PasswordField> {
           ),
         ),
       );
+}
+
+class _SettingsNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int index;
+  final int currentIndex;
+  final Function(int) onTap;
+
+  const _SettingsNavItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = currentIndex == index;
+    return GestureDetector(
+      onTap: () => onTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 70,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

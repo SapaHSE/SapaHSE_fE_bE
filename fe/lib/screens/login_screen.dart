@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'register_screen.dart';
 import '../main.dart';
 import '../services/auth_service.dart';
+import '../services/storage_service.dart';
+import 'package:local_auth/local_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,6 +41,58 @@ class _LoginScreenState extends State<LoginScreen>
       CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut),
     );
     _animCtrl.forward();
+
+    // Trigger biometric if enabled
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkBiometricLogin();
+    });
+  }
+
+  Future<void> _checkBiometricLogin() async {
+    if (kIsWeb) return;
+
+    final bioEnabled = await StorageService.isBiometricEnabled();
+    if (!bioEnabled) return;
+
+    final credentials = await StorageService.getBiometricCredentials();
+    if (credentials == null) return;
+
+    final localAuth = LocalAuthentication();
+    try {
+      final canCheck = await localAuth.canCheckBiometrics || await localAuth.isDeviceSupported();
+      if (!canCheck) return;
+
+      final authenticated = await localAuth.authenticate(
+        localizedReason: 'Gunakan biometrik untuk login',
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
+      );
+
+      if (authenticated) {
+        if (!mounted) return;
+        setState(() => _isLoading = true);
+        
+        final result = await AuthService.login(
+          login: credentials['loginId']!,
+          password: credentials['password']!,
+          rememberMe: true,
+        );
+
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+
+        if (result.success) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const MainScreen()),
+            (route) => false,
+          );
+        } else {
+          _showError(result.errorMessage ?? 'Login biometrik gagal.');
+        }
+      }
+    } catch (e) {
+      debugPrint('Biometric error: $e');
+    }    
   }
 
   @override

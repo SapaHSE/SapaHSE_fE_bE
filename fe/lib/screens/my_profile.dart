@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:sapahse/models/profile_model.dart';
@@ -18,6 +19,28 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   int _selectedSubTab = 0;
   bool _isLoading = true;
   ProfileData? _profileData;
+
+  // Persistent State for License Form
+  final TextEditingController _licenseNameController = TextEditingController();
+  final TextEditingController _licenseNumberController = TextEditingController();
+  DateTime? _licenseSelectedDate;
+
+  // Persistent State for Certification Form
+  final TextEditingController _certNameController = TextEditingController();
+  final TextEditingController _certIssuerController = TextEditingController();
+  DateTime? _certObtainedAt;
+  DateTime? _certExpiredAt;
+  XFile? _licenseImage;
+  XFile? _certImage;  
+
+  @override
+  void dispose() {
+    _licenseNameController.dispose();
+    _licenseNumberController.dispose();
+    _certNameController.dispose();
+    _certIssuerController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -56,16 +79,33 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final picked =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (picked != null) setState(() => _avatarFile = picked);
   }
 
   final List<Map<String, dynamic>> _subTabs = [
-    {'label': 'Biodata', 'icon': Icons.person, 'color': const Color(0xFF1A56C4)},
+    {
+      'label': 'Biodata',
+      'icon': Icons.person,
+      'color': const Color(0xFF1A56C4)
+    },
     {'label': 'Lisensi', 'icon': Icons.badge, 'color': const Color(0xFF1E88E5)},
-    {'label': 'Pelanggaran', 'icon': Icons.warning_amber_rounded, 'color': const Color(0xFFFBC02D)},
-    {'label': 'Sertifikat', 'icon': Icons.workspace_premium, 'color': const Color(0xFFF57C00)},
-    {'label': 'Medis', 'icon': Icons.medical_services, 'color': const Color(0xFFE91E63)},
+    {
+      'label': 'Pelanggaran',
+      'icon': Icons.warning_amber_rounded,
+      'color': const Color(0xFFFBC02D)
+    },
+    {
+      'label': 'Sertifikat',
+      'icon': Icons.workspace_premium,
+      'color': const Color(0xFFF57C00)
+    },
+    {
+      'label': 'Medis',
+      'icon': Icons.medical_services,
+      'color': const Color(0xFFE91E63)
+    },
   ];
 
   void _onTabTapped(int index) {
@@ -86,22 +126,37 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _ProfileFabMenuSheet(
-        onEditBiodata: () { Navigator.pop(context); _showEditBiodataForm(); },
-        onAddLicense: () { Navigator.pop(context); _showAddLicenseForm(); },
-        onAddCertification: () { Navigator.pop(context); _showAddCertificationForm(); },
-        onEditMedical: () { Navigator.pop(context); _showEditMedicalForm(); },
+        onEditBiodata: () {
+          Navigator.pop(context);
+          _showEditBiodataForm();
+        },
+        onAddLicense: () {
+          Navigator.pop(context);
+          _showAddLicenseForm();
+        },
+        onAddCertification: () {
+          Navigator.pop(context);
+          _showAddCertificationForm();
+        },
+        onEditMedical: () {
+          Navigator.pop(context);
+          _showEditMedicalForm();
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading){
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('My Profile',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -140,11 +195,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _ProfileNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
-              _ProfileNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+              _ProfileNavItem(
+                  icon: Icons.home,
+                  label: 'Home',
+                  index: 0,
+                  currentIndex: 4,
+                  onTap: _onTabTapped),
+              _ProfileNavItem(
+                  icon: Icons.article_outlined,
+                  label: 'News',
+                  index: 1,
+                  currentIndex: 4,
+                  onTap: _onTabTapped),
               const SizedBox(width: 48),
-              _ProfileNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
-              _ProfileNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+              _ProfileNavItem(
+                  icon: Icons.inbox_outlined,
+                  label: 'Inbox',
+                  index: 3,
+                  currentIndex: 4,
+                  onTap: _onTabTapped),
+              _ProfileNavItem(
+                  icon: Icons.menu,
+                  label: 'Menu',
+                  index: 4,
+                  currentIndex: 4,
+                  onTap: _onTabTapped),
             ],
           ),
         ),
@@ -154,7 +229,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Widget _buildProfileHeader() {
     final name = _profileData?.fullName ?? '-';
-    final initials = name.split(' ').take(2).map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase();
+    final initials = name
+        .split(' ')
+        .take(2)
+        .map((e) => e.isNotEmpty ? e[0] : '')
+        .join()
+        .toUpperCase();
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -166,8 +246,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 radius: 50,
                 backgroundColor: const Color(0xFF1A56C4),
                 backgroundImage: _getAvatarImage(),
-                child: _avatarFile == null && (_profileData?.profilePhoto == null || _profileData!.profilePhoto!.isEmpty)
-                    ? Text(initials, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold))
+                child: _avatarFile == null &&
+                        (_profileData?.profilePhoto == null ||
+                            _profileData!.profilePhoto!.isEmpty)
+                    ? Text(initials,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold))
                     : null,
               ),
               Positioned(
@@ -177,20 +263,29 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   onTap: _pickImage,
                   child: Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(color: Color(0xFF1A56C4), shape: BoxShape.circle),
-                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                    decoration: const BoxDecoration(
+                        color: Color(0xFF1A56C4), shape: BoxShape.circle),
+                    child: const Icon(Icons.camera_alt,
+                        color: Colors.white, size: 18),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(name,
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text('${_profileData?.position ?? "-"} — Dept. ${_profileData?.department ?? "-"}',
+          Text(
+              '${_profileData?.position ?? "-"} — Dept. ${_profileData?.department ?? "-"}',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
           const SizedBox(height: 4),
-          Text(_profileData?.company ?? '-', style: TextStyle(color: Colors.grey.shade500, fontSize: 13, fontWeight: FontWeight.w500)),
+          Text(_profileData?.company ?? '-',
+              style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -200,7 +295,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     if (_avatarFile != null) {
       return FileImage(File(_avatarFile!.path));
     }
-    if (_profileData?.profilePhoto != null && _profileData!.profilePhoto!.isNotEmpty) {
+    if (_profileData?.profilePhoto != null &&
+        _profileData!.profilePhoto!.isNotEmpty) {
       return NetworkImage(_profileData!.profilePhoto!);
     }
     return null;
@@ -222,20 +318,28 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               width: 80,
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
-                color: isSelected ? tab['color'].withOpacity(0.1) : Colors.transparent,
+                color: isSelected
+                    ? tab['color'].withOpacity(0.1)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isSelected ? tab['color'] : Colors.grey.shade200),
+                border: Border.all(
+                    color: isSelected ? tab['color'] : Colors.grey.shade200),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(tab['icon'], color: isSelected ? tab['color'] : Colors.grey.shade400, size: 24),
+                  Icon(tab['icon'],
+                      color: isSelected ? tab['color'] : Colors.grey.shade400,
+                      size: 24),
                   const SizedBox(height: 8),
                   Text(tab['label'],
                       style: TextStyle(
-                          color: isSelected ? tab['color'] : Colors.grey.shade600,
+                          color:
+                              isSelected ? tab['color'] : Colors.grey.shade600,
                           fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal)),
                 ],
               ),
             ),
@@ -247,40 +351,27 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Widget _buildSubTabContent() {
     switch (_selectedSubTab) {
-      case 0: return _BiodataContent(data: _profileData);
-      case 1: return _LicenseContent(
-        licenses: _profileData?.licenses ?? [],
-        onAdd: _showAddLicenseForm,
-      );
-      case 2: return _ViolationContent(violations: _profileData?.violations ?? []);
-      case 3: return _CertificationContent(
-        certifications: _profileData?.certifications ?? [],
-        onAdd: _showAddCertificationForm,
-      );
-      case 4: return _MedicalContent(medicals: _profileData?.medicals ?? []);
-      default: return const SizedBox();
+      case 0:
+        return _BiodataContent(data: _profileData);
+      case 1:
+        return _LicenseContent(
+          licenses: _profileData?.licenses ?? [],
+          onAdd: _showAddLicenseForm,
+        );
+      case 2:
+        return _ViolationContent(violations: _profileData?.violations ?? []);
+      case 3:
+        return _CertificationContent(
+          certifications: _profileData?.certifications ?? [],
+          onAdd: _showAddCertificationForm,
+        );
+      case 4:
+        return _MedicalContent(medicals: _profileData?.medicals ?? []);
+      default:
+        return const SizedBox();
     }
   }
 
-  void _showEditForm() {
-    switch (_selectedSubTab) {
-      case 0:
-        _showEditBiodataForm();
-        break;
-      case 1:
-        _showAddLicenseForm();
-        break;
-      case 2:
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data pelanggaran tidak dapat diedit.')));
-        break;
-      case 3:
-        _showAddCertificationForm();
-        break;
-      case 4:
-        _showEditMedicalForm();
-        break;
-    }
-  }
 
   void _showEditBiodataForm() {
     final phoneCtrl = TextEditingController(text: _profileData?.phoneNumber);
@@ -297,7 +388,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
+            left: 24,
+            right: 24,
+            top: 24,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: Column(
@@ -306,9 +399,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             children: [
               Row(
                 children: [
-                  const Text('Edit Biodata', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Edit Biodata',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const Spacer(),
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                  IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close)),
                 ],
               ),
               const SizedBox(height: 20),
@@ -332,29 +429,35 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 child: ElevatedButton(
                   onPressed: () async {
                     Navigator.pop(context);
+                    if (!context.mounted) return;                    
                     setState(() => _isLoading = true);
-                    
+
                     final result = await ProfileService.updateProfile(
-                      phoneNumber: phoneCtrl.text.isNotEmpty ? phoneCtrl.text : null,
-                      personalEmail: emailCtrl.text.isNotEmpty ? emailCtrl.text : null,
+                      phoneNumber:
+                          phoneCtrl.text.isNotEmpty ? phoneCtrl.text : null,
+                      personalEmail:
+                          emailCtrl.text.isNotEmpty ? emailCtrl.text : null,
                     );
-                    
+
+                    if (!mounted) return;                    
                     if (result.success) {
-                      if (mounted) _loadProfile();
+                      _loadProfile();
                     } else {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.errorMessage ?? 'Gagal menyimpan')));
-                      }
+                      setState(() => _isLoading = false);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(
+                              result.errorMessage ?? 'Gagal menyimpan')));
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5C38FF),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
-                  child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text('Simpan',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -367,11 +470,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   void _showEditMedicalForm() {
     final medicals = _profileData?.medicals ?? [];
     final latest = medicals.isNotEmpty ? medicals.first : null;
-    
+
     final bloodTypeCtrl = TextEditingController(text: latest?.bloodType);
     final heightCtrl = TextEditingController(text: latest?.height);
     final weightCtrl = TextEditingController(text: latest?.weight);
-    final bloodPressureCtrl = TextEditingController(text: latest?.bloodPressure);
+    final bloodPressureCtrl =
+        TextEditingController(text: latest?.bloodPressure);
     final allergiesCtrl = TextEditingController(text: latest?.allergies);
 
     showModalBottomSheet(
@@ -385,7 +489,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
+            left: 24,
+            right: 24,
+            top: 24,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: SingleChildScrollView(
@@ -395,9 +501,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               children: [
                 Row(
                   children: [
-                    const Text('Edit Data Medis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const Text('Edit Data Medis',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
                     const Spacer(),
-                    IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                    IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -440,7 +550,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     onPressed: () async {
                       Navigator.pop(context);
                       setState(() => _isLoading = true);
-                      
+
                       final result = await ProfileService.updateMedical(
                         bloodType: bloodTypeCtrl.text,
                         height: heightCtrl.text,
@@ -448,23 +558,26 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         bloodPressure: bloodPressureCtrl.text,
                         allergies: allergiesCtrl.text,
                       );
-                      
+
                       if (result.success) {
                         if (mounted) _loadProfile();
                       } else {
                         if (mounted) {
                           setState(() => _isLoading = false);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(result.message)));
                         }
                       }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF5C38FF),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
                     ),
-                    child: const Text('Simpan Data Medis', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text('Simpan Data Medis',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -476,10 +589,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   void _showAddLicenseForm() {
-    final nameController = TextEditingController();
-    final numberController = TextEditingController();
-    DateTime? selectedDate;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -491,7 +600,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
+            left: 24,
+            right: 24,
+            top: 24,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: Column(
@@ -500,21 +611,26 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             children: [
               Row(
                 children: [
-                  const Text('Tambah Lisensi Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Tambah Lisensi Baru',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const Spacer(),
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                  IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close)),
                 ],
               ),
               const SizedBox(height: 20),
               _buildFieldLabel('Nama Lisensi (SIM/SIO/SIMPER)'),
               TextField(
-                controller: nameController,
-                decoration: _buildInputDecoration('Contoh: SIM A, SIO Excavator...'),
+                controller: _licenseNameController,
+                decoration:
+                    _buildInputDecoration('Contoh: SIM A, SIO Excavator...'),
               ),
               const SizedBox(height: 16),
               _buildFieldLabel('Nomor Lisensi'),
               TextField(
-                controller: numberController,
+                controller: _licenseNumberController,
                 decoration: _buildInputDecoration('Contoh: SIM-2024-001234'),
               ),
               _buildFieldLabel('Berlaku Sampai'),
@@ -522,11 +638,169 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 onTap: () async {
                   final picked = await showDatePicker(
                     context: context,
-                    initialDate: DateTime.now().add(const Duration(days: 365)),
-                    firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                    initialDate: DateTime.now(),
+                    firstDate:
+                        DateTime.now().subtract(const Duration(days: 365 * 5)),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 10)),
+                  );
+                  if (picked != null)
+                    setModalState(() => _licenseSelectedDate = picked);
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today,
+                          size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 12),
+                      Text(
+                        _licenseSelectedDate == null
+                            ? 'Pilih Tanggal'
+                            : '${_licenseSelectedDate!.day}/${_licenseSelectedDate!.month}/${_licenseSelectedDate!.year}',
+                        style: TextStyle(
+                            color: _licenseSelectedDate == null
+                                ? Colors.grey.shade500
+                                : Colors.black),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildFieldLabel('Foto Lisensi'),
+              _buildImagePicker(
+                image: _licenseImage,
+                onTap: () async {
+                  final picker = ImagePicker();
+                  final picked = await picker.pickImage(
+                      source: ImageSource.gallery, imageQuality: 70);
+                  if (picked != null){
+                    setModalState(() => _licenseImage = picked);
+                  }
+                },
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (_licenseNameController.text.isEmpty ||
+                        _licenseNumberController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Harap lengkapi semua data')));
+                      return;
+                    }
+
+                    Navigator.pop(context); // Close modal
+                    setState(() => _isLoading = true);
+
+                    final result = await ProfileService.addLicense(
+                      name: _licenseNameController.text,
+                      licenseNumber: _licenseNumberController.text,
+                      expiredAt: _licenseSelectedDate != null
+                          ? '${_licenseSelectedDate!.year}-${_licenseSelectedDate!.month}-${_licenseSelectedDate!.day}'
+                          : null,
+                      imageFile: _licenseImage,
+                    );
+
+                    if (result.success) {
+                      _licenseNameController.clear();
+                      _licenseNumberController.clear();
+                      _licenseSelectedDate = null;
+                      _licenseImage = null;
+                      if (mounted) _loadProfile(); // Refresh
+                    } else {
+                      if (mounted) {
+                        setState(() => _isLoading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(result.message)));
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A56C4),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Simpan Lisensi',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddCertificationForm() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Text('Tambah Sertifikat Baru',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close)),
+                ],
+              ),
+              const SizedBox(height: 20),
+              _buildFieldLabel('Nama Sertifikat'),
+              TextField(
+                controller: _certNameController,
+                decoration: _buildInputDecoration(
+                    'Contoh: Ahli K3 Umum, Basic Safety...'),
+              ),
+              const SizedBox(height: 16),
+              _buildFieldLabel('Lembaga Penerbit'),
+              TextField(
+                controller: _certIssuerController,
+                decoration:
+                    _buildInputDecoration('Contoh: Kemnaker RI, BNSP...'),
+              ),
+              const SizedBox(height: 16),
+              _buildFieldLabel('Sertifikat Diperoleh'),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now().subtract(const Duration(days: 365 * 10)),
                     lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
                   );
-                  if (picked != null) setModalState(() => selectedDate = picked);
+                  if (picked != null) {
+                    setModalState(() => _certObtainedAt = picked);
+                  }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -539,117 +813,50 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade600),
                       const SizedBox(width: 12),
                       Text(
-                        selectedDate == null ? 'Pilih Tanggal' : '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}',
-                        style: TextStyle(color: selectedDate == null ? Colors.grey.shade500 : Colors.black),
+                        _certObtainedAt == null
+                            ? 'Pilih Tanggal'
+                            : '${_certObtainedAt!.day}/${_certObtainedAt!.month}/${_certObtainedAt!.year}',
+                        style: TextStyle(
+                            color: _certObtainedAt == null ? Colors.grey.shade500 : Colors.black),
                       ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              _buildFieldLabel('Foto Lisensi'),
-              _buildImagePicker(
-                image: _licenseImage,
+              _buildFieldLabel('Berlaku Sampai'),
+              InkWell(
                 onTap: () async {
-                  final picker = ImagePicker();
-                  final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
-                  if (picked != null) setModalState(() => _licenseImage = picked);
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now().subtract(const Duration(days: 365 * 10)),
+                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                  );
+                  if (picked != null) {
+                    setModalState(() => _certExpiredAt = picked);
+                  }
                 },
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    if (nameController.text.isEmpty || numberController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Harap lengkapi semua data')));
-                      return;
-                    }
-                    
-                    Navigator.pop(context); // Close modal
-                    setState(() => _isLoading = true);
-                    
-                    final result = await ProfileService.addLicense(
-                      name: nameController.text,
-                      licenseNumber: numberController.text,
-                      expiredAt: selectedDate != null ? '${selectedDate!.year}-${selectedDate!.month}-${selectedDate!.day}' : null,
-                      imageFile: _licenseImage,
-                    );
-                    
-                    if (result.success) {
-                      if (mounted) _loadProfile(); // Refresh
-                    } else {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A56C4),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text('Simpan Lisensi', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 12),
+                      Text(
+                        _certExpiredAt == null
+                            ? 'Pilih Tanggal'
+                            : '${_certExpiredAt!.day}/${_certExpiredAt!.month}/${_certExpiredAt!.year}',
+                        style: TextStyle(
+                            color: _certExpiredAt == null ? Colors.grey.shade500 : Colors.black),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showAddCertificationForm() {
-    final nameController = TextEditingController();
-    final issuerController = TextEditingController();
-    final yearController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text('Tambah Sertifikat Baru', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildFieldLabel('Nama Sertifikat'),
-              TextField(
-                controller: nameController,
-                decoration: _buildInputDecoration('Contoh: Ahli K3 Umum, Basic Safety...'),
-              ),
-              const SizedBox(height: 16),
-              _buildFieldLabel('Lembaga Penerbit'),
-              TextField(
-                controller: issuerController,
-                decoration: _buildInputDecoration('Contoh: Kemnaker RI, BNSP...'),
-              ),
-              const SizedBox(height: 16),
-              _buildFieldLabel('Tahun Perolehan'),
-              TextField(
-                controller: yearController,
-                keyboardType: TextInputType.number,
-                decoration: _buildInputDecoration('Contoh: 2023'),
               ),
               const SizedBox(height: 16),
               _buildFieldLabel('Foto Sertifikat'),
@@ -657,7 +864,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 image: _certImage,
                 onTap: () async {
                   final picker = ImagePicker();
-                  final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+                  final picked = await picker.pickImage(
+                      source: ImageSource.gallery, imageQuality: 70);
                   if (picked != null) setModalState(() => _certImage = picked);
                 },
               ),
@@ -667,37 +875,52 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 height: 54,
                 child: ElevatedButton(
                   onPressed: () async {
-                    if (nameController.text.isEmpty || issuerController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Harap lengkapi nama dan penerbit')));
+                    if (_certNameController.text.isEmpty ||
+                        _certIssuerController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Harap lengkapi nama dan penerbit')));
                       return;
                     }
-                    
+
                     Navigator.pop(context); // Close modal
                     setState(() => _isLoading = true);
-                    
+
                     final result = await ProfileService.addCertification(
-                      name: nameController.text,
-                      issuer: issuerController.text,
-                      year: int.tryParse(yearController.text),
+                      name: _certNameController.text,
+                      issuer: _certIssuerController.text,
+                      obtainedAt: _certObtainedAt != null
+                          ? '${_certObtainedAt!.year}-${_certObtainedAt!.month.toString().padLeft(2, '0')}-${_certObtainedAt!.day.toString().padLeft(2, '0')}'
+                          : null,
+                      expiredAt: _certExpiredAt != null
+                          ? '${_certExpiredAt!.year}-${_certExpiredAt!.month.toString().padLeft(2, '0')}-${_certExpiredAt!.day.toString().padLeft(2, '0')}'
+                          : null,
                       imageFile: _certImage,
                     );
-                    
+
                     if (result.success) {
+                      _certNameController.clear();
+                      _certIssuerController.clear();
+                      _certObtainedAt = null;
+                      _certExpiredAt = null;
+                      _certImage = null;
                       if (mounted) _loadProfile(); // Refresh
                     } else {
                       if (mounted) {
                         setState(() => _isLoading = false);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(result.message)));
                       }
                     }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A56C4),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
-                  child: const Text('Simpan Sertifikat', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text('Simpan Sertifikat',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -708,19 +931,28 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Widget _buildFieldLabel(String label) => Padding(
-    padding: const EdgeInsets.only(left: 4, bottom: 8),
-    child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87)),
-  );
+        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        child: Text(label,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87)),
+      );
 
   InputDecoration _buildInputDecoration(String hint) => InputDecoration(
-    hintText: hint,
-    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-    filled: true,
-    fillColor: Colors.grey.shade50,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade200)),
-    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF1A56C4))),
-  );
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF1A56C4))),
+      );
 
   Widget _buildImagePicker({XFile? image, required VoidCallback onTap}) {
     return InkWell(
@@ -731,7 +963,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
+          border:
+              Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
         ),
         child: image != null
             ? ClipRRect(
@@ -741,17 +974,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_a_photo_outlined, color: Colors.grey.shade400, size: 32),
+                  Icon(Icons.add_a_photo_outlined,
+                      color: Colors.grey.shade400, size: 32),
                   const SizedBox(height: 8),
-                  Text('Ambil atau Pilih Foto', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                  Text('Ambil atau Pilih Foto',
+                      style:
+                          TextStyle(color: Colors.grey.shade500, fontSize: 13)),
                 ],
               ),
       ),
     );
   }
 
-  XFile? _licenseImage;
-  XFile? _certImage;
 }
 
 // ── SUB-TAB WIDGETS (INTERNAL) ──────────────────────────────────────────────
@@ -767,25 +1001,39 @@ class _BiodataContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTitle('CORE DATA'),
+          _buildTitle('INFORMATION PERSONAL'),
           _buildCard([
-            _buildRow('NIK', data?.employeeId ?? '-', locked: true),
-            _buildRow('Nama Lengkap', data?.fullName ?? '-', locked: true),
-            _buildRow('Email', data?.personalEmail ?? '-'),
-            _buildRow('Phone', data?.phoneNumber ?? '-'),
-            _buildRow('Alamat', 'Jl. Kelapa No. 12, BPN'),
+            _buildRow(context, 'NIK', data?.employeeId ?? '-',
+                locked: true, showCopyIcon: true),
+            _buildRow(context, 'Nama Lengkap', data?.fullName ?? '-',
+                locked: true, showCopyIcon: true),
+            _buildRow(context, 'Email', data?.personalEmail ?? '-',
+                showCopyIcon: true),
+            _buildRow(context, 'Phone', data?.phoneNumber ?? '-',
+                showCopyIcon: true),
+            _buildRow(context, 'Alamat', 'Jl. Kelapa No. 12, BPN',
+                showCopyIcon: true),
           ]),
           const SizedBox(height: 24),
-          _buildTitle('EMPLOYEE DATA'),
+          _buildTitle('INFORMATION EMPLOYEE'),
           _buildCard([
-            _buildRow('Tipe Afiliasi', data?.tipeAfiliasi ?? '-', locked: true),
-            _buildRow('Perusahaan Owner', data?.company ?? '-', locked: true),
-            if (data?.tipeAfiliasi == 'Kontraktor' || data?.tipeAfiliasi == 'Sub-Kontraktor' || data?.tipeAfiliasi == 'Sub-Kont.')
-              _buildRow('Perusahaan Kontraktor', data?.perusahaanKontraktor ?? '-', locked: true),
-            if (data?.tipeAfiliasi == 'Sub-Kontraktor' || data?.tipeAfiliasi == 'Sub-Kont.')
-              _buildRow('Sub-Kontraktor', data?.subKontraktor ?? '-', locked: true),
-            _buildRow('Departemen', data?.department ?? '-', locked: true),
-            _buildRow('Jabatan', data?.position ?? '-', locked: true),
+            _buildRow(context, 'Tipe Afiliasi', data?.tipeAfiliasi ?? '-',
+                locked: true),
+            _buildRow(context, 'Perusahaan Owner', data?.company ?? '-',
+                locked: true),
+            if (data?.tipeAfiliasi == 'Kontraktor' ||
+                data?.tipeAfiliasi == 'Sub-Kontraktor' ||
+                data?.tipeAfiliasi == 'Sub-Kont.')
+              _buildRow(context, 'Perusahaan Kontraktor',
+                  data?.perusahaanKontraktor ?? '-',
+                  locked: true),
+            if (data?.tipeAfiliasi == 'Sub-Kontraktor' ||
+                data?.tipeAfiliasi == 'Sub-Kont.')
+              _buildRow(context, 'Sub-Kontraktor', data?.subKontraktor ?? '-',
+                  locked: true),
+            _buildRow(context, 'Departemen', data?.department ?? '-',
+                locked: true),
+            _buildRow(context, 'Jabatan', data?.position ?? '-', locked: true),
           ]),
         ],
       ),
@@ -793,49 +1041,98 @@ class _BiodataContent extends StatelessWidget {
   }
 
   Widget _buildTitle(String title) => Padding(
-    padding: const EdgeInsets.only(left: 4, bottom: 8),
-    child: Text(title, style: TextStyle(color: Colors.grey.shade500, fontSize: 11, fontWeight: FontWeight.bold)),
-  );
+        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        child: Text(title,
+            style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 11,
+                fontWeight: FontWeight.bold)),
+      );
 
   Widget _buildCard(List<Widget> children) => Container(
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
-    child: Column(children: children.asMap().entries.map((e) => Column(children: [
-      e.value, if (e.key < children.length - 1) Divider(height: 1, color: Colors.grey.shade100, indent: 16, endIndent: 16)
-    ])).toList()),
-  );
-
-  Widget _buildRow(String label, String value, {bool locked = false}) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 100,
-          child: Text(label, style: TextStyle(color: Colors.grey.shade500, fontSize: 13))
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200)),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          color: Colors.transparent,
+          child: Column(
+              children: children
+                  .asMap()
+                  .entries
+                  .map((e) => Column(children: [
+                        e.value,
+                        if (e.key < children.length - 1)
+                          Divider(
+                              height: 1,
+                              color: Colors.grey.shade100,
+                              indent: 16,
+                              endIndent: 16)
+                      ]))
+                  .toList()),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Row(
+      );
+
+  Widget _buildRow(BuildContext context, String label, String value,
+      {bool locked = false, bool showCopyIcon = false}) {
+    Widget content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+              width: 100,
+              child: Text(label,
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13))),
+          const SizedBox(width: 12),
+          Expanded(
+              child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Flexible(
-                child: Text(
-                  value, 
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, height: 1.3)
-                )
-              ),
+                  child: Text(value,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          height: 1.3))),
+              if (showCopyIcon) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.copy, color: Colors.grey.shade400, size: 14)
+              ],
               if (locked) ...[
-                const SizedBox(width: 6), 
+                const SizedBox(width: 6),
                 const Icon(Icons.lock, color: Colors.orange, size: 14)
               ],
             ],
-          )
-        ),
-      ],
-    ),
-  );
+          )),
+        ],
+      ),
+    );
+
+    if (showCopyIcon) {
+      return InkWell(
+        onTap: () async {
+          if (value != '-' && value.isNotEmpty) {
+            await Clipboard.setData(ClipboardData(text: value));
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('$label berhasil disalin'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+          }
+        },
+        child: content,
+      );
+    }
+
+    return content;
+  }
 }
 
 class _LicenseContent extends StatelessWidget {
@@ -850,18 +1147,22 @@ class _LicenseContent extends StatelessWidget {
       child: Column(
         children: [
           ...licenses.map((l) {
-            final isAktif = l.status.toLowerCase() == 'active';
+            final isAktif = l.isActive;
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isAktif ? Colors.grey.shade200 : Colors.red.shade100),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
-                ]
-              ),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color:
+                          isAktif ? Colors.grey.shade200 : Colors.red.shade100),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4))
+                  ]),
               child: Row(
                 children: [
                   Container(
@@ -870,18 +1171,25 @@ class _LicenseContent extends StatelessWidget {
                       color: const Color(0xFFE3F2FD),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.badge_outlined, color: Color(0xFF1E88E5), size: 24),
+                    child: const Icon(Icons.badge_outlined,
+                        color: Color(0xFF1E88E5), size: 24),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(l.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text(l.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 15)),
                         const SizedBox(height: 4),
-                        Text('No. ${l.licenseNumber}', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                        Text('No. ${l.licenseNumber}',
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 13)),
                         if (l.expiredAt != null)
-                          Text('Berlaku s/d ${l.expiredAt}', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                          Text('Berlaku s/d ${l.expiredAt}',
+                              style: TextStyle(
+                                  color: Colors.grey.shade400, fontSize: 12)),
                         if (l.fileUrl != null) ...[
                           const SizedBox(height: 8),
                           ClipRRect(
@@ -891,7 +1199,8 @@ class _LicenseContent extends StatelessWidget {
                               height: 60,
                               width: 100,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox(),
                             ),
                           ),
                         ],
@@ -899,15 +1208,20 @@ class _LicenseContent extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isAktif ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
+                      color: isAktif
+                          ? const Color(0xFFE8F5E9)
+                          : const Color(0xFFFFEBEE),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       isAktif ? 'Aktif' : 'Expired',
                       style: TextStyle(
-                        color: isAktif ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F),
+                        color: isAktif
+                            ? const Color(0xFF2E7D32)
+                            : const Color(0xFFD32F2F),
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -917,18 +1231,6 @@ class _LicenseContent extends StatelessWidget {
               ),
             );
           }),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Tambah Lisensi'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1A56C4),
-              side: const BorderSide(color: Color(0xFF1A56C4)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
         ],
       ),
     );
@@ -938,7 +1240,8 @@ class _LicenseContent extends StatelessWidget {
 class _CertificationContent extends StatelessWidget {
   final List<UserCertification> certifications;
   final VoidCallback onAdd;
-  const _CertificationContent({required this.certifications, required this.onAdd});
+  const _CertificationContent(
+      {required this.certifications, required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -947,18 +1250,20 @@ class _CertificationContent extends StatelessWidget {
       child: Column(
         children: [
           ...certifications.map((c) {
-            final isAktif = c.status.toLowerCase() == 'active';
+            final isAktif = c.isActive;
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))
-                ]
-              ),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4))
+                  ]),
               child: Row(
                 children: [
                   Container(
@@ -967,18 +1272,29 @@ class _CertificationContent extends StatelessWidget {
                       color: const Color(0xFFF3E5F5),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.workspace_premium_outlined, color: Color(0xFF6A1B9A), size: 24),
+                    child: const Icon(Icons.workspace_premium_outlined,
+                        color: Color(0xFF6A1B9A), size: 24),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(c.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Text(c.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 15)),
                         const SizedBox(height: 4),
-                        Text(c.issuer, style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-                        if (c.year != null)
-                          Text('Tahun: ${c.year}', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                        Text(c.issuer,
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 13)),
+                        if (c.obtainedAt != null)
+                          Text('Diperoleh: ${c.obtainedAt}',
+                              style: TextStyle(
+                                  color: Colors.grey.shade400, fontSize: 12)),
+                        if (c.expiredAt != null)
+                          Text('Berlaku s/d: ${c.expiredAt}',
+                              style: TextStyle(
+                                  color: Colors.grey.shade400, fontSize: 12)),
                         if (c.fileUrl != null) ...[
                           const SizedBox(height: 8),
                           ClipRRect(
@@ -988,7 +1304,8 @@ class _CertificationContent extends StatelessWidget {
                               height: 60,
                               width: 100,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox(),
                             ),
                           ),
                         ],
@@ -996,15 +1313,20 @@ class _CertificationContent extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isAktif ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+                      color: isAktif
+                          ? const Color(0xFFE8F5E9)
+                          : const Color(0xFFFFF3E0),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       isAktif ? 'Aktif' : 'Renew',
                       style: TextStyle(
-                        color: isAktif ? const Color(0xFF2E7D32) : const Color(0xFFEF6C00),
+                        color: isAktif
+                            ? const Color(0xFF2E7D32)
+                            : const Color(0xFFEF6C00),
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -1014,18 +1336,6 @@ class _CertificationContent extends StatelessWidget {
               ),
             );
           }),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Tambah Sertifikat'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF1A56C4),
-              side: const BorderSide(color: Color(0xFF1A56C4)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
         ],
       ),
     );
@@ -1046,7 +1356,11 @@ class _MedicalContent extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text('DATA MEDIS', style: TextStyle(color: Colors.grey.shade500, fontSize: 11, fontWeight: FontWeight.bold)),
+            child: Text('DATA MEDIS',
+                style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold)),
           ),
           Container(
             decoration: BoxDecoration(
@@ -1064,13 +1378,15 @@ class _MedicalContent extends StatelessWidget {
                 _buildDivider(),
                 _buildMedicalRow('Tekanan Darah', latest?.bloodPressure ?? '-'),
                 _buildDivider(),
-                _buildMedicalRow('Alergi', latest?.allergies ?? 'Tidak Ada', isBoldValue: true),
+                _buildMedicalRow('Alergi', latest?.allergies ?? 'Tidak Ada',
+                    isBoldValue: true),
                 _buildDivider(),
                 _buildMedicalRow('MCU Terakhir', latest?.checkupDate ?? '-'),
                 _buildDivider(),
                 _buildMedicalRow('Hasil MCU', latest?.result ?? '-'),
                 _buildDivider(),
-                _buildMedicalRow('MCU Berikutnya', latest?.nextCheckupDate ?? '-'),
+                _buildMedicalRow(
+                    'MCU Berikutnya', latest?.nextCheckupDate ?? '-'),
                 _buildDivider(),
                 _buildMedicalRow('Riwayat Penyakit', '-'),
                 _buildDivider(),
@@ -1092,7 +1408,10 @@ class _MedicalContent extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Data medis dikelola oleh Klinik & Dokter Perusahaan',
-                    style: TextStyle(color: Colors.indigo.shade800, fontSize: 12, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                        color: Colors.indigo.shade800,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500),
                   ),
                 ),
               ],
@@ -1103,25 +1422,27 @@ class _MedicalContent extends StatelessWidget {
     );
   }
 
-  Widget _buildDivider() => Divider(height: 1, color: Colors.grey.shade100, indent: 16, endIndent: 16);
+  Widget _buildDivider() => Divider(
+      height: 1, color: Colors.grey.shade100, indent: 16, endIndent: 16);
 
-  Widget _buildMedicalRow(String label, String value, {bool isBoldValue = false}) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    child: Row(
-      children: [
-        Text(label, style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
-        const Spacer(),
-        Text(
-          value, 
-          style: TextStyle(
-            fontWeight: isBoldValue ? FontWeight.bold : FontWeight.w500, 
-            fontSize: 14,
-            color: isBoldValue ? Colors.black : Colors.grey.shade700,
-          )
+  Widget _buildMedicalRow(String label, String value,
+          {bool isBoldValue = false}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Text(label,
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+            const Spacer(),
+            Text(value,
+                style: TextStyle(
+                  fontWeight: isBoldValue ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 14,
+                  color: isBoldValue ? Colors.black : Colors.grey.shade700,
+                )),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
 
 class _ViolationContent extends StatelessWidget {
@@ -1136,9 +1457,11 @@ class _ViolationContent extends StatelessWidget {
           padding: const EdgeInsets.all(32),
           child: Column(
             children: [
-              Icon(Icons.check_circle_outline, size: 64, color: Colors.grey.shade300),
+              Icon(Icons.check_circle_outline,
+                  size: 64, color: Colors.grey.shade300),
               const SizedBox(height: 16),
-              Text('Tidak ada riwayat pelanggaran', style: TextStyle(color: Colors.grey.shade600)),
+              Text('Tidak ada riwayat pelanggaran',
+                  style: TextStyle(color: Colors.grey.shade600)),
             ],
           ),
         ),
@@ -1154,7 +1477,10 @@ class _ViolationContent extends StatelessWidget {
             padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
               'RIWAYAT PELANGGARAN',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 11, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold),
             ),
           ),
           ...violations.map((v) {
@@ -1165,13 +1491,15 @@ class _ViolationContent extends StatelessWidget {
             return Container(
               margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))
-                ]
-              ),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2))
+                  ]),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1195,20 +1523,25 @@ class _ViolationContent extends StatelessWidget {
                               const SizedBox(height: 4),
                               Text(
                                 '${v.location ?? "-"} · ${v.dateOfViolation ?? "-"}',
-                                style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                                style: TextStyle(
+                                    color: Colors.grey.shade500, fontSize: 13),
                               ),
                             ],
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: bgColor,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             v.status,
-                            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
+                            style: TextStyle(
+                                color: color,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12),
                           ),
                         ),
                       ],
@@ -1261,7 +1594,9 @@ class _ProfileNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            Icon(icon,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                size: 24),
             const SizedBox(height: 2),
             Text(
               label,
@@ -1303,8 +1638,11 @@ class _ProfileMenuTile extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(color: iconBgColor, borderRadius: BorderRadius.circular(12)),
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(12)),
                 child: Icon(icon, color: iconColor, size: 24),
               ),
               const SizedBox(width: 14),
@@ -1312,9 +1650,15 @@ class _ProfileMenuTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black87)),
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: Colors.black87)),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(subtitle,
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -1347,7 +1691,10 @@ class _ProfileFabMenuSheet extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 20, offset: const Offset(0, -4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, -4)),
         ],
       ),
       child: Column(
@@ -1356,16 +1703,22 @@ class _ProfileFabMenuSheet extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 12, bottom: 8),
             child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
             ),
           ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
-            child: Text('Pilih Aksi Profil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
+            child: Text('Pilih Aksi Profil',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.black87)),
           ),
           const SizedBox(height: 8),
-
           _ProfileMenuTile(
             icon: Icons.person_outline,
             iconBgColor: const Color(0xFFF3E5F5),
@@ -1411,7 +1764,9 @@ class _ProfileFabMenuSheet extends StatelessWidget {
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.grey,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: Colors.grey.shade200)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: Colors.grey.shade200)),
                 ),
                 child: const Text('Batal', style: TextStyle(fontSize: 14)),
               ),
@@ -1422,4 +1777,3 @@ class _ProfileFabMenuSheet extends StatelessWidget {
     );
   }
 }
-

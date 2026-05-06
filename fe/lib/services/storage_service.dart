@@ -1,13 +1,16 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class StorageService {
   static const _keyToken = 'auth_token';
   static const _keyUser = 'auth_user';
-  static const _keyExpiry = 'auth_expiry'; // ← baru
-  static const _keyRememberMe = 'auth_remember'; // ← baru
+  static const _keyExpiry = 'auth_expiry'; 
+  static const _keyRememberMe = 'auth_remember'; 
+  static const _keyBiometricEnabled = 'biometric_enabled';  
 
   static SharedPreferences? _prefs;
+  static const _secureStorage = FlutterSecureStorage();  
 
   static Future<SharedPreferences> _getPrefs() async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -113,4 +116,36 @@ class StorageService {
     final remaining = expiryDate.difference(DateTime.now());
     return remaining.isNegative ? null : remaining;
   }
+  // ── Biometric Login ───────────────────────────────────────────────────────
+  static Future<void> setBiometricEnabled(bool enabled) async {
+    final prefs = await _getPrefs();
+    await prefs.setBool(_keyBiometricEnabled, enabled);
+    if (!enabled) {
+      await clearBiometricCredentials();
+    }
+  }
+
+  static Future<bool> isBiometricEnabled() async {
+    final prefs = await _getPrefs();
+    return prefs.getBool(_keyBiometricEnabled) ?? false;
+  }
+
+  static Future<void> saveBiometricCredentials(String loginId, String password) async {
+    await _secureStorage.write(key: 'biometric_login_id', value: loginId);
+    await _secureStorage.write(key: 'biometric_password', value: password);
+  }
+
+  static Future<Map<String, String>?> getBiometricCredentials() async {
+    final loginId = await _secureStorage.read(key: 'biometric_login_id');
+    final password = await _secureStorage.read(key: 'biometric_password');
+    if (loginId != null && password != null) {
+      return {'loginId': loginId, 'password': password};
+    }
+    return null;
+  }
+
+  static Future<void> clearBiometricCredentials() async {
+    await _secureStorage.delete(key: 'biometric_login_id');
+    await _secureStorage.delete(key: 'biometric_password');
+  }  
 }

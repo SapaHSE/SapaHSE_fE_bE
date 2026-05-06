@@ -122,7 +122,8 @@ class UserCertification {
   final String id;
   final String name;
   final String issuer;
-  final int? year;
+  final String? obtainedAt;
+  final String? expiredAt;
   final String status;
   final bool isVerified;
   final String? fileUrl;
@@ -131,7 +132,8 @@ class UserCertification {
     required this.id,
     required this.name,
     required this.issuer,
-    this.year,
+    this.obtainedAt,
+    this.expiredAt,
     required this.status,
     this.isVerified = false,
     this.fileUrl,
@@ -142,7 +144,8 @@ class UserCertification {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       issuer: json['issuer']?.toString() ?? '',
-      year: json['year'] as int?,
+      obtainedAt: json['obtained_at']?.toString(),
+      expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'active',
       isVerified: json['is_verified'] == true || json['is_verified'] == 1,
       fileUrl: normalizeStorageUrl(json['file_url']?.toString()),

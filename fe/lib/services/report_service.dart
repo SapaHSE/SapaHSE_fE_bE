@@ -251,9 +251,14 @@ class ReportService {
       fields['image_url'] = uploadedUrls.first; // back-compat
       fields['image_urls'] = uploadedUrls;
     }
+    debugPrint(
+        'updateReportStatus: uploading ${uploadedUrls.length} photos for report ${report.id}');
+    debugPrint(
+        'updateReportStatus payload image_urls=${fields['image_urls']}');
 
-    debugPrint('Updating status for report ${report.id} to ${status.name}');
     final response = await ApiService.post(endpoint, fields);
+    debugPrint(
+        'updateReportStatus response image_urls=${(response.data?['data'] as Map?)?['image_urls']}');
 
     if (!response.success) {
       debugPrint('Update status failed: ${response.errorMessage}');
@@ -318,6 +323,9 @@ class ReportService {
         .map((e) => _mapLogEntry(Map<String, dynamic>.from(e)))
         .toList()
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    debugPrint('getLogs(${report.id}): ${logs.length} entries; '
+        'photo counts=${logs.map((e) => e.photoUrls.length).toList()}');
 
     return ReportLogsResult.success(logs);
   }
@@ -525,11 +533,16 @@ class ReportService {
 
   static List<String> _parseImageUrls(Map<String, dynamic> json) {
     final urls = <String>[];
+    final seen = <String>{};
+
     final raw = json['image_urls'];
     if (raw is List) {
       for (final item in raw) {
-        final n = normalizeStorageUrl(item?.toString());
-        if (n != null && n.isNotEmpty) urls.add(n);
+        final normalized = normalizeStorageUrl(item?.toString());
+        if (normalized != null && normalized.isNotEmpty && !seen.contains(normalized)) {
+          seen.add(normalized);
+          urls.add(normalized);
+        }
       }
     }
     if (urls.isEmpty) {

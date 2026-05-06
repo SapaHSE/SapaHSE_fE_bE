@@ -450,11 +450,11 @@ class _FabMenuSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Padding(
             padding: const EdgeInsets.only(top: 12, bottom: 8),
             child: Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(2)),
@@ -474,7 +474,6 @@ class _FabMenuSheet extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // ── Scan QR ───────────────────────────────────────────────
           _MenuTile(
             icon: Icons.qr_code_scanner,
             iconBgColor: const Color(0xFFEFF4FF),
@@ -486,7 +485,6 @@ class _FabMenuSheet extends StatelessWidget {
 
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
 
-          // ── Create Hazard ─────────────────────────────────────────
           _MenuTile(
             icon: Icons.warning_amber_rounded,
             iconBgColor: const Color(0xFFFFEBEE),
@@ -498,7 +496,6 @@ class _FabMenuSheet extends StatelessWidget {
 
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
 
-          // ── Create Inspection ─────────────────────────────────────
           _MenuTile(
             icon: Icons.search,
             iconBgColor: const Color(0xFFE3F2FD),
@@ -508,7 +505,6 @@ class _FabMenuSheet extends StatelessWidget {
             onTap: onCreateInspection,
           ),
 
-          // ── Tambah Gambar Carousel (Home tab) ─────────────────────
           if (currentIndex == 0) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
             _MenuTile(
@@ -521,7 +517,6 @@ class _FabMenuSheet extends StatelessWidget {
             ),
           ],
 
-          // ── Tambah Berita (News tab) ───────────────────────────────
           if (currentIndex == 1) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
             _MenuTile(
@@ -536,7 +531,6 @@ class _FabMenuSheet extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // Cancel button
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: SizedBox(
@@ -585,7 +579,8 @@ class _MenuTile extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 44, height: 44,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                     color: iconBgColor,
                     borderRadius: BorderRadius.circular(12)),

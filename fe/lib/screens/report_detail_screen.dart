@@ -113,6 +113,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   // Admin and Superadmin both have full update authority — treat them the same here.
   bool get _isAdmin =>
       (_currentUser?.isAdmin ?? false) || (_currentUser?.isSuperadmin ?? false);
+  bool get _isSuperadmin => _currentUser?.isSuperadmin ?? false;
   bool get _isPJA {
     if (_currentUser == null) return false;
     final fullName = _currentUser!.fullName.toLowerCase();
@@ -121,7 +122,18 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     final repDept = _report.departemen?.toLowerCase() ?? '';
     return pic.contains(fullName) || (dept.isNotEmpty && repDept.contains(dept));
   }
-  bool get _canUpdate => _isAdmin || _isPJA;
+  bool get _isReporter {
+    final currentUserId = _currentUser?.id.toString();
+    final reporterId = _report.reporterId?.toString();
+    return currentUserId != null &&
+        currentUserId.isNotEmpty &&
+        reporterId != null &&
+        reporterId.isNotEmpty &&
+        currentUserId == reporterId;
+  }
+  bool get _canUpdate => _isAdmin || _isPJA || _isReporter;
+  bool get _canTapUpdateFab =>
+      _canUpdate && (_report.status != ReportStatus.closed || _isSuperadmin);
 
   Future<void> _refreshData() async {
     setState(() => _isLoading = true);
@@ -232,58 +244,147 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     return '$dateStr — $span lagi';
   }
 
-  void _showImagePreview(BuildContext context, String imageUrl, int index) {
+  void _showImagePreview(
+      BuildContext context, List<String> images, int initialIndex) {
+    final previewController = PageController(initialPage: initialIndex);
+    final Map<int, TransformationController> controllers = {};
+    final Map<int, VoidCallback> listeners = {};
+    var doubleTapPosition = Offset.zero;
+    const doubleTapZoomScale = 2.5;
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            iconTheme: const IconThemeData(color: Colors.white),
-            elevation: 0,
-          ),
-          extendBodyBehindAppBar: true,
-          body: Center(
-            child: InteractiveViewer(
-              minScale: 1.0,
-              maxScale: 4.0,
-              child: index == 0
-                  ? Hero(
-                      tag: 'report_image_${_report.id}',
-                      child: CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.contain,
-                        placeholder: (_, __) => const CircularProgressIndicator(
-                            color: Colors.white),
-                        errorWidget: (_, __, ___) => const Icon(Icons.image,
-                            color: Colors.white54, size: 80),
-                      ),
-                    )
-                  : CachedNetworkImage(
-                      imageUrl: imageUrl,
+        builder: (context) {
+          var currentIndex = initialIndex;
+          var isZoomed = false;
+          return StatefulBuilder(
+            builder: (context, setPreviewState) {
+              TransformationController controllerFor(int i) {
+                final existing = controllers[i];
+                if (existing != null) return existing;
+                final c = TransformationController();
+                void listener() {
+                  final scale = c.value.getMaxScaleOnAxis();
+                  final zoomed = scale > 1.0;
+                  if (zoomed != isZoomed) {
+                    setPreviewState(() => isZoomed = zoomed);
+                  }
+                }
+                c.addListener(listener);
+                controllers[i] = c;
+                listeners[i] = listener;
+                return c;
+              }
+
+              void handleDoubleTap(int i) {
+                final c = controllerFor(i);
+                final currentScale = c.value.getMaxScaleOnAxis();
+                if (currentScale > 1.0) {
+                  c.value = Matrix4.identity();
+                } else {
+                  const s = doubleTapZoomScale;
+                  final x = -doubleTapPosition.dx * (s - 1);
+                  final y = -doubleTapPosition.dy * (s - 1);
+                  // Column-major: scale on diagonal, translation in last column.
+                  c.value = Matrix4(
+                    s, 0, 0, 0,
+                    0, s, 0, 0,
+                    0, 0, 1, 0,
+                    x, y, 0, 1,
+                  );
+                }
+              }
+
+              return Scaffold(
+                backgroundColor: Colors.black,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  iconTheme: const IconThemeData(color: Colors.white),
+                  elevation: 0,
+                  title: Text(
+                    '${currentIndex + 1}/${images.length}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14),
+                  ),
+                ),
+                extendBodyBehindAppBar: true,
+                body: PageView.builder(
+                  controller: previewController,
+                  physics: isZoomed
+                      ? const NeverScrollableScrollPhysics()
+                      : const PageScrollPhysics(),
+                  onPageChanged: (idx) {
+                    final old = currentIndex;
+                    setPreviewState(() {
+                      currentIndex = idx;
+                      isZoomed = false;
+                    });
+                    controllers[old]?.value = Matrix4.identity();
+                  },
+                  itemCount: images.length,
+                  itemBuilder: (context, index) {
+                    final image = CachedNetworkImage(
+                      imageUrl: images[index],
                       fit: BoxFit.contain,
-                      placeholder: (_, __) =>
-                          const CircularProgressIndicator(color: Colors.white),
+                      placeholder: (_, __) => const CircularProgressIndicator(
+                          color: Colors.white),
                       errorWidget: (_, __, ___) => const Icon(Icons.image,
                           color: Colors.white54, size: 80),
-                    ),
-            ),
-          ),
-        ),
+                    );
+                    return Center(
+                      child: GestureDetector(
+                        onDoubleTapDown: (details) =>
+                            doubleTapPosition = details.localPosition,
+                        onDoubleTap: () => handleDoubleTap(index),
+                        child: InteractiveViewer(
+                          minScale: 1.0,
+                          maxScale: 4.0,
+                          transformationController: controllerFor(index),
+                          child: index == 0
+                              ? Hero(
+                                  tag: 'report_image_${_report.id}',
+                                  child: image,
+                                )
+                              : image,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
       ),
-    );
+    ).then((_) {
+      for (final entry in controllers.entries) {
+        final l = listeners[entry.key];
+        if (l != null) entry.value.removeListener(l);
+        entry.value.dispose();
+      }
+      previewController.dispose();
+    });
   }
 
   void _showUpdateStatusModal() {
+    if (!_canTapUpdateFab) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _UpdateStatusSheet(
         report: _report,
+        isAdmin: _isAdmin,
         onUpdate: (updatedReport) {
-          setState(() => _report = updatedReport);
+          setState(() {
+            _report = updatedReport;
+            _timelineFuture =
+                ReportStore.instance.loadTimeline(_report.id, force: true);
+          });
+          _refreshData();
         },
       ),
     );
@@ -308,16 +409,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       floatingActionButtonLocation: widget.isDialog
           ? FloatingActionButtonLocation.centerFloat
           : FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: _canUpdate
-          ? FloatingActionButton(
-              onPressed: _showUpdateStatusModal,
-              backgroundColor: const Color(0xFF1A56C4),
-              foregroundColor: Colors.white,
-              shape: const CircleBorder(),
-              elevation: 4,
-              child: const Icon(Icons.edit_outlined, size: 26),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _canTapUpdateFab ? _showUpdateStatusModal : null,
+        backgroundColor:
+            _canTapUpdateFab ? const Color(0xFF1A56C4) : Colors.grey.shade400,
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 4,
+        child: const Icon(Icons.edit_outlined, size: 26),
+      ),
       bottomNavigationBar: widget.isDialog
           ? null
           : BottomAppBar(
@@ -398,7 +498,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     itemBuilder: (context, index) {
                       final imgUrl = images[index];
                       return GestureDetector(
-                        onTap: () => _showImagePreview(context, imgUrl, index),
+                        onTap: () =>
+                            _showImagePreview(context, images, index),
                         child: index == 0
                             ? Hero(
                                 tag: 'report_image_${_report.id}',
@@ -929,7 +1030,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 },
               ),
 
-              SizedBox(height: _canUpdate ? 112 : 32),
+              const SizedBox(height: 112),
             ],
           ),
         ),
@@ -939,7 +1040,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             right: 16,
             // Reserve room above the Update Status FAB when it is visible,
             // so the scroll-to-bottom button never overlaps it.
-            bottom: _canUpdate ? 84 : 16,
+            bottom: 84,
             child: SafeArea(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 320),
@@ -1203,6 +1304,126 @@ class _TimelineItem extends StatelessWidget {
     required this.formatShort,
   });
 
+  void _openTimelinePreview(
+      BuildContext context, List<String> images, int initialIndex) {
+    final previewController = PageController(initialPage: initialIndex);
+    final Map<int, TransformationController> controllers = {};
+    final Map<int, VoidCallback> listeners = {};
+    var doubleTapPosition = Offset.zero;
+    const doubleTapZoomScale = 2.5;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          var currentIndex = initialIndex;
+          var isZoomed = false;
+          return StatefulBuilder(
+            builder: (context, setPreviewState) {
+              TransformationController controllerFor(int i) {
+                final existing = controllers[i];
+                if (existing != null) return existing;
+                final c = TransformationController();
+                void listener() {
+                  final scale = c.value.getMaxScaleOnAxis();
+                  final zoomed = scale > 1.0;
+                  if (zoomed != isZoomed) {
+                    setPreviewState(() => isZoomed = zoomed);
+                  }
+                }
+                c.addListener(listener);
+                controllers[i] = c;
+                listeners[i] = listener;
+                return c;
+              }
+
+              void handleDoubleTap(int i) {
+                final c = controllerFor(i);
+                final currentScale = c.value.getMaxScaleOnAxis();
+                if (currentScale > 1.0) {
+                  c.value = Matrix4.identity();
+                } else {
+                  const s = doubleTapZoomScale;
+                  final x = -doubleTapPosition.dx * (s - 1);
+                  final y = -doubleTapPosition.dy * (s - 1);
+                  // Column-major: scale on diagonal, translation in last column.
+                  c.value = Matrix4(
+                    s, 0, 0, 0,
+                    0, s, 0, 0,
+                    0, 0, 1, 0,
+                    x, y, 0, 1,
+                  );
+                }
+              }
+
+              return Scaffold(
+                backgroundColor: Colors.black,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  iconTheme: const IconThemeData(color: Colors.white),
+                  elevation: 0,
+                  title: Text(
+                    '${currentIndex + 1}/${images.length}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14),
+                  ),
+                ),
+                extendBodyBehindAppBar: true,
+                body: PageView.builder(
+                  controller: previewController,
+                  physics: isZoomed
+                      ? const NeverScrollableScrollPhysics()
+                      : const PageScrollPhysics(),
+                  onPageChanged: (idx) {
+                    final old = currentIndex;
+                    setPreviewState(() {
+                      currentIndex = idx;
+                      isZoomed = false;
+                    });
+                    controllers[old]?.value = Matrix4.identity();
+                  },
+                  itemCount: images.length,
+                  itemBuilder: (context, index) {
+                    return Center(
+                      child: GestureDetector(
+                        onDoubleTapDown: (details) =>
+                            doubleTapPosition = details.localPosition,
+                        onDoubleTap: () => handleDoubleTap(index),
+                        child: InteractiveViewer(
+                          minScale: 1.0,
+                          maxScale: 4.0,
+                          transformationController: controllerFor(index),
+                          child: CachedNetworkImage(
+                            imageUrl: images[index],
+                            fit: BoxFit.contain,
+                            placeholder: (_, __) =>
+                                const CircularProgressIndicator(
+                                    color: Colors.white),
+                            errorWidget: (_, __, ___) => const Icon(Icons.image,
+                                color: Colors.white54, size: 80),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+    ).then((_) {
+      for (final entry in controllers.entries) {
+        final l = listeners[entry.key];
+        if (l != null) entry.value.removeListener(l);
+        entry.value.dispose();
+      }
+      previewController.dispose();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return IntrinsicHeight(
@@ -1345,65 +1566,45 @@ class _TimelineItem extends StatelessWidget {
                     ),
                   ],
 
-                  // Photo (comes from API as URL)
-                  if (event.photoPath != null &&
-                      event.photoPath!.isNotEmpty) ...[
+                  // Photos (multi image_urls with legacy fallback to single photoPath)
+                  if (event.photoPaths.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => Scaffold(
-                              backgroundColor: Colors.black,
-                              appBar: AppBar(
-                                backgroundColor: Colors.transparent,
-                                iconTheme:
-                                    const IconThemeData(color: Colors.white),
-                                elevation: 0,
-                              ),
-                              extendBodyBehindAppBar: true,
-                              body: Center(
-                                child: InteractiveViewer(
-                                  minScale: 1.0,
-                                  maxScale: 4.0,
-                                  child: CachedNetworkImage(
-                                    imageUrl: event.photoPath!,
-                                    fit: BoxFit.contain,
-                                    placeholder: (_, __) =>
-                                        const CircularProgressIndicator(
-                                            color: Colors.white),
-                                    errorWidget: (_, __, ___) => const Icon(
-                                        Icons.image,
-                                        color: Colors.white54,
-                                        size: 80),
-                                  ),
+                    SizedBox(
+                      height: 140,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: event.photoPaths.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (_, idx) {
+                          final imageUrl = event.photoPaths[idx];
+                          return GestureDetector(
+                            onTap: () => _openTimelinePreview(
+                                context, event.photoPaths, idx),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                height: 140,
+                                width: 140,
+                                fit: BoxFit.cover,
+                                placeholder: (_, __) => Container(
+                                  height: 140,
+                                  width: 140,
+                                  color: Colors.grey.shade200,
+                                  child: const Center(
+                                      child: CircularProgressIndicator()),
+                                ),
+                                errorWidget: (_, __, ___) => Container(
+                                  height: 140,
+                                  width: 140,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.image,
+                                      color: Colors.grey, size: 48),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: event.photoPath!,
-                          height: 140,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            height: 140,
-                            color: Colors.grey.shade200,
-                            child: const Center(
-                                child: CircularProgressIndicator()),
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            height: 140,
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.image,
-                                color: Colors.grey, size: 48),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -1516,10 +1717,12 @@ class _DetailRow extends StatelessWidget {
 
 class _UpdateStatusSheet extends StatefulWidget {
   final Report report;
+  final bool isAdmin;
   final Function(Report) onUpdate;
 
   const _UpdateStatusSheet({
     required this.report,
+    required this.isAdmin,
     required this.onUpdate,
   });
 
@@ -1545,6 +1748,31 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   final _purple = const Color(0xFF9C27B0);
   final _grey = const Color(0xFF757575);
 
+  bool _canSelectMainStatus(ReportStatus status) {
+    if (widget.isAdmin) return true;
+    return status == ReportStatus.open || status == ReportStatus.inProgress;
+  }
+
+  List<ReportSubStatus> _allowedSubStatusesFor(ReportStatus status) {
+    final all = ReportSubStatusInfo.forStatus(status);
+    if (widget.isAdmin) return all;
+    if (status == ReportStatus.open) {
+      return all.where((s) => s == ReportSubStatus.assigned).toList();
+    }
+    return all;
+  }
+
+  void _syncSelectedSubStatus() {
+    final allowed = _allowedSubStatusesFor(_selectedStatus);
+    if (allowed.isEmpty) {
+      _selectedSub = null;
+      return;
+    }
+    if (_selectedSub == null || !allowed.contains(_selectedSub)) {
+      _selectedSub = allowed.first;
+    }
+  }
+
   bool _isLockedDept(String dept) {
     final normalized = dept.toLowerCase();
     return _hseKeywords.any(normalized.contains);
@@ -1561,7 +1789,11 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   void initState() {
     super.initState();
     _selectedStatus = widget.report.status;
+    if (!_canSelectMainStatus(_selectedStatus)) {
+      _selectedStatus = ReportStatus.inProgress;
+    }
     _selectedSub = widget.report.subStatus;
+    _syncSelectedSubStatus();
 
     // Load initial tags from database - split by comma for individual tracking
     if (widget.report.departemen != null && widget.report.departemen!.isNotEmpty) {
@@ -1939,6 +2171,23 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   }
 
   Future<void> _handleSave() async {
+    if (!_canSelectMainStatus(_selectedStatus)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Anda tidak memiliki izin memilih status ini.')),
+      );
+      return;
+    }
+    final allowedSub = _allowedSubStatusesFor(_selectedStatus);
+    if (_selectedSub != null && !allowedSub.contains(_selectedSub)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Anda tidak memiliki izin memilih sub-status ini.')),
+      );
+      return;
+    }
+
     if (_selectedSub == ReportSubStatus.reviewing && _attachedPhotos.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Foto bukti wajib dilampirkan!')),
@@ -2080,11 +2329,35 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
             const SizedBox(height: 12),
             Row(
               children: [
-                _StatusBtn(label: 'Open', color: _blue, isSelected: _selectedStatus == ReportStatus.open, onTap: () => setState(() { _selectedStatus = ReportStatus.open; _selectedSub = null; })),
+                _StatusBtn(
+                    label: 'Open',
+                    color: _blue,
+                    isSelected: _selectedStatus == ReportStatus.open,
+                    isEnabled: _canSelectMainStatus(ReportStatus.open),
+                    onTap: () => setState(() {
+                          _selectedStatus = ReportStatus.open;
+                          _syncSelectedSubStatus();
+                        })),
                 const SizedBox(width: 10),
-                _StatusBtn(label: 'In Progress', color: _purple, isSelected: _selectedStatus == ReportStatus.inProgress, onTap: () => setState(() { _selectedStatus = ReportStatus.inProgress; _selectedSub = null; })),
+                _StatusBtn(
+                    label: 'In Progress',
+                    color: _purple,
+                    isSelected: _selectedStatus == ReportStatus.inProgress,
+                    isEnabled: _canSelectMainStatus(ReportStatus.inProgress),
+                    onTap: () => setState(() {
+                          _selectedStatus = ReportStatus.inProgress;
+                          _syncSelectedSubStatus();
+                        })),
                 const SizedBox(width: 10),
-                 _StatusBtn(label: 'Closed', color: _grey, isSelected: _selectedStatus == ReportStatus.closed, onTap: () => setState(() { _selectedStatus = ReportStatus.closed; _selectedSub = null; })),
+                _StatusBtn(
+                    label: 'Closed',
+                    color: _grey,
+                    isSelected: _selectedStatus == ReportStatus.closed,
+                    isEnabled: _canSelectMainStatus(ReportStatus.closed),
+                    onTap: () => setState(() {
+                          _selectedStatus = ReportStatus.closed;
+                          _syncSelectedSubStatus();
+                        })),
               ],
             ),
             const SizedBox(height: 24),
@@ -2101,31 +2374,44 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
               runSpacing: 10,
               children: ReportSubStatusInfo.forStatus(_selectedStatus).map((sub) {
                 final isSelected = _selectedSub == sub;
+                final isEnabled =
+                    _allowedSubStatusesFor(_selectedStatus).contains(sub);
                 final color = isSelected
                     ? (_selectedStatus == ReportStatus.open
                         ? _blue
                         : (_selectedStatus == ReportStatus.inProgress
                             ? _purple
                             : _grey))
-                    : Colors.grey.shade400;
+                    : (isEnabled ? Colors.grey.shade400 : Colors.grey.shade300);
                 return SizedBox(
                   width: (MediaQuery.of(context).size.width - 66) / 3,
                   child: ChoiceChip(
                     label: Center(
                       child: Text(sub.label,
                           style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black87,
+                              color: !isEnabled
+                                  ? Colors.grey.shade500
+                                  : isSelected
+                                      ? Colors.white
+                                      : Colors.black87,
                               fontSize: 12),
                           overflow: TextOverflow.ellipsis),
                     ),
                     selected: isSelected,
-                    onSelected: (val) => setState(() => _selectedSub = val ? sub : null),
+                    onSelected: isEnabled
+                        ? (val) => setState(() => _selectedSub = val ? sub : null)
+                        : null,
                     selectedColor: color,
-                    backgroundColor: Colors.white,
+                    backgroundColor:
+                        isEnabled ? Colors.white : Colors.grey.shade100,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                            color: isSelected ? color : Colors.grey.shade300)),
+                            color: !isEnabled
+                                ? Colors.grey.shade300
+                                : isSelected
+                                    ? color
+                                    : Colors.grey.shade300)),
                     showCheckmark: false,
                     padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
                   ),
@@ -2387,22 +2673,47 @@ class _StatusBtn extends StatelessWidget {
   final String label;
   final Color color;
   final bool isSelected;
+  final bool isEnabled;
   final VoidCallback onTap;
-  const _StatusBtn({required this.label, required this.color, required this.isSelected, required this.onTap});
+  const _StatusBtn(
+      {required this.label,
+      required this.color,
+      required this.isSelected,
+      required this.isEnabled,
+      required this.onTap});
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
-        onTap: onTap,
+        onTap: isEnabled ? onTap : null,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? color.withValues(alpha: 0.1) : Colors.white,
+            color: !isEnabled
+                ? Colors.grey.shade100
+                : isSelected
+                    ? color.withValues(alpha: 0.1)
+                    : Colors.white,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: isSelected ? color : Colors.grey.shade300, width: isSelected ? 2 : 1),
+            border: Border.all(
+                color: !isEnabled
+                    ? Colors.grey.shade300
+                    : isSelected
+                        ? color
+                        : Colors.grey.shade300,
+                width: isSelected ? 2 : 1),
           ),
           child: Center(
-            child: Text(label, style: TextStyle(color: isSelected ? color : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, fontSize: 14)),
+            child: Text(label,
+                style: TextStyle(
+                    color: !isEnabled
+                        ? Colors.grey.shade500
+                        : isSelected
+                            ? color
+                            : Colors.black87,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 14)),
           ),
         ),
       ),

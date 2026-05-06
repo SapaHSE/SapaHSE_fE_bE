@@ -4,10 +4,7 @@ import '../services/department_service.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'package:sapahse/main.dart';
-import 'qr_scan_screen.dart';
-import 'create_hazard_screen.dart';
-import 'create_inspection_screen.dart';
-import 'my_profile.dart';
+
 
 class DepartmentManagementScreen extends StatefulWidget {
   const DepartmentManagementScreen({super.key});
@@ -223,14 +220,14 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
                         ),
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                           leading: Container(
                             width: 40,
                             height: 40,
-                            decoration: BoxDecoration(color: _blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                            decoration: BoxDecoration(color: _blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                             child: const Icon(Icons.corporate_fare, color: _blue, size: 20),
                           ),
                           title: Text(dept.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),

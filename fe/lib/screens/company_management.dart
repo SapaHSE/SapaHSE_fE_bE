@@ -327,14 +327,14 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
   }
 
   Widget _buildCategoryCard(String title, String code, Color color, List<CompanyData> subs, String defaultCategory) {
-    final bgColor = color.withOpacity(0.05);
+    final bgColor = color.withValues(alpha: 0.05);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -381,7 +381,7 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
                   label: Text('Tambah $title'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: color,
-                    side: BorderSide(color: color.withOpacity(0.5)),
+                    side: BorderSide(color: color.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -611,7 +611,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
         ),
         child: Row(
           children: [
@@ -682,7 +682,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -724,7 +724,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: DropdownButtonFormField<String>(
-        value: _category,
+        initialValue: _category,
         decoration: InputDecoration(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
@@ -895,7 +895,7 @@ class _CompanyFabMenuSheet extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
