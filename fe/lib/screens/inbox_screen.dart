@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/inbox_item.dart';
 import '../models/report.dart';
 import '../services/inbox_service.dart';
@@ -13,6 +14,19 @@ import '../services/cloud_save_service.dart';
 
 enum _SubFilter { unread, read }
 enum _MyPostFilter { all, draft, pending, approved, rejected }
+enum _TaskStatusFilter { all, open, validating, inProgress, closed }
+
+extension _TaskStatusFilterX on _TaskStatusFilter {
+  String get label {
+    switch (this) {
+      case _TaskStatusFilter.all: return 'Semua';
+      case _TaskStatusFilter.open: return 'Open';
+      case _TaskStatusFilter.validating: return 'Validating';
+      case _TaskStatusFilter.inProgress: return 'In Progress';
+      case _TaskStatusFilter.closed: return 'Selesai';
+    }
+  }
+}
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
@@ -26,6 +40,7 @@ class _InboxScreenState extends State<InboxScreen>
   late TabController _mainTabController;
   _SubFilter _activeFilter = _SubFilter.unread;
   _MyPostFilter _activeMyPostFilter = _MyPostFilter.all;
+  _TaskStatusFilter _activeTaskStatusFilter = _TaskStatusFilter.all;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -56,9 +71,29 @@ class _InboxScreenState extends State<InboxScreen>
       }
     });
     _loadCurrentUser();
+    _loadSavedStatusFilter();
     // Fetch both tabs in parallel so badges are accurate from the start.
     _loadReports();
     _loadAnnouncements();
+  }
+
+  Future<void> _loadSavedStatusFilter() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('tugas_status_filter');
+    if (saved != null && mounted) {
+      try {
+        _activeTaskStatusFilter = _TaskStatusFilter.values.firstWhere(
+          (e) => e.name == saved,
+        );
+      } catch (_) {
+        // Keep default if invalid
+      }
+    }
+  }
+
+  Future<void> _saveTaskStatusFilter(_TaskStatusFilter filter) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('tugas_status_filter', filter.name);
   }
 
   Future<void> _loadCurrentUser() async {
@@ -189,6 +224,68 @@ class _InboxScreenState extends State<InboxScreen>
   // Reports where user is tagged (inbox tasks assigned to the user)
   List<InboxItem> get _personalReports => _reports;
 
+  // Filtered reports by status with sorting
+  List<InboxItem> get _filteredReports {
+    var list = _personalReports;
+
+     switch (_activeTaskStatusFilter) {
+       case _TaskStatusFilter.open:
+         list = list.where((i) =>
+           i.status == ReportStatus.open &&
+           i.subStatus != ReportSubStatus.validating
+         ).toList();
+         break;
+       case _TaskStatusFilter.validating:
+         list = list.where((i) =>
+           i.subStatus == ReportSubStatus.validating
+         ).toList();
+         break;
+       case _TaskStatusFilter.inProgress:
+         list = list.where((i) =>
+           i.status == ReportStatus.inProgress
+         ).toList();
+         break;
+       case _TaskStatusFilter.closed:
+         list = list.where((i) =>
+           i.status == ReportStatus.closed
+         ).toList();
+         break;
+       case _TaskStatusFilter.all:
+         // No filtering - show all
+         break;
+     }
+
+    // Apply sorting
+    list.sort((a, b) {
+      final validatingA = _isValidating(a);
+      final validatingB = _isValidating(b);
+      if (validatingA != validatingB) {
+        return validatingB ? 1 : -1;
+      }
+
+      final urgentA = _needsImmediateAction(a);
+      final urgentB = _needsImmediateAction(b);
+      if (urgentA != urgentB) {
+        return urgentB ? 1 : -1;
+      }
+
+      final remainA = _remainingMinutesRank(a);
+      final remainB = _remainingMinutesRank(b);
+      if (remainA != remainB) {
+        return remainA.compareTo(remainB);
+      }
+
+      final sevA = _severityValue(a.severity);
+      final sevB = _severityValue(b.severity);
+      if (sevA != sevB) {
+        return sevB.compareTo(sevA);
+      }
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+    return list;
+  }
+
   // Reports created by the current user, fetched from ReportService
   List<InboxItem> get _myReports =>
       _myRawReports.map(_reportToInboxItem).toList();
@@ -232,45 +329,6 @@ class _InboxScreenState extends State<InboxScreen>
     return remaining.inMinutes;
   }
 
-  List<InboxItem> get _activeReports {
-    final list = _personalReports.where((i) {
-      if (_activeFilter == _SubFilter.unread) {
-        return i.status != ReportStatus.closed;
-      } else {
-        return i.status == ReportStatus.closed;
-      }
-    }).toList();
-    
-    list.sort((a, b) {
-      final urgentA = _needsImmediateAction(a);
-      final urgentB = _needsImmediateAction(b);
-      if (urgentA != urgentB) {
-        return urgentB ? 1 : -1;
-      }
-
-      final validatingA = _isValidating(a);
-      final validatingB = _isValidating(b);
-      if (validatingA != validatingB) {
-        return validatingB ? 1 : -1;
-      }
-
-      final remainA = _remainingMinutesRank(a);
-      final remainB = _remainingMinutesRank(b);
-      if (remainA != remainB) {
-        return remainA.compareTo(remainB);
-      }
-
-      final sevA = _severityValue(a.severity);
-      final sevB = _severityValue(b.severity);
-      if (sevA != sevB) {
-        return sevB.compareTo(sevA);
-      }
-      return b.createdAt.compareTo(a.createdAt);
-    });
-    
-    return list;
-  }
-
   List<InboxItem> get _activeAnnouncements =>
       _filterByReadState(_announcements);
       
@@ -305,7 +363,7 @@ class _InboxScreenState extends State<InboxScreen>
           i.status != ReportStatus.closed
         ).toList();
       case _MyPostFilter.rejected:
-        return _myReports.where((i) => i.subStatus == ReportSubStatus.rejected).toList();
+        return _myReports.where((i) => i.status == ReportStatus.closed).toList();
     }
   }
 
@@ -317,17 +375,38 @@ class _InboxScreenState extends State<InboxScreen>
     return ReportSeverity.medium;
   }
 
+  String _getEmptyStateMessage() {
+    if (_mainTabController.index == 2) {
+      return 'Tidak ada laporan dengan status ini.';
+    }
+     if (_mainTabController.index == 1) {
+       switch (_activeTaskStatusFilter) {
+         case _TaskStatusFilter.open:
+           return 'Tidak ada tugas Open.';
+         case _TaskStatusFilter.validating:
+           return 'Tidak ada tugas Validating.';
+         case _TaskStatusFilter.inProgress:
+           return 'Tidak ada tugas In Progress.';
+         case _TaskStatusFilter.closed:
+           return 'Tidak ada tugas Selesai.';
+         case _TaskStatusFilter.all:
+           return _activeFilter == _SubFilter.unread
+             ? 'Tidak ada tugas aktif!'
+             : 'Tidak ada tugas selesai.';
+       }
+     }
+    // Pengumuman
+    return _activeFilter == _SubFilter.unread
+      ? 'Semua sudah dibaca!'
+      : 'Belum ada yang dibaca.';
+  }
+
   int get _readAnnouncementCount =>
       _announcements.where((i) => i.isRead).length;
 
   int get _unreadReports => _personalReports.where((i) => !i.isRead).length;
   int get _unreadAnnouncements => _announcements.where((i) => !i.isRead).length;
   int get _unreadMyReports => _myReports.where((i) => !i.isRead).length;
-
-  int get _aktifReportCount =>
-      _personalReports.where((i) => i.status != ReportStatus.closed).length;
-  int get _selesaiReportCount =>
-      _personalReports.where((i) => i.status == ReportStatus.closed).length;
 
   // ── Mark-as-read (optimistic) ──────────────────────────────────────────────
   void _markItemRead(InboxItem item) {
@@ -422,15 +501,15 @@ class _InboxScreenState extends State<InboxScreen>
     }
   }
 
-  String _myPostFilterLabel(_MyPostFilter f) {
-    switch (f) {
-      case _MyPostFilter.all: return 'Semua Laporan';
-      case _MyPostFilter.draft: return 'Draft';
-      case _MyPostFilter.pending: return 'Validating';
-      case _MyPostFilter.approved: return 'Approved';
-      case _MyPostFilter.rejected: return 'Rejected';
-    }
+String _myPostFilterLabel(_MyPostFilter f) {
+  switch (f) {
+    case _MyPostFilter.all: return 'Semua Laporan';
+    case _MyPostFilter.draft: return 'Draft';
+    case _MyPostFilter.pending: return 'Validating';
+    case _MyPostFilter.approved: return 'Approved';
+    case _MyPostFilter.rejected: return 'Closed';
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -516,7 +595,7 @@ class _InboxScreenState extends State<InboxScreen>
             ),
             const Divider(height: 1),
 
-            // ── Sub-filter: Unread | Read OR MyPost Status ────────────────────────
+            // ── Sub-filter: Unread | Read OR Tugas Status OR MyPost Status ──────────
             Container(
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -566,9 +645,9 @@ class _InboxScreenState extends State<InboxScreen>
                                       i.status != ReportStatus.closed
                                     ).length;
                                   } else if (f == _MyPostFilter.rejected) {
-                                    count = _myReports.where((i) => i.subStatus == ReportSubStatus.rejected).length;
+                                    count = _myReports.where((i) => i.status == ReportStatus.closed).length;
                                   }
-                                  
+
                                   return DropdownMenuItem(
                                     value: f,
                                     child: Row(
@@ -599,37 +678,122 @@ class _InboxScreenState extends State<InboxScreen>
                         ),
                       ],
                     )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: _SubFilterChip(
-                            label: _mainTabController.index == 1 ? 'Aktif' : 'Unread',
-                            isActive: _activeFilter == _SubFilter.unread,
-                            badge: _mainTabController.index == 0
-                                ? (_unreadAnnouncements > 0
-                                    ? _unreadAnnouncements
-                                    : null)
-                                : (_aktifReportCount > 0 ? _aktifReportCount : null),
-                            onTap: () =>
-                                setState(() => _activeFilter = _SubFilter.unread),
-                          ),
+                  : _mainTabController.index == 1
+                      ? Row(
+                          children: [
+                            const Text(
+                              'Status:',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                height: 40,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<_TaskStatusFilter>(
+                                    value: _activeTaskStatusFilter,
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF1A56C4),
+                                    ),
+                                    items: _TaskStatusFilter.values.map((f) {
+                                      int count = 0;
+                                      switch (f) {
+                                        case _TaskStatusFilter.all:
+                                          count = _personalReports.length;
+                                          break;
+                                        case _TaskStatusFilter.open:
+                                          count = _personalReports.where((i) =>
+                                            i.status == ReportStatus.open &&
+                                            i.subStatus != ReportSubStatus.validating
+                                          ).length;
+                                          break;
+                                        case _TaskStatusFilter.validating:
+                                          count = _personalReports.where((i) =>
+                                            i.subStatus == ReportSubStatus.validating
+                                          ).length;
+                                          break;
+                                        case _TaskStatusFilter.inProgress:
+                                          count = _personalReports.where((i) =>
+                                            i.status == ReportStatus.inProgress
+                                          ).length;
+                                          break;
+                                        case _TaskStatusFilter.closed:
+                                          count = _personalReports.where((i) =>
+                                            i.status == ReportStatus.closed
+                                          ).length;
+                                          break;
+                                      }
+
+                                      return DropdownMenuItem(
+                                        value: f,
+                                        child: Row(
+                                          children: [
+                                            Text(f.label),
+                                            const Spacer(),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade200,
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child: Text(
+                                                '$count',
+                                                style: const TextStyle(fontSize: 10, color: Colors.black54),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(() => _activeTaskStatusFilter = val);
+                                        _saveTaskStatusFilter(val);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: _SubFilterChip(
+                                label: 'Unread',
+                                isActive: _activeFilter == _SubFilter.unread,
+                                badge: _unreadAnnouncements > 0 ? _unreadAnnouncements : null,
+                                onTap: () =>
+                                    setState(() => _activeFilter = _SubFilter.unread),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _SubFilterChip(
+                                label: 'Read',
+                                isActive: _activeFilter == _SubFilter.read,
+                                badge: _readAnnouncementCount > 0 ? _readAnnouncementCount : null,
+                                onTap: () =>
+                                    setState(() => _activeFilter = _SubFilter.read),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _SubFilterChip(
-                            label: _mainTabController.index == 1 ? 'Selesai' : 'Read',
-                            isActive: _activeFilter == _SubFilter.read,
-                            badge: _mainTabController.index == 0
-                                ? (_readAnnouncementCount > 0
-                                    ? _readAnnouncementCount
-                                    : null)
-                                : (_selesaiReportCount > 0 ? _selesaiReportCount : null),
-                            onTap: () =>
-                                setState(() => _activeFilter = _SubFilter.read),
-                          ),
-                        ),
-                      ],
-                    ),
             ),
 
             // ── Tugas Butuh Tindakan Segera Banner ───────────────────────
@@ -689,7 +853,7 @@ class _InboxScreenState extends State<InboxScreen>
     }
     return RefreshIndicator(
       onRefresh: _loadReports,
-      child: _buildList(_activeReports, isAnnouncement: false),
+      child: _buildList(_filteredReports, isAnnouncement: false),
     );
   }
 
@@ -730,22 +894,20 @@ class _InboxScreenState extends State<InboxScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    _activeFilter == _SubFilter.unread
-                        ? Icons.mark_email_read_outlined
-                        : Icons.drafts_outlined,
-                    size: 52,
-                    color: Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _mainTabController.index == 2
-                      ? 'Tidak ada laporan dengan status ini.'
-                      : (_activeFilter == _SubFilter.unread
-                          ? (_mainTabController.index == 1 ? 'Tidak ada tugas aktif!' : 'Semua sudah dibaca!')
-                          : (_mainTabController.index == 1 ? 'Tidak ada tugas selesai.' : 'Belum ada yang dibaca.')),
-                    style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
+                   Icon(
+                     _mainTabController.index == 1
+                         ? Icons.assignment_outlined
+                         : (_activeFilter == _SubFilter.unread
+                             ? Icons.mark_email_read_outlined
+                             : Icons.drafts_outlined),
+                     size: 52,
+                     color: Colors.grey.shade300,
+                   ),
+                   const SizedBox(height: 12),
+                   Text(
+                     _getEmptyStateMessage(),
+                     style: const TextStyle(color: Colors.grey, fontSize: 14),
+                   ),
                 ],
               ),
             ),
