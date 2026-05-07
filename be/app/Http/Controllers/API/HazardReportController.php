@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\BackfillsReportLogs;
 use App\Http\Controllers\Controller;
 use App\Models\HazardReport;
 use App\Models\ReadStatus;
@@ -10,9 +11,12 @@ use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class HazardReportController extends Controller
 {
+    use BackfillsReportLogs;
+
     protected $notificationService;
 
     public function __construct(NotificationService $notificationService)
@@ -320,21 +324,6 @@ class HazardReportController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
         }
 
-        if (in_array($normalizedSubStatus, ['preparing', 'executing', 'reviewing', 'resolved'])) {
-            $hasAssignedLog = $report->logs()->where('sub_status', 'assigned')->exists();
-            if (!$hasAssignedLog) {
-                $report->logs()->create([
-                    'user_id'        => Auth::id(),
-                    'tagged_user_id' => $request->tagged_user_id,
-                    'status'         => 'open',
-                    'sub_status'     => 'assigned',
-                    'message'        => $this->buildAssignmentTagMessage($report, $request),
-                    'image_url'      => null,
-                    'image_urls'     => null,
-                ]);
-            }
-        }
-
         $updateData = [
             'status'     => $normalizedStatus,
             'sub_status' => $normalizedSubStatus,
@@ -343,17 +332,21 @@ class HazardReportController extends Controller
         if ($request->has('pic_department'))      $updateData['pic_department'] = $request->pic_department;
         if ($request->has('reported_department')) $updateData['reported_department'] = $request->reported_department;
 
-        $report->update($updateData);
+        DB::transaction(function () use ($report, $updateData, $normalizedStatus, $normalizedSubStatus, $request, $imageUrl, $imageUrls) {
+            $this->backfillSkippedSubStatusLogs($report, $normalizedSubStatus, $request->tagged_user_id);
 
-        $report->logs()->create([
-            'user_id'        => Auth::id(),
-            'tagged_user_id' => $request->tagged_user_id,
-            'status'         => $normalizedStatus,
-            'sub_status'     => $normalizedSubStatus,
-            'message'        => $request->message ?? "Status diubah",
-            'image_url'      => $imageUrl,
-            'image_urls'     => empty($imageUrls) ? null : $imageUrls,
-        ]);
+            $report->update($updateData);
+
+            $report->logs()->create([
+                'user_id'        => Auth::id(),
+                'tagged_user_id' => $request->tagged_user_id,
+                'status'         => $normalizedStatus,
+                'sub_status'     => $normalizedSubStatus,
+                'message'        => $request->message ?? "Status diubah",
+                'image_url'      => $imageUrl,
+                'image_urls'     => empty($imageUrls) ? null : $imageUrls,
+            ]);
+        });
 
         return response()->json([
             'status'  => 'success',
