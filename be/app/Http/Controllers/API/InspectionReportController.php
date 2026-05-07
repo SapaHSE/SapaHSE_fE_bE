@@ -283,7 +283,7 @@ class InspectionReportController extends Controller
         }
 
         // Debug log for multi-photo tracking
-        \Log::debug('updateStatus image_urls count: ' . count($imageUrls), [
+        ReportLog::debug('updateStatus image_urls count: ' . count($imageUrls), [
             'report_id' => $id,
             'has_image_url' => !empty($imageUrl),
             'image_urls_sample' => array_slice($imageUrls, 0, 3),
