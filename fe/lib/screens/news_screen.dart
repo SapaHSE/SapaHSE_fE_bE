@@ -7,6 +7,18 @@ import 'news_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/minimal_dropdown.dart';
 
+class _FadePageRoute<T> extends PageRouteBuilder<T> {
+  final Widget Function(BuildContext) builder;
+  _FadePageRoute({required this.builder})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 200),
+        );
+}
+
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
 
@@ -99,7 +111,7 @@ class _NewsScreenState extends State<NewsScreen> {
   void _goToDetail(NewsArticle article) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => NewsDetailScreen(article: article)),
+      _FadePageRoute(builder: (_) => NewsDetailScreen(article: article)),
     );
   }
 
