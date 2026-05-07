@@ -4,6 +4,7 @@ import '../services/company_service.dart';
 import 'company_management.dart';
 import '../services/storage_service.dart';
 import 'package:sapahse/main.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class LocationManagementScreen extends StatefulWidget {
   const LocationManagementScreen({super.key});
@@ -803,25 +804,16 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
 
   Widget _buildDropdown() {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+      decoration: kMinimalFieldContainerDecoration,
       child: DropdownButtonFormField<int>(
         value: _selectedCompanyId,
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-        ),
+        decoration: minimalFieldDecoration(),
+        icon: kMinimalDropdownChevron,
+        borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+        style: kMinimalDropdownTextStyle,
         items: widget.ownerCompanies.map((c) => DropdownMenuItem(
-          value: c.id, 
-          child: Text(c.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))
+          value: c.id,
+          child: Text(c.name, style: kMinimalDropdownTextStyle),
         )).toList(),
         onChanged: (v) => setState(() => _selectedCompanyId = v!),
       ),

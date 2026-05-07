@@ -3,6 +3,7 @@ import '../models/company_model.dart';
 import '../services/company_service.dart';
 import '../services/storage_service.dart';
 import 'package:sapahse/main.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class CompanyManagementScreen extends StatefulWidget {
   const CompanyManagementScreen({super.key});
@@ -718,26 +719,17 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
 
   Widget _buildDropdown() {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+      decoration: kMinimalFieldContainerDecoration,
       child: DropdownButtonFormField<String>(
         initialValue: _category,
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-        ),
+        icon: kMinimalDropdownChevron,
+        borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+        style: kMinimalDropdownTextStyle,
+        decoration: minimalFieldDecoration(),
         items: const [
-          DropdownMenuItem(value: 'owner', child: Text('Owner', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
-          DropdownMenuItem(value: 'contractor', child: Text('Contractor', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
-          DropdownMenuItem(value: 'sub contractor', child: Text('Sub Contractor', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
+          DropdownMenuItem(value: 'owner', child: Text('Owner', style: kMinimalDropdownTextStyle)),
+          DropdownMenuItem(value: 'contractor', child: Text('Contractor', style: kMinimalDropdownTextStyle)),
+          DropdownMenuItem(value: 'sub contractor', child: Text('Sub Contractor', style: kMinimalDropdownTextStyle)),
         ],
         onChanged: (v) => setState(() => _category = v!),
       ),

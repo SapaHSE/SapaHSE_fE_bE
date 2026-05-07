@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sapahse/models/profile_model.dart';
 import 'package:sapahse/services/profile_service.dart';
+import 'package:sapahse/services/storage_service.dart';
+import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/main.dart';
 
 class MyProfileScreen extends StatefulWidget {
@@ -19,6 +22,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   int _selectedSubTab = 0;
   bool _isLoading = true;
   ProfileData? _profileData;
+  Map<String, dynamic>? _cachedUser;
+  String? _loadError;
 
   // Persistent State for License Form
   final TextEditingController _licenseNameController = TextEditingController();
@@ -66,22 +71,79 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
+    final cached = await StorageService.getUser();
+    if (mounted) {
+      setState(() => _cachedUser = cached);
+    }
+
     final result = await ProfileService.getProfile();
-    if (mounted && result.success) {
+    if (!mounted) return;
+    if (result.success) {
       setState(() {
         _profileData = result.data;
+        _loadError = null;
         _isLoading = false;
       });
     } else {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() {
+        _loadError = result.errorMessage ?? 'Gagal memuat profil.';
+        _isLoading = false;
+      });
     }
   }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (picked != null) setState(() => _avatarFile = picked);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 95,
+    );
+    if (picked == null) return;
+
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: picked.path,
+      compressQuality: 90,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Foto Profil',
+          toolbarColor: const Color(0xFF1A56C4),
+          toolbarWidgetColor: Colors.white,
+          lockAspectRatio: true,
+          hideBottomControls: true,
+        ),
+        IOSUiSettings(
+          title: 'Crop Foto Profil',
+          aspectRatioLockEnabled: true,
+        ),
+      ],
+    );
+    if (croppedFile == null) return;
+
+    setState(() {
+      _isLoading = true;
+      _avatarFile = XFile(croppedFile.path);
+    });
+
+    final result = await ProfileService.updateProfile(
+      imagePath: croppedFile.path,
+    );
+
+    if (!mounted) return;
+    if (!result.success) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.errorMessage ?? 'Gagal mengunggah foto profil')),
+      );
+      return;
+    }
+
+    await _loadProfile();
+    if (!mounted) return;
+    setState(() => _avatarFile = null);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Foto profil berhasil diperbarui')),
+    );
   }
 
   final List<Map<String, dynamic>> _subTabs = [
@@ -228,27 +290,72 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
-    final name = _profileData?.fullName ?? '-';
+    final name = parseNullableDisplayName(_profileData?.fullName) ??
+        parseNullableDisplayName(_cachedUser?['full_name']) ??
+        '-';
+    final position = parseNullableDisplayName(_profileData?.position) ??
+        parseNullableDisplayName(_cachedUser?['position']) ??
+        '-';
+    final department = parseNullableDisplayName(_profileData?.department) ??
+        parseNullableDisplayName(_cachedUser?['department']) ??
+        '-';
+    final company = parseNullableDisplayName(_profileData?.company) ??
+        parseNullableDisplayName(_cachedUser?['company']) ??
+        '-';
     final initials = name
         .split(' ')
         .take(2)
         .map((e) => e.isNotEmpty ? e[0] : '')
         .join()
         .toUpperCase();
+    final hasAvatar = _avatarFile != null || _resolveProfilePhoto() != null;
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
       child: Column(
         children: [
+          if (_loadError != null)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFFE082)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      color: Color(0xFFB28704), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Menampilkan data tersimpan. ${_loadError!}',
+                      style: const TextStyle(
+                          color: Color(0xFF7A5A00), fontSize: 12),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _isLoading = true;
+                        _loadError = null;
+                      });
+                      _loadProfile();
+                    },
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
+            ),
           Stack(
             children: [
               CircleAvatar(
                 radius: 50,
                 backgroundColor: const Color(0xFF1A56C4),
                 backgroundImage: _getAvatarImage(),
-                child: _avatarFile == null &&
-                        (_profileData?.profilePhoto == null ||
-                            _profileData!.profilePhoto!.isEmpty)
+                child: !hasAvatar
                     ? Text(initials,
                         style: const TextStyle(
                             color: Colors.white,
@@ -277,11 +384,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               style:
                   const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(
-              '${_profileData?.position ?? "-"} — Dept. ${_profileData?.department ?? "-"}',
+          Text('$position — Dept. $department',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
           const SizedBox(height: 4),
-          Text(_profileData?.company ?? '-',
+          Text(company,
               style: TextStyle(
                   color: Colors.grey.shade500,
                   fontSize: 13,
@@ -291,13 +397,19 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
+  String? _resolveProfilePhoto() {
+    final fromProfile = _profileData?.profilePhoto;
+    if (fromProfile != null && fromProfile.isNotEmpty) return fromProfile;
+    return parseNullableDisplayName(_cachedUser?['profile_photo']);
+  }
+
   ImageProvider? _getAvatarImage() {
     if (_avatarFile != null) {
       return FileImage(File(_avatarFile!.path));
     }
-    if (_profileData?.profilePhoto != null &&
-        _profileData!.profilePhoto!.isNotEmpty) {
-      return NetworkImage(_profileData!.profilePhoto!);
+    final photo = _resolveProfilePhoto();
+    if (photo != null && photo.isNotEmpty) {
+      return NetworkImage(photo);
     }
     return null;
   }
@@ -352,7 +464,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   Widget _buildSubTabContent() {
     switch (_selectedSubTab) {
       case 0:
-        return _BiodataContent(data: _profileData);
+        return _BiodataContent(data: _profileData, cachedUser: _cachedUser);
       case 1:
         return _LicenseContent(
           licenses: _profileData?.licenses ?? [],
@@ -992,10 +1104,26 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
 class _BiodataContent extends StatelessWidget {
   final ProfileData? data;
-  const _BiodataContent({this.data});
+  final Map<String, dynamic>? cachedUser;
+  const _BiodataContent({this.data, this.cachedUser});
+
+  String _resolve(String? primary, String cacheKey) {
+    return parseNullableDisplayName(primary) ??
+        parseNullableDisplayName(cachedUser?[cacheKey]) ??
+        '-';
+  }
+
+  String _resolveAfiliasi() => _resolve(data?.tipeAfiliasi, 'tipe_afiliasi');
 
   @override
   Widget build(BuildContext context) {
+    final tipeAfiliasi = _resolveAfiliasi();
+    final showKontraktor = tipeAfiliasi == 'Kontraktor' ||
+        tipeAfiliasi == 'Sub-Kontraktor' ||
+        tipeAfiliasi == 'Sub-Kont.';
+    final showSubKontraktor =
+        tipeAfiliasi == 'Sub-Kontraktor' || tipeAfiliasi == 'Sub-Kont.';
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -1003,13 +1131,16 @@ class _BiodataContent extends StatelessWidget {
         children: [
           _buildTitle('INFORMATION PERSONAL'),
           _buildCard([
-            _buildRow(context, 'NIK', data?.employeeId ?? '-',
+            _buildRow(context, 'NIK', _resolve(data?.employeeId, 'employee_id'),
                 locked: true, showCopyIcon: true),
-            _buildRow(context, 'Nama Lengkap', data?.fullName ?? '-',
+            _buildRow(
+                context, 'Nama Lengkap', _resolve(data?.fullName, 'full_name'),
                 locked: true, showCopyIcon: true),
-            _buildRow(context, 'Email', data?.personalEmail ?? '-',
+            _buildRow(context, 'Email',
+                _resolve(data?.personalEmail, 'personal_email'),
                 showCopyIcon: true),
-            _buildRow(context, 'Phone', data?.phoneNumber ?? '-',
+            _buildRow(
+                context, 'Phone', _resolve(data?.phoneNumber, 'phone_number'),
                 showCopyIcon: true),
             _buildRow(context, 'Alamat', 'Jl. Kelapa No. 12, BPN',
                 showCopyIcon: true),
@@ -1017,23 +1148,24 @@ class _BiodataContent extends StatelessWidget {
           const SizedBox(height: 24),
           _buildTitle('INFORMATION EMPLOYEE'),
           _buildCard([
-            _buildRow(context, 'Tipe Afiliasi', data?.tipeAfiliasi ?? '-',
+            _buildRow(context, 'Tipe Afiliasi', tipeAfiliasi, locked: true),
+            _buildRow(context, 'Perusahaan Owner',
+                _resolve(data?.company, 'company'),
                 locked: true),
-            _buildRow(context, 'Perusahaan Owner', data?.company ?? '-',
-                locked: true),
-            if (data?.tipeAfiliasi == 'Kontraktor' ||
-                data?.tipeAfiliasi == 'Sub-Kontraktor' ||
-                data?.tipeAfiliasi == 'Sub-Kont.')
+            if (showKontraktor)
               _buildRow(context, 'Perusahaan Kontraktor',
-                  data?.perusahaanKontraktor ?? '-',
+                  _resolve(data?.perusahaanKontraktor, 'perusahaan_kontraktor'),
                   locked: true),
-            if (data?.tipeAfiliasi == 'Sub-Kontraktor' ||
-                data?.tipeAfiliasi == 'Sub-Kont.')
-              _buildRow(context, 'Sub-Kontraktor', data?.subKontraktor ?? '-',
+            if (showSubKontraktor)
+              _buildRow(context, 'Sub-Kontraktor',
+                  _resolve(data?.subKontraktor, 'sub_kontraktor'),
                   locked: true),
-            _buildRow(context, 'Departemen', data?.department ?? '-',
+            _buildRow(context, 'Departemen',
+                _resolve(data?.department, 'department'),
                 locked: true),
-            _buildRow(context, 'Jabatan', data?.position ?? '-', locked: true),
+            _buildRow(
+                context, 'Jabatan', _resolve(data?.position, 'position'),
+                locked: true),
           ]),
         ],
       ),

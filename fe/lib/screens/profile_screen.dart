@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/profile_model.dart';
 import '../services/profile_service.dart';
+import '../services/storage_service.dart';
+import '../utils/value_parser.dart';
 import 'dashboard_screen.dart';
 import 'my_profile.dart';
 import 'statistik.dart';
@@ -21,22 +24,43 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   ProfileData? _profileData;
+  Map<String, dynamic>? _cachedUser;
+  String? _loadError;
 
   @override
   void initState() {
     super.initState();
+    _loadCachedUser();
     _loadProfile();
+  }
+
+  Future<void> _loadCachedUser() async {
+    final user = await StorageService.getUser();
+    if (mounted && user != null) {
+      setState(() => _cachedUser = user);
+    }
   }
 
   Future<void> _loadProfile() async {
     final result = await ProfileService.getProfile();
-    if (mounted && result.success && result.data != null) {
+    if (!mounted) return;
+    if (result.success && result.data != null) {
       setState(() {
         _profileData = result.data;
+        _loadError = null;
         _isLoading = false;
       });
     } else {
-      if (mounted) setState(() => _isLoading = false);
+      if (kDebugMode) {
+        debugPrint(
+          '[ProfileScreen] Failed to load profile payload. '
+          'errorMessage=${result.errorMessage}, statusCode=${result.statusCode}',
+        );
+      }
+      setState(() {
+        _loadError = result.errorMessage ?? 'Gagal memuat profil.';
+        _isLoading = false;
+      });
     }
   }
 
@@ -81,6 +105,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Divider(height: 1, color: Colors.grey.shade200),
+            if (_loadError != null) _buildErrorBanner(),
             _buildProfileCard(),
             Divider(height: 1, color: Colors.grey.shade200),
             _buildMenuItem(
@@ -226,6 +251,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildErrorBanner() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE082)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              color: Color(0xFFB28704), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Menampilkan data tersimpan. ${_loadError!}',
+              style:
+                  const TextStyle(color: Color(0xFF7A5A00), fontSize: 12),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _isLoading = true;
+                _loadError = null;
+              });
+              _loadProfile();
+            },
+            child: const Text('Coba Lagi'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProfileCard() {
     if (_isLoading) {
       return const Padding(
@@ -235,9 +297,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    final name = _profileData?.fullName ?? 'No Name';
-    final position = _profileData?.position ?? 'Safety Officer';
-    final company = _profileData?.company ?? 'PT. BBE';
+    final profileName = parseNullableDisplayName(_profileData?.fullName);
+    final cachedName = parseNullableDisplayName(
+      _cachedUser?['full_name'] ?? _cachedUser?['name'],
+    );
+    final name = profileName ?? cachedName ?? '-';
+    final position = parseNullableDisplayName(_profileData?.position) ??
+        parseNullableDisplayName(_cachedUser?['position']) ??
+        '-';
+    final company = parseNullableDisplayName(_profileData?.company) ??
+        parseNullableDisplayName(_cachedUser?['company']) ??
+        '-';
+    final role = parseNullableDisplayName(_profileData?.role) ??
+        parseNullableDisplayName(_cachedUser?['role']);
+    final profilePhoto = (_profileData?.profilePhoto?.isNotEmpty ?? false)
+        ? _profileData!.profilePhoto
+        : parseNullableDisplayName(_cachedUser?['profile_photo']);
+    final effectiveIsActive = _profileData?.isActive ??
+        parseFlexibleBool(_cachedUser?['is_active'], defaultValue: false);
     final initials = name
         .split(' ')
         .take(2)
@@ -253,12 +330,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           CircleAvatar(
             radius: 34,
             backgroundColor: const Color(0xFF5C38FF),
-            backgroundImage: (_profileData?.profilePhoto != null &&
-                    _profileData!.profilePhoto!.isNotEmpty)
-                ? NetworkImage(_profileData!.profilePhoto!)
+            backgroundImage: (profilePhoto != null && profilePhoto.isNotEmpty)
+                ? NetworkImage(profilePhoto)
                 : null,
-            child: (_profileData?.profilePhoto == null ||
-                    _profileData!.profilePhoto!.isEmpty)
+            child: (profilePhoto == null || profilePhoto.isEmpty)
                 ? Text(initials,
                     style: const TextStyle(
                         color: Colors.white,
@@ -289,7 +364,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       decoration: BoxDecoration(
                           color: const Color(0xFFF3E5F5),
                           borderRadius: BorderRadius.circular(12)),
-                      child: Text(_profileData?.role.toUpperCase() ?? 'USER',
+                      child: Text(
+                          (role == null || role.isEmpty)
+                              ? '-'
+                              : role.toUpperCase(),
                           style: const TextStyle(
                               fontSize: 11,
                               color: Color(0xFF6A1B9A),
@@ -300,12 +378,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                          color: _profileData?.isActive == true ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
+                          color: effectiveIsActive ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
                           borderRadius: BorderRadius.circular(12)),
-                      child: Text(_profileData?.isActive == true ? 'Karyawan : Aktif' : 'Karyawan : Nonaktif',
+                      child: Text(effectiveIsActive ? 'Karyawan : Aktif' : 'Karyawan : Nonaktif',
                           style: TextStyle(
                               fontSize: 11,
-                              color: _profileData?.isActive == true ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F),
+                              color: effectiveIsActive ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F),
                               fontWeight: FontWeight.w700)),
                     ),
                   ],

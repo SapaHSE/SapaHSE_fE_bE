@@ -110,11 +110,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     _refreshData();
   }
 
-  // Admin and Superadmin both have full update authority — treat them the same here.
-  bool get _isAdmin =>
-      (_currentUser?.isAdmin ?? false) || (_currentUser?.isSuperadmin ?? false);
+  // Superadmin = platform-level, full bypass.
+  // Admin = role-level update authority ONLY if also tagged (dept or name).
+  // This mirrors the backend authorization in HazardReportController/InspectionReportController.
   bool get _isSuperadmin => _currentUser?.isSuperadmin ?? false;
-  bool get _isPJA {
+  bool get _isAdmin =>
+      (_currentUser?.isAdmin ?? false) && _isTaggedUser;
+  bool get _isTaggedUser {
     if (_currentUser == null) return false;
     final fullName = _currentUser!.fullName.toLowerCase();
     final dept = (_currentUser!.department ?? '').toLowerCase();
@@ -122,16 +124,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     final repDept = _report.departemen?.toLowerCase() ?? '';
     return pic.contains(fullName) || (dept.isNotEmpty && repDept.contains(dept));
   }
-  bool get _isReporter {
-    final currentUserId = _currentUser?.id.toString();
-    final reporterId = _report.reporterId?.toString();
-    return currentUserId != null &&
-        currentUserId.isNotEmpty &&
-        reporterId != null &&
-        reporterId.isNotEmpty &&
-        currentUserId == reporterId;
+  bool get _isApprovedOrLater {
+    final sub = _report.subStatus;
+    if (sub == null) return _report.status == ReportStatus.inProgress || _report.status == ReportStatus.closed;
+    return sub != ReportSubStatus.validating;
   }
-  bool get _canUpdate => _isAdmin || _isPJA || _isReporter;
+  bool get _canUpdate =>
+      _isSuperadmin || _isAdmin || (_isTaggedUser && _isApprovedOrLater);
+  // FAB selalu tampil di detail laporan; saat user tidak berwenang, ia greyed-out
+  // dan tidak bisa dipencet (lihat _canTapUpdateFab).
   bool get _canTapUpdateFab =>
       _canUpdate && (_report.status != ReportStatus.closed || _isSuperadmin);
 
@@ -377,7 +378,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => _UpdateStatusSheet(
         report: _report,
-        isAdmin: _isAdmin,
+        isAdmin: _isAdmin || _isSuperadmin,
         onUpdate: (updatedReport) {
           setState(() {
             _report = updatedReport;
@@ -411,11 +412,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           : FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         onPressed: _canTapUpdateFab ? _showUpdateStatusModal : null,
-        backgroundColor:
-            _canTapUpdateFab ? const Color(0xFF1A56C4) : Colors.grey.shade400,
+        backgroundColor: _canTapUpdateFab
+            ? const Color(0xFF1A56C4)
+            : Colors.grey.shade400,
         foregroundColor: Colors.white,
         shape: const CircleBorder(),
-        elevation: 4,
+        elevation: _canTapUpdateFab ? 4 : 0,
+        tooltip: _canTapUpdateFab
+            ? 'Update status laporan'
+            : 'Anda tidak berwenang mengubah status laporan ini',
         child: const Icon(Icons.edit_outlined, size: 26),
       ),
       bottomNavigationBar: widget.isDialog

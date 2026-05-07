@@ -5,6 +5,7 @@ import '../data/news_data.dart';
 import '../services/news_service.dart';
 import 'news_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
@@ -347,26 +348,15 @@ class _NewsScreenState extends State<NewsScreen> {
                 letterSpacing: 0.6),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedCategory,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-                style: const TextStyle(fontSize: 14, color: Colors.black87),
-                items: newsCategories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedCategory = val);
-                },
-              ),
-            ),
+          MinimalDropdown<String>(
+            value: _selectedCategory,
+            items: newsCategories
+                .map((c) => DropdownMenuItem(
+                    value: c, child: Text(c, style: kMinimalDropdownTextStyle)))
+                .toList(),
+            onChanged: (val) {
+              if (val != null) setState(() => _selectedCategory = val);
+            },
           ),
         ],
       ),

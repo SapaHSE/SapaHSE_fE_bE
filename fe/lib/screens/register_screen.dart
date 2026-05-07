@@ -3,6 +3,7 @@ import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/company_service.dart';
 import '../services/department_service.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -1092,29 +1093,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required ValueChanged<String?> onChanged,
     bool isRequired = true,
   }) {
-    return DropdownButtonFormField<String>(
-      // ignore: deprecated_member_use
-      value: value,
-      isExpanded: true,
-      items: items
-          .map((e) => DropdownMenuItem(
-              value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
-          .toList(),
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        hintText: hint,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey.shade300)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: Colors.grey.shade300)),
-        filled: true,
-        fillColor: Colors.white,
+    return Container(
+      decoration: kMinimalFieldContainerDecoration,
+      child: DropdownButtonFormField<String>(
+        // ignore: deprecated_member_use
+        value: value,
+        isExpanded: true,
+        icon: kMinimalDropdownChevron,
+        borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+        style: kMinimalDropdownTextStyle,
+        items: items
+            .map((e) => DropdownMenuItem(
+                value: e,
+                child: Text(e, style: kMinimalDropdownTextStyle)))
+            .toList(),
+        onChanged: onChanged,
+        decoration: minimalFieldDecoration(hintText: hint),
+        validator:
+            isRequired ? (v) => v == null ? 'Wajib dipilih' : null : null,
       ),
-      validator: isRequired ? (v) => v == null ? 'Wajib dipilih' : null : null,
     );
   }
 

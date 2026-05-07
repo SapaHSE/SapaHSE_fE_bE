@@ -4,6 +4,8 @@ import '../services/storage_service.dart';
 import '../services/company_service.dart';
 import '../services/department_service.dart';
 import 'package:sapahse/main.dart';
+import '../utils/value_parser.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -208,7 +210,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       }
       
       // Filter
-      final isActive = u['is_active'] == 1 || u['is_active'] == true;
+      final isActive = parseFlexibleBool(u['is_active']);
       final role = (u['role'] ?? 'user').toString().toLowerCase();
 
       if (_selectedFilter == 'Inactive') return !isActive;
@@ -463,13 +465,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         itemCount: users.length,
                         itemBuilder: (context, index) {
                           final user = users[index];
-                          final isActive = user['is_active'] == 1 || user['is_active'] == true;
+                          final isActive = parseFlexibleBool(user['is_active']);
                           final role = (user['role'] ?? 'user').toString();
                           final name = user['full_name'] ?? 'Unknown';
                           final initials = name.isNotEmpty ? name.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase() : '?';
                           final dept = user['department'] ?? 'No Dept';
-                          final jabatan = user['job_title'] ?? 'Staff';
-                          
+                          final position = (user['position'] ?? '').toString().trim();
+                          final jabatan = position.isEmpty ? 'Staff' : position;
+                          final photo = user['profile_photo']?.toString();
+
                           Color avatarColor = Colors.blue;
                           if (role == 'superadmin') avatarColor = Colors.purple;
                           if (role == 'admin') avatarColor = Colors.orange;
@@ -492,7 +496,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                   CircleAvatar(
                                     radius: 20,
                                     backgroundColor: avatarColor,
-                                    child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                    backgroundImage: (photo != null && photo.isNotEmpty)
+                                        ? NetworkImage(photo)
+                                        : null,
+                                    child: (photo == null || photo.isEmpty)
+                                        ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))
+                                        : null,
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -732,7 +741,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     super.initState();
     _checkAccess();
     _selectedRole = (widget.user['role'] ?? 'user').toString().toLowerCase();
-    _isActive = widget.user['is_active'] == 1 || widget.user['is_active'] == true;
+    _isActive = parseFlexibleBool(widget.user['is_active']);
   }
 
   Future<void> _checkAccess() async {
@@ -818,7 +827,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         'personal_email': widget.user['personal_email'] ?? widget.user['email'],
         'phone_number': widget.user['phone_number'],
         'department': widget.user['department'],
-        'position': widget.user['position'] ?? widget.user['job_title'],
+        'position': widget.user['position'],
         'company': widget.user['company'],
         'tipe_afiliasi': widget.user['tipe_afiliasi'],
         'role': _selectedRole,
@@ -915,7 +924,9 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     final name = widget.user['full_name'] ?? 'Unknown';
     final initials = name.isNotEmpty ? name.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join().toUpperCase() : '?';
     final dept = widget.user['department'] ?? 'No Dept';
-    final jabatan = widget.user['job_title'] ?? 'Staff';
+    final position = (widget.user['position'] ?? '').toString().trim();
+    final jabatan = position.isEmpty ? 'Staff' : position;
+    final photo = widget.user['profile_photo']?.toString();
     final role = (widget.user['role'] ?? 'user').toString().toLowerCase();
     final isLogEntry = widget.user['registration_status'] == 'rejected' || widget.user.containsKey('rejected_at');
 
@@ -948,7 +959,12 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: avatarColor,
-                    child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24)),
+                    backgroundImage: (photo != null && photo.isNotEmpty)
+                        ? NetworkImage(photo)
+                        : null,
+                    child: (photo == null || photo.isEmpty)
+                        ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24))
+                        : null,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -1338,7 +1354,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
     _emailCtrl = TextEditingController(text: widget.userToEdit?['personal_email'] ?? widget.userToEdit?['email'] ?? '');
     _workEmailCtrl = TextEditingController(text: widget.userToEdit?['work_email'] ?? '');
     _hpCtrl = TextEditingController(text: widget.userToEdit?['phone_number'] ?? '');
-    _jabatanCtrl = TextEditingController(text: widget.userToEdit?['position'] ?? widget.userToEdit?['job_title'] ?? '');
+    _jabatanCtrl = TextEditingController(text: widget.userToEdit?['position'] ?? '');
     _simperCtrl = TextEditingController(text: widget.userToEdit?['simper'] ?? '');
     _passwordCtrl = TextEditingController();
     
@@ -1459,18 +1475,21 @@ class _UserFormScreenState extends State<UserFormScreen> {
               const SizedBox(height: 16),
               const Text('Role Akses', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: _role,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              Container(
+                decoration: kMinimalFieldContainerDecoration,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _role,
+                  icon: kMinimalDropdownChevron,
+                  borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                  style: kMinimalDropdownTextStyle,
+                  decoration: minimalFieldDecoration(),
+                  items: const [
+                    DropdownMenuItem(value: 'user', child: Text('User', style: kMinimalDropdownTextStyle)),
+                    DropdownMenuItem(value: 'admin', child: Text('Admin', style: kMinimalDropdownTextStyle)),
+                    DropdownMenuItem(value: 'superadmin', child: Text('Superadmin', style: kMinimalDropdownTextStyle)),
+                  ],
+                  onChanged: (val) => setState(() => _role = val!),
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'user', child: Text('User')),
-                  DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                  DropdownMenuItem(value: 'superadmin', child: Text('Superadmin')),
-                ],
-                onChanged: (val) => setState(() => _role = val!),
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -1530,19 +1549,25 @@ class _UserFormScreenState extends State<UserFormScreen> {
         children: [
           Text(label + (required ? ' *' : ''), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: value,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          Container(
+            decoration: kMinimalFieldContainerDecoration,
+            child: DropdownButtonFormField<String>(
+              initialValue: value,
+              icon: kMinimalDropdownChevron,
+              borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+              style: kMinimalDropdownTextStyle,
+              decoration: minimalFieldDecoration(),
+              items: items
+                  .map((e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e, style: kMinimalDropdownTextStyle)))
+                  .toList(),
+              onChanged: onChanged,
+              validator: (v) {
+                if (required && (v == null || v.isEmpty)) return 'Wajib dipilih';
+                return null;
+              },
             ),
-            items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-            onChanged: onChanged,
-            validator: (v) {
-              if (required && (v == null || v.isEmpty)) return 'Wajib dipilih';
-              return null;
-            },
           ),
         ],
       ),

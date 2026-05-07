@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../services/excel_service.dart';
 import 'report_detail_screen.dart';
 import 'dashboard_widgets.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class DashboardReportModule extends StatefulWidget {
   final ReportType type;
@@ -165,25 +166,32 @@ class _DashboardReportModuleState extends State<DashboardReportModule> {
                     decoration: const InputDecoration(
                         labelText: 'Lokasi', border: OutlineInputBorder())),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: currentStatus,
-                  decoration: const InputDecoration(
-                      labelText: 'Status', border: OutlineInputBorder()),
-                  items: ['Open', 'In Progress', 'Closed']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (v) => setModalState(() => currentStatus = v!),
+                Container(
+                  decoration: kMinimalFieldContainerDecoration,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: currentStatus,
+                    decoration: minimalFieldDecoration(labelText: 'Status'),
+                    icon: kMinimalDropdownChevron,
+                    style: kMinimalDropdownTextStyle,
+                    items: ['Open', 'In Progress', 'Closed']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setModalState(() => currentStatus = v!),
+                  ),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: currentSeverity,
-                  decoration: const InputDecoration(
-                      labelText: 'Tingkat Risiko',
-                      border: OutlineInputBorder()),
-                  items: ['Low', 'Medium', 'High', 'Critical']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (v) => setModalState(() => currentSeverity = v!),
+                Container(
+                  decoration: kMinimalFieldContainerDecoration,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: currentSeverity,
+                    decoration: minimalFieldDecoration(labelText: 'Tingkat Risiko'),
+                    icon: kMinimalDropdownChevron,
+                    style: kMinimalDropdownTextStyle,
+                    items: ['Low', 'Medium', 'High', 'Critical']
+                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setModalState(() => currentSeverity = v!),
+                  ),
                 ),
               ],
             ),
@@ -545,28 +553,17 @@ class _DashboardReportModuleState extends State<DashboardReportModule> {
 
   Widget _filterDropdown(String label, String value, List<String> items,
       ValueChanged<String?> onChanged) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE5E7EB))),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          onChanged: (v) {
-            onChanged(v);
-            _fetchReports(page: 1);
-          },
-          items: items
-              .map((e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(e, style: const TextStyle(fontSize: 13))))
-              .toList(),
-          style: const TextStyle(color: Colors.black87),
-          icon: const Icon(Icons.arrow_drop_down, size: 20),
-        ),
-      ),
+    return MinimalDropdown<String>(
+      value: value,
+      onChanged: (v) {
+        onChanged(v);
+        _fetchReports(page: 1);
+      },
+      items: items
+          .map((e) => DropdownMenuItem(
+              value: e,
+              child: Text(e, style: kMinimalDropdownTextStyle)))
+          .toList(),
     );
   }
 

@@ -8,6 +8,7 @@ import 'report_detail_screen.dart';
 import 'news_detail_screen.dart';
 import '../data/report_store.dart';
 import '../widgets/sapa_hse_header.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -528,30 +529,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 letterSpacing: 0.6),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedType,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-                items: _reportTypes
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() {
-                      _selectedType = val;
-                      _displayedCount = 5;
-                    });
-                  }
-                },
-              ),
-            ),
+          MinimalDropdown<String>(
+            value: _selectedType,
+            items: _reportTypes
+                .map((t) => DropdownMenuItem(
+                      value: t,
+                      child: Text(t, style: kMinimalDropdownTextStyle),
+                    ))
+                .toList(),
+            onChanged: (val) {
+              if (val != null) {
+                setState(() {
+                  _selectedType = val;
+                  _displayedCount = 5;
+                });
+              }
+            },
           ),
           const SizedBox(height: 16),
           const SizedBox(height: 8),

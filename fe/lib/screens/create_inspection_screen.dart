@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../data/report_store.dart';
 import '../services/cloud_save_service.dart';
 import '../services/report_service.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class CreateInspectionScreen extends StatefulWidget {
   const CreateInspectionScreen({super.key});
@@ -939,24 +940,14 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FF),
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-          items: items
-              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
+    return MinimalDropdown<String>(
+      value: value,
+      onChanged: onChanged,
+      items: items
+          .map((e) => DropdownMenuItem(
+              value: e,
+              child: Text(e, style: kMinimalDropdownTextStyle)))
+          .toList(),
     );
   }
 }

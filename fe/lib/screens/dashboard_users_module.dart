@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 import 'dashboard_widgets.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class DashboardUsersModule extends StatefulWidget {
   const DashboardUsersModule({super.key});
@@ -161,23 +162,27 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                             Icons.phone_android_outlined)),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedCompany,
-                        decoration: InputDecoration(
-                          labelText: 'Perusahaan',
-                          prefixIcon: const Icon(Icons.business_outlined),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                      child: Container(
+                        decoration: kMinimalFieldContainerDecoration,
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: selectedCompany,
+                          decoration: minimalFieldDecoration(
+                            labelText: 'Perusahaan',
+                            prefixIcon: Icons.business_outlined,
+                          ),
+                          icon: kMinimalDropdownChevron,
+                          borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                          style: kMinimalDropdownTextStyle,
+                          items: companies
+                              .map((e) => DropdownMenuItem(
+                                  value: e,
+                                  child:
+                                      Text(e, overflow: TextOverflow.ellipsis)))
+                              .toList(),
+                          onChanged: (v) =>
+                              setModalState(() => selectedCompany = v),
                         ),
-                        items: companies
-                            .map((e) => DropdownMenuItem(
-                                value: e,
-                                child:
-                                    Text(e, overflow: TextOverflow.ellipsis)))
-                            .toList(),
-                        onChanged: (v) =>
-                            setModalState(() => selectedCompany = v),
                       ),
                     ),
                   ]),
@@ -188,22 +193,26 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                             posCtrl, 'Jabatan', Icons.work_history_outlined)),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: selectedDept,
-                        decoration: InputDecoration(
-                          labelText: 'Departemen',
-                          prefixIcon: const Icon(Icons.groups_outlined),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                      child: Container(
+                        decoration: kMinimalFieldContainerDecoration,
+                        child: DropdownButtonFormField<String>(
+                          isExpanded: true,
+                          initialValue: selectedDept,
+                          decoration: minimalFieldDecoration(
+                            labelText: 'Departemen',
+                            prefixIcon: Icons.groups_outlined,
+                          ),
+                          icon: kMinimalDropdownChevron,
+                          borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                          style: kMinimalDropdownTextStyle,
+                          items: departments
+                              .map((e) => DropdownMenuItem(
+                                  value: e,
+                                  child:
+                                      Text(e, overflow: TextOverflow.ellipsis)))
+                              .toList(),
+                          onChanged: (v) => setModalState(() => selectedDept = v),
                         ),
-                        items: departments
-                            .map((e) => DropdownMenuItem(
-                                value: e,
-                                child:
-                                    Text(e, overflow: TextOverflow.ellipsis)))
-                            .toList(),
-                        onChanged: (v) => setModalState(() => selectedDept = v),
                       ),
                     ),
                   ]),
@@ -212,18 +221,23 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                         obscure: true),
                     const SizedBox(height: 12),
                   ],
-                  DropdownButtonFormField<String>(
-                    initialValue: currentRole,
-                    decoration: InputDecoration(
+                  Container(
+                    decoration: kMinimalFieldContainerDecoration,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: currentRole,
+                      decoration: minimalFieldDecoration(
                         labelText: 'Role',
-                        prefixIcon: const Icon(Icons.security_outlined),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12))),
-                    items: ['admin', 'superadmin', 'user']
-                        .map((e) => DropdownMenuItem(
-                            value: e, child: Text(e.toUpperCase())))
-                        .toList(),
-                    onChanged: (v) => setModalState(() => currentRole = v!),
+                        prefixIcon: Icons.security_outlined,
+                      ),
+                      icon: kMinimalDropdownChevron,
+                      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                      style: kMinimalDropdownTextStyle,
+                      items: ['admin', 'superadmin', 'user']
+                          .map((e) => DropdownMenuItem(
+                              value: e, child: Text(e.toUpperCase())))
+                          .toList(),
+                      onChanged: (v) => setModalState(() => currentRole = v!),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(

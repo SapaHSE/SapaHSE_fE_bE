@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../utils/url_helper.dart';
+import '../utils/value_parser.dart';
 
 /// Profile data model - matches /api/profile response from Laravel
 class ProfileData {
@@ -61,7 +62,7 @@ class ProfileData {
       subKontraktor: json['sub_kontraktor']?.toString(),
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
       role: json['role']?.toString() ?? 'user',
-      isActive: json['is_active'] == true || json['is_active'] == 1,
+      isActive: parseFlexibleBool(json['is_active']),
       licenses: (json['licenses'] as List<dynamic>?)
               ?.map((l) => UserLicense.fromJson(l as Map<String, dynamic>))
               .toList() ??
@@ -110,7 +111,7 @@ class UserLicense {
       licenseNumber: json['license_number']?.toString() ?? '',
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'active',
-      isVerified: json['is_verified'] == true || json['is_verified'] == 1,
+      isVerified: parseFlexibleBool(json['is_verified']),
       fileUrl: normalizeStorageUrl(json['file_url']?.toString()),
     );
   }
@@ -147,7 +148,7 @@ class UserCertification {
       obtainedAt: json['obtained_at']?.toString(),
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'active',
-      isVerified: json['is_verified'] == true || json['is_verified'] == 1,
+      isVerified: parseFlexibleBool(json['is_verified']),
       fileUrl: normalizeStorageUrl(json['file_url']?.toString()),
     );
   }
@@ -249,7 +250,7 @@ class MedicalChecklistItem {
   factory MedicalChecklistItem.fromJson(Map<String, dynamic> json) {
     return MedicalChecklistItem(
       label: json['label']?.toString() ?? '',
-      done: json['done'] == true || json['done'] == 1,
+      done: parseFlexibleBool(json['done']),
     );
   }
 }

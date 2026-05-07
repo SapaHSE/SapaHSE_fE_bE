@@ -9,6 +9,7 @@ import '../services/inbox_service.dart';
 import '../services/report_service.dart';
 import 'report_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
+import '../widgets/minimal_dropdown.dart';
 import '../services/storage_service.dart';
 import '../services/cloud_save_service.dart';
 
@@ -23,7 +24,7 @@ extension _TaskStatusFilterX on _TaskStatusFilter {
       case _TaskStatusFilter.open: return 'Open';
       case _TaskStatusFilter.validating: return 'Validating';
       case _TaskStatusFilter.inProgress: return 'In Progress';
-      case _TaskStatusFilter.closed: return 'Selesai';
+      case _TaskStatusFilter.closed: return 'Closed';
     }
   }
 }
@@ -251,12 +252,19 @@ class _InboxScreenState extends State<InboxScreen>
          ).toList();
          break;
        case _TaskStatusFilter.all:
-         // No filtering - show all
+         list = list.toList();
          break;
      }
 
     // Apply sorting
     list.sort((a, b) {
+      // Closed items always sink to the bottom, regardless of deadline/severity.
+      final closedA = a.status == ReportStatus.closed;
+      final closedB = b.status == ReportStatus.closed;
+      if (closedA != closedB) {
+        return closedA ? 1 : -1;
+      }
+
       final validatingA = _isValidating(a);
       final validatingB = _isValidating(b);
       if (validatingA != validatingB) {
@@ -501,9 +509,19 @@ class _InboxScreenState extends State<InboxScreen>
     }
   }
 
+  // Row used inside MinimalDropdown menu items: label left, muted count right.
+  Widget _countRow(String label, int count) {
+    return Row(
+      children: [
+        Expanded(child: Text(label, style: kMinimalDropdownTextStyle)),
+        Text('$count', style: kMinimalDropdownCountStyle),
+      ],
+    );
+  }
+
 String _myPostFilterLabel(_MyPostFilter f) {
   switch (f) {
-    case _MyPostFilter.all: return 'Semua Laporan';
+    case _MyPostFilter.all: return 'Semua';
     case _MyPostFilter.draft: return 'Draft';
     case _MyPostFilter.pending: return 'Validating';
     case _MyPostFilter.approved: return 'Approved';
@@ -602,78 +620,36 @@ String _myPostFilterLabel(_MyPostFilter f) {
               child: _mainTabController.index == 2
                   ? Row(
                       children: [
-                        const Text(
-                          'Filter:',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black54,
-                          ),
-                        ),
+                        const Text('Filter', style: kMinimalDropdownLabelStyle),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<_MyPostFilter>(
-                                value: _activeMyPostFilter,
-                                isExpanded: true,
-                                icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1A56C4),
-                                ),
-                                items: _MyPostFilter.values.map((f) {
-                                  int count = 0;
-                                  if (f == _MyPostFilter.all) {
-                                    count = _myDrafts.length + _myReports.length;
-                                  } else if (f == _MyPostFilter.draft) {
-                                    count = _myDrafts.length;
-                                  } else if (f == _MyPostFilter.pending) {
-                                    count = _myReports.where((i) => i.subStatus == ReportSubStatus.validating).length;
-                                  } else if (f == _MyPostFilter.approved) {
-                                    count = _myReports.where((i) =>
-                                      i.subStatus != ReportSubStatus.validating &&
-                                      i.subStatus != ReportSubStatus.rejected &&
-                                      i.status != ReportStatus.closed
-                                    ).length;
-                                  } else if (f == _MyPostFilter.rejected) {
-                                    count = _myReports.where((i) => i.status == ReportStatus.closed).length;
-                                  }
-
-                                  return DropdownMenuItem(
-                                    value: f,
-                                    child: Row(
-                                      children: [
-                                        Text(_myPostFilterLabel(f)),
-                                        const Spacer(),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade200,
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Text(
-                                            '$count',
-                                            style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _activeMyPostFilter = val);
-                                },
-                              ),
-                            ),
+                          child: MinimalDropdown<_MyPostFilter>(
+                            value: _activeMyPostFilter,
+                            onChanged: (val) {
+                              if (val != null) setState(() => _activeMyPostFilter = val);
+                            },
+                            items: _MyPostFilter.values.map((f) {
+                              int count = 0;
+                              if (f == _MyPostFilter.all) {
+                                count = _myDrafts.length + _myReports.length;
+                              } else if (f == _MyPostFilter.draft) {
+                                count = _myDrafts.length;
+                              } else if (f == _MyPostFilter.pending) {
+                                count = _myReports.where((i) => i.subStatus == ReportSubStatus.validating).length;
+                              } else if (f == _MyPostFilter.approved) {
+                                count = _myReports.where((i) =>
+                                  i.subStatus != ReportSubStatus.validating &&
+                                  i.subStatus != ReportSubStatus.rejected &&
+                                  i.status != ReportStatus.closed
+                                ).length;
+                              } else if (f == _MyPostFilter.rejected) {
+                                count = _myReports.where((i) => i.status == ReportStatus.closed).length;
+                              }
+                              return DropdownMenuItem(
+                                value: f,
+                                child: _countRow(_myPostFilterLabel(f), count),
+                              );
+                            }).toList(),
                           ),
                         ),
                       ],
@@ -681,92 +657,50 @@ String _myPostFilterLabel(_MyPostFilter f) {
                   : _mainTabController.index == 1
                       ? Row(
                           children: [
-                            const Text(
-                              'Status:',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black54,
-                              ),
-                            ),
+                            const Text('Filter', style: kMinimalDropdownLabelStyle),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: Container(
-                                height: 40,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: Colors.grey.shade300),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<_TaskStatusFilter>(
-                                    value: _activeTaskStatusFilter,
-                                    isExpanded: true,
-                                    icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF1A56C4),
-                                    ),
-                                    items: _TaskStatusFilter.values.map((f) {
-                                      int count = 0;
-                                      switch (f) {
-                                        case _TaskStatusFilter.all:
-                                          count = _personalReports.length;
-                                          break;
-                                        case _TaskStatusFilter.open:
-                                          count = _personalReports.where((i) =>
-                                            i.status == ReportStatus.open &&
-                                            i.subStatus != ReportSubStatus.validating
-                                          ).length;
-                                          break;
-                                        case _TaskStatusFilter.validating:
-                                          count = _personalReports.where((i) =>
-                                            i.subStatus == ReportSubStatus.validating
-                                          ).length;
-                                          break;
-                                        case _TaskStatusFilter.inProgress:
-                                          count = _personalReports.where((i) =>
-                                            i.status == ReportStatus.inProgress
-                                          ).length;
-                                          break;
-                                        case _TaskStatusFilter.closed:
-                                          count = _personalReports.where((i) =>
-                                            i.status == ReportStatus.closed
-                                          ).length;
-                                          break;
-                                      }
-
-                                      return DropdownMenuItem(
-                                        value: f,
-                                        child: Row(
-                                          children: [
-                                            Text(f.label),
-                                            const Spacer(),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: Colors.grey.shade200,
-                                                borderRadius: BorderRadius.circular(10),
-                                              ),
-                                              child: Text(
-                                                '$count',
-                                                style: const TextStyle(fontSize: 10, color: Colors.black54),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }).toList(),
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        setState(() => _activeTaskStatusFilter = val);
-                                        _saveTaskStatusFilter(val);
-                                      }
-                                    },
-                                  ),
-                                ),
+                              child: MinimalDropdown<_TaskStatusFilter>(
+                                value: _activeTaskStatusFilter,
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() => _activeTaskStatusFilter = val);
+                                    _saveTaskStatusFilter(val);
+                                  }
+                                },
+                                items: _TaskStatusFilter.values.map((f) {
+                                  int count;
+                                  switch (f) {
+                                    case _TaskStatusFilter.all:
+                                      count = _personalReports.length;
+                                      break;
+                                    case _TaskStatusFilter.open:
+                                      count = _personalReports.where((i) =>
+                                        i.status == ReportStatus.open &&
+                                        i.subStatus != ReportSubStatus.validating
+                                      ).length;
+                                      break;
+                                    case _TaskStatusFilter.validating:
+                                      count = _personalReports.where((i) =>
+                                        i.subStatus == ReportSubStatus.validating
+                                      ).length;
+                                      break;
+                                    case _TaskStatusFilter.inProgress:
+                                      count = _personalReports.where((i) =>
+                                        i.status == ReportStatus.inProgress
+                                      ).length;
+                                      break;
+                                    case _TaskStatusFilter.closed:
+                                      count = _personalReports.where((i) =>
+                                        i.status == ReportStatus.closed
+                                      ).length;
+                                      break;
+                                  }
+                                  return DropdownMenuItem(
+                                    value: f,
+                                    child: _countRow(f.label, count),
+                                  );
+                                }).toList(),
                               ),
                             ),
                           ],

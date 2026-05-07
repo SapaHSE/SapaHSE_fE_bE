@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/report_service.dart';
 import '../services/storage_service.dart';
 import 'package:sapahse/main.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class KategoriLaporanScreen extends StatefulWidget {
   const KategoriLaporanScreen({super.key});
@@ -853,27 +854,16 @@ class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
 
   Widget _buildDropdown() {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
-      ),
+      decoration: kMinimalFieldContainerDecoration,
       child: DropdownButtonFormField<HazardCategoryData>(
         initialValue: _selectedCategory,
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.white,
-        ),
+        icon: kMinimalDropdownChevron,
+        borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+        style: kMinimalDropdownTextStyle,
+        decoration: minimalFieldDecoration(),
         items: widget.categories.map((c) => DropdownMenuItem(
           value: c,
-          child: Text(c.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          child: Text(c.name, style: kMinimalDropdownTextStyle),
         )).toList(),
         onChanged: (v) => setState(() => _selectedCategory = v),
       ),

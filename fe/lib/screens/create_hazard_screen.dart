@@ -14,6 +14,7 @@ import '../services/cloud_save_service.dart';
 import '../services/company_service.dart';
 import '../services/report_service.dart';
 import 'map_picker_screen.dart';
+import '../widgets/minimal_dropdown.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -83,8 +84,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     return _hseKeywords.any(normalized.contains);
   }
 
-  Set<String> get _lockedDepts =>
-      _apiDepartments.where(_isLockedDept).toSet();
+  Set<String> get _lockedDepts => _apiDepartments.where(_isLockedDept).toSet();
 
   void _ensureLockedDeptsSelected() {
     if (_lockedDepts.isEmpty) return;
@@ -145,7 +145,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
 
     setState(() => _isLoadingAreas = true);
     try {
-      final areas = await CompanyService.getAreas(companyId: companyId, active: true);
+      final areas =
+          await CompanyService.getAreas(companyId: companyId, active: true);
       if (!mounted) return;
       setState(() {
         _apiAreas = areas;
@@ -202,8 +203,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
 
   // ── Derived lists (API-driven) ───────────────────────────────────────────────
 
-  List<String> get _kategoriList =>
-      _apiCategories.map((c) => c.name).toList();
+  List<String> get _kategoriList => _apiCategories.map((c) => c.name).toList();
 
   List<String> get _subkategoriList {
     if (_selectedKategori == null) return [];
@@ -215,8 +215,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   List<String> get _perusahaanList =>
       _apiCompanies.map((company) => company.name).toList();
 
-  List<String> get _lokasiList =>
-      _apiAreas.map((area) => area.name).toList();
+  List<String> get _lokasiList => _apiAreas.map((area) => area.name).toList();
 
   void _handleCompanySelected(String? value) {
     final selectedCompany = _apiCompanies
@@ -534,8 +533,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             content: Text('Gagal mengirim laporan: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             margin: const EdgeInsets.all(16),
           ),
         );
@@ -552,8 +551,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -564,8 +562,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             ),
             const SizedBox(height: 16),
             Text(title,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 18)),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 8),
             Text(message,
                 textAlign: TextAlign.center,
@@ -599,8 +597,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
       prefixIcon:
           icon != null ? Icon(icon, size: 20, color: Colors.grey) : null,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
       filled: true,
       fillColor: const Color(0xFFF8F9FF),
       border: OutlineInputBorder(
@@ -612,26 +609,6 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: _blue, width: 1.5)),
-    );
-  }
-
-  InputDecorationTheme _dropdownTheme() {
-    return InputDecorationTheme(
-      hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-      filled: true,
-      fillColor: const Color(0xFFF8F9FF),
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300)),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.shade300)),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: _blue, width: 1.5)),
-      constraints: const BoxConstraints(maxHeight: 50),
     );
   }
 
@@ -655,25 +632,24 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         GestureDetector(
           onTap: _canOpenTagPicker ? _showUnifiedPicker : null,
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             decoration: BoxDecoration(
               color: _canOpenTagPicker
                   ? const Color(0xFFF8F9FF)
                   : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color:
-                    _canOpenTagPicker ? Colors.grey.shade300 : Colors.grey.shade200,
+                color: _canOpenTagPicker
+                    ? Colors.grey.shade300
+                    : Colors.grey.shade200,
               ),
             ),
             child: Row(
               children: [
                 Icon(Icons.person_add_outlined,
                     size: 20,
-                    color: _canOpenTagPicker
-                        ? Colors.grey
-                        : Colors.grey.shade400),
+                    color:
+                        _canOpenTagPicker ? Colors.grey : Colors.grey.shade400),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -713,8 +689,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                     onDeleted: _isLockedDept(dept)
                         ? null
                         : () => setState(() => _selectedDepts.remove(dept)),
-                    deleteIcon:
-                        _isLockedDept(dept) ? null : const Icon(Icons.close, size: 14),
+                    deleteIcon: _isLockedDept(dept)
+                        ? null
+                        : const Icon(Icons.close, size: 14),
                     backgroundColor: _blue.withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
@@ -729,8 +706,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                     backgroundColor: Colors.orange.withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20)),
-                    side: BorderSide(
-                        color: Colors.orange.withValues(alpha: 0.2)),
+                    side:
+                        BorderSide(color: Colors.orange.withValues(alpha: 0.2)),
                   )),
             ],
           ),
@@ -762,8 +739,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             height: MediaQuery.of(context).size.height * 0.8,
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
               children: [
@@ -778,8 +754,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                 const Padding(
                   padding: EdgeInsets.all(20),
                   child: Text('Tag Departemen / PJA',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 18)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -809,15 +785,13 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                   letterSpacing: 0.5)),
                         ),
                         Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Wrap(
                             spacing: 8,
                             children: [
                               ..._selectedDepts.map((dept) => Chip(
                                     label: Text(dept,
-                                        style:
-                                            const TextStyle(fontSize: 12)),
+                                        style: const TextStyle(fontSize: 12)),
                                     onDeleted: _isLockedDept(dept)
                                         ? null
                                         : () {
@@ -834,23 +808,20 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                         borderRadius:
                                             BorderRadius.circular(20)),
                                     side: BorderSide(
-                                        color:
-                                            _blue.withValues(alpha: 0.2)),
+                                        color: _blue.withValues(alpha: 0.2)),
                                   )),
                               ..._selectedUsers.map((user) => Chip(
                                     label: Text(user.fullName,
-                                        style:
-                                            const TextStyle(fontSize: 12)),
+                                        style: const TextStyle(fontSize: 12)),
                                     onDeleted: () {
-                                      setState(() => _selectedUsers
-                                          .removeWhere((u) =>
-                                              u.fullName == user.fullName));
+                                      setState(() => _selectedUsers.removeWhere(
+                                          (u) => u.fullName == user.fullName));
                                       setSheetState(() {});
                                     },
                                     deleteIcon:
                                         const Icon(Icons.close, size: 14),
-                                    backgroundColor: Colors.orange
-                                        .withValues(alpha: 0.1),
+                                    backgroundColor:
+                                        Colors.orange.withValues(alpha: 0.1),
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
                                             BorderRadius.circular(20)),
@@ -877,8 +848,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                           final isSelected = _selectedDepts.contains(dept);
                           final isLocked = _isLockedDept(dept);
                           return ListTile(
-                            leading: const Icon(Icons.business_outlined,
-                                size: 20),
+                            leading:
+                                const Icon(Icons.business_outlined, size: 20),
                             title: Text(
                               dept,
                               style: TextStyle(
@@ -899,15 +870,15 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                             onTap: isLocked
                                 ? null
                                 : () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedDepts.remove(dept);
-                                } else {
-                                  _selectedDepts.add(dept);
-                                }
-                              });
-                              setSheetState(() {});
-                            },
+                                    setState(() {
+                                      if (isSelected) {
+                                        _selectedDepts.remove(dept);
+                                      } else {
+                                        _selectedDepts.add(dept);
+                                      }
+                                    });
+                                    setSheetState(() {});
+                                  },
                           );
                         }),
                       ],
@@ -925,8 +896,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                           final isSelected = _selectedUsers
                               .any((u) => u.fullName == user.fullName);
                           return ListTile(
-                            leading: const Icon(Icons.person_outline,
-                                size: 20),
+                            leading: const Icon(Icons.person_outline, size: 20),
                             title: Text(user.fullName,
                                 style: const TextStyle(fontSize: 14)),
                             subtitle: user.department != null
@@ -959,8 +929,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                             child: Padding(
                                 padding: EdgeInsets.all(40),
                                 child: Text('Tidak ditemukan',
-                                    style:
-                                        TextStyle(color: Colors.grey)))),
+                                    style: TextStyle(color: Colors.grey)))),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -1000,11 +969,11 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         GestureDetector(
           onTap: _isLoadingData ? null : _showPelakuPicker,
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             decoration: BoxDecoration(
-              color:
-                  _isLoadingData ? Colors.grey.shade100 : const Color(0xFFF8F9FF),
+              color: _isLoadingData
+                  ? Colors.grey.shade100
+                  : const Color(0xFFF8F9FF),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: _isLoadingData
@@ -1022,7 +991,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   child: Text(
                     'Ketuk untuk tag pelaku',
                     style: TextStyle(
-                      color: _isLoadingData ? Colors.grey.shade500 : Colors.grey,
+                      color:
+                          _isLoadingData ? Colors.grey.shade500 : Colors.grey,
                       fontSize: 13,
                     ),
                   ),
@@ -1068,7 +1038,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setSheetState) {
+        builder: (context, setStateFunc) {
           final q = query.toLowerCase();
           final filteredUsers = _apiUsers
               .where((u) =>
@@ -1080,8 +1050,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             height: MediaQuery.of(context).size.height * 0.8,
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
               children: [
@@ -1096,8 +1065,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                 const Padding(
                   padding: EdgeInsets.all(20),
                   child: Text('Tag Pelaku Pelanggaran',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 18)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1109,7 +1078,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                           borderRadius: BorderRadius.circular(12)),
                       contentPadding: EdgeInsets.zero,
                     ),
-                    onChanged: (v) => setSheetState(() => query = v),
+                    onChanged: (v) => setStateFunc(() => query = v),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1127,8 +1096,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                   letterSpacing: 0.5)),
                         ),
                         Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Wrap(
                             spacing: 8,
                             runSpacing: 6,
@@ -1137,9 +1105,11 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                 label: Text(user.fullName,
                                     style: const TextStyle(fontSize: 12)),
                                 onDeleted: () {
-                                  setState(() => _selectedPelaku.removeWhere(
-                                      (u) => u.fullName == user.fullName));
-                                  setSheetState(() {});
+                                  setStateFunc(() {
+                                    setState(() => _selectedPelaku.removeWhere(
+                                        (u) => u.fullName == user.fullName));
+                                  });
+                                  setStateFunc(() {});
                                 },
                                 deleteIcon: const Icon(Icons.close, size: 14),
                                 backgroundColor:
@@ -1169,8 +1139,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                           final isSelected = _selectedPelaku
                               .any((u) => u.fullName == user.fullName);
                           return ListTile(
-                            leading: const Icon(Icons.person_outline,
-                                size: 20),
+                            leading: const Icon(Icons.person_outline, size: 20),
                             title: Text(user.fullName,
                                 style: const TextStyle(fontSize: 14)),
                             subtitle: user.department != null
@@ -1185,15 +1154,17 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                               color: isSelected ? _blue : Colors.grey,
                             ),
                             onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedPelaku.removeWhere(
-                                      (u) => u.fullName == user.fullName);
-                                } else {
-                                  _selectedPelaku.add(user);
-                                }
+                              setStateFunc(() {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedPelaku.removeWhere(
+                                        (u) => u.fullName == user.fullName);
+                                  } else {
+                                    _selectedPelaku.add(user);
+                                  }
+                                });
                               });
-                              setSheetState(() {});
+                              setStateFunc(() {});
                             },
                           );
                         }),
@@ -1203,8 +1174,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                             child: Padding(
                                 padding: EdgeInsets.all(40),
                                 child: Text('Tidak ditemukan',
-                                    style:
-                                        TextStyle(color: Colors.grey)))),
+                                    style: TextStyle(color: Colors.grey)))),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -1236,6 +1206,38 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     );
   }
 
+  // ── Searchable Perusahaan Dropdown ────────────────────────────────────────────
+  // Refactored to match the standard styling pattern while preserving search
+  // functionality via a bottom-sheet search UI.
+
+  Widget _perusahaanDropdown({
+    required List<String> companies,
+    required String? selectedValue,
+    required ValueChanged<String?> onChanged,
+    required bool canPick,
+  }) {
+    // Use a standard DropdownButtonFormField to match other fields' styling.
+    return DropdownButtonFormField<String>(
+      key: ValueKey('perusahaan_\${selectedValue ?? "null"}'),
+      initialValue: selectedValue,
+      icon: kMinimalDropdownChevron,
+      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+      style: kMinimalDropdownTextStyle,
+      validator: (v) => v == null ? 'Wajib dipilih' : null,
+      decoration: minimalFieldDecoration(
+        hintText: 'Pilih / Cari Perusahaan',
+        prefixIcon: Icons.business_outlined,
+      ),
+      items: companies
+          .map((e) => DropdownMenuItem(
+                value: e,
+                child: Text(e, style: kMinimalDropdownTextStyle),
+              ))
+          .toList(),
+      onChanged: canPick ? onChanged : null,
+    );
+  }
+
   // ── Step 1 ────────────────────────────────────────────────────────────────────
 
   Widget _buildStep1() {
@@ -1248,50 +1250,26 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           if (_isLoadingData)
             const Center(child: CircularProgressIndicator())
           else
-            DropdownButtonFormField<String>(
-              key: ValueKey('kategori_$_selectedKategori'),
-              initialValue: _selectedKategori,
-              validator: (v) => v == null ? 'Wajib dipilih' : null,
-              decoration: _inputDeco(
-                  hint: 'Pilih Kategori', icon: Icons.category_outlined),
-              items: _kategoriList
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (v) => setState(() {
-                _selectedKategori = v;
-                _selectedSubkategori = null;
-                _selectedPerusahaan = null;
-                _selectedCompanyId = null;
-                _apiAreas = [];
-                _selectedLokasi = null;
-                _locationCtrl.clear();
-                _selectedDepts.clear();
-                _selectedUsers.clear();
-                final cat = _apiCategories.where((c) => c.name == v);
-                _selectedKategoriCode =
-                    cat.isNotEmpty ? cat.first.code : null;
-              }),
-          ),
-          const SizedBox(height: 14),
-          _label('Subkategori Hazard *'),
-          Opacity(
-            opacity: _canPickSubcategory ? 1 : 0.6,
-            child: IgnorePointer(
-              ignoring: !_canPickSubcategory,
+            Container(
+              decoration: kMinimalFieldContainerDecoration,
               child: DropdownButtonFormField<String>(
-                key: ValueKey('subkategori_$_selectedSubkategori'),
-                initialValue: _selectedSubkategori,
+                key: ValueKey('kategori_$_selectedKategori'),
+                initialValue: _selectedKategori,
+                icon: kMinimalDropdownChevron,
+                borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                style: kMinimalDropdownTextStyle,
                 validator: (v) => v == null ? 'Wajib dipilih' : null,
-                decoration: _inputDeco(
-                    hint: 'Pilih Subkategori',
-                    icon: Icons.subdirectory_arrow_right),
-                items: _subkategoriList
+                decoration: minimalFieldDecoration(
+                    hintText: 'Pilih Kategori',
+                    prefixIcon: Icons.category_outlined),
+                items: _kategoriList
                     .map((e) => DropdownMenuItem(
                         value: e,
-                        child: Text(e, style: const TextStyle(fontSize: 13))))
+                        child: Text(e, style: kMinimalDropdownTextStyle)))
                     .toList(),
                 onChanged: (v) => setState(() {
-                  _selectedSubkategori = v;
+                  _selectedKategori = v;
+                  _selectedSubkategori = null;
                   _selectedPerusahaan = null;
                   _selectedCompanyId = null;
                   _apiAreas = [];
@@ -1299,7 +1277,46 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   _locationCtrl.clear();
                   _selectedDepts.clear();
                   _selectedUsers.clear();
+                  final cat = _apiCategories.where((c) => c.name == v);
+                  _selectedKategoriCode =
+                      cat.isNotEmpty ? cat.first.code : null;
                 }),
+              ),
+            ),
+          const SizedBox(height: 14),
+          _label('Subkategori Hazard *'),
+          Opacity(
+            opacity: _canPickSubcategory ? 1 : 0.6,
+            child: IgnorePointer(
+              ignoring: !_canPickSubcategory,
+              child: Container(
+                decoration: kMinimalFieldContainerDecoration,
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey('subkategori_$_selectedSubkategori'),
+                  initialValue: _selectedSubkategori,
+                  icon: kMinimalDropdownChevron,
+                  borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                  style: kMinimalDropdownTextStyle,
+                  validator: (v) => v == null ? 'Wajib dipilih' : null,
+                  decoration: minimalFieldDecoration(
+                      hintText: 'Pilih Subkategori',
+                      prefixIcon: Icons.subdirectory_arrow_right),
+                  items: _subkategoriList
+                      .map((e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(e, style: kMinimalDropdownTextStyle)))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    _selectedSubkategori = v;
+                    _selectedPerusahaan = null;
+                    _selectedCompanyId = null;
+                    _apiAreas = [];
+                    _selectedLokasi = null;
+                    _locationCtrl.clear();
+                    _selectedDepts.clear();
+                    _selectedUsers.clear();
+                  }),
+                ),
               ),
             ),
           ),
@@ -1309,21 +1326,11 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             opacity: _canPickCompany ? 1 : 0.6,
             child: IgnorePointer(
               ignoring: !_canPickCompany,
-              child: LayoutBuilder(
-                builder: (context, constraints) => DropdownMenu<String>(
-                  enabled: _canPickCompany,
-                  width: constraints.maxWidth,
-                  enableSearch: true,
-                  enableFilter: true,
-                  requestFocusOnTap: true,
-                  initialSelection: _selectedPerusahaan,
-                  hintText: 'Pilih / Cari Perusahaan',
-                  inputDecorationTheme: _dropdownTheme(),
-                  onSelected: _handleCompanySelected,
-                  dropdownMenuEntries: _perusahaanList
-                      .map((e) => DropdownMenuEntry(value: e, label: e))
-                      .toList(),
-                ),
+              child: _perusahaanDropdown(
+                companies: _perusahaanList,
+                selectedValue: _selectedPerusahaan,
+                onChanged: _handleCompanySelected,
+                canPick: _canPickCompany,
               ),
             ),
           ),
@@ -1368,35 +1375,35 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   };
                   final baseColor = colors[s]!;
                   return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedSeverity = s),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? baseColor
-                            : Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: _canPickSeverity
-                                ? (isSelected ? baseColor : Colors.grey.shade300)
-                                : Colors.grey.shade300,
-                            width: isSelected ? 2 : 1),
-                      ),
-                      child: Text(
-                        s.name.toUpperCase(),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.grey.shade700,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedSeverity = s),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isSelected ? baseColor : Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: _canPickSeverity
+                                  ? (isSelected
+                                      ? baseColor
+                                      : Colors.grey.shade300)
+                                  : Colors.grey.shade300,
+                              width: isSelected ? 2 : 1),
+                        ),
+                        child: Text(
+                          s.name.toUpperCase(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.grey.shade700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
-                  ),
-                );
+                  );
                 }).toList(),
               ),
             ),
@@ -1424,24 +1431,32 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             opacity: _selectedCompanyId != null && !_isLoadingAreas ? 1 : 0.5,
             child: IgnorePointer(
               ignoring: _selectedCompanyId == null || _isLoadingAreas,
-              child: DropdownButtonFormField<String>(
-                key: ValueKey('lokasi_$_selectedLokasi'),
-                initialValue: _selectedLokasi,
-                validator: (v) => v == null ? 'Wajib dipilih' : null,
-                decoration: _inputDeco(
-                    hint: _isLoadingAreas
-                        ? 'Memuat lokasi...'
-                        : (_selectedCompanyId == null
-                            ? 'Pilih company di Step 1'
-                            : 'Pilih Lokasi Kejadian'),
-                    icon: Icons.location_city),
-                items: _lokasiList
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  _selectedLokasi = v;
-                  _locationCtrl.text = v ?? '';
-                }),
+              child: Container(
+                decoration: kMinimalFieldContainerDecoration,
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey('lokasi_$_selectedLokasi'),
+                  initialValue: _selectedLokasi,
+                  icon: kMinimalDropdownChevron,
+                  borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                  style: kMinimalDropdownTextStyle,
+                  validator: (v) => v == null ? 'Wajib dipilih' : null,
+                  decoration: minimalFieldDecoration(
+                      hintText: _isLoadingAreas
+                          ? 'Memuat lokasi...'
+                          : (_selectedCompanyId == null
+                              ? 'Pilih company di Step 1'
+                              : 'Pilih Lokasi Kejadian'),
+                      prefixIcon: Icons.location_city),
+                  items: _lokasiList
+                      .map((e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(e, style: kMinimalDropdownTextStyle)))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    _selectedLokasi = v;
+                    _locationCtrl.text = v ?? '';
+                  }),
+                ),
               ),
             ),
           ),
@@ -1457,8 +1472,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             ).copyWith(
               suffixIcon: IconButton(
                 icon: const Icon(Icons.map_outlined),
-                onPressed: () =>
-                    _pickLocationFromMap(_kejadianLocationCtrl),
+                onPressed: () => _pickLocationFromMap(_kejadianLocationCtrl),
               ),
             ),
           ),
@@ -1481,22 +1495,19 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: kIsWeb
-                              ? Image.network(photo.path,
-                                  fit: BoxFit.cover)
-                              : Image.file(File(photo.path),
-                                  fit: BoxFit.cover),
+                              ? Image.network(photo.path, fit: BoxFit.cover)
+                              : Image.file(File(photo.path), fit: BoxFit.cover),
                         ),
                         Positioned(
                           right: 4,
                           top: 4,
                           child: GestureDetector(
-                            onTap: () => setState(
-                                () => _photoFiles.removeAt(index)),
+                            onTap: () =>
+                                setState(() => _photoFiles.removeAt(index)),
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle),
+                                  color: Colors.red, shape: BoxShape.circle),
                               child: const Icon(Icons.close,
                                   color: Colors.white, size: 16),
                             ),
@@ -1550,21 +1561,16 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 16)),
               const Divider(),
-              _previewItem('Kategori',
-                  '$_selectedKategori - $_selectedSubkategori'),
-              _previewItem('Perusahaan', '$_selectedPerusahaan'),
               _previewItem(
-                  'Departemen',
-                  _selectedDepts.isEmpty
-                      ? '-'
-                      : _selectedDepts.join(', ')),
+                  'Kategori', '$_selectedKategori - $_selectedSubkategori'),
+              _previewItem('Perusahaan', '$_selectedPerusahaan'),
+              _previewItem('Departemen',
+                  _selectedDepts.isEmpty ? '-' : _selectedDepts.join(', ')),
               _previewItem(
                   'PJA',
                   _selectedUsers.isEmpty
                       ? '-'
-                      : _selectedUsers
-                          .map((u) => u.fullName)
-                          .join(', ')),
+                      : _selectedUsers.map((u) => u.fullName).join(', ')),
               _previewItem('Judul', _titleCtrl.text),
               _previewItem(
                   'Resiko', _selectedSeverity?.name.toUpperCase() ?? '-'),
@@ -1572,8 +1578,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
               if (_saranCtrl.text.trim().isNotEmpty)
                 _previewItem('Saran', _saranCtrl.text),
               if (_selectedPelaku.isNotEmpty)
-                _previewItem(
-                    'Pelaku Pelanggaran',
+                _previewItem('Pelaku Pelanggaran',
                     _selectedPelaku.map((u) => u.fullName).join(', ')),
               _previewItem('Lokasi', _selectedLokasi ?? '-'),
               if (_photoFiles.isNotEmpty) ...[
@@ -1596,8 +1601,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: kIsWeb
-                                ? Image.network(photo.path,
-                                    fit: BoxFit.cover)
+                                ? Image.network(photo.path, fit: BoxFit.cover)
                                 : Image.file(File(photo.path),
                                     fit: BoxFit.cover),
                           ),
@@ -1660,8 +1664,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           const Text('Tambah Departemen / PIC (CC / Tembusan)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(height: 4),
-          const Text(
-              'Tambahkan pihak lain yang perlu menerima laporan ini.',
+          const Text('Tambahkan pihak lain yang perlu menerima laporan ini.',
               style: TextStyle(fontSize: 12, color: Colors.grey)),
           const SizedBox(height: 8),
           Container(
@@ -1728,35 +1731,30 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                 style: const TextStyle(fontSize: 12)),
                             onDeleted: _isLockedDept(dept)
                                 ? null
-                                : () => setState(
-                                    () => _selectedDepts.remove(dept)),
+                                : () =>
+                                    setState(() => _selectedDepts.remove(dept)),
                             deleteIcon: _isLockedDept(dept)
                                 ? null
                                 : const Icon(Icons.close, size: 14),
-                            backgroundColor:
-                                _blue.withValues(alpha: 0.1),
+                            backgroundColor: _blue.withValues(alpha: 0.1),
                             shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(20)),
-                            side: BorderSide(
-                                color: _blue.withValues(alpha: 0.2)),
+                                borderRadius: BorderRadius.circular(20)),
+                            side:
+                                BorderSide(color: _blue.withValues(alpha: 0.2)),
                           )),
                       ..._selectedUsers.map((user) => Chip(
                             label: Text(user.fullName,
                                 style: const TextStyle(fontSize: 12)),
                             onDeleted: () => setState(() =>
-                                _selectedUsers.removeWhere((u) =>
-                                    u.fullName == user.fullName)),
-                            deleteIcon:
-                                const Icon(Icons.close, size: 14),
+                                _selectedUsers.removeWhere(
+                                    (u) => u.fullName == user.fullName)),
+                            deleteIcon: const Icon(Icons.close, size: 14),
                             backgroundColor:
                                 Colors.orange.withValues(alpha: 0.1),
                             shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(20)),
+                                borderRadius: BorderRadius.circular(20)),
                             side: BorderSide(
-                                color: Colors.orange
-                                    .withValues(alpha: 0.2)),
+                                color: Colors.orange.withValues(alpha: 0.2)),
                           )),
                     ],
                   ),
@@ -1778,10 +1776,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           SizedBox(
               width: 110,
               child: Text(label,
-                  style: const TextStyle(
-                      color: Colors.grey, fontSize: 13))),
-          const Text(': ',
-              style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  style: const TextStyle(color: Colors.grey, fontSize: 13))),
+          const Text(': ', style: TextStyle(color: Colors.grey, fontSize: 13)),
           Expanded(
               child: Text(value,
                   style: const TextStyle(
@@ -1816,8 +1812,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
               top: 10,
               right: 10,
               child: IconButton(
-                icon: const Icon(Icons.close,
-                    color: Colors.white, size: 30),
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -1862,8 +1857,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                     child: OutlinedButton(
                       onPressed: details.onStepCancel,
                       style: OutlinedButton.styleFrom(
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14)),
+                          padding: const EdgeInsets.symmetric(vertical: 14)),
                       child: const Text('Kembali'),
                     ),
                   ),
@@ -1871,13 +1865,11 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed:
-                        _isSubmitting ? null : details.onStepContinue,
+                    onPressed: _isSubmitting ? null : details.onStepContinue,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _blue,
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     child: _isSubmitting
                         ? const SizedBox(
@@ -1885,12 +1877,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                             height: 20,
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2))
-                        : Text(
-                            isLastStep
-                                ? 'Kirim Laporan'
-                                : 'Selanjutnya',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold)),
+                        : Text(isLastStep ? 'Kirim Laporan' : 'Selanjutnya',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -1902,25 +1891,19 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         steps: [
           Step(
             isActive: _currentStep >= 0,
-            state: _currentStep > 0
-                ? StepState.complete
-                : StepState.indexed,
+            state: _currentStep > 0 ? StepState.complete : StepState.indexed,
             title: const Text('Data', style: TextStyle(fontSize: 12)),
             content: _buildStep1(),
           ),
           Step(
             isActive: _currentStep >= 1,
-            state: _currentStep > 1
-                ? StepState.complete
-                : StepState.indexed,
-            title:
-                const Text('Detail', style: TextStyle(fontSize: 12)),
+            state: _currentStep > 1 ? StepState.complete : StepState.indexed,
+            title: const Text('Detail', style: TextStyle(fontSize: 12)),
             content: _buildStep2(),
           ),
           Step(
             isActive: _currentStep >= 2,
-            title:
-                const Text('Review', style: TextStyle(fontSize: 12)),
+            title: const Text('Review', style: TextStyle(fontSize: 12)),
             content: _buildStep3(),
           ),
         ],
@@ -1928,4 +1911,3 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     );
   }
 }
-

@@ -1,4 +1,5 @@
 import '../utils/url_helper.dart';
+import '../utils/value_parser.dart';
 
 /// Matches the formatUser() response from Laravel's AuthController
 class UserModel {
@@ -49,7 +50,7 @@ class UserModel {
       company: json['company']?.toString(),
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
       role: json['role']?.toString() ?? 'user',
-      isActive: json['is_active'] == true || json['is_active'] == 1,
+      isActive: parseFlexibleBool(json['is_active']),
     );
   }
 
