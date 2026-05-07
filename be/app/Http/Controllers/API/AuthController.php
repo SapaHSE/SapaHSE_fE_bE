@@ -575,7 +575,9 @@ class AuthController extends Controller
             'sub_kontraktor' => $user->sub_kontraktor,
             'simper'         => $user->simper,
             'profile_photo'  => $user->profile_photo
-                ? asset('storage/' . $user->profile_photo)
+                ? (str_starts_with($user->profile_photo, 'http')
+                    ? $user->profile_photo
+                    : asset('storage/' . $user->profile_photo))
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,

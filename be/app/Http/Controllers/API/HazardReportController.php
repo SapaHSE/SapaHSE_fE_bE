@@ -247,16 +247,18 @@ class HazardReportController extends Controller
         $report = HazardReport::findOrFail($id);
         $user = Auth::user();
 
-        // Admin and Superadmin both have full update authority regardless of tagging.
+        // Superadmin = platform-level, full bypass regardless of tagging.
+        // Admin = role-level update authority ONLY if also tagged (dept or name).
         // Reporter and tagged PJA can also update (with the non-admin restrictions below).
         // PJA = name tagged in pic_department OR user's department tagged in reported_department.
         $isPja = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
-              || (!empty($user->department) && $report->reported_department
-                  && stripos($report->reported_department, $user->department) !== false);
-        $isAdmin = in_array($user->role, ['admin', 'superadmin']);
+            || (!empty($user->department) && $report->reported_department
+                && stripos($report->reported_department, $user->department) !== false);
+        $isSuperadmin = $user->role === 'superadmin';
+        $isAdmin = $user->role === 'admin' && $isPja;
         $isReporter = $report->user_id === $user->id;
 
-        if (!$isAdmin && !$isReporter && !$isPja) {
+        if (!$isSuperadmin && !$isAdmin && !$isReporter && !$isPja) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
         }
 
@@ -267,8 +269,8 @@ class HazardReportController extends Controller
             $normalizedSubStatus = 'rejected';
         }
 
-        // Additional restrictions for non-admins
-        if (!$isAdmin) {
+        // Additional restrictions for non-admins (admins-of-tagged-dept and superadmin keep full powers)
+        if (!$isAdmin && !$isSuperadmin) {
             // Cannot select 'validating' or 'approved'
             if (in_array($normalizedSubStatus, ['validating', 'approved'])) {
                 return response()->json(['status' => 'error', 'message' => 'Izin ditolak untuk status ini.'], 403);
@@ -307,7 +309,7 @@ class HazardReportController extends Controller
         }
 
         // Debug log for multi-photo tracking
-        \Log::debug('updateStatus image_urls count: ' . count($imageUrls), [
+        ReportLog::debug('updateStatus image_urls count: ' . count($imageUrls), [
             'report_id' => $id,
             'has_image_url' => !empty($imageUrl),
             'image_urls_sample' => array_slice($imageUrls, 0, 3),

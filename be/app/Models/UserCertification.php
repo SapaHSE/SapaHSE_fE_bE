@@ -19,6 +19,11 @@ class UserCertification extends Model
         'file_path',
     ];
 
+    protected $casts = [
+        'obtained_at' => 'date',
+        'expired_at'  => 'date',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);

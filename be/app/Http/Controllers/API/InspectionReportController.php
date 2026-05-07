@@ -221,16 +221,18 @@ class InspectionReportController extends Controller
         $report = InspectionReport::findOrFail($id);
         $user = Auth::user();
 
-        // Admin and Superadmin both have full update authority regardless of tagging.
+        // Superadmin = platform-level, full bypass regardless of tagging.
+        // Admin = role-level update authority ONLY if also tagged (dept or name).
         // Reporter and assigned Inspector can also update (with the non-admin restrictions below).
         // Inspector = name tagged in name_inspector OR user's department tagged in reported_department.
         $isInspector = ($report->name_inspector && stripos($report->name_inspector, $user->full_name) !== false)
                     || (!empty($user->department) && $report->reported_department
                         && stripos($report->reported_department, $user->department) !== false);
-        $isAdmin = in_array($user->role, ['admin', 'superadmin']);
+        $isSuperadmin = $user->role === 'superadmin';
+        $isAdmin = $user->role === 'admin' && $isInspector;
         $isReporter = $report->user_id === $user->id;
 
-        if (!$isAdmin && !$isReporter && !$isInspector) {
+        if (!$isSuperadmin && !$isAdmin && !$isReporter && !$isInspector) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
         }
 
@@ -241,8 +243,8 @@ class InspectionReportController extends Controller
             $normalizedSubStatus = 'rejected';
         }
 
-        // Additional restrictions for non-admins
-        if (!$isAdmin) {
+        // Additional restrictions for non-admins (admins-of-tagged-dept and superadmin keep full powers)
+        if (!$isAdmin && !$isSuperadmin) {
             // Cannot select 'validating' or 'approved'
             if (in_array($normalizedSubStatus, ['validating', 'approved'])) {
                 return response()->json(['status' => 'error', 'message' => 'Izin ditolak untuk status ini.'], 403);
