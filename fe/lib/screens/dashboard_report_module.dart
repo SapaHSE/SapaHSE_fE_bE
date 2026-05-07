@@ -170,7 +170,7 @@ class _DashboardReportModuleState extends State<DashboardReportModule> {
                   decoration: kMinimalFieldContainerDecoration,
                   child: DropdownButtonFormField<String>(
                     initialValue: currentStatus,
-                    decoration: minimalFieldDecoration(labelText: 'Status'),
+                    decoration: minimalFieldDecoration(hintText: 'Status'),
                     icon: kMinimalDropdownChevron,
                     style: kMinimalDropdownTextStyle,
                     items: ['Open', 'In Progress', 'Closed']
@@ -184,7 +184,7 @@ class _DashboardReportModuleState extends State<DashboardReportModule> {
                   decoration: kMinimalFieldContainerDecoration,
                   child: DropdownButtonFormField<String>(
                     initialValue: currentSeverity,
-                    decoration: minimalFieldDecoration(labelText: 'Tingkat Risiko'),
+                    decoration: minimalFieldDecoration(hintText: 'Tingkat Risiko'),
                     icon: kMinimalDropdownChevron,
                     style: kMinimalDropdownTextStyle,
                     items: ['Low', 'Medium', 'High', 'Critical']

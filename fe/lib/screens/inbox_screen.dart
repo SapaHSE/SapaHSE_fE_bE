@@ -13,6 +13,18 @@ import '../widgets/minimal_dropdown.dart';
 import '../services/storage_service.dart';
 import '../services/cloud_save_service.dart';
 
+class _FadePageRoute<T> extends PageRouteBuilder<T> {
+  final Widget Function(BuildContext) builder;
+  _FadePageRoute({required this.builder})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 200),
+        );
+}
+
 enum _SubFilter { unread, read }
 enum _MyPostFilter { all, draft, pending, approved, rejected }
 enum _TaskStatusFilter { all, open, validating, inProgress, closed }
@@ -891,7 +903,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
             _markItemRead(item);
             Navigator.push(
               context,
-              MaterialPageRoute(
+              _FadePageRoute(
                 builder: (_) => ReportDetailScreen(report: item.toReport()),
               ),
             );

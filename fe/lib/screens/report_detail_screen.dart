@@ -11,6 +11,18 @@ import '../models/user_model.dart';
 import '../services/storage_service.dart';
 import '../main.dart';
 
+class _FadePageRoute<T> extends PageRouteBuilder<T> {
+  final Widget Function(BuildContext) builder;
+  _FadePageRoute({required this.builder})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 200),
+        );
+}
+
 /// A curve that wraps another curve and clamps the input t to [0.0, 1.0].
 /// This prevents assertions when the parent animation's value goes slightly out of bounds.
 class _ClampedCurve extends Curve {
@@ -89,10 +101,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   void _onTabTapped(int index) {
-    Navigator.pushAndRemoveUntil(
+    Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => MainScreen(initialIndex: index)),
-      (route) => false,
+      _FadePageRoute(builder: (_) => MainScreen(initialIndex: index)),
     );
   }
 
@@ -2784,10 +2795,11 @@ class _ReportDetailNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isActive = currentIndex == index;
     return GestureDetector(
+      key: ValueKey('nav_$index'),
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 60,
+        width: 70,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

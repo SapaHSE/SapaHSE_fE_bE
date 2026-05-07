@@ -4,6 +4,18 @@ import '../data/news_data.dart';
 import '../services/news_service.dart';
 import 'package:sapahse/main.dart';
 
+class _FadePageRoute<T> extends PageRouteBuilder<T> {
+  final Widget Function(BuildContext) builder;
+  _FadePageRoute({required this.builder})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 200),
+        );
+}
+
 class NewsDetailScreen extends StatefulWidget {
   final NewsArticle article;
   const NewsDetailScreen({super.key, required this.article});
@@ -61,10 +73,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   }
 
   void _onTabTapped(int index) {
-    Navigator.pushAndRemoveUntil(
+    Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => MainScreen(initialIndex: index)),
-      (route) => false,
+      _FadePageRoute(builder: (_) => MainScreen(initialIndex: index)),
     );
   }
 
@@ -291,7 +302,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         color: Colors.white,
         elevation: 8,
         child: SizedBox(
-          height: 64,
+          height: 60,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -328,10 +339,11 @@ class _NewsNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isActive = currentIndex == index;
     return GestureDetector(
+      key: ValueKey('nav_$index'),
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 60,
+        width: 70,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

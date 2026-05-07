@@ -168,7 +168,7 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                           isExpanded: true,
                           initialValue: selectedCompany,
                           decoration: minimalFieldDecoration(
-                            labelText: 'Perusahaan',
+                            hintText: 'Perusahaan',
                             prefixIcon: Icons.business_outlined,
                           ),
                           icon: kMinimalDropdownChevron,
@@ -199,7 +199,7 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                           isExpanded: true,
                           initialValue: selectedDept,
                           decoration: minimalFieldDecoration(
-                            labelText: 'Departemen',
+                            hintText: 'Departemen',
                             prefixIcon: Icons.groups_outlined,
                           ),
                           icon: kMinimalDropdownChevron,
@@ -226,7 +226,7 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                     child: DropdownButtonFormField<String>(
                       initialValue: currentRole,
                       decoration: minimalFieldDecoration(
-                        labelText: 'Role',
+                        hintText: 'Role',
                         prefixIcon: Icons.security_outlined,
                       ),
                       icon: kMinimalDropdownChevron,
@@ -484,20 +484,20 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
             'Apakah Anda yakin ingin menghapus akun "${u.fullName}"? Akses pengguna ini akan dicabut sepenuhnya.',
       ),
     );
+    if (!mounted) return;
 
     if (confirm == true) {
       final res = await ApiService.delete('/admin/users/${u.id}');
-      if (res.success && context.mounted) {
+      if (!mounted) return;
+      if (res.success) {
         _fetchUsers(page: _currentUserPage);
-        if (context.mounted) {
-          showDialog(
-            context: context,
-            builder: (ctx) => const DashboardSuccessDialog(
-              title: 'Dihapus!',
-              message: 'Akun pengguna telah berhasil dihapus dari sistem.',
-            ),
-          );
-        }
+        showDialog(
+          context: context,
+          builder: (ctx) => const DashboardSuccessDialog(
+            title: 'Dihapus!',
+            message: 'Akun pengguna telah berhasil dihapus dari sistem.',
+          ),
+        );
       }
     }
   }

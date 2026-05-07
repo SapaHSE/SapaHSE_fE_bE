@@ -10,6 +10,18 @@ import 'package:sapahse/services/storage_service.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/main.dart';
 
+class _FadePageRoute<T> extends PageRouteBuilder<T> {
+  final Widget Function(BuildContext) builder;
+  _FadePageRoute({required this.builder})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 200),
+        );
+}
+
 class MyProfileScreen extends StatefulWidget {
   final String? initialAction;
   const MyProfileScreen({super.key, this.initialAction});
@@ -234,10 +246,9 @@ final List<Map<String, dynamic>> _subTabs = [
       Navigator.pop(context);
       return;
     }
-    Navigator.pushAndRemoveUntil(
+    Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => MainScreen(initialIndex: index)),
-      (route) => false,
+      _FadePageRoute(builder: (_) => MainScreen(initialIndex: index)),
     );
   }
 

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 // 14px radius, subtle chevron, dark-but-not-black text. Used consistently
 // across every screen so the app feels visually unified.
 
-const double kMinimalDropdownRadius = 14;
+const double kMinimalDropdownRadius = 10;
 const double kMinimalDropdownHeight = 44;
 const Color kMinimalDropdownText = Color(0xFF1F2937);
 const Color kMinimalDropdownLabel = Color(0xFF6B7280);
@@ -96,37 +96,41 @@ class MinimalDropdown<T> extends StatelessWidget {
 // TextFormField, for that matter) the same floating-card visual. Use when the
 // dropdown lives inside a Form and needs validator/label/hint support.
 InputDecoration minimalFieldDecoration({
-  String? labelText,
   String? hintText,
   IconData? prefixIcon,
+  Widget? suffixIcon,
   EdgeInsetsGeometry? contentPadding,
 }) {
-  const border = OutlineInputBorder(
-    borderRadius: BorderRadius.all(Radius.circular(kMinimalDropdownRadius)),
-    borderSide: BorderSide.none,
-  );
   return InputDecoration(
-    labelText: labelText,
     hintText: hintText,
-    labelStyle: kMinimalDropdownLabelStyle,
-    hintStyle: kMinimalDropdownLabelStyle,
+    hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
     prefixIcon: prefixIcon != null
-        ? Icon(prefixIcon, size: 20, color: kMinimalDropdownMuted)
+        ? Icon(prefixIcon, color: Colors.grey, size: 20)
         : null,
-    filled: true,
-    fillColor: Colors.white,
+    suffixIcon: suffixIcon,
     contentPadding: contentPadding ??
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    border: border,
-    enabledBorder: border,
-    focusedBorder: border,
-    errorBorder: const OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(kMinimalDropdownRadius)),
-      borderSide: BorderSide(color: Color(0xFFEF4444), width: 1),
+        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    filled: true,
+    fillColor: const Color(0xFFF8F8F8),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+      borderSide: BorderSide(color: Colors.grey.shade300),
     ),
-    focusedErrorBorder: const OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(kMinimalDropdownRadius)),
-      borderSide: BorderSide(color: Color(0xFFEF4444), width: 1),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+      borderSide: const BorderSide(color: Color(0xFF1A56C4), width: 1.5),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+      borderSide: const BorderSide(color: Colors.red),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+      borderSide: const BorderSide(color: Colors.red, width: 1.5),
     ),
   );
 }
@@ -134,7 +138,6 @@ InputDecoration minimalFieldDecoration({
 // Decoration for the surrounding Container of a form-field dropdown so the
 // floating-card shadow shows beneath the field.
 BoxDecoration kMinimalFieldContainerDecoration = BoxDecoration(
-  color: Colors.white,
+  color: const Color(0xFFF8F8F8),
   borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-  boxShadow: kMinimalDropdownShadow,
 );

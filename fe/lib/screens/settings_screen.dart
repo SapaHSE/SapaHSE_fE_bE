@@ -309,7 +309,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: Colors.white,
         elevation: 8,
         child: SizedBox(
-          height: 64,
+          height: 60,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [

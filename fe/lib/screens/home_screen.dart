@@ -10,6 +10,18 @@ import '../data/report_store.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/minimal_dropdown.dart';
 
+class _FadePageRoute<T> extends PageRouteBuilder<T> {
+  final Widget Function(BuildContext) builder;
+  _FadePageRoute({required this.builder})
+      : super(
+          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 200),
+        );
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -275,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           report: displayList[index],
                                           onTap: () => Navigator.push(
                                             context,
-                                            MaterialPageRoute(
+                                            _FadePageRoute(
                                               builder: (_) =>
                                                   ReportDetailScreen(
                                                       report:
@@ -352,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
+                    _FadePageRoute(
                       builder: (_) => NewsDetailScreen(article: item),
                     ),
                   );
