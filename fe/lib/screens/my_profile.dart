@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -93,82 +94,140 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 95,
-    );
-    if (picked == null) return;
+    _showPhotoOptions();
+  }
 
-    final croppedFile = await ImageCropper().cropImage(
-      sourcePath: picked.path,
-      compressQuality: 90,
-      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Crop Foto Profil',
-          toolbarColor: const Color(0xFF1A56C4),
-          toolbarWidgetColor: Colors.white,
-          lockAspectRatio: true,
-          hideBottomControls: true,
-        ),
-        IOSUiSettings(
-          title: 'Crop Foto Profil',
-          aspectRatioLockEnabled: true,
-        ),
-      ],
-    );
-    if (croppedFile == null) return;
-
-    setState(() {
-      _isLoading = true;
-      _avatarFile = XFile(croppedFile.path);
-    });
-
-    final result = await ProfileService.updateProfile(
-      imagePath: croppedFile.path,
-    );
-
-    if (!mounted) return;
-    if (!result.success) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.errorMessage ?? 'Gagal mengunggah foto profil')),
-      );
+  void _showPhotoOptions() {
+    if (kIsWeb) {
+      _pickImageFromSource(ImageSource.gallery);
       return;
     }
-
-    await _loadProfile();
-    if (!mounted) return;
-    setState(() => _avatarFile = null);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Foto profil berhasil diperbarui')),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Pilih Sumber Foto',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF1A56C4)),
+              title: const Text('Kamera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImageFromSource(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
+              title: const Text('Galeri'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImageFromSource(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  final List<Map<String, dynamic>> _subTabs = [
-    {
-      'label': 'Biodata',
-      'icon': Icons.person,
-      'color': const Color(0xFF1A56C4)
-    },
-    {'label': 'Lisensi', 'icon': Icons.badge, 'color': const Color(0xFF1E88E5)},
-    {
-      'label': 'Pelanggaran',
-      'icon': Icons.warning_amber_rounded,
-      'color': const Color(0xFFFBC02D)
-    },
-    {
-      'label': 'Sertifikat',
-      'icon': Icons.workspace_premium,
-      'color': const Color(0xFFF57C00)
-    },
-    {
-      'label': 'Medis',
-      'icon': Icons.medical_services,
-      'color': const Color(0xFFE91E63)
-    },
-  ];
+  Future<void> _pickImageFromSource(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, imageQuality: 95);
+      if (picked == null) return;
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        compressQuality: 90,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Foto Profil',
+            toolbarColor: const Color(0xFF1A56C4),
+            toolbarWidgetColor: Colors.white,
+            statusBarColor: const Color(0xFF1A56C4),
+            activeControlsWidgetColor: const Color(0xFF1A56C4),
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop Foto Profil',
+            aspectRatioLockEnabled: true,
+          ),
+        ],
+      );
+      if (croppedFile == null) return;
+
+      setState(() {
+        _isLoading = true;
+        _avatarFile = XFile(croppedFile.path);
+      });
+
+      final result = await ProfileService.updateProfile(
+        imagePath: croppedFile.path,
+      );
+
+      if (!mounted) return;
+      if (!result.success) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text(result.errorMessage ?? 'Gagal mengunggah foto profil')),
+        );
+        return;
+      }
+
+      await _loadProfile();
+      if (!mounted) return;
+      setState(() => _avatarFile = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Foto profil berhasil diperbarui')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Terjadi masalah saat memilih atau crop foto.'),
+        ),
+      );
+    }
+  }
+
+final List<Map<String, dynamic>> _subTabs = [
+  {
+    'label': 'Biodata',
+    'icon': Icons.person,
+    'color': const Color(0xFF1A56C4)
+  },
+  {'label': 'Lisensi', 'icon': Icons.badge, 'color': const Color(0xFF1A56C4)},
+  {
+    'label': 'Pelanggaran',
+    'icon': Icons.warning_amber_rounded,
+    'color': const Color(0xFF1A56C4)
+  },
+  {
+    'label': 'Sertifikat',
+    'icon': Icons.workspace_premium,
+    'color': const Color(0xFF1A56C4)
+  },
+  {
+    'label': 'Medis',
+    'icon': Icons.medical_services,
+    'color': const Color(0xFF1A56C4)
+  },
+];
 
   void _onTabTapped(int index) {
     if (index == 4) {

@@ -566,15 +566,20 @@ String _myPostFilterLabel(_MyPostFilter f) {
                     indicatorWeight: 2.5,
                     indicatorSize: TabBarIndicatorSize.tab,
                     labelStyle: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 14),
+                        fontWeight: FontWeight.w600, fontSize: 13),
                     unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.normal, fontSize: 14),
+                        fontWeight: FontWeight.normal, fontSize: 13),
                     tabs: [
                       Tab(
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Pengumuman'),
+                            const Flexible(
+                              child: Text('Pengumuman',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            ),
                             if (_unreadAnnouncements > 0) ...[
                               const SizedBox(width: 6),
                               _TabBadge(count: _unreadAnnouncements),
@@ -584,9 +589,14 @@ String _myPostFilterLabel(_MyPostFilter f) {
                       ),
                       Tab(
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Tugas'),
+                            const Flexible(
+                              child: Text('Tugas',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            ),
                             if (_unreadReports > 0) ...[
                               const SizedBox(width: 6),
                               _TabBadge(count: _unreadReports),
@@ -596,9 +606,14 @@ String _myPostFilterLabel(_MyPostFilter f) {
                       ),
                       Tab(
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('MyPost'),
+                            const Flexible(
+                              child: Text('MyPost',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            ),
                             if (_unreadMyReports > 0) ...[
                               const SizedBox(width: 6),
                               _TabBadge(count: _unreadMyReports),
@@ -1382,26 +1397,31 @@ class _InboxCard extends StatelessWidget {
                             const SizedBox(height: 8),
 
                             // Date & Location
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today_outlined,
-                                    size: 10, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Text(formatDate(item.createdAt),
+Row(
+                            children: [
+                              const Icon(Icons.access_time,
+                                  size: 12, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(formatDate(item.createdAt),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                        fontSize: 10, color: Colors.grey)),
-                                const SizedBox(width: 12),
-                                const Icon(Icons.location_on_outlined,
-                                    size: 10, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                    child: Text(item.location ?? '-',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontSize: 10, color: Colors.grey))),
-                              ],
-                            ),
+                                        fontSize: 11, color: Colors.grey)),
+                              ),
+                              const SizedBox(width: 12),
+                              const Icon(Icons.person_outline,
+                                  size: 12, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(item.fromName ?? 'Admin',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.grey)),
+                              ),
+                            ],
+                          ),
                             if (dueChip != null) ...[
                               const SizedBox(height: 6),
                               Align(
@@ -1577,6 +1597,8 @@ class _AnnouncementCard extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   item.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontWeight: isRead
                                         ? FontWeight.w500
@@ -1603,15 +1625,21 @@ class _AnnouncementCard extends StatelessWidget {
                                   size: 12, color: Colors.grey),
                               const SizedBox(width: 4),
                               Text(formatDate(item.createdAt),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                       fontSize: 11, color: Colors.grey)),
                               const SizedBox(width: 12),
                               const Icon(Icons.person_outline,
                                   size: 12, color: Colors.grey),
                               const SizedBox(width: 4),
-                              Text(item.fromName ?? 'Admin',
-                                  style: const TextStyle(
-                                      fontSize: 11, color: Colors.grey)),
+                              Flexible(
+                                child: Text(item.fromName ?? 'Admin',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 11, color: Colors.grey)),
+                              ),
                             ],
                           ),
                         ],

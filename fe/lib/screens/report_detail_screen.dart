@@ -1536,16 +1536,24 @@ class _TimelineItem extends StatelessWidget {
                     const Icon(Icons.person_outline,
                         size: 12, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text(event.actor,
+                    Flexible(
+                      child: Text(
+                        event.actor,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black87)),
+                            color: Colors.black87),
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     const Icon(Icons.access_time, size: 12, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Expanded(
+                    Flexible(
                       child: Text(formatDate(event.timestamp),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 11, color: Colors.grey)),
                     ),
@@ -2250,16 +2258,12 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
       }
     } catch (e) {
       if (mounted) {
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal memperbarui status: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              left: 20,
-              right: 20,
-            ),
           ),
         );
       }

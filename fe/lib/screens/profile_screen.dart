@@ -64,6 +64,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _refreshProfile() async {
+    setState(() {
+      _loadError = null;
+    });
+    await _loadCachedUser();
+    await _loadProfile();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,15 +108,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         automaticallyImplyLeading: false,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Divider(height: 1, color: Colors.grey.shade200),
-            if (_loadError != null) _buildErrorBanner(),
-            _buildProfileCard(),
-            Divider(height: 1, color: Colors.grey.shade200),
-            _buildMenuItem(
+      body: RefreshIndicator(
+        onRefresh: _refreshProfile,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Divider(height: 1, color: Colors.grey.shade200),
+              if (_loadError != null) _buildErrorBanner(),
+              _buildProfileCard(),
+              Divider(height: 1, color: Colors.grey.shade200),
+              _buildMenuItem(
               icon: Icons.person,
               iconBg: const Color(0xFFF3E5F5),
               iconColor: const Color(0xFF6A1B9A),
@@ -244,8 +255,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
             ],
-            const SizedBox(height: 80),
-          ],
+              const SizedBox(height: 80),
+            ],
+          ),
         ),
       ),
     );

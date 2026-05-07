@@ -1250,9 +1250,10 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           if (_isLoadingData)
             const Center(child: CircularProgressIndicator())
           else
-            Container(
+Container(
               decoration: kMinimalFieldContainerDecoration,
               child: DropdownButtonFormField<String>(
+                isExpanded: true,
                 key: ValueKey('kategori_$_selectedKategori'),
                 initialValue: _selectedKategori,
                 icon: kMinimalDropdownChevron,
@@ -1265,7 +1266,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                 items: _kategoriList
                     .map((e) => DropdownMenuItem(
                         value: e,
-                        child: Text(e, style: kMinimalDropdownTextStyle)))
+                        child: Text(e, style: kMinimalDropdownTextStyle, overflow: TextOverflow.ellipsis)))
                     .toList(),
                 onChanged: (v) => setState(() {
                   _selectedKategori = v;
@@ -1294,6 +1295,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                 child: DropdownButtonFormField<String>(
                   key: ValueKey('subkategori_$_selectedSubkategori'),
                   initialValue: _selectedSubkategori,
+                  isExpanded: true,
                   icon: kMinimalDropdownChevron,
                   borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
                   style: kMinimalDropdownTextStyle,
@@ -1304,7 +1306,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   items: _subkategoriList
                       .map((e) => DropdownMenuItem(
                           value: e,
-                          child: Text(e, style: kMinimalDropdownTextStyle)))
+                          child: Text(e,
+                              style: kMinimalDropdownTextStyle,
+                              overflow: TextOverflow.ellipsis)))
                       .toList(),
                   onChanged: (v) => setState(() {
                     _selectedSubkategori = v;
@@ -1431,9 +1435,10 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             opacity: _selectedCompanyId != null && !_isLoadingAreas ? 1 : 0.5,
             child: IgnorePointer(
               ignoring: _selectedCompanyId == null || _isLoadingAreas,
-              child: Container(
+child: Container(
                 decoration: kMinimalFieldContainerDecoration,
                 child: DropdownButtonFormField<String>(
+                  isExpanded: true,
                   key: ValueKey('lokasi_$_selectedLokasi'),
                   initialValue: _selectedLokasi,
                   icon: kMinimalDropdownChevron,
@@ -1441,16 +1446,12 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   style: kMinimalDropdownTextStyle,
                   validator: (v) => v == null ? 'Wajib dipilih' : null,
                   decoration: minimalFieldDecoration(
-                      hintText: _isLoadingAreas
-                          ? 'Memuat lokasi...'
-                          : (_selectedCompanyId == null
-                              ? 'Pilih company di Step 1'
-                              : 'Pilih Lokasi Kejadian'),
-                      prefixIcon: Icons.location_city),
+                      hintText: 'Pilih Lokasi',
+                      prefixIcon: Icons.location_on_outlined),
                   items: _lokasiList
                       .map((e) => DropdownMenuItem(
                           value: e,
-                          child: Text(e, style: kMinimalDropdownTextStyle)))
+                          child: Text(e, style: kMinimalDropdownTextStyle, overflow: TextOverflow.ellipsis)))
                       .toList(),
                   onChanged: (v) => setState(() {
                     _selectedLokasi = v;

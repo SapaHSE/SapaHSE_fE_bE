@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/profile_service.dart';
 import '../services/storage_service.dart';
-import '../utils/value_parser.dart';
 import 'login_screen.dart';
 import '../main.dart';
 import 'create_hazard_screen.dart';
@@ -24,14 +23,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isDarkMode = false;
   bool _isPushEnabled = true;
   bool _isBiometricEnabled = false;
-  Map<String, dynamic>? _user;
   static const _blue = Color(0xFF1A56C4);
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
-    _loadUser();
   }
 
   Future<void> _loadSettings() async {
@@ -40,13 +37,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _isBiometricEnabled = bioEnabled;
       });
-    }
-  }
-
-  Future<void> _loadUser() async {
-    final user = await StorageService.getUser();
-    if (mounted && user != null) {
-      setState(() => _user = user);
     }
   }
 
@@ -215,7 +205,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildProfileHeader(),
             _buildSectionHeader('PREFERENSI APLIKASI'),
             _buildCard([
               _buildDropdownRow(
@@ -336,112 +325,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildProfileHeader() {
-    final user = _user;
-    if (user == null) {
-      return const SizedBox(
-        height: 96,
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: _blue),
-          ),
-        ),
-      );
-    }
-
-    final name = (user['full_name'] ?? user['name'] ?? 'No Name').toString();
-    final position = (user['position'] ?? '').toString().trim();
-    final company = (user['company'] ?? '').toString().trim();
-    final role = (user['role'] ?? 'user').toString();
-    final isActive = parseFlexibleBool(user['is_active']);
-    final photo = (user['profile_photo'] ?? '').toString();
-    final initials = name.isNotEmpty
-        ? name.trim().split(' ').take(2).map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase()
-        : '?';
-
-    final subtitle = [
-      if (position.isNotEmpty) position,
-      if (company.isNotEmpty) company,
-    ].join(' — ');
-
-    return Container(
-      width: double.infinity,
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: const Color(0xFF5C38FF),
-            backgroundImage: photo.isNotEmpty ? NetworkImage(photo) : null,
-            child: photo.isEmpty
-                ? Text(initials,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18))
-                : null,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.black87)),
-                if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600)),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFF3E5F5),
-                          borderRadius: BorderRadius.circular(12)),
-                      child: Text(role.toUpperCase(),
-                          style: const TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF6A1B9A),
-                              fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: isActive
-                              ? const Color(0xFFE8F5E9)
-                              : const Color(0xFFFFEBEE),
-                          borderRadius: BorderRadius.circular(12)),
-                      child: Text(isActive ? 'AKTIF' : 'NONAKTIF',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: isActive
-                                  ? const Color(0xFF2E7D32)
-                                  : const Color(0xFFD32F2F),
-                              fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildSectionHeader(String title) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
