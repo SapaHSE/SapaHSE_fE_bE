@@ -35,7 +35,7 @@ class ProfileController extends Controller
 
         $request->validate([
             'full_name'      => 'nullable|string|max:100',
-            'personal_email'  => 'required|email|max:150|unique:users,personal_email,' . $user->id,
+            'personal_email'  => 'sometimes|email|max:150|unique:users,personal_email,' . $user->id,
             'work_email'     => 'nullable|email|max:150|unique:users,work_email,' . $user->id,
             'phone_number'   => 'nullable|string|max:20',
             'position'      => 'nullable|string|max:100',
@@ -47,7 +47,7 @@ class ProfileController extends Controller
         ]);
 
         if ($request->filled('full_name'))      $user->full_name      = $request->full_name;
-        if ($request->filled('personal_email')) $user->personal_email = $request->personal_email;
+        if ($request->has('personal_email'))    $user->personal_email = $request->personal_email;
         if ($request->filled('work_email'))    $user->work_email    = $request->work_email;
         if ($request->filled('phone_number')) $user->phone_number = $request->phone_number;
         if ($request->filled('position'))     $user->position     = $request->position;
