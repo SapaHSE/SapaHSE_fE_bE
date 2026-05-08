@@ -361,6 +361,17 @@ class InspectionReportController extends Controller
                     ?? ($log->sub_status === 'assigned'
                         ? ($log->taggedUser->full_name ?? $assignmentName)
                         : 'System');
+                $photoPath = $log->user->profile_photo
+                    ?? ($log->sub_status === 'assigned'
+                        ? optional($log->taggedUser)->profile_photo
+                        : null);
+                $userPhotoUrl = null;
+                if (!empty($photoPath)) {
+                    $photoPath = (string) $photoPath;
+                    $userPhotoUrl = str_starts_with($photoPath, 'http')
+                        ? $photoPath
+                        : asset('storage/' . ltrim($photoPath, '/'));
+                }
 
                 $logImageUrls = $log->image_urls;
                 if (empty($logImageUrls)) {
@@ -369,12 +380,14 @@ class InspectionReportController extends Controller
 
                 return [
                     'id'          => $log->id,
+                    'user_id'     => $log->user_id,
                     'status'      => $log->status,
                     'sub_status'  => $log->sub_status,
                     'message'     => $log->message,
                     'image_url'   => $log->image_url,
                     'image_urls'  => $logImageUrls,
                     'user_name'   => $userName,
+                    'user_photo_url' => $userPhotoUrl,
                     'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
                     'reply_count' => (int) ($log->replies_count ?? 0),
                     'latest_reply_at' => $log->replies_max_created_at
@@ -430,6 +443,12 @@ class InspectionReportController extends Controller
         $user = Auth::user();
         if (!$this->canAccessReportThread($report, $user)) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        }
+        if ($report->status === 'closed') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Laporan sudah ditutup. Balasan tidak diizinkan.',
+            ], 422);
         }
 
         $attachmentUrls = $request->input('attachment_urls', []);
