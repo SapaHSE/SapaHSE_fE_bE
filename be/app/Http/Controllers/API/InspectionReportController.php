@@ -293,6 +293,21 @@ class InspectionReportController extends Controller
             'image_urls_sample' => array_slice($imageUrls, 0, 3),
         ]);
 
+        // Linear timeline guard: reject backward moves and skips for non-superadmin.
+        if (!$isSuperadmin) {
+            $progressionError = $this->assertLinearProgression(
+                $report,
+                $normalizedStatus,
+                $normalizedSubStatus
+            );
+            if ($progressionError !== null) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => $progressionError,
+                ], 422);
+            }
+        }
+
         $updateData = [
             'status'     => $normalizedStatus,
             'sub_status' => $normalizedSubStatus,

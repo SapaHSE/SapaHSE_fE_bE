@@ -324,6 +324,21 @@ class HazardReportController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
         }
 
+        // Linear timeline guard: reject backward moves and skips for non-superadmin.
+        if (!$isSuperadmin) {
+            $progressionError = $this->assertLinearProgression(
+                $report,
+                $normalizedStatus,
+                $normalizedSubStatus
+            );
+            if ($progressionError !== null) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => $progressionError,
+                ], 422);
+            }
+        }
+
         $updateData = [
             'status'     => $normalizedStatus,
             'sub_status' => $normalizedSubStatus,

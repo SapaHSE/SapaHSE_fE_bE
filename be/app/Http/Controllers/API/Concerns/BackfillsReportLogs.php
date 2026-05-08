@@ -37,6 +37,91 @@ trait BackfillsReportLogs
     ];
 
     /**
+     * Highest LINEAR_FLOW index already reached by the report's logs.
+     * Returns -1 if the report has no log with a linear sub-status yet.
+     */
+    protected function currentLinearIndex(Model $report): int
+    {
+        $existingSubStatuses = $report->logs()
+            ->orderBy('created_at')
+            ->pluck('sub_status')
+            ->filter()
+            ->all();
+
+        $lastReachedIndex = -1;
+        foreach ($existingSubStatuses as $sub) {
+            $idx = array_search($sub, self::LINEAR_FLOW, true);
+            if ($idx !== false && $idx > $lastReachedIndex) {
+                $lastReachedIndex = $idx;
+            }
+        }
+        return $lastReachedIndex;
+    }
+
+    /**
+     * Validate that the requested status/sub_status transition is a legal
+     * step on the linear timeline. Returns null if allowed, or an error
+     * message if it should be rejected.
+     *
+     * Rules (strict step-by-step):
+     *  - closed reports cannot be modified.
+     *  - rejected/deferred sub-statuses are valid terminal exits at any stage.
+     *  - moving backwards in LINEAR_FLOW is rejected.
+     *  - skipping more than one step forward in LINEAR_FLOW is rejected.
+     *  - staying at the same index or advancing exactly one step is allowed.
+     *  - going back to 'pending' once the report has progressed is rejected.
+     *
+     * Caller is responsible for bypassing this check for superadmin.
+     */
+    protected function assertLinearProgression(
+        Model $report,
+        ?string $newStatus,
+        ?string $newSubStatus
+    ): ?string {
+        // Closed reports are final.
+        if ($report->status === 'closed') {
+            return 'Laporan sudah ditutup. Status tidak dapat diubah.';
+        }
+
+        // Terminal exit is always allowed (when not yet closed).
+        if ($newStatus === 'rejected'
+            || $newSubStatus === 'rejected'
+            || $newSubStatus === 'deferred') {
+            return null;
+        }
+
+        // Block regression to pre-open state.
+        if ($newStatus === 'pending'
+            && in_array($report->status, ['open', 'in_progress', 'closed'], true)) {
+            return 'Status tidak bisa dimundurkan ke pending. Timeline harus linear.';
+        }
+
+        if ($newSubStatus === null) {
+            return null;
+        }
+
+        $targetIndex = array_search($newSubStatus, self::LINEAR_FLOW, true);
+        if ($targetIndex === false) {
+            // Unknown sub-status - let validation upstream handle it.
+            return null;
+        }
+
+        $lastReachedIndex = $this->currentLinearIndex($report);
+
+        if ($targetIndex < $lastReachedIndex) {
+            return 'Status tidak bisa dimundurkan. Timeline harus linear.';
+        }
+
+        if ($targetIndex > $lastReachedIndex + 1) {
+            $skippedIdx = $lastReachedIndex + 1;
+            $skippedName = ucfirst(self::LINEAR_FLOW[$skippedIdx]);
+            return "Status harus maju bertahap. Tidak bisa melompati tahap {$skippedName}.";
+        }
+
+        return null;
+    }
+
+    /**
      * Create log rows for every sub-status strictly between the report's
      * last-reached linear sub-status and the new target.
      */
@@ -55,26 +140,18 @@ trait BackfillsReportLogs
             return;
         }
 
-        $existingSubStatuses = $report->logs()
-            ->orderBy('created_at')
-            ->pluck('sub_status')
-            ->filter()
-            ->all();
-
-        // Last linear sub-status the report has already recorded.
-        $lastReachedIndex = -1;
-        foreach ($existingSubStatuses as $sub) {
-            $idx = array_search($sub, self::LINEAR_FLOW, true);
-            if ($idx !== false && $idx > $lastReachedIndex) {
-                $lastReachedIndex = $idx;
-            }
-        }
+        $lastReachedIndex = $this->currentLinearIndex($report);
 
         if ($targetIndex - $lastReachedIndex <= 1) {
             // Nothing skipped (or moving backwards) -> no backfill.
             return;
         }
 
+        $existingSubStatuses = $report->logs()
+            ->orderBy('created_at')
+            ->pluck('sub_status')
+            ->filter()
+            ->all();
         $alreadyLogged = array_flip($existingSubStatuses);
 
         for ($i = $lastReachedIndex + 1; $i < $targetIndex; $i++) {
