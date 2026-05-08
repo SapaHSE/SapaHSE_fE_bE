@@ -27,6 +27,7 @@ class User extends Authenticatable
         'perusahaan_kontraktor',
         'sub_kontraktor',
         'simper',
+        'address',
         'password_hash',
         'profile_photo',
         'is_active',

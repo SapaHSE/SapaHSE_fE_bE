@@ -13,6 +13,7 @@ class UserLicense extends Model
         'user_id',
         'name',
         'license_number',
+        'obtained_at',
         'expired_at',
         'status',
         'is_verified',
@@ -20,6 +21,7 @@ class UserLicense extends Model
     ];
 
     protected $casts = [
+        'obtained_at' => 'date',
         'expired_at' => 'date',
     ];
 

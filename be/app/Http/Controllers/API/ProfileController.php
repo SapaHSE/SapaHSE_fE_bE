@@ -155,6 +155,7 @@ class ProfileController extends Controller
         $request->validate([
             'name'           => 'required|string|max:150', 
             'license_number' => 'required|string|max:100',
+            'obtained_at'    => 'nullable|date',
             'expired_at'     => 'nullable|date', 
             'status'         => 'required|string|in:active,expired,suspended',
             'file'           => 'nullable|file|max:5120', // Max 5MB            
@@ -163,7 +164,7 @@ class ProfileController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        $data = $request->only('name', 'license_number', 'expired_at', 'status');
+        $data = $request->only('name', 'license_number', 'obtained_at', 'expired_at', 'status');
         
         if ($request->hasFile('file')) {
             $data['file_path'] = $request->file('file')->store('licenses', 'public');
@@ -198,6 +199,7 @@ class ProfileController extends Controller
         $request->validate([
             'name'           => 'required|string|max:150',
             'license_number' => 'required|string|max:100',
+            'obtained_at'    => 'nullable|date',
             'expired_at'     => 'nullable|date',
             'status'         => 'required|string|in:active,expired,suspended',
         ]);
@@ -207,7 +209,7 @@ class ProfileController extends Controller
         $license = $user->licenses()->findOrFail($id);
 
         $license->update($request->only(
-            'name', 'license_number', 'expired_at', 'status'
+            'name', 'license_number', 'obtained_at', 'expired_at', 'status'
         ));
 
         return response()->json([
@@ -337,6 +339,9 @@ class ProfileController extends Controller
             'weight'            => 'nullable',
             'blood_pressure'    => 'nullable|string|max:30',
             'allergies'         => 'nullable|string',
+            'last_medication'   => 'nullable|string',
+            'current_medication'=> 'nullable|string',
+            'current_illness'    => 'nullable|string',
             'result'            => 'nullable|string|max:255',
             'next_checkup_date' => 'nullable|date',
             'doctor_name'       => 'nullable|string|max:150',
@@ -355,7 +360,8 @@ class ProfileController extends Controller
         $medical = $user->medicals()->create($request->only(
             'title', 'patient_name',
             'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure',
-            'allergies', 'result', 'next_checkup_date',
+            'allergies', 'last_medication', 'current_medication', 'current_illness',
+            'result', 'next_checkup_date',
             'doctor_name', 'doctor_contact', 'facility_name', 'facility_contact',
             'doctor_notes', 'checklist_items'
         ));
@@ -379,6 +385,9 @@ class ProfileController extends Controller
             'weight'            => 'nullable',
             'blood_pressure'    => 'nullable|string|max:30',
             'allergies'         => 'nullable|string',
+            'last_medication'   => 'nullable|string',
+            'current_medication'=> 'nullable|string',
+            'current_illness'    => 'nullable|string',
             'result'            => 'nullable|string|max:255',
             'next_checkup_date' => 'nullable|date',
             'doctor_name'       => 'nullable|string|max:150',
@@ -398,7 +407,8 @@ class ProfileController extends Controller
         $medical->update($request->only(
             'title', 'patient_name',
             'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure',
-            'allergies', 'result', 'next_checkup_date',
+            'allergies', 'last_medication', 'current_medication', 'current_illness',
+            'result', 'next_checkup_date',
             'doctor_name', 'doctor_contact', 'facility_name', 'facility_contact',
             'doctor_notes', 'checklist_items'
             ));
@@ -439,7 +449,8 @@ class ProfileController extends Controller
             'tipe_afiliasi'  => $user->tipe_afiliasi,
             'perusahaan_kontraktor' => $user->perusahaan_kontraktor,
             'sub_kontraktor' => $user->sub_kontraktor,
-            'simper'         => $user->simper,            
+            'simper'         => $user->simper,
+            'address'        => $user->address,
             'profile_photo'  => $user->profile_photo
                 ? (str_starts_with($user->profile_photo, 'http')
                     ? $user->profile_photo
@@ -452,6 +463,7 @@ class ProfileController extends Controller
                 'id'             => $l->id,
                 'name'           => $l->name,
                 'license_number' => $l->license_number,
+                'obtained_at'   => $l->obtained_at?->format('Y-m-d'),
                 'expired_at'     => $l->expired_at?->format('Y-m-d'),
                 'status'         => $l->status,
                 'is_verified'    => (bool) $l->is_verified,  
@@ -477,6 +489,9 @@ class ProfileController extends Controller
                 'weight'            => $m->weight,
                 'blood_pressure'    => $m->blood_pressure,
                 'allergies'         => $m->allergies,
+                'last_medication'    => $m->last_medication,
+                'current_medication'=> $m->current_medication,
+                'current_illness'   => $m->current_illness,
                 'result'            => $m->result,
                 'next_checkup_date' => $m->next_checkup_date?->format('Y-m-d'),
                 'doctor_name'       => $m->doctor_name,
