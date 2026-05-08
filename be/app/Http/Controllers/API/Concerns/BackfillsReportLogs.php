@@ -63,13 +63,14 @@ trait BackfillsReportLogs
      * step on the linear timeline. Returns null if allowed, or an error
      * message if it should be rejected.
      *
-     * Rules (strict step-by-step):
+     * Rules:
      *  - closed reports cannot be modified.
      *  - rejected/deferred sub-statuses are valid terminal exits at any stage.
      *  - moving backwards in LINEAR_FLOW is rejected.
-     *  - skipping more than one step forward in LINEAR_FLOW is rejected.
-     *  - staying at the same index or advancing exactly one step is allowed.
      *  - going back to 'pending' once the report has progressed is rejected.
+     *  - before reaching 'assigned' (idx 2): strict step-by-step, no skipping.
+     *  - at 'assigned' (idx 2) or later: forward skips are allowed; the
+     *    skipped stages are auto-logged via backfillSkippedSubStatusLogs.
      *
      * Caller is responsible for bypassing this check for superadmin.
      */
@@ -107,12 +108,17 @@ trait BackfillsReportLogs
         }
 
         $lastReachedIndex = $this->currentLinearIndex($report);
+        $assignedIndex = array_search('assigned', self::LINEAR_FLOW, true);
 
         if ($targetIndex < $lastReachedIndex) {
             return 'Status tidak bisa dimundurkan. Timeline harus linear.';
         }
 
-        if ($targetIndex > $lastReachedIndex + 1) {
+        // Before reaching 'assigned', enforce strict step-by-step.
+        // Once at 'assigned' or later, forward skips are allowed and the
+        // missed sub-statuses are auto-backfilled by the trait.
+        if ($lastReachedIndex < $assignedIndex
+            && $targetIndex > $lastReachedIndex + 1) {
             $skippedIdx = $lastReachedIndex + 1;
             $skippedName = ucfirst(self::LINEAR_FLOW[$skippedIdx]);
             return "Status harus maju bertahap. Tidak bisa melompati tahap {$skippedName}.";
