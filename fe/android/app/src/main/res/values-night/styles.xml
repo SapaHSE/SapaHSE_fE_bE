@@ -15,4 +15,13 @@
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- Dark-mode variant of uCrop theme. Same fitsSystemWindows fix; see
+         values/styles.xml for rationale. -->
+    <style name="Theme.UCrop" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:fitsSystemWindows">true</item>
+        <item name="android:statusBarColor">#1A56C4</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorPrimary">#1A56C4</item>
+        <item name="colorPrimaryDark">#1A56C4</item>
+    </style>
 </resources>

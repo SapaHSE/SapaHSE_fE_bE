@@ -15,4 +15,14 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- Theme for uCrop activity (image_cropper). Without fitsSystemWindows
+         the toolbar (which holds the confirm ✓ button) is overlapped by the
+         system status bar on Android 15+ edge-to-edge enforcement. -->
+    <style name="Theme.UCrop" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:fitsSystemWindows">true</item>
+        <item name="android:statusBarColor">#1A56C4</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorPrimary">#1A56C4</item>
+        <item name="colorPrimaryDark">#1A56C4</item>
+    </style>
 </resources>
