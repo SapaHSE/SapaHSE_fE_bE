@@ -412,20 +412,32 @@ class InspectionReportController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $replies->map(fn($reply) => [
-                'id' => $reply->id,
-                'report_log_id' => $reply->report_log_id,
-                'parent_reply_id' => $reply->parent_reply_id,
-                'user_name' => $reply->user->full_name ?? 'Unknown User',
-                'user_role' => optional($reply->user)->role,
-                'message' => $reply->message,
-                'attachment_url' => $reply->attachment_url,
-                'attachment_urls' => !empty($reply->attachment_urls)
-                    ? $reply->attachment_urls
-                    : ($reply->attachment_url ? [$reply->attachment_url] : []),
-                'created_at' => $reply->created_at->format('Y-m-d H:i:s'),
-                'date_human' => $reply->created_at->format('d M Y, H:i'),
-            ]),
+            'data' => $replies->map(function ($reply) {
+                $photoPath = optional($reply->user)->profile_photo;
+                $photoUrl = null;
+                if (!empty($photoPath)) {
+                    $photoPath = (string) $photoPath;
+                    $photoUrl = str_starts_with($photoPath, 'http')
+                        ? $photoPath
+                        : asset('storage/' . ltrim($photoPath, '/'));
+                }
+
+                return [
+                    'id' => $reply->id,
+                    'report_log_id' => $reply->report_log_id,
+                    'parent_reply_id' => $reply->parent_reply_id,
+                    'user_name' => $reply->user->full_name ?? 'Unknown User',
+                    'user_role' => optional($reply->user)->role,
+                    'user_photo_url' => $photoUrl,
+                    'message' => $reply->message,
+                    'attachment_url' => $reply->attachment_url,
+                    'attachment_urls' => !empty($reply->attachment_urls)
+                        ? $reply->attachment_urls
+                        : ($reply->attachment_url ? [$reply->attachment_url] : []),
+                    'created_at' => $reply->created_at->format('Y-m-d H:i:s'),
+                    'date_human' => $reply->created_at->format('d M Y, H:i'),
+                ];
+            }),
         ]);
     }
 
@@ -488,6 +500,11 @@ class InspectionReportController extends Controller
                 'parent_reply_id' => $reply->parent_reply_id,
                 'user_name' => $reply->user->full_name ?? 'Unknown User',
                 'user_role' => optional($reply->user)->role,
+                'user_photo_url' => optional($reply->user)->profile_photo
+                    ? (str_starts_with((string) optional($reply->user)->profile_photo, 'http')
+                        ? (string) optional($reply->user)->profile_photo
+                        : asset('storage/' . ltrim((string) optional($reply->user)->profile_photo, '/')))
+                    : null,
                 'message' => $reply->message,
                 'attachment_url' => $reply->attachment_url,
                 'attachment_urls' => !empty($reply->attachment_urls)
