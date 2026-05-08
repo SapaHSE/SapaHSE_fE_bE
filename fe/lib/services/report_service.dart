@@ -35,7 +35,9 @@ class ReportLogEntry {
 class TimelineReply {
   final String id;
   final String logId;
+  final String? parentReplyId;
   final String actor;
+  final String? userRole;
   final String message;
   final String? attachmentUrl;
   final List<String> attachmentUrls;
@@ -44,7 +46,9 @@ class TimelineReply {
   const TimelineReply({
     required this.id,
     required this.logId,
+    this.parentReplyId,
     required this.actor,
+    this.userRole,
     required this.message,
     this.attachmentUrl,
     this.attachmentUrls = const [],
@@ -392,6 +396,7 @@ class ReportService {
     required Report report,
     required String logId,
     required String message,
+    String? parentReplyId,
     String? attachmentUrl,
     List<String> attachmentUrls = const [],
   }) async {
@@ -400,6 +405,7 @@ class ReportService {
         : '/inspection-reports/${report.id}/logs/$logId/replies';
     final response = await ApiService.post(endpoint, {
       'message': message.trim(),
+      if (parentReplyId != null && parentReplyId.isNotEmpty) 'parent_reply_id': parentReplyId,
       if (attachmentUrl != null && attachmentUrl.isNotEmpty) 'attachment_url': attachmentUrl,
       if (attachmentUrls.isNotEmpty) 'attachment_urls': attachmentUrls,
     });
@@ -728,12 +734,16 @@ class ReportService {
     if (urls.isEmpty && single != null && single.isNotEmpty) {
       urls.add(single);
     }
+    final parentRaw = json['parent_reply_id']?.toString();
+    final roleRaw = json['user_role']?.toString();
     return TimelineReply(
       id: json['id']?.toString() ?? '',
       logId: json['report_log_id']?.toString() ?? '',
+      parentReplyId: (parentRaw != null && parentRaw.isNotEmpty) ? parentRaw : null,
       actor: json['user_name']?.toString().trim().isNotEmpty == true
           ? json['user_name'].toString()
           : 'Unknown User',
+      userRole: (roleRaw != null && roleRaw.isNotEmpty) ? roleRaw : null,
       message: json['message']?.toString() ?? '',
       attachmentUrl: urls.isNotEmpty ? urls.first : single,
       attachmentUrls: urls,

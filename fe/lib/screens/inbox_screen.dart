@@ -1343,6 +1343,7 @@ class _InboxCard extends StatelessWidget {
                                 : CachedNetworkImage(
                                     imageUrl: imageUrl,
                                     fit: BoxFit.cover,
+                                    width: double.infinity,
                                     placeholder: (_, __) => Container(
                                       color: Colors.grey.shade200,
                                       child: const Center(

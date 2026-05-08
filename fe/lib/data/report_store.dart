@@ -196,6 +196,7 @@ class ReportStore {
     String reportId,
     String logId,
     String message, {
+    String? parentReplyId,
     String? attachmentUrl,
     List<String> attachmentUrls = const [],
   }) async {
@@ -207,6 +208,7 @@ class ReportStore {
       report: report,
       logId: logId,
       message: message,
+      parentReplyId: parentReplyId,
       attachmentUrl: attachmentUrl,
       attachmentUrls: attachmentUrls,
     );
