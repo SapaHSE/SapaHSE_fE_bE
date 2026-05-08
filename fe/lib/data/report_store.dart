@@ -4,20 +4,26 @@ import '../services/cloud_save_service.dart';
 import '../services/report_service.dart';
 
 class TimelineEvent {
+  final String timelineLogId;
   final ReportStatus status;
   final ReportSubStatus? subStatus;
   final DateTime timestamp;
   final String actor;
   final String? note;
   final List<String> photoPaths;
+  final int replyCount;
+  final DateTime? latestReplyAt;
 
   const TimelineEvent({
+    required this.timelineLogId,
     required this.status,
     this.subStatus,
     required this.timestamp,
     required this.actor,
     this.note,
     this.photoPaths = const [],
+    this.replyCount = 0,
+    this.latestReplyAt,
   });
 
   /// Konvenien: ambil foto pertama (untuk UI lama yang baru perlu satu).
@@ -30,6 +36,7 @@ class ReportStore {
 
   final ValueNotifier<List<Report>> reports = ValueNotifier<List<Report>>([]);
   final Map<String, List<TimelineEvent>> _timelines = {};
+  final Map<String, List<TimelineReply>> _logReplies = {};
 
   bool _isRefreshing = false;
 
@@ -170,6 +177,48 @@ class ReportStore {
     return List.unmodifiable(_timelines[reportId] ?? const <TimelineEvent>[]);
   }
 
+  List<TimelineReply> getReplies(String logId) {
+    return List.unmodifiable(_logReplies[logId] ?? const <TimelineReply>[]);
+  }
+
+  Future<List<TimelineReply>> loadReplies(String reportId, String logId, {bool force = false}) async {
+    if (!force && _logReplies.containsKey(logId)) {
+      return getReplies(logId);
+    }
+    final report = getById(reportId);
+    if (report == null) return const <TimelineReply>[];
+    final replies = await ReportService.getLogReplies(report: report, logId: logId);
+    _logReplies[logId] = replies;
+    return getReplies(logId);
+  }
+
+  Future<TimelineReply> postReply(
+    String reportId,
+    String logId,
+    String message, {
+    String? attachmentUrl,
+    List<String> attachmentUrls = const [],
+  }) async {
+    final report = getById(reportId);
+    if (report == null) {
+      throw Exception('Report $reportId tidak ditemukan.');
+    }
+    final reply = await ReportService.postLogReply(
+      report: report,
+      logId: logId,
+      message: message,
+      attachmentUrl: attachmentUrl,
+      attachmentUrls: attachmentUrls,
+    );
+    if (reply == null) {
+      throw Exception('Gagal mengirim balasan.');
+    }
+    _logReplies.remove(logId);
+    await loadTimeline(reportId, force: true);
+    await loadReplies(reportId, logId, force: true);
+    return reply;
+  }
+
   Future<List<TimelineEvent>> loadTimeline(
     String reportId, {
     bool force = false,
@@ -192,12 +241,15 @@ class ReportStore {
 
     final events = logsResult.logs.map((entry) {
       return TimelineEvent(
+        timelineLogId: entry.id,
         status: entry.status,
         subStatus: entry.subStatus,
         timestamp: entry.timestamp,
         actor: entry.actor,
         note: entry.note,
         photoPaths: entry.photoUrls,
+        replyCount: entry.replyCount,
+        latestReplyAt: entry.latestReplyAt,
       );
     }).toList();
 
@@ -300,6 +352,7 @@ class ReportStore {
     return _normalizeTimeline(
       [
         TimelineEvent(
+          timelineLogId: 'fallback-${report.id}',
           status: report.status,
           subStatus: report.subStatus,
           timestamp: report.createdAt,
@@ -340,12 +393,15 @@ class ReportStore {
         seen.add(subStatus);
       }
       normalized.add(TimelineEvent(
+        timelineLogId: event.timelineLogId,
         status: event.status,
         subStatus: event.subStatus,
         timestamp: event.timestamp,
         actor: event.actor,
         note: _sanitizeTimelineNote(event.note, event.subStatus),
         photoPaths: event.photoPaths,
+        replyCount: event.replyCount,
+        latestReplyAt: event.latestReplyAt,
       ));
     }
 
@@ -367,6 +423,7 @@ class ReportStore {
     DateTime timestamp,
   ) {
     return TimelineEvent(
+      timelineLogId: 'implicit-${report.id}-${subStatus.name}-${timestamp.millisecondsSinceEpoch}',
       status: subStatus.parentStatus,
       subStatus: subStatus,
       timestamp: timestamp,

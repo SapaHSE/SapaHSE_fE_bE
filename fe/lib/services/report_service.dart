@@ -7,6 +7,7 @@ import 'api_service.dart';
 import 'supabase_storage_service.dart';
 
 class ReportLogEntry {
+  final String id;
   final ReportStatus status;
   final ReportSubStatus? subStatus;
   final DateTime timestamp;
@@ -14,8 +15,11 @@ class ReportLogEntry {
   final String? note;
   final String? photoUrl;
   final List<String> photoUrls;
+  final int replyCount;
+  final DateTime? latestReplyAt;
 
   const ReportLogEntry({
+    required this.id,
     required this.status,
     required this.timestamp,
     required this.actor,
@@ -23,6 +27,28 @@ class ReportLogEntry {
     this.note,
     this.photoUrl,
     this.photoUrls = const [],
+    this.replyCount = 0,
+    this.latestReplyAt,
+  });
+}
+
+class TimelineReply {
+  final String id;
+  final String logId;
+  final String actor;
+  final String message;
+  final String? attachmentUrl;
+  final List<String> attachmentUrls;
+  final DateTime timestamp;
+
+  const TimelineReply({
+    required this.id,
+    required this.logId,
+    required this.actor,
+    required this.message,
+    this.attachmentUrl,
+    this.attachmentUrls = const [],
+    required this.timestamp,
   });
 }
 
@@ -348,6 +374,41 @@ class ReportService {
     }).where((u) => u.id.isNotEmpty && u.fullName.trim().isNotEmpty).toList();
   }
 
+  static Future<List<TimelineReply>> getLogReplies({
+    required Report report,
+    required String logId,
+  }) async {
+    final endpoint = report.type == ReportType.hazard
+        ? '/hazard-reports/${report.id}/logs/$logId/replies'
+        : '/inspection-reports/${report.id}/logs/$logId/replies';
+    final response = await ApiService.get(endpoint);
+    if (!response.success) return const [];
+    final rawList = _asList(response.data['data']);
+    return rawList.map((e) => _mapTimelineReply(Map<String, dynamic>.from(e))).toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+  }
+
+  static Future<TimelineReply?> postLogReply({
+    required Report report,
+    required String logId,
+    required String message,
+    String? attachmentUrl,
+    List<String> attachmentUrls = const [],
+  }) async {
+    final endpoint = report.type == ReportType.hazard
+        ? '/hazard-reports/${report.id}/logs/$logId/replies'
+        : '/inspection-reports/${report.id}/logs/$logId/replies';
+    final response = await ApiService.post(endpoint, {
+      'message': message.trim(),
+      if (attachmentUrl != null && attachmentUrl.isNotEmpty) 'attachment_url': attachmentUrl,
+      if (attachmentUrls.isNotEmpty) 'attachment_urls': attachmentUrls,
+    });
+    if (!response.success) return null;
+    final raw = response.data['data'];
+    if (raw is! Map<String, dynamic>) return null;
+    return _mapTimelineReply(raw);
+  }
+
   static Future<List<String>> getDepartments() async {
     final response = await ApiService.get('/departments');
     if (!response.success) return const [];
@@ -636,6 +697,7 @@ class ReportService {
     final rawSubStatus = json['sub_status']?.toString();
     final photoUrls = _parseImageUrls(json);
     return ReportLogEntry(
+      id: json['id']?.toString() ?? '',
       status: _statusFromApi(rawStatus),
       subStatus: _subStatusFromApi(rawSubStatus) ??
           (rawStatus == 'rejected' ? ReportSubStatus.rejected : null),
@@ -646,6 +708,36 @@ class ReportService {
       note: json['message']?.toString(),
       photoUrl: photoUrls.isNotEmpty ? photoUrls.first : null,
       photoUrls: photoUrls,
+      replyCount: (json['reply_count'] as num?)?.toInt() ?? 0,
+      latestReplyAt: _parseDateOrNull(json['latest_reply_at']),
+    );
+  }
+
+  static TimelineReply _mapTimelineReply(Map<String, dynamic> json) {
+    final urls = <String>[];
+    final rawList = json['attachment_urls'];
+    if (rawList is List) {
+      for (final item in rawList) {
+        final normalized = normalizeStorageUrl(item?.toString());
+        if (normalized != null && normalized.isNotEmpty) {
+          urls.add(normalized);
+        }
+      }
+    }
+    final single = normalizeStorageUrl(json['attachment_url']?.toString());
+    if (urls.isEmpty && single != null && single.isNotEmpty) {
+      urls.add(single);
+    }
+    return TimelineReply(
+      id: json['id']?.toString() ?? '',
+      logId: json['report_log_id']?.toString() ?? '',
+      actor: json['user_name']?.toString().trim().isNotEmpty == true
+          ? json['user_name'].toString()
+          : 'Unknown User',
+      message: json['message']?.toString() ?? '',
+      attachmentUrl: urls.isNotEmpty ? urls.first : single,
+      attachmentUrls: urls,
+      timestamp: _parseDate(json['created_at']),
     );
   }
 
@@ -681,12 +773,6 @@ class ReportService {
     final s = raw.toString();
     if (s.isEmpty) return null;
     return DateTime.tryParse(s.replaceFirst(' ', 'T'))?.toLocal();
-  }
-
-  static String _safeImageUrl(String? raw) {
-    final normalized = normalizeStorageUrl(raw);
-    if (normalized == null || normalized.trim().isEmpty) return _placeholderImage;
-    return normalized;
   }
 
   static ReportStatus _statusFromApi(String? status) {

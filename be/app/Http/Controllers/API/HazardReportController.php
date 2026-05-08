@@ -494,6 +494,8 @@ class HazardReportController extends Controller
 
     private function canAccessReportThread(HazardReport $report, User $user): bool
     {
+        if (in_array($user->role, ['admin', 'superadmin'])) return true;
+
         if ($report->user_id === $user->id) return true;
 
         $isAssignee = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)

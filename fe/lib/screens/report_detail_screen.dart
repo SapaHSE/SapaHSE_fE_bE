@@ -1,5 +1,5 @@
 import 'dart:io' show File, Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +9,8 @@ import '../data/report_store.dart';
 import '../services/report_service.dart';
 import '../models/user_model.dart';
 import '../services/storage_service.dart';
+import '../services/supabase_storage_service.dart';
+import '../config/supabase_config.dart';
 import '../main.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
@@ -32,6 +34,91 @@ class _ClampedCurve extends Curve {
   double transform(double t) => curve.transform(t.clamp(0.0, 1.0));
 }
 
+/// Anchors the secondary scroll FAB above the BottomAppBar and lifts it
+/// together with the main (notched) FAB whenever a SnackBar appears.
+///
+/// [Scaffold.geometryOf] exposes a [ValueListenable], but its `.value` may
+/// only be read during the paint phase. We can safely *listen* (no value
+/// access) anywhere; when notified we schedule a post-frame callback to
+/// read the geometry and `setState` — that puts the read in the
+/// `postFrameCallbacks`/`idle` phase, which the assert allows.
+///
+/// When Scaffold pushes its FloatingActionButton up to make room for a
+/// SnackBar, [ScaffoldGeometry.floatingActionButtonArea.top] decreases. We
+/// mirror that delta into our `bottom` padding so the scroll FAB rises
+/// together with the main FAB.
+class _ScrollFabAnchor extends StatefulWidget {
+  final Widget child;
+  const _ScrollFabAnchor({required this.child});
+
+  @override
+  State<_ScrollFabAnchor> createState() => _ScrollFabAnchorState();
+}
+
+class _ScrollFabAnchorState extends State<_ScrollFabAnchor> {
+  // Baseline distance from the body's bottom edge — clears the BottomAppBar
+  // (~60px) plus a small gap above the notched main FAB.
+  static const double _baseBottom = 84.0;
+  // How far above the BottomAppBar's top the main FAB normally sits (notch
+  // depth). Anything beyond this is surplus lift caused by SnackBar/extras.
+  static const double _idleLift = 28.0;
+
+  ValueListenable<ScaffoldGeometry>? _geometry;
+  double _bottom = _baseBottom;
+  bool _readScheduled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = Scaffold.geometryOf(context);
+    if (_geometry != next) {
+      _geometry?.removeListener(_onGeometryChanged);
+      _geometry = next;
+      _geometry!.addListener(_onGeometryChanged);
+      _scheduleRead();
+    }
+  }
+
+  @override
+  void dispose() {
+    _geometry?.removeListener(_onGeometryChanged);
+    super.dispose();
+  }
+
+  void _onGeometryChanged() => _scheduleRead();
+
+  void _scheduleRead() {
+    if (_readScheduled) return;
+    _readScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _readScheduled = false;
+      if (!mounted || _geometry == null) return;
+      final g = _geometry!.value;
+      final fabArea = g.floatingActionButtonArea;
+      final navTop = g.bottomNavigationBarTop;
+      double newBottom = _baseBottom;
+      if (fabArea != null && navTop != null) {
+        final liftAboveNav = navTop - fabArea.top;
+        final extraLift = (liftAboveNav - _idleLift).clamp(0.0, 1000.0);
+        newBottom = _baseBottom + extraLift;
+      }
+      if ((newBottom - _bottom).abs() > 0.5) {
+        setState(() => _bottom = newBottom);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedPadding(
+      padding: EdgeInsets.only(bottom: _bottom),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      child: widget.child,
+    );
+  }
+}
+
 class ReportDetailScreen extends StatefulWidget {
   final Report report;
   final bool isDialog;
@@ -49,6 +136,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   bool _isLoading = false;
   UserModel? _currentUser;
   bool _showScrollToBottom = false;
+  bool _isScrolledToBottom = false;
   bool _showTimeline = false;
 
   final ScrollController _scrollController = ScrollController();
@@ -66,6 +154,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     _timelineFuture.whenComplete(() {
       if (mounted) setState(() {});
     });
+    _prefetchAllTimelineReplies();
     _loadUserAndRefresh();
     _updateStatusFabController = AnimationController(
       vsync: this,
@@ -84,17 +173,30 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     final maxScroll = metrics.maxScrollExtent;
     final currentScroll = metrics.pixels;
     final remaining = maxScroll - currentScroll;
-    // Show only when total scrollable area is meaningful (>300px)
-    // AND user is NOT near the bottom (>100px remaining)
-    final shouldShow = maxScroll > 300 && remaining > 100;
+    // Show whenever the page is meaningfully scrollable. The button toggles
+    // its action (down ↔ up) based on whether the user is at the bottom.
+    final shouldShow = maxScroll > 300;
     if (shouldShow != _showScrollToBottom) {
       setState(() => _showScrollToBottom = shouldShow);
+    }
+    // Track if scrolled to (or very near) the bottom.
+    final atBottom = remaining < 50;
+    if (atBottom != _isScrolledToBottom) {
+      setState(() => _isScrolledToBottom = atBottom);
     }
   }
 
   void _scrollToBottom() {
     _scrollController.animateTo(
       _scrollController.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeOutCubic,
     );
@@ -158,11 +260,32 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           _timelineFuture =
               ReportStore.instance.loadTimeline(_report.id, force: true);
         });
+        _prefetchAllTimelineReplies();
       }
     } catch (e) {
       debugPrint('Error refreshing report: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _prefetchAllTimelineReplies() async {
+    try {
+      final timeline = await _timelineFuture;
+      final logIds = timeline
+          .map((e) => e.timelineLogId)
+          .where((id) =>
+              id.isNotEmpty &&
+              !id.startsWith('implicit-') &&
+              !id.startsWith('fallback-'))
+          .toSet()
+          .toList();
+      await Future.wait(
+        logIds.map((id) => ReportStore.instance.loadReplies(_report.id, id)),
+      );
+      if (mounted) setState(() {});
+    } catch (_) {
+      // keep timeline usable even if reply prefetch fails
     }
   }
 
@@ -390,6 +513,7 @@ onDoubleTap: () => handleDoubleTap(index),
       builder: (context) => _UpdateStatusSheet(
         report: _report,
         isAdmin: _isAdmin || _isSuperadmin,
+        isSuperadmin: _isSuperadmin,
         onUpdate: (updatedReport) {
           setState(() {
             _report = updatedReport;
@@ -405,11 +529,23 @@ onDoubleTap: () => handleDoubleTap(index),
   @override
   Widget build(BuildContext context) {
     final timelineEvents = ReportStore.instance.getTimeline(_report.id);
+    final replyImages = <String>[];
+    for (final event in timelineEvents) {
+      if (event.timelineLogId.startsWith('implicit-') ||
+          event.timelineLogId.startsWith('fallback-')) {
+        continue;
+      }
+      final replies = ReportStore.instance.getReplies(event.timelineLogId);
+      for (final reply in replies) {
+        replyImages.addAll(reply.attachmentUrls);
+      }
+    }
     final List<String> images = <String>{
       ..._report.imageUrls,
       ...timelineEvents
           .where((e) => e.photoPaths.isNotEmpty)
           .expand((e) => e.photoPaths),
+      ...replyImages,
     }.toList();
     if (images.isEmpty) {
       images.add('https://placehold.co/600x400?text=No+Image');
@@ -689,7 +825,45 @@ itemBuilder: (context, index) {
                       _DetailRow(
                           icon: Icons.my_location_outlined,
                           label: 'Koordinat Pelapor',
-                          value: _report.pelaporLocation!),
+                          value: _report.pelaporLocation!,
+                            onTap: () async {
+                              final coords =
+                                  _report.pelaporLocation!.split(',');
+                              if (coords.length != 2) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Format koordinat tidak valid')),
+                                  );
+                              }
+                              return;
+                            }
+                            final lat = double.tryParse(coords[0].trim());
+                            final lng = double.tryParse(coords[1].trim());
+                            if (lat == null || lng == null) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Format koordinat tidak valid')),
+                                );
+                              }
+                              return;
+                            }
+                            final googleMapsUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+                            final appleMapsUrl = Uri.parse('apple:0,0?q=$lat,$lng');
+                            if (await canLaunchUrl(googleMapsUrl)) {
+                              await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+                            } else if (!kIsWeb && Platform.isIOS && await canLaunchUrl(appleMapsUrl)) {
+                              await launchUrl(appleMapsUrl);
+                            } else {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Tidak dapat membuka aplikasi peta')),
+                                );
+                              }
+                            }
+                          },
+                      ),
                     ],
                     if (_report.ticketNumber != null &&
                         _report.ticketNumber!.isNotEmpty) ...[
@@ -829,15 +1003,6 @@ itemBuilder: (context, index) {
                             }
                           }
                         },
-                        trailing: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEFF4FF),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.map_outlined,
-                              color: Color(0xFF1A56C4), size: 18),
-                        ),
                       ),
                     ],
                   ],
@@ -1034,19 +1199,21 @@ itemBuilder: (context, index) {
           ),
         ),
       ),
-          // ── Floating scroll-to-bottom button (kept stationary on SnackBar) ──
+          // Scroll-to-bottom / scroll-to-top FAB. Lives in the body Stack so
+          // we can position it independently of the centered/notched main FAB.
+          // We listen to Scaffold.geometryOf so the FAB rises with the main
+          // FAB whenever a SnackBar is shown (Scaffold pushes the FAB up,
+          // updating floatingActionButtonArea.top — we mirror that delta into
+          // our `bottom` offset).
           Positioned(
             right: 16,
-            // Reserve room above the Update Status FAB when it is visible,
-            // so the scroll-to-bottom button never overlaps it.
-            bottom: 84,
-            child: SafeArea(
+            bottom: 0,
+            child: _ScrollFabAnchor(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 320),
                 switchInCurve: const _ClampedCurve(Curves.easeOutBack),
                 switchOutCurve: const _ClampedCurve(Curves.easeInCubic),
                 transitionBuilder: (child, animation) {
-                  // Clamp the raw animation to [0, 1] to prevent curve assertion failures.
                   final clampedAnim = CurvedAnimation(
                     parent: animation,
                     curve: const _ClampedCurve(Curves.linear),
@@ -1058,7 +1225,8 @@ itemBuilder: (context, index) {
                     parent: animation,
                     curve: const _ClampedCurve(Curves.easeOutCubic),
                   ));
-                  final scale = Tween<double>(begin: 0.9, end: 1.0).animate(
+                  final scale =
+                      Tween<double>(begin: 0.9, end: 1.0).animate(
                     CurvedAnimation(
                       parent: animation,
                       curve: const _ClampedCurve(Curves.easeOutBack),
@@ -1074,13 +1242,23 @@ itemBuilder: (context, index) {
                 },
                 child: _showScrollToBottom
                     ? FloatingActionButton.small(
-                        key: const ValueKey('scroll_fab_visible'),
-                        onPressed: _scrollToBottom,
+                        key: ValueKey(
+                            'scroll_fab_${_isScrolledToBottom ? 'up' : 'down'}'),
+                        onPressed: _isScrolledToBottom
+                            ? _scrollToTop
+                            : _scrollToBottom,
                         backgroundColor: _blue,
                         foregroundColor: Colors.white,
                         elevation: 4,
-                        child: const Icon(Icons.keyboard_double_arrow_down,
-                            size: 22),
+                        tooltip: _isScrolledToBottom
+                            ? 'Gulir ke atas'
+                            : 'Gulir ke bawah',
+                        child: Icon(
+                          _isScrolledToBottom
+                              ? Icons.keyboard_double_arrow_up
+                              : Icons.keyboard_double_arrow_down,
+                          size: 22,
+                        ),
                       )
                     : const SizedBox.shrink(
                         key: ValueKey('scroll_fab_hidden')),
@@ -1151,8 +1329,9 @@ itemBuilder: (context, index) {
         final isVeryLast = status == _report.status && isLastInGroup;
 
         result.add(
-          _TimelineItem(
-            event: event,
+            _TimelineItem(
+            reportId: _report.id,
+             event: event,
             isLast: isLastInGroup,
             isCurrent: isVeryLast,
             statusColor: statusColor,
@@ -1285,6 +1464,7 @@ itemBuilder: (context, index) {
 
 // ── Timeline item ─────────────────────────────────────────────────────────────
 class _TimelineItem extends StatelessWidget {
+  final String reportId;
   final TimelineEvent event;
   final bool isLast;
   final bool isCurrent;
@@ -1294,6 +1474,7 @@ class _TimelineItem extends StatelessWidget {
   final String Function(DateTime) formatShort;
 
   const _TimelineItem({
+    required this.reportId,
     required this.event,
     required this.isLast,
     required this.isCurrent,
@@ -1430,6 +1611,177 @@ class _TimelineItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canReply = !event.timelineLogId.startsWith('implicit-') &&
+        !event.timelineLogId.startsWith('fallback-') &&
+        event.timelineLogId.isNotEmpty;
+
+    return _TimelineThreadCard(
+      reportId: reportId,
+      canReply: canReply,
+      event: event,
+      isLast: isLast,
+      isCurrent: isCurrent,
+      statusColor: statusColor,
+      statusIcon: statusIcon,
+      formatDate: formatDate,
+      openTimelinePreview: _openTimelinePreview,
+    );
+  }
+}
+
+class _TimelineThreadCard extends StatefulWidget {
+  final String reportId;
+  final bool canReply;
+  final TimelineEvent event;
+  final bool isLast;
+  final bool isCurrent;
+  final Color statusColor;
+  final IconData statusIcon;
+  final String Function(DateTime) formatDate;
+  final Future<void> Function(BuildContext, List<String>, int) openTimelinePreview;
+
+  const _TimelineThreadCard({
+    required this.reportId,
+    required this.canReply,
+    required this.event,
+    required this.isLast,
+    required this.isCurrent,
+    required this.statusColor,
+    required this.statusIcon,
+    required this.formatDate,
+    required this.openTimelinePreview,
+  });
+
+  @override
+  State<_TimelineThreadCard> createState() => _TimelineThreadCardState();
+}
+
+class _TimelineThreadCardState extends State<_TimelineThreadCard> {
+  final TextEditingController _replyCtrl = TextEditingController();
+  final FocusNode _replyFocus = FocusNode();
+  final List<XFile> _replyAttachments = [];
+  bool _expanded = false;
+  bool _showComposer = false;
+  bool _loadingReplies = false;
+  bool _posting = false;
+  List<TimelineReply> _replies = const [];
+
+  @override
+  void dispose() {
+    _replyCtrl.dispose();
+    _replyFocus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadReplies({bool force = false}) async {
+    if (!widget.canReply) return;
+    setState(() => _loadingReplies = true);
+    final replies = await ReportStore.instance.loadReplies(
+      widget.reportId,
+      widget.event.timelineLogId,
+      force: force,
+    );
+    if (!mounted) return;
+    setState(() {
+      _replies = replies;
+      _loadingReplies = false;
+    });
+  }
+
+  Future<void> _submitReply() async {
+    final text = _replyCtrl.text.trim();
+    if (text.isEmpty || _posting) return;
+    setState(() => _posting = true);
+    try {
+      String? attachmentUrl;
+      final attachmentUrls = <String>[];
+      for (final file in _replyAttachments) {
+        final uploaded = await SupabaseStorageService.uploadImage(
+          imagePath: file.path,
+          folder: SupabaseConfig.reportLogsFolder,
+        );
+        if (uploaded == null || uploaded.isEmpty) {
+          throw Exception('upload_failed');
+        }
+        attachmentUrls.add(uploaded);
+      }
+      if (attachmentUrls.isNotEmpty) attachmentUrl = attachmentUrls.first;
+      await ReportStore.instance.postReply(
+        widget.reportId,
+        widget.event.timelineLogId,
+        text,
+        attachmentUrl: attachmentUrl,
+        attachmentUrls: attachmentUrls,
+      );
+      _replyCtrl.clear();
+      _replyAttachments.clear();
+      await _loadReplies(force: true);
+      if (!mounted) return;
+      setState(() {
+        _expanded = true;
+        _showComposer = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal mengirim balasan.')),
+      );
+    } finally {
+      if (mounted) setState(() => _posting = false);
+    }
+  }
+
+  Future<void> _pickReplyAttachment() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Pilih dari galeri'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text('Ambil dari kamera'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+    if (source == ImageSource.gallery) {
+      final picked = await ImagePicker().pickMultiImage(
+        imageQuality: 82,
+        maxWidth: 1600,
+      );
+      if (!mounted || picked.isEmpty) return;
+      setState(() {
+        _replyAttachments.addAll(picked);
+      });
+      return;
+    }
+
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      imageQuality: 82,
+      maxWidth: 1600,
+    );
+    if (!mounted || picked == null) return;
+    setState(() => _replyAttachments.add(picked));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasThreadActivity =
+        widget.event.replyCount > 0 || _replies.isNotEmpty || _showComposer;
+    final shouldShowMainTimelineLine =
+        !widget.isLast || hasThreadActivity || widget.canReply;
+    final threadLineColor = Colors.blueGrey.shade100;
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1444,25 +1796,25 @@ class _TimelineItem extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: isCurrent
-                        ? statusColor
-                        : statusColor.withValues(alpha: 0.12),
+                    color: widget.isCurrent
+                        ? widget.statusColor
+                        : widget.statusColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: statusColor, width: isCurrent ? 2.5 : 1.5),
-                    boxShadow: isCurrent
+                        color: widget.statusColor, width: widget.isCurrent ? 2.5 : 1.5),
+                    boxShadow: widget.isCurrent
                         ? [
                             BoxShadow(
-                                color: statusColor.withValues(alpha: 0.3),
+                                color: widget.statusColor.withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 spreadRadius: 1)
                           ]
                         : null,
                   ),
-                  child: Icon(statusIcon,
-                      size: 16, color: isCurrent ? Colors.white : statusColor),
+                  child: Icon(widget.statusIcon,
+                      size: 16, color: widget.isCurrent ? Colors.white : widget.statusColor),
                 ),
-                if (!isLast)
+                if (shouldShowMainTimelineLine)
                   Expanded(
                     child: Container(
                       width: 2,
@@ -1482,32 +1834,71 @@ class _TimelineItem extends StatelessWidget {
            // ── Right column: content ────────────────────────────────────
            Expanded(
              child: Padding(
-               padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
-               child: Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 children: [
-                   // Sub-status label + "TERKINI" badge
-                   Row(children: [
-                     Container(
-                       padding: const EdgeInsets.symmetric(
-                           horizontal: 10, vertical: 4),
-                       decoration: BoxDecoration(
-                         color: isCurrent
-                             ? statusColor
-                             : statusColor.withValues(alpha: 0.1),
-                         borderRadius: BorderRadius.circular(20),
-                       ),
-                       child: Text(
-                         event.subStatus?.label ?? event.status.label,
-                         style: TextStyle(
-                           fontSize: 12,
-                           fontWeight: FontWeight.bold,
-                           color: isCurrent ? Colors.white : statusColor,
-                         ),
-                         overflow: TextOverflow.ellipsis,
-                       ),
-                     ),
-                     if (isCurrent) ...[
+                padding: EdgeInsets.only(bottom: widget.isLast ? 0 : 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Sub-status label + "TERKINI" badge
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                           color: widget.isCurrent
+                               ? widget.statusColor
+                               : widget.statusColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: Icon(
+                                widget.statusIcon,
+                                size: 12,
+                                color: widget.isCurrent
+                                    ? Colors.white
+                                    : widget.statusColor,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              widget.event.subStatus?.label ??
+                                  widget.event.status.label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                height: 1.05,
+                                color: widget.isCurrent
+                                    ? Colors.white
+                                    : widget.statusColor,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                       const Spacer(),
+                       if (widget.canReply)
+                         TextButton(
+                           onPressed: () async {
+                            if (_replies.isEmpty) await _loadReplies(force: true);
+                             if (!mounted) return;
+                             setState(() => _showComposer = !_showComposer);
+                            if (_showComposer) {
+                              Future.delayed(const Duration(milliseconds: 50), () {
+                                if (mounted) _replyFocus.requestFocus();
+                              });
+                            }
+                          },
+                          child: const Text('Balas'),
+                        ),
+                      if (widget.isCurrent) ...[
                        const SizedBox(width: 8),
                        Container(
                          padding: const EdgeInsets.symmetric(
@@ -1526,8 +1917,8 @@ class _TimelineItem extends StatelessWidget {
                                  color: Color(0xFF1A56C4),
                                  letterSpacing: 0.5)),
                        ),
-                     ],
-                   ]),
+                      ],
+                    ]),
                    const SizedBox(height: 6),
 
                   // Actor + timestamp
@@ -1537,7 +1928,7 @@ class _TimelineItem extends StatelessWidget {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        event.actor,
+                         widget.event.actor,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -1549,8 +1940,8 @@ class _TimelineItem extends StatelessWidget {
                     const SizedBox(width: 8),
                     const Icon(Icons.access_time, size: 12, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(formatDate(event.timestamp),
+                     Flexible(
+                       child: Text(widget.formatDate(widget.event.timestamp),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -1559,7 +1950,7 @@ class _TimelineItem extends StatelessWidget {
                   ]),
 
                   // Note
-                  if (event.note != null) ...[
+                   if (widget.event.note != null) ...[
                     const SizedBox(height: 6),
                     Container(
                       width: double.infinity,
@@ -1570,7 +1961,7 @@ class _TimelineItem extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey.shade200),
                       ),
-                      child: Text(event.note!,
+                       child: Text(widget.event.note!,
                           style: const TextStyle(
                               fontSize: 12,
                               color: Colors.black54,
@@ -1579,19 +1970,19 @@ class _TimelineItem extends StatelessWidget {
                   ],
 
                   // Photos (multi image_urls with legacy fallback to single photoPath)
-                  if (event.photoPaths.isNotEmpty) ...[
+                   if (widget.event.photoPaths.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     SizedBox(
                       height: 140,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        itemCount: event.photoPaths.length,
+                         itemCount: widget.event.photoPaths.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
                         itemBuilder: (_, idx) {
-                          final imageUrl = event.photoPaths[idx];
+                           final imageUrl = widget.event.photoPaths[idx];
                           return GestureDetector(
-                            onTap: () async => _openTimelinePreview(
-                                context, event.photoPaths, idx),
+                             onTap: () async => widget.openTimelinePreview(
+                                 context, widget.event.photoPaths, idx),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: CachedNetworkImage(
@@ -1619,7 +2010,303 @@ class _TimelineItem extends StatelessWidget {
                         },
                       ),
                     ),
-                  ],
+                   ],
+                    if (widget.canReply && (widget.event.replyCount > 0 || _replies.isNotEmpty)) ...[
+                     const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () async {
+                          if (_replies.isEmpty) await _loadReplies(force: true);
+                          if (!context.mounted) return;
+                          if (_replies.isEmpty && widget.event.replyCount > 0) {
+                            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                              const SnackBar(
+                                content: Text('Balasan tidak bisa dimuat. Coba refresh atau periksa akses akun.'),
+                              ),
+                            );
+                          }
+                          setState(() => _expanded = !_expanded);
+                        },
+                       child: Text(
+                         _expanded
+                             ? 'Sembunyikan balasan'
+                             : 'Lihat ${_replies.isEmpty ? widget.event.replyCount : _replies.length} balasan',
+                         style: const TextStyle(
+                           color: Color(0xFF1A56C4),
+                           fontSize: 12,
+                           fontWeight: FontWeight.w600,
+                         ),
+                       ),
+                     ),
+                   ],
+                   if (_loadingReplies)
+                     const Padding(
+                       padding: EdgeInsets.only(top: 8),
+                       child: SizedBox(
+                         width: 16,
+                         height: 16,
+                         child: CircularProgressIndicator(strokeWidth: 2),
+                       ),
+                     ),
+                   AnimatedSize(
+                     duration: const Duration(milliseconds: 220),
+                     curve: Curves.easeOut,
+                      child: _expanded && _replies.isNotEmpty
+                          ? Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              child: Column(
+                                children: _replies.asMap().entries.map((entry) {
+                                  final idx = entry.key;
+                                  final reply = entry.value;
+                                  final isLastReply = idx == _replies.length - 1;
+                                  return Container(
+                                    margin: EdgeInsets.only(
+                                      bottom: isLastReply ? 0 : 6,
+                                    ),
+                                    child: IntrinsicHeight(
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          SizedBox(
+                                            width: 22,
+                                            child: Column(
+                                              children: [
+                                                Container(
+                                                  margin: const EdgeInsets.only(left: 10),
+                                                  width: 1.4,
+                                                  height: 10,
+                                                  color: threadLineColor,
+                                                ),
+                                                Row(
+                                                  children: [
+                                                    const SizedBox(width: 10),
+                                                    Container(
+                                                      width: 12,
+                                                      height: 1.4,
+                                                      color: threadLineColor,
+                                                    ),
+                                                  ],
+                                                ),
+                                                Expanded(
+                                                  child: Align(
+                                                    alignment: Alignment.topLeft,
+                                                    child: Container(
+                                                      margin: const EdgeInsets.only(left: 10),
+                                                      width: 1.4,
+                                                      color: isLastReply
+                                                          ? Colors.transparent
+                                                          : threadLineColor,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF7FAFF),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Row(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  CircleAvatar(
+                                                    radius: 12,
+                                                    backgroundColor: const Color(0xFFE3ECFF),
+                                                    child: Text(
+                                                      reply.actor.isNotEmpty
+                                                          ? reply.actor[0].toUpperCase()
+                                                          : '?',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        color: Color(0xFF1A56C4),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment.start,
+                                                      children: [
+                                                        Text(reply.actor,
+                                                            style: const TextStyle(
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight.w600)),
+                                                        Text(
+                                                          widget.formatDate(
+                                                              reply.timestamp),
+                                                          style: const TextStyle(
+                                                              fontSize: 10,
+                                                              color: Colors.grey),
+                                                        ),
+                                                        const SizedBox(height: 2),
+                                                        Text(reply.message,
+                                                            style: const TextStyle(
+                                                                fontSize: 12)),
+                                                        if (reply
+                                                            .attachmentUrls
+                                                            .isNotEmpty) ...[
+                                                          const SizedBox(height: 6),
+                                                          SizedBox(
+                                                            height: 90,
+                                                            child:
+                                                                ListView.separated(
+                                                              scrollDirection:
+                                                                  Axis.horizontal,
+                                                              itemCount: reply
+                                                                  .attachmentUrls
+                                                                  .length,
+                                                              separatorBuilder:
+                                                                  (_, __) =>
+                                                                      const SizedBox(
+                                                                          width:
+                                                                              6),
+                                                              itemBuilder:
+                                                                  (_, imgIdx) {
+                                                                final url = reply
+                                                                        .attachmentUrls[
+                                                                    imgIdx];
+                                                                return GestureDetector(
+                                                                  onTap: () async =>
+                                                                      widget
+                                                                          .openTimelinePreview(
+                                                                    context,
+                                                                    reply
+                                                                        .attachmentUrls,
+                                                                    imgIdx,
+                                                                  ),
+                                                                  child: ClipRRect(
+                                                                    borderRadius:
+                                                                        BorderRadius
+                                                                            .circular(
+                                                                                6),
+                                                                    child:
+                                                                        CachedNetworkImage(
+                                                                      imageUrl: url,
+                                                                      height: 90,
+                                                                      width: 90,
+                                                                      fit: BoxFit
+                                                                          .cover,
+                                                                      placeholder:
+                                                                          (_, __) =>
+                                                                              Container(
+                                                                        height: 90,
+                                                                        width: 90,
+                                                                        color: Colors
+                                                                            .grey
+                                                                            .shade200,
+                                                                      ),
+                                                                      errorWidget:
+                                                                          (_, __,
+                                                                                  ___) =>
+                                                                              Container(
+                                                                        height: 90,
+                                                                        width: 90,
+                                                                        color: Colors
+                                                                            .grey
+                                                                            .shade200,
+                                                                        child: const Icon(
+                                                                            Icons
+                                                                                .broken_image,
+                                                                            size:
+                                                                                20),
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                );
+                                                              },
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                   if (widget.canReply && _showComposer) ...[
+                     const SizedBox(height: 8),
+                     if (_replyAttachments.isNotEmpty)
+                       Container(
+                         margin: const EdgeInsets.only(bottom: 8),
+                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                         decoration: BoxDecoration(
+                           color: const Color(0xFFF7FAFF),
+                           borderRadius: BorderRadius.circular(8),
+                           border: Border.all(color: Colors.blueGrey.shade100),
+                         ),
+                         child: Row(
+                           children: [
+                             ClipRRect(
+                               borderRadius: BorderRadius.circular(6),
+                               child: kIsWeb
+                                   ? const Icon(Icons.photo_library, size: 36)
+                                   : Image.file(
+                                       File(_replyAttachments.first.path),
+                                       width: 36,
+                                       height: 36,
+                                       fit: BoxFit.cover,
+                                     ),
+                             ),
+                             const SizedBox(width: 8),
+                             Expanded(
+                               child: Text(
+                                 '${_replyAttachments.length} lampiran siap dikirim',
+                                 style: const TextStyle(fontSize: 12),
+                               ),
+                             ),
+                             IconButton(
+                               onPressed: () => setState(() => _replyAttachments.clear()),
+                               icon: const Icon(Icons.close, size: 18),
+                             ),
+                           ],
+                         ),
+                       ),
+                     Row(
+                       children: [
+                         Expanded(
+                           child: TextField(
+                             controller: _replyCtrl,
+                             focusNode: _replyFocus,
+                             minLines: 1,
+                             maxLines: 3,
+                             decoration: InputDecoration(
+                               hintText: 'Tulis balasan...',
+                               isDense: true,
+                               border: OutlineInputBorder(
+                                 borderRadius: BorderRadius.circular(8),
+                               ),
+                             ),
+                           ),
+                         ),
+                         IconButton(
+                           onPressed: _posting ? null : _pickReplyAttachment,
+                           icon: const Icon(Icons.attach_file),
+                           tooltip: 'Lampirkan gambar',
+                         ),
+                         IconButton(
+                           onPressed: _posting ? null : _submitReply,
+                           icon: _posting
+                               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                               : const Icon(Icons.send, color: Color(0xFF1A56C4)),
+                         ),
+                       ],
+                     ),
+                   ],
                 ],
               ),
             ),
@@ -1667,14 +2354,12 @@ class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final Widget? trailing;
   final VoidCallback? onTap;
 
   const _DetailRow({
     required this.icon,
     required this.label,
     required this.value,
-    this.trailing,
     this.onTap,
   });
 
@@ -1701,9 +2386,9 @@ class _DetailRow extends StatelessWidget {
             ],
           ),
         ),
-        if (trailing != null) ...[
+        if (onTap != null) ...[
           const SizedBox(width: 8),
-          trailing!,
+          const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
         ],
       ],
     );
@@ -1730,11 +2415,13 @@ class _DetailRow extends StatelessWidget {
 class _UpdateStatusSheet extends StatefulWidget {
   final Report report;
   final bool isAdmin;
+  final bool isSuperadmin;
   final Function(Report) onUpdate;
 
   const _UpdateStatusSheet({
     required this.report,
     required this.isAdmin,
+    required this.isSuperadmin,
     required this.onUpdate,
   });
 
@@ -1760,18 +2447,79 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   final _purple = const Color(0xFF9C27B0);
   final _grey = const Color(0xFF757575);
 
+  // Linear flow: must mirror BackfillsReportLogs::LINEAR_FLOW on the backend.
+  static const List<ReportSubStatus> _linearFlow = [
+    ReportSubStatus.validating,
+    ReportSubStatus.approved,
+    ReportSubStatus.assigned,
+    ReportSubStatus.preparing,
+    ReportSubStatus.executing,
+    ReportSubStatus.reviewing,
+    ReportSubStatus.resolved,
+  ];
+
+  // Sub-statuses that may be skipped over (auto-backfilled to the log).
+  // Stages NOT listed here are mandatory checkpoints. Must mirror
+  // BackfillsReportLogs::SKIPPABLE_SUB_STATUSES on the backend.
+  static const Set<ReportSubStatus> _skippableSubStatuses = {
+    ReportSubStatus.preparing,
+  };
+
+  /// Highest LINEAR_FLOW index already reached. Returns -1 if the report's
+  /// current sub-status is null or terminal (rejected/deferred).
+  int get _currentLinearIndex {
+    final sub = widget.report.subStatus;
+    if (sub == null) return -1;
+    return _linearFlow.indexOf(sub);
+  }
+
+  /// Linear progression rule. Backward is always blocked.
+  /// Forward skipping is allowed only when EVERY skipped intermediate stage
+  /// is in [_skippableSubStatuses] — currently only `preparing`. Mandatory
+  /// checkpoints (`executing`, `reviewing`, etc.) must be reached explicitly.
+  /// Skipped stages are auto-logged on the backend via
+  /// backfillSkippedSubStatusLogs.
+  /// Terminal exits (rejected/deferred) are always allowed when the report
+  /// is not yet closed (parent screen guards via _canShowUpdateButton).
+  /// Superadmin bypasses everything.
+  bool _isTransitionAllowed(ReportSubStatus target) {
+    if (widget.isSuperadmin) return true;
+    if (target == ReportSubStatus.rejected ||
+        target == ReportSubStatus.deferred) {
+      return true;
+    }
+    final ti = _linearFlow.indexOf(target);
+    if (ti == -1) return false;
+    final cur = _currentLinearIndex;
+    if (ti < cur) return false; // backward blocked
+    if (ti == cur || ti == cur + 1) return true; // stay or advance one step
+    // Forward skip: every intermediate stage must be skippable.
+    for (var i = cur + 1; i < ti; i++) {
+      if (!_skippableSubStatuses.contains(_linearFlow[i])) return false;
+    }
+    return true;
+  }
+
   bool _canSelectMainStatus(ReportStatus status) {
-    if (widget.isAdmin) return true;
-    return status == ReportStatus.open || status == ReportStatus.inProgress;
+    // Existing role gate.
+    if (!widget.isAdmin &&
+        status != ReportStatus.open &&
+        status != ReportStatus.inProgress) {
+      return false;
+    }
+    if (widget.isSuperadmin) return true;
+    return ReportSubStatusInfo.forStatus(status).any(_isTransitionAllowed);
   }
 
   List<ReportSubStatus> _allowedSubStatusesFor(ReportStatus status) {
     final all = ReportSubStatusInfo.forStatus(status);
-    if (widget.isAdmin) return all;
-    if (status == ReportStatus.open) {
-      return all.where((s) => s == ReportSubStatus.assigned).toList();
-    }
-    return all;
+    final roleGated = widget.isAdmin
+        ? all
+        : (status == ReportStatus.open
+            ? all.where((s) => s == ReportSubStatus.assigned).toList()
+            : all);
+    if (widget.isSuperadmin) return roleGated;
+    return roleGated.where(_isTransitionAllowed).toList();
   }
 
   void _syncSelectedSubStatus() {
@@ -1802,7 +2550,14 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     super.initState();
     _selectedStatus = widget.report.status;
     if (!_canSelectMainStatus(_selectedStatus)) {
-      _selectedStatus = ReportStatus.inProgress;
+      _selectedStatus = const [
+        ReportStatus.open,
+        ReportStatus.inProgress,
+        ReportStatus.closed,
+      ].firstWhere(
+        _canSelectMainStatus,
+        orElse: () => ReportStatus.inProgress,
+      );
     }
     _selectedSub = widget.report.subStatus;
     _syncSelectedSubStatus();
@@ -2258,9 +3013,13 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
+        final raw = e.toString();
+        final cleaned = raw.startsWith('Exception: ')
+            ? raw.substring('Exception: '.length)
+            : raw;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memperbarui status: $e'),
+            content: Text('Gagal memperbarui status: $cleaned'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),

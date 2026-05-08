@@ -463,6 +463,8 @@ class InspectionReportController extends Controller
 
     private function canAccessReportThread(InspectionReport $report, User $user): bool
     {
+        if (in_array($user->role, ['admin', 'superadmin'])) return true;
+
         if ($report->user_id === $user->id) return true;
 
         $isAssignee = ($report->name_inspector && stripos($report->name_inspector, $user->full_name) !== false)
