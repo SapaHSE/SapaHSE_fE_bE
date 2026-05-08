@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ReportLog extends Model
@@ -41,5 +42,10 @@ class ReportLog extends Model
     public function taggedUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'tagged_user_id');
+    }
+
+    public function replies(): HasMany
+    {
+        return $this->hasMany(ReportLogReply::class);
     }
 }

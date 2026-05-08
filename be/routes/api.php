@@ -76,6 +76,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/hazard-reports',             [HazardReportController::class, 'store']);
     Route::get('/hazard-reports/{id}',         [HazardReportController::class, 'show']);
     Route::get('/hazard-reports/{id}/logs',    [HazardReportController::class, 'logs']);
+    Route::get('/hazard-reports/{id}/logs/{logId}/replies', [HazardReportController::class, 'logReplies']);
+    Route::post('/hazard-reports/{id}/logs/{logId}/replies', [HazardReportController::class, 'createLogReply']);
     Route::delete('/hazard-reports/{id}',      [HazardReportController::class, 'destroy']);
     Route::post('/hazard-reports/{id}/status', [HazardReportController::class, 'updateStatus']);
 
@@ -127,6 +129,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/inspection-reports',             [InspectionReportController::class, 'store']);
     Route::get('/inspection-reports/{id}',         [InspectionReportController::class, 'show']);
     Route::get('/inspection-reports/{id}/logs',    [InspectionReportController::class, 'logs']);
+    Route::get('/inspection-reports/{id}/logs/{logId}/replies', [InspectionReportController::class, 'logReplies']);
+    Route::post('/inspection-reports/{id}/logs/{logId}/replies', [InspectionReportController::class, 'createLogReply']);
     Route::delete('/inspection-reports/{id}',      [InspectionReportController::class, 'destroy']);
     Route::post('/inspection-reports/{id}/status', [InspectionReportController::class, 'updateStatus']);
 

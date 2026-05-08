@@ -8,6 +8,7 @@ use App\Models\ChecklistItem;
 use App\Models\InspectionReport;
 use App\Models\ReadStatus;
 use App\Models\ReportLog;
+use App\Models\ReportLogReply;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -342,7 +343,11 @@ class InspectionReportController extends Controller
     public function logs(string $id)
     {
         $report = InspectionReport::findOrFail($id);
-        $logs = $report->logs()->with(['user', 'taggedUser'])->get();
+        $logs = $report->logs()
+            ->with(['user', 'taggedUser'])
+            ->withCount('replies')
+            ->withMax('replies', 'created_at')
+            ->get();
         $assignmentName = collect([
             $report->reported_department,
             $report->name_inspector,
@@ -370,11 +375,92 @@ class InspectionReportController extends Controller
                     'image_urls'  => $logImageUrls,
                     'user_name'   => $userName,
                     'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
+                    'reply_count' => (int) ($log->replies_count ?? 0),
+                    'latest_reply_at' => $log->replies_max_created_at
+                        ? now()->parse((string) $log->replies_max_created_at)->format('Y-m-d H:i:s')
+                        : null,
                     'created_at'  => $log->created_at->format('Y-m-d H:i:s'),
                     'date_human'  => $log->created_at->format('d M Y, H:i'),
                 ];
             })
         ]);
+    }
+
+    public function logReplies(string $id, string $logId)
+    {
+        $report = InspectionReport::findOrFail($id);
+        if (!$this->canAccessReportThread($report, Auth::user())) {
+            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        }
+
+        $log = $report->logs()->whereKey($logId)->firstOrFail();
+        $replies = $log->replies()->with('user')->orderBy('created_at')->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $replies->map(fn($reply) => [
+                'id' => $reply->id,
+                'report_log_id' => $reply->report_log_id,
+                'user_name' => $reply->user->full_name ?? 'Unknown User',
+                'message' => $reply->message,
+                'attachment_url' => $reply->attachment_url,
+                'created_at' => $reply->created_at->format('Y-m-d H:i:s'),
+                'date_human' => $reply->created_at->format('d M Y, H:i'),
+            ]),
+        ]);
+    }
+
+    public function createLogReply(Request $request, string $id, string $logId)
+    {
+        $request->validate([
+            'message' => 'required|string|max:2000',
+            'attachment_url' => 'nullable|url|max:500',
+        ]);
+
+        $report = InspectionReport::findOrFail($id);
+        $user = Auth::user();
+        if (!$this->canAccessReportThread($report, $user)) {
+            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        }
+
+        $log = $report->logs()->whereKey($logId)->firstOrFail();
+        $reply = ReportLogReply::create([
+            'report_log_id' => $log->id,
+            'user_id' => $user->id,
+            'message' => trim((string) $request->message),
+            'attachment_url' => $request->attachment_url,
+        ]);
+        $reply->load('user');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Balasan berhasil dikirim.',
+            'data' => [
+                'id' => $reply->id,
+                'report_log_id' => $reply->report_log_id,
+                'user_name' => $reply->user->full_name ?? 'Unknown User',
+                'message' => $reply->message,
+                'attachment_url' => $reply->attachment_url,
+                'created_at' => $reply->created_at->format('Y-m-d H:i:s'),
+                'date_human' => $reply->created_at->format('d M Y, H:i'),
+            ],
+        ], 201);
+    }
+
+    private function canAccessReportThread(InspectionReport $report, User $user): bool
+    {
+        if ($report->user_id === $user->id) return true;
+
+        $isAssignee = ($report->name_inspector && stripos($report->name_inspector, $user->full_name) !== false)
+            || (!empty($user->department) && $report->reported_department
+                && stripos($report->reported_department, $user->department) !== false);
+        if ($isAssignee) return true;
+
+        return ReportLog::query()
+            ->where('reportable_type', InspectionReport::class)
+            ->where('reportable_id', $report->id)
+            ->where('user_id', $user->id)
+            ->exists();
     }
 
     private function buildAssignmentTagMessage(InspectionReport $report, Request $request): ?string
