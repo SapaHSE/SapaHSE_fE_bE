@@ -444,7 +444,7 @@ class InspectionReportController extends Controller
             if (!$parent || $parent->report_log_id !== $log->id || $parent->parent_reply_id !== null) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Tidak bisa membalas balasan bertingkat.',
+                    'message' => 'Balasan hanya bisa dikirim ke balasan utama pada thread ini.',
                 ], 422);
             }
         }
