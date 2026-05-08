@@ -79,16 +79,19 @@ trait BackfillsReportLogs
      *  - going back to 'pending' once the report has progressed is rejected.
      *  - forward skipping is allowed only when EVERY skipped intermediate
      *    sub-status is listed in SKIPPABLE_SUB_STATUSES (currently only
-     *    'preparing'). The skipped stages are auto-logged via
-     *    backfillSkippedSubStatusLogs. Any mandatory checkpoint
-     *    ('executing', 'reviewing', etc.) must be reached explicitly.
+     *    'preparing'), except for the admin-only validating -> assigned
+     *    transition which may skip 'approved'. The skipped stages are
+     *    auto-logged via backfillSkippedSubStatusLogs. Any other mandatory
+     *    checkpoint ('executing', 'reviewing', etc.) must be reached
+     *    explicitly.
      *
      * Caller is responsible for bypassing this check for superadmin.
      */
     protected function assertLinearProgression(
         Model $report,
         ?string $newStatus,
-        ?string $newSubStatus
+        ?string $newSubStatus,
+        bool $allowAssignedFromValidating = false
     ): ?string {
         // Closed reports are final.
         if ($report->status === 'closed') {
@@ -119,6 +122,8 @@ trait BackfillsReportLogs
         }
 
         $lastReachedIndex = $this->currentLinearIndex($report);
+        $validatingIndex = array_search('validating', self::LINEAR_FLOW, true);
+        $assignedIndex = array_search('assigned', self::LINEAR_FLOW, true);
 
         if ($targetIndex < $lastReachedIndex) {
             return 'Status tidak bisa dimundurkan. Timeline harus linear.';
@@ -127,6 +132,14 @@ trait BackfillsReportLogs
         // Forward skip: every intermediate stage must be skippable.
         for ($i = $lastReachedIndex + 1; $i < $targetIndex; $i++) {
             $stage = self::LINEAR_FLOW[$i];
+            if (
+                $allowAssignedFromValidating
+                && $lastReachedIndex === $validatingIndex
+                && $targetIndex === $assignedIndex
+                && $stage === 'approved'
+            ) {
+                continue;
+            }
             if (!in_array($stage, self::SKIPPABLE_SUB_STATUSES, true)) {
                 return 'Status harus melalui tahap ' . ucfirst($stage)
                     . ' terlebih dahulu.';

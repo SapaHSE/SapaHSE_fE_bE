@@ -299,7 +299,8 @@ class InspectionReportController extends Controller
             $progressionError = $this->assertLinearProgression(
                 $report,
                 $normalizedStatus,
-                $normalizedSubStatus
+                $normalizedSubStatus,
+                $isAdmin
             );
             if ($progressionError !== null) {
                 return response()->json([
