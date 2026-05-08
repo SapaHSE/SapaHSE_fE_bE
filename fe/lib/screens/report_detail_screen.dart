@@ -256,8 +256,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     return '$dateStr — $span lagi';
   }
 
-  void _showImagePreview(
-      BuildContext context, List<String> images, int initialIndex) {
+  Future<void> _showImagePreview(
+      BuildContext context, List<String> images, int initialIndex) async {
+    await precacheImage(
+      CachedNetworkImageProvider(images[initialIndex]),
+      context,
+    );
+    if (!context.mounted) return;
     final previewController = PageController(initialPage: initialIndex);
     final Map<int, TransformationController> controllers = {};
     final Map<int, VoidCallback> listeners = {};
@@ -350,17 +355,12 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                       child: GestureDetector(
                         onDoubleTapDown: (details) =>
                             doubleTapPosition = details.localPosition,
-                        onDoubleTap: () => handleDoubleTap(index),
+onDoubleTap: () => handleDoubleTap(index),
                         child: InteractiveViewer(
                           minScale: 1.0,
                           maxScale: 4.0,
                           transformationController: controllerFor(index),
-                          child: index == 0
-                              ? Hero(
-                                  tag: 'report_image_${_report.id}',
-                                  child: image,
-                                )
-                              : image,
+                          child: image,
                         ),
                       ),
                     );
@@ -405,15 +405,18 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   @override
   Widget build(BuildContext context) {
     final timelineEvents = ReportStore.instance.getTimeline(_report.id);
-    final List<String> images = [
+    final List<String> images = <String>{
       ..._report.imageUrls,
       ...timelineEvents
           .where((e) => e.photoPaths.isNotEmpty)
           .expand((e) => e.photoPaths),
-    ];
+    }.toList();
     if (images.isEmpty) {
       images.add('https://placehold.co/600x400?text=No+Image');
     }
+    final int safeIndex = images.isEmpty
+        ? 0
+        : _currentImageIndex.clamp(0, images.length - 1);
 
     return Scaffold(
       backgroundColor: widget.isDialog ? Colors.white : const Color(0xFFF0F0F0),
@@ -511,47 +514,27 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     onPageChanged: (idx) =>
                         setState(() => _currentImageIndex = idx),
                     itemCount: images.length,
-                    itemBuilder: (context, index) {
+itemBuilder: (context, index) {
                       final imgUrl = images[index];
                       return GestureDetector(
-                        onTap: () =>
+                        onTap: () async =>
                             _showImagePreview(context, images, index),
-                        child: index == 0
-                            ? Hero(
-                                tag: 'report_image_${_report.id}',
-                                child: CachedNetworkImage(
-                                  imageUrl: imgUrl,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, __) => Container(
-                                    color: const Color(0xFF37474F),
-                                    child: const Center(
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white38,
-                                            strokeWidth: 2)),
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: const Color(0xFF37474F),
-                                    child: const Icon(Icons.image,
-                                        color: Colors.white24, size: 80),
-                                  ),
-                                ),
-                              )
-                            : CachedNetworkImage(
-                                imageUrl: imgUrl,
-                                fit: BoxFit.cover,
-                                placeholder: (_, __) => Container(
-                                  color: const Color(0xFF37474F),
-                                  child: const Center(
-                                      child: CircularProgressIndicator(
-                                          color: Colors.white38,
-                                          strokeWidth: 2)),
-                                ),
-                                errorWidget: (_, __, ___) => Container(
-                                  color: const Color(0xFF37474F),
-                                  child: const Icon(Icons.image,
-                                      color: Colors.white24, size: 80),
-                                ),
-                              ),
+                        child: CachedNetworkImage(
+                          imageUrl: imgUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: const Color(0xFF37474F),
+                            child: const Center(
+                                child: CircularProgressIndicator(
+                                    color: Colors.white38,
+                                    strokeWidth: 2)),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: const Color(0xFF37474F),
+                            child: const Icon(Icons.image,
+                                color: Colors.white24, size: 80),
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -595,7 +578,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                             color: Colors.black45,
                             borderRadius: BorderRadius.circular(12)),
                         child: Text(
-                            '${_currentImageIndex + 1}/${images.length}',
+                            '${safeIndex + 1}/${images.length}',
                             style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -615,7 +598,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                             icon: const Icon(Icons.arrow_back_ios_new,
                                 color: Colors.white, size: 18),
                             onPressed: () {
-                              if (_currentImageIndex > 0) {
+                              if (safeIndex > 0) {
                                 _pageController.previousPage(
                                     duration: const Duration(milliseconds: 300),
                                     curve: Curves.easeInOut);
@@ -638,7 +621,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                             icon: const Icon(Icons.arrow_forward_ios,
                                 color: Colors.white, size: 18),
                             onPressed: () {
-                              if (_currentImageIndex < images.length - 1) {
+                              if (safeIndex < images.length - 1) {
                                 _pageController.nextPage(
                                     duration: const Duration(milliseconds: 300),
                                     curve: Curves.easeInOut);
@@ -1320,8 +1303,13 @@ class _TimelineItem extends StatelessWidget {
     required this.formatShort,
   });
 
-  void _openTimelinePreview(
-      BuildContext context, List<String> images, int initialIndex) {
+  Future<void> _openTimelinePreview(
+      BuildContext context, List<String> images, int initialIndex) async {
+    await precacheImage(
+      CachedNetworkImageProvider(images[initialIndex]),
+      context,
+    );
+    if (!context.mounted) return;
     final previewController = PageController(initialPage: initialIndex);
     final Map<int, TransformationController> controllers = {};
     final Map<int, VoidCallback> listeners = {};
@@ -1602,7 +1590,7 @@ class _TimelineItem extends StatelessWidget {
                         itemBuilder: (_, idx) {
                           final imageUrl = event.photoPaths[idx];
                           return GestureDetector(
-                            onTap: () => _openTimelinePreview(
+                            onTap: () async => _openTimelinePreview(
                                 context, event.photoPaths, idx),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
