@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/company_service.dart';
 import '../services/department_service.dart';
-import '../widgets/minimal_dropdown.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,7 +11,7 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProviderStateMixin {
+class _RegisterScreenState extends State<RegisterScreen> {
   int _currentStep = 1;
 
   // Step 1
@@ -43,23 +41,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
 
   bool _isLoading = false;
 
-  late AnimationController _animCtrl;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
-
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 700));
-    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut),
-    );
-    _slideAnim =
-        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut),
-    );
-    _animCtrl.forward();
     _fetchCompanies();
     _fetchDepartments();
   }
@@ -77,46 +61,29 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     }
   }
 
-  /// Prefers active companies; falls back to all in category so dropdowns are not empty/disabled.
-  Future<List<String>> _loadCompanyNames(String category) async {
-    var list =
-        await CompanyService.getCompanies(category: category, active: true);
-    if (list.isEmpty) {
-      list = await CompanyService.getCompanies(category: category);
-    }
-    final names = list.map((e) => e.name).toList();
-    final seen = <String>{};
-    return names.where((n) => seen.add(n)).toList();
-  }
-
   Future<void> _fetchCompanies() async {
     try {
-      final owners = await _loadCompanyNames('owner');
-      final contractors = await _loadCompanyNames('kontraktor');
-      final subContractors = await _loadCompanyNames('subkontraktor');
+      final owners =
+          await CompanyService.getCompanies(category: 'owner', active: true);
+      final contractors = await CompanyService.getCompanies(
+          category: 'kontraktor', active: true);
+      final subContractors = await CompanyService.getCompanies(
+          category: 'subkontraktor', active: true);
 
-      if (!mounted) return;
-      setState(() {
-        _ownerList = owners;
-        _kontraktorList = contractors;
-        _subkontraktorList = subContractors;
-      });
+      if (mounted) {
+        setState(() {
+          _ownerList = owners.map((e) => e.name).toList();
+          _kontraktorList = contractors.map((e) => e.name).toList();
+          _subkontraktorList = subContractors.map((e) => e.name).toList();
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching companies: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memuat daftar perusahaan: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
     }
   }
 
   @override
   void dispose() {
-    _animCtrl.dispose();
     _namaCtrl.dispose();
     _empIdCtrl.dispose();
     _hpCtrl.dispose();
@@ -201,7 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 48,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(context); // close dialog
@@ -211,10 +178,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A56C4),
+                      backgroundColor: const Color(0xFF3D5AFE),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('Oke Mengerti!'),
                   ),
@@ -235,191 +202,114 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
 
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text(msg)),
-          ],
-        ),
-        backgroundColor: const Color(0xFFF44336),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F0F0),
+      backgroundColor: const Color(0xFFF4F6F9),
       body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: SlideTransition(
-            position: _slideAnim,
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF0F0F0),
-                    ),
-                    child: Column(
-                      children: [
-                        // Step Indicator
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 16, horizontal: 24),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                          ),
-                          child: _buildStepIndicator(),
-                        ),
-
-                        // Form Content
-                        Expanded(
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.all(16),
-                            child: _buildCurrentStepContent(),
-                          ),
-                        ),
-
-                        // Bottom Button
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            border:
-                                Border(top: BorderSide(color: Colors.black12)),
-                          ),
-                          child: Column(
-                            children: [
-                              _buildBottomButton(),
-                              if (_currentStep == 1) ...[
-                                const SizedBox(height: 16),
-                                GestureDetector(
-                                  onTap: () => Navigator.pop(context),
-                                  child: const Text.rich(
-                                    TextSpan(
-                                      text: 'Sudah punya akun? ',
-                                      style: TextStyle(
-                                          color: Colors.grey, fontSize: 13),
-                                      children: [
-                                        TextSpan(
-                                            text: 'Masuk',
-                                            style: TextStyle(
-                                                color: Color(0xFF1A56C4),
-                                                fontWeight: FontWeight.bold)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ]
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF4F6F9),
                 ),
-              ],
+                child: Column(
+                  children: [
+                    // Step Indicator
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 24),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                      ),
+                      child: _buildStepIndicator(),
+                    ),
+
+                    // Form Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: _buildCurrentStepContent(),
+                      ),
+                    ),
+
+                    // Bottom Button
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(top: BorderSide(color: Colors.black12)),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildBottomButton(),
+                          if (_currentStep == 1) ...[
+                            const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: () => Navigator.pop(context),
+                              child: const Text.rich(
+                                TextSpan(
+                                  text: 'Sudah punya akun? ',
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 13),
+                                  children: [
+                                    TextSpan(
+                                        text: 'Masuk',
+                                        style: TextStyle(
+                                            color: Color(0xFF3D5AFE),
+                                            fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ]
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    if (_currentStep == 1) {
-      return Container(
-        width: double.infinity,
-        color: const Color(0xFF1A56C4),
-        padding: const EdgeInsets.fromLTRB(24, 48, 24, 40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.asset(
-                      'assets/logo.png',
-                      fit: BoxFit.contain,
-                      width: 44,
-                      height: 44,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('SapaHse',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 22,
-                            letterSpacing: 1)),
-                    Text('PT. Bukit Baiduri Energi',
-                        style: TextStyle(
-                            color: Colors.white70, fontSize: 11)),
-                  ],
-                ),
-              ],
+    String title = '';
+    if (_currentStep == 1) title = 'Informasi Pribadi';
+    if (_currentStep == 2) title = 'Informasi Karyawan';
+    if (_currentStep == 3) title = 'Tinjau & Daftar';
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _prevStep,
+            child: const Icon(Icons.arrow_back),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 32),
-            const Text(
-              'Daftar Akun',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Lengkapi informasi berikut untuk mendaftar',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    } else {
-      return Container(
-        color: Colors.white,
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: _prevStep,
-              child: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                _currentStep == 2 ? 'Informasi Karyawan' : 'Tinjau & Daftar',
-                style:
-                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            Text('Langkah $_currentStep/3',
-                style: const TextStyle(color: Colors.grey, fontSize: 13)),
-          ],
-        ),
-      );
-    }
+          ),
+          Text('Langkah $_currentStep/3',
+              style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        ],
+      ),
+    );
   }
 
   Widget _buildStepIndicator() {
@@ -436,13 +326,13 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   child: Container(
                       height: 2,
                       color: _currentStep > 1
-                          ? const Color(0xFF1A56C4)
+                          ? const Color(0xFF10B981)
                           : const Color(0xFFE5E7EB))),
               Expanded(
                   child: Container(
                       height: 2,
                       color: _currentStep > 2
-                          ? const Color(0xFF1A56C4)
+                          ? const Color(0xFF10B981)
                           : const Color(0xFFE5E7EB))),
             ],
           ),
@@ -466,11 +356,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     Color color;
     Color textColor;
     if (isDone) {
-      color = const Color(0xFF1A56C4);
-      textColor = const Color(0xFF1A56C4);
+      color = const Color(0xFF10B981);
+      textColor = const Color(0xFF10B981);
     } else if (isActive) {
-      color = const Color(0xFF1A56C4);
-      textColor = const Color(0xFF1A56C4);
+      color = const Color(0xFF3D5AFE);
+      textColor = const Color(0xFF3D5AFE);
     } else {
       color = const Color(0xFFE5E7EB);
       textColor = const Color(0xFF9CA3AF);
@@ -579,39 +469,40 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 _buildTextField(
                     label: 'NAMA LENGKAP *',
                     hint: 'Sesuai dokumen resmi',
-                    controller: _namaCtrl,
-                    prefixIcon: Icons.person_outline),
+                    controller: _namaCtrl),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'EMPLOYEE ID *',
-                    hint: '10–16 karakter',
+                    hint: 'Min. 10 karakter',
                     controller: _empIdCtrl,
-                    prefixIcon: Icons.badge_outlined,
-                    inputFormatters: [LengthLimitingTextInputFormatter(16)],
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
-                      if (v.length < 10 || v.length > 16) {
-                        return 'Employee ID 10–16 karakter';
-                      }
+                      if (v.length < 10) return 'Minimal 10 karakter';
                       return null;
                     }),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'NOMOR HP *',
-                    hint: '+62 8xx-xxxx-xxxx',
+                    hint: 'Contoh: 0812xxxx',
                     controller: _hpCtrl,
-                    prefixIcon: Icons.phone_outlined,
-                    keyboardType: TextInputType.phone),
+                    keyboardType: TextInputType.phone,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Wajib diisi';
+                      if (!RegExp(r'^08[0-9]{8,11}$').hasMatch(v)) {
+                        return 'Gunakan format 08 (10-13 digit)';
+                      }
+                      return null;
+                    }),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'EMAIL PRIBADI *',
                     hint: 'email@pribadi.com',
                     controller: _emailCtrl,
-                    prefixIcon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
-                      if (!v.contains('@') || !v.contains('.')) {
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                          .hasMatch(v)) {
                         return 'Format email tidak valid';
                       }
                       return null;
@@ -623,10 +514,14 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 ),
                 _buildTextField(
                   label: 'KATA SANDI *',
-                  hint: 'Minimal 8 karakter',
+                  hint: 'Min. 8 karakter',
                   controller: _passCtrl,
-                  prefixIcon: Icons.lock_outline,
                   obscureText: _obscurePass,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Wajib diisi';
+                    if (v.length < 8) return 'Minimal 8 karakter';
+                    return null;
+                  },
                   suffixIcon: IconButton(
                     icon: Icon(
                         _obscurePass ? Icons.visibility_off : Icons.visibility,
@@ -635,11 +530,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     onPressed: () =>
                         setState(() => _obscurePass = !_obscurePass),
                   ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Wajib diisi';
-                    if (v.length < 8) return 'Minimal 8 karakter';
-                    return null;
-                  },
                 ),
               ],
             ),
@@ -668,14 +558,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.07),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -699,7 +582,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   items: _ownerList,
                   hint: '-- Pilih --',
                   onChanged: (v) => setState(() => _perusahaan = v),
-                  prefixIcon: Icons.business_outlined,
                 ),
                 if (_tipeAfiliasi == 'Kontraktor' ||
                     _tipeAfiliasi == 'Sub-Kont.') ...[
@@ -711,7 +593,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     items: _kontraktorList,
                     hint: '-- Pilih --',
                     onChanged: (v) => setState(() => _perusahaanKontraktor = v),
-                    prefixIcon: Icons.business_outlined,
                     isRequired: false,
                   ),
                 ],
@@ -724,7 +605,6 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                     items: _subkontraktorList,
                     hint: '-- Pilih --',
                     onChanged: (v) => setState(() => _subKontraktor = v),
-                    prefixIcon: Icons.business_outlined,
                     isRequired: false,
                   ),
                 ],
@@ -746,14 +626,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.07),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -765,37 +638,25 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                   items: _departemenList,
                   hint: '-- Pilih --',
                   onChanged: (v) => setState(() => _departemen = v),
-                  prefixIcon: Icons.apartment_outlined,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
-                    label: 'JABATAN / POSISI *',
+                    label: 'JABATAN / POSISI',
                     hint: 'Contoh: Safety Officer, Operator...',
                     controller: _jabatanCtrl,
-                    prefixIcon: Icons.work_outline,
-                    isRequired: true),
+                    isRequired: false),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'SIMPER / KIMPER',
                     hint: 'Nomor SIM operasi internal (jika ada)',
                     controller: _simperCtrl,
-                    prefixIcon: Icons.credit_card_outlined,
                     isRequired: false),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'EMAIL PERUSAHAAN',
                     hint: 'email@perusahaan.com (opsional)',
                     controller: _emailKantorCtrl,
-                    prefixIcon: Icons.email_outlined,
-                    isRequired: false,
-                    validator: (v) {
-                      final t = v?.trim() ?? '';
-                      if (t.isEmpty) return null;
-                      if (!t.contains('@') || !t.contains('.')) {
-                        return 'Format email tidak valid';
-                      }
-                      return null;
-                    }),
+                    isRequired: false),
                 const Padding(
                   padding: EdgeInsets.only(top: 4),
                   child: Text('Tidak semua karyawan memiliki email perusahaan',
@@ -811,7 +672,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFBFDBFE)),
             ),
             child: Row(
@@ -826,7 +687,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                       style: TextStyle(color: Color(0xFF1E40AF), fontSize: 12),
                       children: [
                         TextSpan(
-                            text: 'disetujui Supervisor',
+                            text: 'disetujui Superadmin',
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         TextSpan(
                             text:
@@ -955,27 +816,20 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         // Key info
         Container(
           padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.07),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F3FF),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.vpn_key, color: Color(0xFF1A56C4), size: 16),
+                  const Icon(Icons.vpn_key, color: Color(0xFF8B5CF6), size: 16),
                   const SizedBox(width: 8),
                   const Text('Kamu bisa login menggunakan:',
                       style: TextStyle(
-                          color: Color(0xFF1A56C4),
+                          color: Color(0xFF6D28D9),
                           fontWeight: FontWeight.bold,
                           fontSize: 13)),
                 ],
@@ -1033,11 +887,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('• ', style: TextStyle(color: Color(0xFF1A56C4))),
+          const Text('• ', style: TextStyle(color: Color(0xFF6D28D9))),
           Expanded(
               child: Text(text,
                   style:
-                      const TextStyle(color: Color(0xFF1A56C4), fontSize: 13))),
+                      const TextStyle(color: Color(0xFF6D28D9), fontSize: 13))),
         ],
       ),
     );
@@ -1104,10 +958,10 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFEEF4FF) : Colors.white,
+            color: isSelected ? const Color(0xFFEEF2FF) : Colors.white,
             border: Border.all(
                 color: isSelected
-                    ? const Color(0xFF1A56C4)
+                    ? const Color(0xFF6366F1)
                     : Colors.grey.shade300),
             borderRadius: BorderRadius.circular(8),
           ),
@@ -1115,13 +969,13 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
             children: [
               Icon(icon,
                   size: 18,
-                  color: isSelected ? const Color(0xFF1A56C4) : Colors.grey),
+                  color: isSelected ? const Color(0xFF6366F1) : Colors.grey),
               const SizedBox(height: 4),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 11,
-                  color: isSelected ? const Color(0xFF1A56C4) : Colors.black87,
+                  color: isSelected ? const Color(0xFF6366F1) : Colors.black87,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -1136,13 +990,11 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     required String label,
     required String hint,
     required TextEditingController controller,
-    IconData? prefixIcon,
     bool isRequired = true,
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
     Widget? suffixIcon,
     String? Function(String?)? validator,
-    List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1153,44 +1005,37 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
-          inputFormatters: inputFormatters,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-            prefixIcon: prefixIcon != null
-                ? Icon(prefixIcon, color: Colors.grey, size: 20)
-                : null,
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade300)),
             enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: Colors.grey.shade300)),
             focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xFF1A56C4), width: 1.5)),
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF1A56C4))),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: const Color(0xFFF8F8F8),
+            fillColor: Colors.white,
           ),
           validator: validator ??
-              (isRequired
-                  ? (v) =>
-                      (v == null || v.isEmpty) ? 'Wajib diisi' : null
-                  : null),
+              (isRequired ? (v) => v!.isEmpty ? 'Wajib diisi' : null : null),
         ),
       ],
     );
   }
 
   Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-          fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
-    );
+    return Text(text,
+        style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+            color: Color(0xFF4B5563)));
   }
 
   Widget _buildDropdown({
@@ -1198,28 +1043,30 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     required List<String> items,
     required String hint,
     required ValueChanged<String?> onChanged,
-    IconData? prefixIcon,
     bool isRequired = true,
   }) {
-    return Container(
-      decoration: kMinimalFieldContainerDecoration,
-      child: DropdownButtonFormField<String>(
-        // ignore: deprecated_member_use
-        value: value,
-        isExpanded: true,
-        icon: kMinimalDropdownChevron,
-        borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-        style: kMinimalDropdownTextStyle,
-        items: items
-            .map((e) => DropdownMenuItem(
-                value: e,
-                child: Text(e, style: kMinimalDropdownTextStyle)))
-            .toList(),
-        onChanged: onChanged,
-        decoration: minimalFieldDecoration(hintText: hint, prefixIcon: prefixIcon),
-        validator:
-            isRequired ? (v) => v == null ? 'Wajib dipilih' : null : null,
+    return DropdownButtonFormField<String>(
+      // ignore: deprecated_member_use
+      value: value,
+      items: items
+          .map((e) => DropdownMenuItem(
+              value: e, child: Text(e, style: const TextStyle(fontSize: 14))))
+          .toList(),
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: hint,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300)),
+        filled: true,
+        fillColor: Colors.white,
       ),
+      validator: isRequired ? (v) => v == null ? 'Wajib dipilih' : null : null,
     );
   }
 
@@ -1231,14 +1078,14 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
 
     return SizedBox(
       width: double.infinity,
-      height: 50,
+      height: 48,
       child: ElevatedButton(
         onPressed:
             _isLoading ? null : (_currentStep == 3 ? _submit : _nextStep),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF1A56C4),
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 0,
         ),
         child: _isLoading

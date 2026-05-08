@@ -356,31 +356,56 @@ class _LoginScreenState extends State<LoginScreen>
                           const SizedBox(height: 24),
 
                           // ── Login button ───────────────────────────────
-                          SizedBox(
-                            width: double.infinity,
-                            height: 50,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _login,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1A56C4),
-                                foregroundColor: Colors.white,
-                                disabledBackgroundColor:
-                                    const Color(0xFF1A56C4).withValues(alpha: 0.6),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                                elevation: 0,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: SizedBox(
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: _isLoading ? null : _login,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF1A56C4),
+                                      foregroundColor: Colors.white,
+                                      disabledBackgroundColor: const Color(0xFF1A56C4).withValues(alpha: 0.6),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      elevation: 0,
+                                    ),
+                                    child: _isLoading
+                                        ? const SizedBox(
+                                            width: 22,
+                                            height: 22,
+                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                        : const Text('Masuk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
                               ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(
-                                          color: Colors.white, strokeWidth: 2))
-                                  : const Text('Masuk',
-                                      style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold)),
-                            ),
+                              if (!kIsWeb) FutureBuilder<bool>(
+                                future: StorageService.isBiometricEnabled(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.data == true) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(left: 12),
+                                      child: SizedBox(
+                                        height: 50,
+                                        width: 50,
+                                        child: ElevatedButton(
+                                          onPressed: _isLoading ? null : _checkBiometricLogin,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFFF0F4FA),
+                                            foregroundColor: const Color(0xFF1A56C4),
+                                            padding: EdgeInsets.zero,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            elevation: 0,
+                                          ),
+                                          child: const Icon(Icons.fingerprint, size: 28),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return const SizedBox();
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
