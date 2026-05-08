@@ -37,6 +37,15 @@ trait BackfillsReportLogs
     ];
 
     /**
+     * Sub-statuses that are allowed to be skipped over (auto-backfilled to
+     * the log) when the user jumps to a later stage. Stages NOT listed here
+     * are mandatory checkpoints that must be reached explicitly.
+     */
+    private const SKIPPABLE_SUB_STATUSES = [
+        'preparing',
+    ];
+
+    /**
      * Highest LINEAR_FLOW index already reached by the report's logs.
      * Returns -1 if the report has no log with a linear sub-status yet.
      */
@@ -68,9 +77,11 @@ trait BackfillsReportLogs
      *  - rejected/deferred sub-statuses are valid terminal exits at any stage.
      *  - moving backwards in LINEAR_FLOW is rejected.
      *  - going back to 'pending' once the report has progressed is rejected.
-     *  - before reaching 'assigned' (idx 2): strict step-by-step, no skipping.
-     *  - at 'assigned' (idx 2) or later: forward skips are allowed; the
-     *    skipped stages are auto-logged via backfillSkippedSubStatusLogs.
+     *  - forward skipping is allowed only when EVERY skipped intermediate
+     *    sub-status is listed in SKIPPABLE_SUB_STATUSES (currently only
+     *    'preparing'). The skipped stages are auto-logged via
+     *    backfillSkippedSubStatusLogs. Any mandatory checkpoint
+     *    ('executing', 'reviewing', etc.) must be reached explicitly.
      *
      * Caller is responsible for bypassing this check for superadmin.
      */
@@ -108,20 +119,18 @@ trait BackfillsReportLogs
         }
 
         $lastReachedIndex = $this->currentLinearIndex($report);
-        $assignedIndex = array_search('assigned', self::LINEAR_FLOW, true);
 
         if ($targetIndex < $lastReachedIndex) {
             return 'Status tidak bisa dimundurkan. Timeline harus linear.';
         }
 
-        // Before reaching 'assigned', enforce strict step-by-step.
-        // Once at 'assigned' or later, forward skips are allowed and the
-        // missed sub-statuses are auto-backfilled by the trait.
-        if ($lastReachedIndex < $assignedIndex
-            && $targetIndex > $lastReachedIndex + 1) {
-            $skippedIdx = $lastReachedIndex + 1;
-            $skippedName = ucfirst(self::LINEAR_FLOW[$skippedIdx]);
-            return "Status harus maju bertahap. Tidak bisa melompati tahap {$skippedName}.";
+        // Forward skip: every intermediate stage must be skippable.
+        for ($i = $lastReachedIndex + 1; $i < $targetIndex; $i++) {
+            $stage = self::LINEAR_FLOW[$i];
+            if (!in_array($stage, self::SKIPPABLE_SUB_STATUSES, true)) {
+                return 'Status harus melalui tahap ' . ucfirst($stage)
+                    . ' terlebih dahulu.';
+            }
         }
 
         return null;
