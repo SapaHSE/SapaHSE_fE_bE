@@ -432,7 +432,9 @@ class HazardReportController extends Controller
             'data' => $replies->map(fn($reply) => [
                 'id' => $reply->id,
                 'report_log_id' => $reply->report_log_id,
+                'parent_reply_id' => $reply->parent_reply_id,
                 'user_name' => $reply->user->full_name ?? 'Unknown User',
+                'user_role' => optional($reply->user)->role,
                 'message' => $reply->message,
                 'attachment_url' => $reply->attachment_url,
                 'attachment_urls' => !empty($reply->attachment_urls)
@@ -448,6 +450,7 @@ class HazardReportController extends Controller
     {
         $request->validate([
             'message' => 'required|string|max:2000',
+            'parent_reply_id' => 'nullable|uuid|exists:report_log_replies,id',
             'attachment_url' => 'nullable|url|max:500',
             'attachment_urls' => 'nullable|array|max:10',
             'attachment_urls.*' => 'url|max:500',
@@ -465,8 +468,21 @@ class HazardReportController extends Controller
         $attachmentUrl = $request->attachment_url ?: (!empty($attachmentUrls) ? $attachmentUrls[0] : null);
 
         $log = $report->logs()->whereKey($logId)->firstOrFail();
+
+        $parentReplyId = $request->input('parent_reply_id');
+        if ($parentReplyId) {
+            $parent = ReportLogReply::find($parentReplyId);
+            if (!$parent || $parent->report_log_id !== $log->id || $parent->parent_reply_id !== null) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tidak bisa membalas balasan bertingkat.',
+                ], 422);
+            }
+        }
+
         $reply = ReportLogReply::create([
             'report_log_id' => $log->id,
+            'parent_reply_id' => $parentReplyId,
             'user_id' => $user->id,
             'message' => trim((string) $request->message),
             'attachment_url' => $attachmentUrl,
@@ -480,7 +496,9 @@ class HazardReportController extends Controller
             'data' => [
                 'id' => $reply->id,
                 'report_log_id' => $reply->report_log_id,
+                'parent_reply_id' => $reply->parent_reply_id,
                 'user_name' => $reply->user->full_name ?? 'Unknown User',
+                'user_role' => optional($reply->user)->role,
                 'message' => $reply->message,
                 'attachment_url' => $reply->attachment_url,
                 'attachment_urls' => !empty($reply->attachment_urls)

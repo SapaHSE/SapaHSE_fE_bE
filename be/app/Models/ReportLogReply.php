@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ReportLogReply extends Model
 {
@@ -13,6 +14,7 @@ class ReportLogReply extends Model
 
     protected $fillable = [
         'report_log_id',
+        'parent_reply_id',
         'user_id',
         'message',
         'attachment_url',
@@ -31,5 +33,15 @@ class ReportLogReply extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function parentReply(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_reply_id');
+    }
+
+    public function childReplies(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_reply_id');
     }
 }
