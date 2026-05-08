@@ -16,6 +16,11 @@ class ReportLogReply extends Model
         'user_id',
         'message',
         'attachment_url',
+        'attachment_urls',
+    ];
+
+    protected $casts = [
+        'attachment_urls' => 'array',
     ];
 
     public function reportLog(): BelongsTo

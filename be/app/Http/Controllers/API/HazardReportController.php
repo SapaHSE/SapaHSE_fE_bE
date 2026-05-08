@@ -435,6 +435,9 @@ class HazardReportController extends Controller
                 'user_name' => $reply->user->full_name ?? 'Unknown User',
                 'message' => $reply->message,
                 'attachment_url' => $reply->attachment_url,
+                'attachment_urls' => !empty($reply->attachment_urls)
+                    ? $reply->attachment_urls
+                    : ($reply->attachment_url ? [$reply->attachment_url] : []),
                 'created_at' => $reply->created_at->format('Y-m-d H:i:s'),
                 'date_human' => $reply->created_at->format('d M Y, H:i'),
             ]),
@@ -446,6 +449,8 @@ class HazardReportController extends Controller
         $request->validate([
             'message' => 'required|string|max:2000',
             'attachment_url' => 'nullable|url|max:500',
+            'attachment_urls' => 'nullable|array|max:10',
+            'attachment_urls.*' => 'url|max:500',
         ]);
 
         $report = HazardReport::findOrFail($id);
@@ -454,12 +459,18 @@ class HazardReportController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 
+        $attachmentUrls = $request->input('attachment_urls', []);
+        if (!is_array($attachmentUrls)) $attachmentUrls = [];
+        $attachmentUrls = array_values(array_filter($attachmentUrls, fn($u) => is_string($u) && $u !== ''));
+        $attachmentUrl = $request->attachment_url ?: (!empty($attachmentUrls) ? $attachmentUrls[0] : null);
+
         $log = $report->logs()->whereKey($logId)->firstOrFail();
         $reply = ReportLogReply::create([
             'report_log_id' => $log->id,
             'user_id' => $user->id,
             'message' => trim((string) $request->message),
-            'attachment_url' => $request->attachment_url,
+            'attachment_url' => $attachmentUrl,
+            'attachment_urls' => empty($attachmentUrls) ? null : $attachmentUrls,
         ]);
         $reply->load('user');
 
@@ -472,6 +483,9 @@ class HazardReportController extends Controller
                 'user_name' => $reply->user->full_name ?? 'Unknown User',
                 'message' => $reply->message,
                 'attachment_url' => $reply->attachment_url,
+                'attachment_urls' => !empty($reply->attachment_urls)
+                    ? $reply->attachment_urls
+                    : ($reply->attachment_url ? [$reply->attachment_url] : []),
                 'created_at' => $reply->created_at->format('Y-m-d H:i:s'),
                 'date_human' => $reply->created_at->format('d M Y, H:i'),
             ],
