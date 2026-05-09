@@ -17,6 +17,7 @@ class ProfileData {
   final String? perusahaanKontraktor;
   final String? subKontraktor;
   final String? profilePhoto;
+  final String? address;
   final String role;
   final bool isActive;
   final List<UserLicense> licenses;
@@ -38,6 +39,7 @@ class ProfileData {
     this.perusahaanKontraktor,
     this.subKontraktor,
     this.profilePhoto,
+    this.address,
     required this.role,
     required this.isActive,
     this.licenses = const [],
@@ -61,6 +63,7 @@ class ProfileData {
       perusahaanKontraktor: json['perusahaan_kontraktor']?.toString(),
       subKontraktor: json['sub_kontraktor']?.toString(),
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
+      address: json['address']?.toString(),
       role: json['role']?.toString() ?? 'user',
       isActive: parseFlexibleBool(json['is_active']),
       licenses: (json['licenses'] as List<dynamic>?)
@@ -89,6 +92,7 @@ class UserLicense {
   final String id;
   final String name;
   final String licenseNumber;
+  final String? obtainedAt;
   final String? expiredAt;
   final String status;
   final bool isVerified;
@@ -98,6 +102,7 @@ class UserLicense {
     required this.id,
     required this.name,
     required this.licenseNumber,
+    this.obtainedAt,
     this.expiredAt,
     required this.status,
     this.isVerified = false,
@@ -109,6 +114,7 @@ class UserLicense {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       licenseNumber: json['license_number']?.toString() ?? '',
+      obtainedAt: json['obtained_at']?.toString(),
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'active',
       isVerified: parseFlexibleBool(json['is_verified']),
@@ -167,6 +173,9 @@ class UserMedical {
   final String? weight;
   final String? bloodPressure;
   final String? allergies;
+  final String? lastMedication;
+  final String? currentMedication;
+  final String? currentIllness;
   final String? result;
   final String? doctorName;
   final String? doctorContact;
@@ -186,6 +195,9 @@ class UserMedical {
     this.weight,
     this.bloodPressure,
     this.allergies,
+    this.lastMedication,
+    this.currentMedication,
+    this.currentIllness,
     this.result,
     this.doctorName,
     this.doctorContact,
@@ -207,6 +219,9 @@ class UserMedical {
       weight: json['weight']?.toString(),
       bloodPressure: json['blood_pressure']?.toString(),
       allergies: json['allergies']?.toString(),
+      lastMedication: json['last_medication']?.toString(),
+      currentMedication: json['current_medication']?.toString(),
+      currentIllness: json['current_illness']?.toString(),
       result: json['result']?.toString(),
       doctorName: json['doctor_name']?.toString(),
       doctorContact: json['doctor_contact']?.toString(),

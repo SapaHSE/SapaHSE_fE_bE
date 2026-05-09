@@ -41,6 +41,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   // Persistent State for License Form
   final TextEditingController _licenseNameController = TextEditingController();
   final TextEditingController _licenseNumberController = TextEditingController();
+  DateTime? _licenseObtainedAt;
   DateTime? _licenseSelectedDate;
 
   // Persistent State for Certification Form
@@ -659,6 +660,9 @@ final List<Map<String, dynamic>> _subTabs = [
     final bloodPressureCtrl =
         TextEditingController(text: latest?.bloodPressure);
     final allergiesCtrl = TextEditingController(text: latest?.allergies);
+    final lastMedicationCtrl = TextEditingController(text: latest?.lastMedication);
+    final currentMedicationCtrl = TextEditingController(text: latest?.currentMedication);
+    final currentIllnessCtrl = TextEditingController(text: latest?.currentIllness);
 
     showModalBottomSheet(
       context: context,
@@ -724,6 +728,43 @@ final List<Map<String, dynamic>> _subTabs = [
                   controller: allergiesCtrl,
                   decoration: _buildInputDecoration('Contoh: Debu, Seafood...'),
                 ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFieldLabel('Konsumsi Obat Terakhir'),
+                          TextField(
+                            controller: lastMedicationCtrl,
+                            decoration: _buildInputDecoration('Contoh: Paracetamol'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildFieldLabel('Obat Berjalan'),
+                          TextField(
+                            controller: currentMedicationCtrl,
+                            decoration: _buildInputDecoration('Contoh: Metformin'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _buildFieldLabel('Penyakit yang Sedang Diderita'),
+                TextField(
+                  controller: currentIllnessCtrl,
+                  maxLines: 2,
+                  decoration: _buildInputDecoration('Contoh: Diabetes, Hipertensi...'),
+                ),
                 const SizedBox(height: 32),
                 SizedBox(
                   width: double.infinity,
@@ -739,6 +780,9 @@ final List<Map<String, dynamic>> _subTabs = [
                         weight: weightCtrl.text,
                         bloodPressure: bloodPressureCtrl.text,
                         allergies: allergiesCtrl.text,
+                        lastMedication: lastMedicationCtrl.text,
+                        currentMedication: currentMedicationCtrl.text,
+                        currentIllness: currentIllnessCtrl.text,
                       );
 
                       if (result.success) {
@@ -815,6 +859,41 @@ final List<Map<String, dynamic>> _subTabs = [
                 controller: _licenseNumberController,
                 decoration: _buildInputDecoration('Contoh: SIM-2024-001234'),
               ),
+              const SizedBox(height: 16),
+              _buildFieldLabel('Tanggal Diperoleh'),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now().subtract(const Duration(days: 365 * 5)),
+                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                  );
+                  if (picked != null)
+                    setModalState(() => _licenseObtainedAt = picked);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 12),
+                      Text(
+                        _licenseObtainedAt == null
+                            ? 'Pilih Tanggal'
+                            : '${_licenseObtainedAt!.day}/${_licenseObtainedAt!.month}/${_licenseObtainedAt!.year}',
+                        style: TextStyle(
+                            color: _licenseObtainedAt == null ? Colors.grey.shade500 : Colors.black),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               _buildFieldLabel('Berlaku Sampai'),
               InkWell(
                 onTap: () async {
@@ -886,8 +965,11 @@ final List<Map<String, dynamic>> _subTabs = [
                     final result = await ProfileService.addLicense(
                       name: _licenseNameController.text,
                       licenseNumber: _licenseNumberController.text,
+                      obtainedAt: _licenseObtainedAt != null
+                          ? '${_licenseObtainedAt!.year}-${_licenseObtainedAt!.month.toString().padLeft(2, '0')}-${_licenseObtainedAt!.day.toString().padLeft(2, '0')}'
+                          : null,
                       expiredAt: _licenseSelectedDate != null
-                          ? '${_licenseSelectedDate!.year}-${_licenseSelectedDate!.month}-${_licenseSelectedDate!.day}'
+                          ? '${_licenseSelectedDate!.year}-${_licenseSelectedDate!.month.toString().padLeft(2, '0')}-${_licenseSelectedDate!.day.toString().padLeft(2, '0')}'
                           : null,
                       imageFile: _licenseImage,
                     );
@@ -895,6 +977,7 @@ final List<Map<String, dynamic>> _subTabs = [
                     if (result.success) {
                       _licenseNameController.clear();
                       _licenseNumberController.clear();
+                      _licenseObtainedAt = null;
                       _licenseSelectedDate = null;
                       _licenseImage = null;
                       if (mounted) _loadProfile(); // Refresh
@@ -1212,7 +1295,7 @@ class _BiodataContent extends StatelessWidget {
             _buildRow(
                 context, 'Phone', _resolve(data?.phoneNumber, 'phone_number'),
                 showCopyIcon: true),
-            _buildRow(context, 'Alamat', 'Jl. Kelapa No. 12, BPN',
+            _buildRow(context, 'Alamat', _resolve(data?.address, 'address'),
                 showCopyIcon: true),
           ]),
           const SizedBox(height: 24),
@@ -1388,8 +1471,12 @@ class _LicenseContent extends StatelessWidget {
                         Text('No. ${l.licenseNumber}',
                             style: TextStyle(
                                 color: Colors.grey.shade500, fontSize: 13)),
+                        if (l.obtainedAt != null)
+                          Text('Diperoleh: ${l.obtainedAt}',
+                              style: TextStyle(
+                                  color: Colors.grey.shade400, fontSize: 12)),
                         if (l.expiredAt != null)
-                          Text('Berlaku s/d ${l.expiredAt}',
+                          Text('Berlaku s/d: ${l.expiredAt}',
                               style: TextStyle(
                                   color: Colors.grey.shade400, fontSize: 12)),
                         if (l.fileUrl != null) ...[
