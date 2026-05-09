@@ -4,8 +4,8 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Mail\VerifyEmailMail;
-use App\Models\RegistrationLog;
 use App\Models\User;
+use App\Models\RegistrationLog;
 use App\Models\UserViolation;
 use App\Models\UserLicense;
 use App\Models\UserCertification;
@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -29,10 +30,11 @@ class AuthController extends Controller
             'phone_number'   => 'required|string|max:20',
             'position'       => 'required|string|max:100',
             'department'     => 'required|string|max:100',
-            'company'        => 'required|string|max:100',
+            'company'        => 'required|string|max:150',
+            'alamat'         => 'nullable|string',
             'tipe_afiliasi'  => 'nullable|string|max:50',
-            'perusahaan_kontraktor' => 'nullable|string|max:100',
-            'sub_kontraktor' => 'nullable|string|max:100',
+            'perusahaan_kontraktor' => 'nullable|string|max:150',
+            'sub_kontraktor' => 'nullable|string|max:150',
             'simper'         => 'nullable|string|max:50',
         ], [
             'employee_id.unique'         => 'NIK sudah terdaftar. Gunakan NIK lain.',
@@ -57,18 +59,19 @@ class AuthController extends Controller
             'position'                  => $request->position,
             'department'                => $request->department,
             'company'                   => $request->company,
+            'alamat'                    => $request->alamat,
             'tipe_afiliasi'             => $request->tipe_afiliasi,
             'perusahaan_kontraktor'     => $request->perusahaan_kontraktor,
             'sub_kontraktor'            => $request->sub_kontraktor,
             'simper'                    => $request->simper,
             'role'                      => 'user',
-            'is_active'                 => false, // Require admin approval            
+            'is_active'                 => false, // Require admin approval
             'email_verification_token'  => $verificationToken,
         ]);
 
-        // Kirim link verifikasi ke personal email
-        $verificationUrl = url("/api/email/verify/{$user->id}/{$verificationToken}");
-        Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
+        // Email verifikasi akan dikirim nanti setelah admin melakukan Approve
+        // $verificationUrl = url("/api/email/verify/{$user->id}/{$verificationToken}");
+        // Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
 
         return response()->json([
             'status'  => 'success',
@@ -199,12 +202,8 @@ class AuthController extends Controller
     // GET /api/me
     public function me(Request $request)
     {
-        /** @var User $user */
-        $user = $request->user();
-
         return response()->json([
-            'status' => 'success',
-            'data'   => $this->formatUser($user),
+            'user' => $request->user(),
         ]);
     }
 
@@ -219,36 +218,38 @@ class AuthController extends Controller
         ]);
     }
 
-
-    // GET /api/users  (admin & superadmin only — untuk fitur Tag Orang)
+    // GET /api/users  (admin & superadmin only — untuk fitur Tag Orang — List sederhana)
     public function listUsers(Request $request)
     {
         $search = $request->query('search');
 
         $users = User::when($request->department, fn($q) => $q->where('department', $request->department))
-            ->when($search, fn($q) => $q->where(function ($sub) use ($search) {
-                $sub->where('full_name', 'like', "%{$search}%")
-                    ->orWhere('employee_id', 'like', "%{$search}%");
-            }))->where('is_active', true)
-            ->orderBy('full_name')
-            ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'company', 'role', 'profile_photo'])
-            ->get()
-            ->map(fn($u) => [
-                'id'          => $u->id,
-                'full_name'   => $u->full_name,
-                'employee_id' => $u->employee_id,
-                'department'  => $u->department,
-                'position'    => $u->position,
-                'company'     => $u->company,
-                'role'        => $u->role,
-                'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
-            ]);
+        ->when($search, fn($q) => $q->where(function($sub) use ($search) {
+            $sub->where('full_name', 'like', "%{$search}%")
+                ->orWhere('employee_id', 'like', "%{$search}%");
+        }))
+        ->where('is_active', true)
+        ->orderBy('full_name')
+        ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'company', 'role', 'profile_photo'])
+        ->get()
+        ->map(fn($u) => [
+            'id'          => $u->id,
+            'full_name'   => $u->full_name,
+            'employee_id' => $u->employee_id,
+            'department'  => $u->department,
+            'position'    => $u->position,
+            'company'     => $u->company,
+            'role'        => $u->role,
+            'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
+        ]);
 
         return response()->json([
             'status' => 'success',
             'data'   => $users,
         ]);
     }
+
+
 
     // ── ADMIN USER MANAGEMENT (CRUD) ──────────────────────────────────────────
 
@@ -258,8 +259,8 @@ class AuthController extends Controller
         $search = $request->query('search');
         $role = $request->query('role');
         $department = $request->query('department');
-        $isActive = $request->query('is_active');   
-        $regStatus = $request->query('registration_status');             
+        $isActive = $request->query('is_active');
+        $regStatus = $request->query('registration_status');
 
         $users = User::when($search, function ($q) use ($search) {
             $q->where(function ($sub) use ($search) {
@@ -268,13 +269,13 @@ class AuthController extends Controller
                     ->orWhere('personal_email', 'like', "%{$search}%");
             });
         })
-            ->when($role, fn($q) => $q->where('role', $role))
-            ->when($department, fn($q) => $q->where('department', $department))
-            ->when($isActive !== null, fn($q) => $q->where('is_active', filter_var($isActive, FILTER_VALIDATE_BOOLEAN)))
-            ->when($regStatus, fn($q) => $q->where('registration_status', $regStatus))
-            ->orderBy('registration_status', 'desc') // Pending first usually if alphabetical                                  
-            ->orderBy('full_name')
-            ->paginate($request->query('per_page', 10));
+        ->when($role, fn($q) => $q->where('role', $role))
+        ->when($department, fn($q) => $q->where('department', $department))
+        ->when($isActive !== null, fn($q) => $q->where('is_active', filter_var($isActive, FILTER_VALIDATE_BOOLEAN)))
+        ->when($regStatus, fn($q) => $q->where('registration_status', $regStatus))
+        ->orderBy('registration_status', 'desc') // Pending first usually if alphabetical
+        ->orderBy('full_name')
+        ->paginate($request->query('per_page', 10));
 
         return response()->json([
             'status' => 'success',
@@ -293,10 +294,11 @@ class AuthController extends Controller
             'phone_number'   => 'required|string|max:20',
             'position'       => 'required|string|max:100',
             'department'     => 'required|string|max:100',
-            'company'        => 'required|string|max:150',
+            'company'        => 'required|string|max:100',
+            'alamat'         => 'nullable|string',
             'tipe_afiliasi'  => 'nullable|string|max:50',
-            'perusahaan_kontraktor' => 'nullable|string|max:150',
-            'sub_kontraktor' => 'nullable|string|max:150',
+            'perusahaan_kontraktor' => 'nullable|string|max:100',
+            'sub_kontraktor' => 'nullable|string|max:100',
             'simper'         => 'nullable|string|max:50',
             'role'           => 'required|string|in:user,admin,superadmin',
             'password'       => 'required|string|min:6',
@@ -312,6 +314,7 @@ class AuthController extends Controller
             'position'       => $request->position,
             'department'     => $request->department,
             'company'        => $request->company,
+            'alamat'         => $request->alamat,
             'tipe_afiliasi'  => $request->tipe_afiliasi,
             'perusahaan_kontraktor' => $request->perusahaan_kontraktor,
             'sub_kontraktor' => $request->sub_kontraktor,
@@ -343,6 +346,7 @@ class AuthController extends Controller
             'position'       => 'required|string|max:100',
             'department'     => 'required|string|max:100',
             'company'        => 'required|string|max:100',
+            'alamat'         => 'nullable|string',
             'tipe_afiliasi'  => 'nullable|string|max:50',
             'perusahaan_kontraktor' => 'nullable|string|max:100',
             'sub_kontraktor' => 'nullable|string|max:100',
@@ -370,7 +374,7 @@ class AuthController extends Controller
     public function adminDestroy($id)
     {
         $user = User::findOrFail($id);
-
+        
         if ($user->id === \Illuminate\Support\Facades\Auth::id()) {
             return response()->json([
                 'status'  => 'error',
@@ -472,10 +476,10 @@ class AuthController extends Controller
         ]);
     }
 
-    // PUT /api/admin/users/{id}/approve
     public function adminApprove($id)
     {
         $user = User::findOrFail($id);
+        
         if ($user->is_active) {
             return response()->json([
                 'status'  => 'error',
@@ -502,12 +506,12 @@ class AuthController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'User approved successfully',
+            'message' => 'User approved successfully. Verification email sent to ' . $user->personal_email,
             'data'    => $user,
         ]);
     }
 
-        // POST /api/admin/users/{id}/reject
+    // POST /api/admin/users/{id}/reject
     public function adminReject(Request $request, $id)
     {
         $user = User::findOrFail($id);
@@ -570,14 +574,13 @@ class AuthController extends Controller
             'position'       => $user->position,
             'department'     => $user->department,
             'company'        => $user->company,
+            'alamat'         => $user->alamat,
             'tipe_afiliasi'  => $user->tipe_afiliasi,
             'perusahaan_kontraktor' => $user->perusahaan_kontraktor,
             'sub_kontraktor' => $user->sub_kontraktor,
             'simper'         => $user->simper,
             'profile_photo'  => $user->profile_photo
-                ? (str_starts_with($user->profile_photo, 'http')
-                    ? $user->profile_photo
-                    : asset('storage/' . $user->profile_photo))
+                ? asset('storage/' . $user->profile_photo)
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,

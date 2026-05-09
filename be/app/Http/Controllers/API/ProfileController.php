@@ -14,14 +14,14 @@ class ProfileController extends Controller
     // GET /api/profile
     public function getProfile()
     {
-        /** @var User $user */
+        /** @var \App\Models\User $user */
         $user = User::with(['licenses', 'certifications', 'violations' => function ($q) {
             $q->orderBy('date_of_violation', 'desc');
         }, 'medicals' => function ($q) {
             $q->orderBy('checkup_date', 'desc');
         }])->findOrFail(Auth::id());
 
-        return response()->json([
+        return \response()->json([
             'status' => 'success',
             'data'   => $this->formatUser($user),
         ]);
@@ -34,36 +34,26 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $request->validate([
-            'full_name'      => 'nullable|string|max:100',
-            'personal_email'  => 'sometimes|email|max:150|unique:users,personal_email,' . $user->id,
-            'work_email'     => 'nullable|email|max:150|unique:users,work_email,' . $user->id,
-            'phone_number'   => 'nullable|string|max:20',
+            'full_name'     => 'nullable|string|max:100',
+            'work_email'    => 'nullable|email|max:150|unique:users,work_email,' . $user->id,
+            'phone_number'  => 'nullable|string|max:20',
             'position'      => 'nullable|string|max:100',
-            'department'   => 'nullable|string|max:100',
-            'company'      => 'nullable|string|max:100',
-            // Supabase URL (uploaded by client). Legacy file upload still accepted.
-            'profile_photo_url' => 'nullable|url|max:500',
-            'profile_photo'  => 'nullable|image|max:2048',
+            'department'    => 'nullable|string|max:100',
+            'company'       => 'nullable|string|max:100',
+            'alamat'        => 'nullable|string',
+            'profile_photo' => 'nullable|image|max:2048',
         ]);
 
-        if ($request->filled('full_name'))      $user->full_name      = $request->full_name;
-        if ($request->has('personal_email'))    $user->personal_email = $request->personal_email;
-        if ($request->filled('work_email'))    $user->work_email    = $request->work_email;
+        if ($request->filled('full_name'))    $user->full_name    = $request->full_name;
+        if ($request->filled('work_email'))   $user->work_email   = $request->work_email;
         if ($request->filled('phone_number')) $user->phone_number = $request->phone_number;
         if ($request->filled('position'))     $user->position     = $request->position;
         if ($request->filled('department'))   $user->department   = $request->department;
         if ($request->filled('company'))      $user->company      = $request->company;
+        if ($request->filled('alamat'))       $user->alamat       = $request->alamat;
 
-        // Prefer Supabase Storage URL from client; fall back to multipart file.
-        if ($request->filled('profile_photo_url')) {
-            // Best-effort cleanup of old local-disk photo if the value didn't
-            // already look like a remote URL.
-            if ($user->profile_photo && !str_starts_with($user->profile_photo, 'http')) {
-                Storage::disk('public')->delete($user->profile_photo);
-            }
-            $user->profile_photo = $request->input('profile_photo_url');
-        } elseif ($request->hasFile('profile_photo')) {
-            if ($user->profile_photo && !str_starts_with($user->profile_photo, 'http')) {
+        if ($request->hasFile('profile_photo')) {
+            if ($user->profile_photo) {
                 Storage::disk('public')->delete($user->profile_photo);
             }
             $user->profile_photo = $request->file('profile_photo')->store('avatars', 'public');
@@ -71,7 +61,7 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'Profile updated successfully',
             'data'    => $this->formatUser($user),
@@ -86,23 +76,20 @@ class ProfileController extends Controller
 
         $request->validate([
             'current_password' => 'required',
-            'new_password'     => 'required|min:8|confirmed',
-        ], [
-            'new_password.min'       => 'Password baru minimal 8 karakter.',
-            'new_password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'new_password'     => 'required|min:6|confirmed',
         ]);
 
         if (! Hash::check($request->current_password, $user->password_hash)) {
-            return response()->json([
+            return \response()->json([
                 'status'  => 'error',
-                'message' => 'Password saat ini tidak sesuai.',
+                'message' => 'Current password is incorrect',
             ], 422);
         }
 
         if (Hash::check($request->new_password, $user->password_hash)) {
-            return response()->json([
+            return \response()->json([
                 'status'  => 'error',
-                'message' => 'Password baru tidak boleh sama dengan password saat ini.',
+                'message' => 'New password must be different from current password',
             ], 422);
         }
 
@@ -110,9 +97,9 @@ class ProfileController extends Controller
         $user->save();
         $user->tokens()->delete();
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
-            'message' => 'Password berhasil diubah. Silakan login kembali.',
+            'message' => 'Password changed successfully. Please log in again.',
         ]);
     }
 
@@ -128,7 +115,7 @@ class ProfileController extends Controller
         // Hapus data (Soft delete jika mau atau hard delete). Model saat ini tdk pakai softDelete
         $user->delete();
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'Account deleted successfully.',
         ]);
@@ -158,7 +145,7 @@ class ProfileController extends Controller
             'obtained_at'    => 'nullable|date',
             'expired_at'     => 'nullable|date', 
             'status'         => 'required|string|in:active,expired,suspended',
-            'file'           => 'nullable|file|max:5120', // Max 5MB            
+            'file'           => 'nullable|file|max:5120', // Max 5MB
         ]);
 
         /** @var \App\Models\User $user */
@@ -172,7 +159,7 @@ class ProfileController extends Controller
 
         $license = $user->licenses()->create($data);
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'License added successfully.',
             'data'    => $license,
@@ -212,7 +199,7 @@ class ProfileController extends Controller
             'name', 'license_number', 'obtained_at', 'expired_at', 'status'
         ));
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'License updated successfully.',
             'data'    => $license,
@@ -227,7 +214,7 @@ class ProfileController extends Controller
         $license = $user->licenses()->findOrFail($id);
         $license->delete();
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'License deleted successfully.',
         ]);
@@ -254,12 +241,12 @@ class ProfileController extends Controller
             'obtained_at' => 'nullable|date',
             'expired_at'  => 'nullable|date',
             'status' => 'required|string|in:active,expired',
-            'file'   => 'nullable|file|max:5120', // Max 5MB            
+            'file'   => 'nullable|file|max:5120', // Max 5MB
         ]);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
-        
+
         $data = $request->only('name', 'issuer', 'obtained_at', 'expired_at', 'status');
 
         if ($request->hasFile('file')) {
@@ -268,7 +255,7 @@ class ProfileController extends Controller
 
         $cert = $user->certifications()->create($data);
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'Certification added successfully.',
             'data'    => $cert,
@@ -306,7 +293,7 @@ class ProfileController extends Controller
             'name', 'issuer', 'obtained_at', 'expired_at', 'status'
         ));
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'Certification updated successfully.',
             'data'    => $cert,
@@ -321,7 +308,7 @@ class ProfileController extends Controller
         $cert = $user->certifications()->findOrFail($id);
         $cert->delete();
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'Certification deleted successfully.',
         ]);
@@ -339,15 +326,15 @@ class ProfileController extends Controller
             'weight'            => 'nullable',
             'blood_pressure'    => 'nullable|string|max:30',
             'allergies'         => 'nullable|string',
-            'last_medication'   => 'nullable|string',
-            'current_medication'=> 'nullable|string',
-            'current_illness'    => 'nullable|string',
             'result'            => 'nullable|string|max:255',
             'next_checkup_date' => 'nullable|date',
             'doctor_name'       => 'nullable|string|max:150',
             'doctor_contact'    => 'nullable|string|max:50',
             'facility_name'     => 'nullable|string|max:200',
             'facility_contact'  => 'nullable|string|max:50',
+            'last_medication'   => 'nullable|string|max:255',
+            'current_medication'=> 'nullable|string|max:255',
+            'current_illness'   => 'nullable|string',
             'doctor_notes'      => 'nullable|string',
             'checklist_items'   => 'nullable|array',
             'checklist_items.*.label' => 'required|string',
@@ -360,13 +347,13 @@ class ProfileController extends Controller
         $medical = $user->medicals()->create($request->only(
             'title', 'patient_name',
             'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure',
-            'allergies', 'last_medication', 'current_medication', 'current_illness',
-            'result', 'next_checkup_date',
+            'allergies', 'result', 'next_checkup_date',
             'doctor_name', 'doctor_contact', 'facility_name', 'facility_contact',
+            'last_medication', 'current_medication', 'current_illness',
             'doctor_notes', 'checklist_items'
         ));
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'Medical record added successfully.',
             'data'    => $medical,
@@ -385,15 +372,15 @@ class ProfileController extends Controller
             'weight'            => 'nullable',
             'blood_pressure'    => 'nullable|string|max:30',
             'allergies'         => 'nullable|string',
-            'last_medication'   => 'nullable|string',
-            'current_medication'=> 'nullable|string',
-            'current_illness'    => 'nullable|string',
             'result'            => 'nullable|string|max:255',
             'next_checkup_date' => 'nullable|date',
             'doctor_name'       => 'nullable|string|max:150',
             'doctor_contact'    => 'nullable|string|max:50',
             'facility_name'     => 'nullable|string|max:200',
             'facility_contact'  => 'nullable|string|max:50',
+            'last_medication'   => 'nullable|string|max:255',
+            'current_medication'=> 'nullable|string|max:255',
+            'current_illness'   => 'nullable|string',
             'doctor_notes'      => 'nullable|string',
             'checklist_items'   => 'nullable|array',
             'checklist_items.*.label' => 'required|string',
@@ -407,13 +394,13 @@ class ProfileController extends Controller
         $medical->update($request->only(
             'title', 'patient_name',
             'checkup_date', 'blood_type', 'height', 'weight', 'blood_pressure',
-            'allergies', 'last_medication', 'current_medication', 'current_illness',
-            'result', 'next_checkup_date',
+            'allergies', 'result', 'next_checkup_date',
             'doctor_name', 'doctor_contact', 'facility_name', 'facility_contact',
+            'last_medication', 'current_medication', 'current_illness',
             'doctor_notes', 'checklist_items'
-            ));
+        ));
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'Medical record updated successfully.',
             'data'    => $medical,
@@ -428,13 +415,13 @@ class ProfileController extends Controller
         $medical = $user->medicals()->findOrFail($id);
         $medical->delete();
 
-        return response()->json([
+        return \response()->json([
             'status'  => 'success',
             'message' => 'Medical record deleted successfully.',
         ]);
     }
 
-    private function formatUser($user): array
+    private function formatUser(\App\Models\User $user): array
     {
         return [
             'id'             => $user->id,
@@ -446,15 +433,13 @@ class ProfileController extends Controller
             'position'       => $user->position,
             'department'     => $user->department,
             'company'        => $user->company,
+            'alamat'         => $user->alamat,
             'tipe_afiliasi'  => $user->tipe_afiliasi,
             'perusahaan_kontraktor' => $user->perusahaan_kontraktor,
             'sub_kontraktor' => $user->sub_kontraktor,
             'simper'         => $user->simper,
-            'address'        => $user->address,
             'profile_photo'  => $user->profile_photo
-                ? (str_starts_with($user->profile_photo, 'http')
-                    ? $user->profile_photo
-                    : asset('storage/' . $user->profile_photo))
+                ? \asset('storage/' . $user->profile_photo)
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,
@@ -463,23 +448,23 @@ class ProfileController extends Controller
                 'id'             => $l->id,
                 'name'           => $l->name,
                 'license_number' => $l->license_number,
-                'obtained_at'   => $l->obtained_at?->format('Y-m-d'),
+                'obtained_at'    => $l->obtained_at?->format('Y-m-d'),
                 'expired_at'     => $l->expired_at?->format('Y-m-d'),
                 'status'         => $l->status,
-                'is_verified'    => (bool) $l->is_verified,  
-                'file_url'       => $l->file_path ? asset('storage/' . $l->file_path) : null,                              
+                'is_verified'    => (bool) $l->is_verified,
+                'file_url'       => $l->file_path ? \asset('storage/' . $l->file_path) : null,
             ]) : [],
             'certifications' => $user->relationLoaded('certifications') ? $user->certifications->map(fn($c) => [
                 'id'          => $c->id,
                 'name'        => $c->name,
                 'issuer'      => $c->issuer,
-                'obtained_at' => $c->obtained_at?->format('Y-m-d'),
-                'expired_at'  => $c->expired_at?->format('Y-m-d'),
+                'obtained_at' => $c->obtained_at,
+                'expired_at'  => $c->expired_at,
                 'status'      => $c->status,
                 'is_verified' => (bool) $c->is_verified,
-                'file_url'    => $c->file_path ? asset('storage/' . $c->file_path) : null,                
+                'file_url'    => $c->file_path ? \asset('storage/' . $c->file_path) : null,
             ]) : [],
-                'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
+            'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
                 'id'                => $m->id,
                 'title'             => $m->title,
                 'patient_name'      => $m->patient_name,
@@ -489,15 +474,15 @@ class ProfileController extends Controller
                 'weight'            => $m->weight,
                 'blood_pressure'    => $m->blood_pressure,
                 'allergies'         => $m->allergies,
-                'last_medication'    => $m->last_medication,
-                'current_medication'=> $m->current_medication,
-                'current_illness'   => $m->current_illness,
                 'result'            => $m->result,
                 'next_checkup_date' => $m->next_checkup_date?->format('Y-m-d'),
                 'doctor_name'       => $m->doctor_name,
                 'doctor_contact'    => $m->doctor_contact,
                 'facility_name'     => $m->facility_name,
                 'facility_contact'  => $m->facility_contact,
+                'last_medication'   => $m->last_medication,
+                'current_medication'=> $m->current_medication,
+                'current_illness'   => $m->current_illness,
                 'doctor_notes'      => $m->doctor_notes,
                 'checklist_items'   => $m->checklist_items ?? [],
             ]) : [],
@@ -508,7 +493,7 @@ class ProfileController extends Controller
                 'date_of_violation' => $v->date_of_violation?->format('Y-m-d'),
                 'status'            => $v->status,
                 'sanction'          => $v->sanction,
-            ]) : [],            
+            ]) : [],
         ];
     }
 }
