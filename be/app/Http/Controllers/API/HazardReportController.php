@@ -359,7 +359,7 @@ class HazardReportController extends Controller
                 'tagged_user_id' => $request->tagged_user_id,
                 'status'         => $normalizedStatus,
                 'sub_status'     => $normalizedSubStatus,
-                'message'        => $request->message ?? "Status diubah",
+                'message'        => $request->message,
                 'image_url'      => $imageUrl,
                 'image_urls'     => empty($imageUrls) ? null : $imageUrls,
             ]);

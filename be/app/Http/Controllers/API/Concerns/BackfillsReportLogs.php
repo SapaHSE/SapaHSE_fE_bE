@@ -193,7 +193,7 @@ trait BackfillsReportLogs
                 'tagged_user_id' => $taggedUserId,
                 'status'         => self::SUB_STATUS_PARENT[$sub],
                 'sub_status'     => $sub,
-                'message'        => 'Tahap ' . ucfirst($sub) . ' dilakukan.',
+                'message'        => null,
                 'image_url'      => null,
                 'image_urls'     => null,
             ]);
