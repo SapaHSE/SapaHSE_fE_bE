@@ -42,6 +42,7 @@ class ProfileController extends Controller
             'company'       => 'nullable|string|max:100',
             'alamat'        => 'nullable|string',
             'profile_photo' => 'nullable|image|max:2048',
+            'profile_photo_url' => 'nullable|url|max:2048',
         ]);
 
         if ($request->filled('full_name'))    $user->full_name    = $request->full_name;
@@ -57,6 +58,9 @@ class ProfileController extends Controller
                 Storage::disk('public')->delete($user->profile_photo);
             }
             $user->profile_photo = $request->file('profile_photo')->store('avatars', 'public');
+        } elseif ($request->filled('profile_photo_url')) {
+            // Support external storage URLs (e.g. Supabase public object URL).
+            $user->profile_photo = $request->profile_photo_url;
         }
 
         $user->save();
@@ -439,7 +443,9 @@ class ProfileController extends Controller
             'sub_kontraktor' => $user->sub_kontraktor,
             'simper'         => $user->simper,
             'profile_photo'  => $user->profile_photo
-                ? \asset('storage/' . $user->profile_photo)
+                ? (\filter_var($user->profile_photo, FILTER_VALIDATE_URL)
+                    ? $user->profile_photo
+                    : \asset('storage/' . $user->profile_photo))
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,
