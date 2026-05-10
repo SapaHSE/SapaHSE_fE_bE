@@ -1343,91 +1343,46 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   List<Widget> _buildGroupedTimeline(List<TimelineEvent> timeline) {
     final canViewRepliesInThread = _canViewRepliesInThread(timeline);
     final canReplyInThread = _canReplyInThread(timeline);
-    final groups = <ReportStatus, List<TimelineEvent>>{};
-    for (final e in timeline) {
-      groups.putIfAbsent(e.status, () => []).add(e);
-    }
-
+    final groups = _buildTimelineStatusGroups(timeline);
     final result = <Widget>[];
-    final statuses = [
-      ReportStatus.open,
-      ReportStatus.inProgress,
-      ReportStatus.closed
-    ];
 
-    for (final status in statuses) {
-      final events = groups[status];
-      if (events == null) continue;
+    for (var i = 0; i < groups.length; i++) {
+      final group = groups[i];
+      final statusColor = _statusColor(group.status);
+      final isLastGroup = i == groups.length - 1;
 
-      final statusColor = _statusColor(status);
-      final isCurrentGroup = _report.status == status;
-
-      result.add(
-        Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 10),
-          child: Row(children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: isCurrentGroup
-                    ? statusColor
-                    : statusColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(_statusIcon(status),
-                    size: 12,
-                    color: isCurrentGroup ? Colors.white : statusColor),
-                const SizedBox(width: 5),
-                Text(status.label,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isCurrentGroup ? Colors.white : statusColor)),
-              ]),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-                child: Container(
-                    height: 1, color: statusColor.withValues(alpha: 0.2))),
-          ]),
-        ),
-      );
-
-      for (int i = 0; i < events.length; i++) {
-        final event = events[i];
-        final prevEvent = i > 0 ? events[i - 1] : null;
-        final currentSubStatusKey = event.subStatus?.name ?? event.status.name;
-        final prevSubStatusKey =
-            prevEvent?.subStatus?.name ?? prevEvent?.status.name;
-        final showSubStatusHeader =
-            i == 0 || currentSubStatusKey != prevSubStatusKey;
-        final isRepeatedSubStatus = !showSubStatusHeader;
-        final isLastInGroup = i == events.length - 1;
-        final isVeryLast = status == _report.status && isLastInGroup;
-
-        result.add(
-          _TimelineItem(
-            reportId: _report.id,
-            canViewReplies: canViewRepliesInThread,
-            canReply: canReplyInThread,
-            event: event,
-            isLast: isLastInGroup,
-            isCurrent: isVeryLast,
-            showSubStatusHeader: showSubStatusHeader,
-            isRepeatedSubStatus: isRepeatedSubStatus,
-            statusColor: statusColor,
-            statusIcon: _statusIcon(status),
-            formatDate: _formatDate,
-            formatShort: _formatDateShort,
-          ),
-        );
-      }
-
-      result.add(const SizedBox(height: 4));
+      result.add(_TimelineStatusGroupSection(
+        reportId: _report.id,
+        canViewReplies: canViewRepliesInThread,
+        canReply: canReplyInThread,
+        group: group,
+        isLastGroup: isLastGroup,
+        isCurrentGroup: isLastGroup,
+        statusColor: statusColor,
+        statusIcon: _statusIcon(group.status),
+        formatDate: _formatDate,
+      ));
     }
 
     return result;
+  }
+
+  List<_TimelineStatusGroup> _buildTimelineStatusGroups(
+    List<TimelineEvent> timeline,
+  ) {
+    final groups = <_TimelineStatusGroup>[];
+    for (final event in timeline) {
+      if (groups.isEmpty || !groups.last.accepts(event)) {
+        groups.add(_TimelineStatusGroup(
+          status: event.status,
+          subStatus: event.subStatus,
+          firstEvent: event,
+        ));
+      } else {
+        groups.last.add(event);
+      }
+    }
+    return groups;
   }
 
   Future<void> _refreshTimelineInBackground() async {
@@ -1590,34 +1545,219 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       );
 }
 
+class _TimelineStatusGroup {
+  final ReportStatus status;
+  final ReportSubStatus? subStatus;
+  final List<TimelineEvent> events;
+
+  _TimelineStatusGroup({
+    required this.status,
+    required this.subStatus,
+    required TimelineEvent firstEvent,
+  }) : events = [firstEvent];
+
+  String get label => subStatus?.label ?? status.label;
+  DateTime get startedAt => events.first.timestamp;
+
+  bool accepts(TimelineEvent event) {
+    return event.status == status && event.subStatus == subStatus;
+  }
+
+  void add(TimelineEvent event) => events.add(event);
+}
+
+class _TimelineStatusGroupSection extends StatelessWidget {
+  final String reportId;
+  final bool canViewReplies;
+  final bool canReply;
+  final _TimelineStatusGroup group;
+  final bool isLastGroup;
+  final bool isCurrentGroup;
+  final Color statusColor;
+  final IconData statusIcon;
+  final String Function(DateTime) formatDate;
+
+  const _TimelineStatusGroupSection({
+    required this.reportId,
+    required this.canViewReplies,
+    required this.canReply,
+    required this.group,
+    required this.isLastGroup,
+    required this.isCurrentGroup,
+    required this.statusColor,
+    required this.statusIcon,
+    required this.formatDate,
+  });
+
+  Widget _buildStatusBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: isCurrentGroup
+            ? statusColor
+            : statusColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Text(
+        group.label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: isCurrentGroup ? Colors.white : statusColor,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lineColor = statusColor.withValues(alpha: 0.18);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLastGroup ? 0 : 18),
+      child: Stack(
+        children: [
+          Positioned(
+            top: 40,
+            bottom: 0,
+            left: 19,
+            width: 2,
+            child: ColoredBox(color: lineColor),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 40,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isCurrentGroup
+                            ? statusColor
+                            : Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: statusColor,
+                          width: isCurrentGroup ? 2.5 : 1.5,
+                        ),
+                        boxShadow: isCurrentGroup
+                            ? [
+                                BoxShadow(
+                                  color: statusColor.withValues(alpha: 0.28),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Icon(
+                        statusIcon,
+                        size: 16,
+                        color: isCurrentGroup ? Colors.white : statusColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FF),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: statusColor.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            flex: 3,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: _buildStatusBadge(),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            flex: 2,
+                            child: Text(
+                              formatDate(group.startedAt),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ...group.events.asMap().entries.map((entry) {
+                final index = entry.key;
+                final event = entry.value;
+                final isLastInGroup = index == group.events.length - 1;
+                return _TimelineItem(
+                  reportId: reportId,
+                  canViewReplies: canViewReplies,
+                  canReply: canReply,
+                  event: event,
+                  isLastInGroup: isLastInGroup,
+                  isCurrent: isCurrentGroup && isLastInGroup,
+                  statusColor: statusColor,
+                  formatDate: formatDate,
+                );
+              }),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Timeline item ─────────────────────────────────────────────────────────────
 class _TimelineItem extends StatelessWidget {
   final String reportId;
   final bool canViewReplies;
   final bool canReply;
   final TimelineEvent event;
-  final bool isLast;
+  final bool isLastInGroup;
   final bool isCurrent;
-  final bool showSubStatusHeader;
-  final bool isRepeatedSubStatus;
   final Color statusColor;
-  final IconData statusIcon;
   final String Function(DateTime) formatDate;
-  final String Function(DateTime) formatShort;
 
   const _TimelineItem({
     required this.reportId,
     required this.canViewReplies,
     required this.canReply,
     required this.event,
-    required this.isLast,
+    required this.isLastInGroup,
     required this.isCurrent,
-    required this.showSubStatusHeader,
-    required this.isRepeatedSubStatus,
     required this.statusColor,
-    required this.statusIcon,
     required this.formatDate,
-    required this.formatShort,
   });
 
   Future<void> _openTimelinePreview(
@@ -1771,12 +1911,9 @@ class _TimelineItem extends StatelessWidget {
       canViewReplies: canViewReplies,
       canReply: canReply,
       event: event,
-      isLast: isLast,
+      isLastInGroup: isLastInGroup,
       isCurrent: isCurrent,
-      showSubStatusHeader: showSubStatusHeader,
-      isRepeatedSubStatus: isRepeatedSubStatus,
       statusColor: statusColor,
-      statusIcon: statusIcon,
       formatDate: formatDate,
       openTimelinePreview: _openTimelinePreview,
     );
@@ -1788,12 +1925,9 @@ class _TimelineThreadCard extends StatefulWidget {
   final bool canViewReplies;
   final bool canReply;
   final TimelineEvent event;
-  final bool isLast;
+  final bool isLastInGroup;
   final bool isCurrent;
-  final bool showSubStatusHeader;
-  final bool isRepeatedSubStatus;
   final Color statusColor;
-  final IconData statusIcon;
   final String Function(DateTime) formatDate;
   final Future<void> Function(BuildContext, List<String>, int)
       openTimelinePreview;
@@ -1803,12 +1937,9 @@ class _TimelineThreadCard extends StatefulWidget {
     required this.canViewReplies,
     required this.canReply,
     required this.event,
-    required this.isLast,
+    required this.isLastInGroup,
     required this.isCurrent,
-    required this.showSubStatusHeader,
-    required this.isRepeatedSubStatus,
     required this.statusColor,
-    required this.statusIcon,
     required this.formatDate,
     required this.openTimelinePreview,
   });
@@ -2136,8 +2267,8 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
     required int indentLevel,
     required bool isLastInGroup,
   }) {
-    // The vertical thread line is painted once by the outer Stack in build()
-    // at x ≈ 20 (centered in the parent's 40-px timeline column). Each reply
+    // The vertical group line is painted once by the status section at x ≈ 20
+    // (centered in the parent's 40-px timeline column). Each reply
     // row only renders a horizontal arm from x=20 to its box's left edge so
     // the thread reads as one continuous line from the parent dot down
     // through every reply.
@@ -2271,9 +2402,14 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
   Widget _buildReplyHeader({
     required int replyCount,
     required bool expanded,
-    required Color threadLineColor,
     required Future<void> Function() onTap,
   }) {
+    final label = replyCount > 0
+        ? (expanded
+            ? 'Sembunyikan $replyCount balasan'
+            : 'Tampilkan $replyCount balasan')
+        : (expanded ? 'Sembunyikan balasan' : 'Tampilkan balasan');
+
     // Forum-thread style: no box, no horizontal arm — only a plain
     // "show replies" link indented past the vertical timeline line so the
     // line keeps reading as one continuous stroke behind the text.
@@ -2296,7 +2432,7 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
               ),
               const SizedBox(width: 4),
               Text(
-                expanded ? 'Sembunyikan balasan' : 'Tampilkan balasan',
+                label,
                 style: const TextStyle(
                   color: Color(0xFF1A56C4),
                   fontSize: 12,
@@ -2334,13 +2470,25 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
     );
   }
 
+  String? _activityMessage() {
+    final note = widget.event.note?.trim();
+    if (note != null && note.isNotEmpty) return widget.event.note;
+
+    final taggedUserName = widget.event.taggedUserName?.trim();
+    if (widget.event.subStatus == ReportSubStatus.assigned &&
+        taggedUserName != null &&
+        taggedUserName.isNotEmpty) {
+      return 'Ditugaskan ke $taggedUserName';
+    }
+
+    final subStatus = widget.event.subStatus;
+    if (subStatus != null) return 'Tahap ${subStatus.label} dilakukan';
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasThreadActivity =
-        widget.event.replyCount > 0 || _replies.isNotEmpty || _showComposer;
-    final shouldShowMainTimelineLine =
-        !widget.isLast || hasThreadActivity || widget.canReply;
-    final isRepeatedSubStatus = widget.isRepeatedSubStatus;
     final threadLineColor = Colors.blueGrey.shade100;
     final replyCount =
         _replies.isEmpty ? widget.event.replyCount : _replies.length;
@@ -2349,239 +2497,96 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
         ? replyRoots
         : replyRoots.take(3).toList(growable: false);
     final hasHiddenReplyRoots = replyRoots.length > visibleReplyRoots.length;
+    final activityMessage = _activityMessage();
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: widget.isLast
-            ? 0
-            : (isRepeatedSubStatus ? 8 : 20),
-      ),
+      padding: EdgeInsets.only(bottom: widget.isLastInGroup ? 0 : 10),
       child: Stack(
         children: [
-          // ── Unified vertical thread line ────────────────────────────
-          // Painted once across the whole card so it stays continuous
-          // through the parent dot, the "X Balasan" header, every reply
-          // (root and nested), and the composer at x ≈ 20.
-          if (shouldShowMainTimelineLine)
-            Positioned(
-              top: 40,
-              bottom: 4,
-              left: 19,
-              width: 2,
-              child: ColoredBox(color: Colors.grey.shade200),
+          Positioned(
+            top: 18,
+            left: 19,
+            width: 29,
+            height: 1.4,
+            child: ColoredBox(color: threadLineColor),
+          ),
+          Positioned(
+            top: 14,
+            left: 15,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: widget.statusColor.withValues(alpha: 0.7),
+                  width: 2,
+                ),
+              ),
             ),
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Parent: dot + content ───────────────────────────────
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: 40,
-                      child: Column(
-                        children: [
-                          if (!isRepeatedSubStatus)
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: widget.isCurrent
-                                    ? widget.statusColor
-                                    : widget.statusColor.withValues(alpha: 0.12),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                    color: widget.statusColor,
-                                    width: widget.isCurrent ? 2.5 : 1.5),
-                                boxShadow: widget.isCurrent
-                                    ? [
-                                        BoxShadow(
-                                            color: widget.statusColor
-                                                .withValues(alpha: 0.3),
-                                            blurRadius: 8,
-                                            spreadRadius: 1)
-                                      ]
-                                    : null,
-                              ),
-                              child: Icon(widget.statusIcon,
-                                  size: 16,
-                                  color: widget.isCurrent
-                                      ? Colors.white
-                                      : widget.statusColor),
-                            )
-                          else
-                            const SizedBox(
-                              width: 36,
-                              height: 36,
-                            ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(width: 48),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blueGrey.shade100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.025),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Sub-status label
-                          if (widget.showSubStatusHeader) ...[
-                            SizedBox(
-                              height: 36,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    constraints: const BoxConstraints(
-                                      minHeight: 36,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: widget.isCurrent
-                                          ? widget.statusColor
-                                          : widget.statusColor
-                                              .withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Align(
-                                      alignment: Alignment.center,
-                                      child: RichText(
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        text: TextSpan(
-                                          children: [
-                                            WidgetSpan(
-                                              alignment:
-                                                  PlaceholderAlignment.middle,
-                                              child: Icon(
-                                                widget.statusIcon,
-                                                size: 12,
-                                                color: widget.isCurrent
-                                                    ? Colors.white
-                                                    : widget.statusColor,
-                                              ),
-                                            ),
-                                            const WidgetSpan(
-                                              alignment:
-                                                  PlaceholderAlignment.middle,
-                                              child: SizedBox(width: 6),
-                                            ),
-                                            TextSpan(
-                                              text: widget.event.subStatus
-                                                      ?.label ??
-                                                  widget.event.status.label,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                height: 1,
-                                                fontWeight: FontWeight.bold,
-                                                color: widget.isCurrent
-                                                    ? Colors.white
-                                                    : widget.statusColor,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  TextButton.icon(
-                                    onPressed: widget.canReply
-                                        ? _toggleTopLevelComposer
-                                        : null,
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(0, 32),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 0,
-                                        vertical: 4,
-                                      ),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      foregroundColor: const Color(0xFF1A56C4),
-                                      disabledForegroundColor:
-                                          Colors.grey.shade700,
-                                    ),
-                                    icon: const Icon(
-                                      Icons.reply_rounded,
-                                      size: 18,
-                                    ),
-                                    label: const Text(
-                                      'Balas',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                          ] else ...[
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed:
-                                    widget.canReply ? _toggleTopLevelComposer : null,
-                                style: TextButton.styleFrom(
-                                  minimumSize: const Size(0, 28),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 0,
-                                    vertical: 2,
-                                  ),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                  foregroundColor: const Color(0xFF1A56C4),
-                                  disabledForegroundColor: Colors.grey.shade700,
-                                ),
-                                icon: const Icon(
-                                  Icons.reply_rounded,
-                                  size: 17,
-                                ),
-                                label: const Text(
-                                  'Balas',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                          ],
-                          // Actor + timestamp
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: _buildActorMeta(
-                                  actor: widget.event.actor,
-                                  photoUrl: widget.event.actorPhotoUrl,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildActorMeta(
+                                      actor: widget.event.actor,
+                                      photoUrl: widget.event.actorPhotoUrl,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    _buildInlineMeta(
+                                      icon: Icons.access_time,
+                                      text: widget.formatDate(
+                                        widget.event.timestamp,
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              _buildInlineMeta(
-                                icon: Icons.access_time,
-                                text: widget.formatDate(widget.event.timestamp),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
-                              ),
+                              const SizedBox(width: 8),
                               if (widget.isCurrent) ...[
-                                const SizedBox(width: 8),
                                 Container(
-                                  constraints: const BoxConstraints(
-                                    minHeight: 22,
-                                  ),
+                                  constraints:
+                                      const BoxConstraints(minHeight: 22),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
                                     vertical: 4,
@@ -2604,50 +2609,65 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 6),
                               ],
+                              TextButton.icon(
+                                onPressed: widget.canReply
+                                    ? _toggleTopLevelComposer
+                                    : null,
+                                style: TextButton.styleFrom(
+                                  minimumSize: const Size(0, 30),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 3,
+                                  ),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  foregroundColor: const Color(0xFF1A56C4),
+                                  disabledForegroundColor:
+                                      Colors.grey.shade700,
+                                ),
+                                icon: const Icon(
+                                  Icons.reply_rounded,
+                                  size: 17,
+                                ),
+                                label: const Text(
+                                  'Balas',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                          // Note
-                          if ((widget.event.note != null &&
-                                  widget.event.note!.trim().isNotEmpty) ||
-                              (widget.event.subStatus ==
-                                      ReportSubStatus.assigned &&
-                                  widget.event.taggedUserName != null &&
-                                  widget.event.taggedUserName!.isNotEmpty) ||
-                              widget.event.subStatus != null) ...[
-                            const SizedBox(height: 6),
+                          if (activityMessage != null) ...[
+                            const SizedBox(height: 8),
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 8),
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF8F9FF),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.grey.shade200),
                               ),
                               child: Text(
-                                  (widget.event.note != null &&
-                                          widget.event.note!.trim().isNotEmpty)
-                                      ? widget.event.note!
-                                      : (widget.event.subStatus ==
-                                                  ReportSubStatus.assigned &&
-                                              widget.event.taggedUserName !=
-                                                  null &&
-                                              widget.event.taggedUserName!
-                                                  .isNotEmpty)
-                                          ? 'Ditugaskan ke ${widget.event.taggedUserName}'
-                                          : 'Tahap ${widget.event.subStatus!.label} dilakukan',
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black54,
-                                      height: 1.4)),
+                                activityMessage,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                  height: 1.4,
+                                ),
+                              ),
                             ),
                           ],
-                          // Photos (multi image_urls with legacy fallback to single photoPath)
                           if (widget.event.photoPaths.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             SizedBox(
-                              height: 140,
+                              height: 112,
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: widget.event.photoPaths.length,
@@ -2657,29 +2677,35 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                                   final imageUrl = widget.event.photoPaths[idx];
                                   return GestureDetector(
                                     onTap: () async =>
-                                        widget.openTimelinePreview(context,
-                                            widget.event.photoPaths, idx),
+                                        widget.openTimelinePreview(
+                                      context,
+                                      widget.event.photoPaths,
+                                      idx,
+                                    ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
                                       child: CachedNetworkImage(
                                         imageUrl: imageUrl,
-                                        height: 140,
-                                        width: 140,
+                                        height: 112,
+                                        width: 112,
                                         fit: BoxFit.cover,
                                         placeholder: (_, __) => Container(
-                                          height: 140,
-                                          width: 140,
+                                          height: 112,
+                                          width: 112,
                                           color: Colors.grey.shade200,
                                           child: const Center(
-                                              child:
-                                                  CircularProgressIndicator()),
+                                            child: CircularProgressIndicator(),
+                                          ),
                                         ),
                                         errorWidget: (_, __, ___) => Container(
-                                          height: 140,
-                                          width: 140,
+                                          height: 112,
+                                          width: 112,
                                           color: Colors.grey.shade200,
-                                          child: const Icon(Icons.image,
-                                              color: Colors.grey, size: 48),
+                                          child: const Icon(
+                                            Icons.image,
+                                            color: Colors.grey,
+                                            size: 40,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -2691,11 +2717,9 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                         ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              // ── Reply header (sibling of the parent IntrinsicHeight so
-              //    its arm starts from the same x=20 vertical line) ─────
               if (widget.canViewReplies &&
                   (widget.event.replyCount > 0 ||
                       _replies.isNotEmpty ||
@@ -2704,7 +2728,6 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                 _buildReplyHeader(
                   replyCount: replyCount,
                   expanded: _expanded,
-                  threadLineColor: threadLineColor,
                   onTap: () async {
                     if (_replies.isEmpty) await _loadReplies(force: true);
                     if (!context.mounted) return;
@@ -2820,8 +2843,6 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                           ),
                         ),
                       ),
-
-                      // ── Replying-to citation (slim, no outer card) ────
                       if (_replyingTo != null)
                         Container(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -2881,8 +2902,6 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                             ],
                           ),
                         ),
-
-                      // ── Attachment thumbnails (compact horizontal) ────
                       if (_replyAttachments.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
@@ -2952,8 +2971,6 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                             ),
                           ),
                         ),
-
-                      // ── Text field (no outer wrapper) ─────────────────
                       TextField(
                         controller: _replyCtrl,
                         focusNode: _replyFocus,
@@ -2989,13 +3006,9 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
-                      // ── Action row: attach (left) + send (right) ──────
                       Row(
                         children: [
-                          // Attach (low-emphasis text+icon button)
                           InkWell(
                             onTap: _posting ? null : _pickReplyAttachment,
                             borderRadius: BorderRadius.circular(8),
@@ -3030,7 +3043,6 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                             ),
                           ),
                           const Spacer(),
-                          // Send (primary CTA)
                           Material(
                             color: _posting
                                 ? const Color(0xFF8FB0EA)
