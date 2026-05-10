@@ -27,17 +27,48 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
 
 enum _SubFilter { unread, read }
 enum _MyPostFilter { all, draft, pending, approved, rejected }
-enum _TaskStatusFilter { all, open, validating, inProgress, closed }
+enum _TaskStatusFilter {
+  all,
+  validating,
+  approved,
+  assigned,
+  preparing,
+  executing,
+  reviewing,
+  resolved,
+  rejected,
+  deferred
+}
 
 extension _TaskStatusFilterX on _TaskStatusFilter {
-  String get label {
+  ReportSubStatus? get subStatus {
     switch (this) {
-      case _TaskStatusFilter.all: return 'Semua';
-      case _TaskStatusFilter.open: return 'Open';
-      case _TaskStatusFilter.validating: return 'Validating';
-      case _TaskStatusFilter.inProgress: return 'In Progress';
-      case _TaskStatusFilter.closed: return 'Closed';
+      case _TaskStatusFilter.all:
+        return null;
+      case _TaskStatusFilter.validating:
+        return ReportSubStatus.validating;
+      case _TaskStatusFilter.approved:
+        return ReportSubStatus.approved;
+      case _TaskStatusFilter.assigned:
+        return ReportSubStatus.assigned;
+      case _TaskStatusFilter.preparing:
+        return ReportSubStatus.preparing;
+      case _TaskStatusFilter.executing:
+        return ReportSubStatus.executing;
+      case _TaskStatusFilter.reviewing:
+        return ReportSubStatus.reviewing;
+      case _TaskStatusFilter.resolved:
+        return ReportSubStatus.resolved;
+      case _TaskStatusFilter.rejected:
+        return ReportSubStatus.rejected;
+      case _TaskStatusFilter.deferred:
+        return ReportSubStatus.deferred;
     }
+  }
+
+  String get label {
+    if (this == _TaskStatusFilter.all) return 'Semua';
+    return subStatus!.label;
   }
 }
 
@@ -241,32 +272,12 @@ class _InboxScreenState extends State<InboxScreen>
   List<InboxItem> get _filteredReports {
     var list = _personalReports;
 
-     switch (_activeTaskStatusFilter) {
-       case _TaskStatusFilter.open:
-         list = list.where((i) =>
-           i.status == ReportStatus.open &&
-           i.subStatus != ReportSubStatus.validating
-         ).toList();
-         break;
-       case _TaskStatusFilter.validating:
-         list = list.where((i) =>
-           i.subStatus == ReportSubStatus.validating
-         ).toList();
-         break;
-       case _TaskStatusFilter.inProgress:
-         list = list.where((i) =>
-           i.status == ReportStatus.inProgress
-         ).toList();
-         break;
-       case _TaskStatusFilter.closed:
-         list = list.where((i) =>
-           i.status == ReportStatus.closed
-         ).toList();
-         break;
-       case _TaskStatusFilter.all:
-         list = list.toList();
-         break;
-     }
+    final targetSubStatus = _activeTaskStatusFilter.subStatus;
+    if (targetSubStatus != null) {
+      list = list.where((i) => i.subStatus == targetSubStatus).toList();
+    } else {
+      list = list.toList();
+    }
 
     // Apply sorting
     list.sort((a, b) {
@@ -400,20 +411,12 @@ class _InboxScreenState extends State<InboxScreen>
       return 'Tidak ada laporan dengan status ini.';
     }
      if (_mainTabController.index == 1) {
-       switch (_activeTaskStatusFilter) {
-         case _TaskStatusFilter.open:
-           return 'Tidak ada tugas Open.';
-         case _TaskStatusFilter.validating:
-           return 'Tidak ada tugas Validating.';
-         case _TaskStatusFilter.inProgress:
-           return 'Tidak ada tugas In Progress.';
-         case _TaskStatusFilter.closed:
-           return 'Tidak ada tugas Selesai.';
-         case _TaskStatusFilter.all:
-           return _activeFilter == _SubFilter.unread
-             ? 'Tidak ada tugas aktif!'
-             : 'Tidak ada tugas selesai.';
+       if (_activeTaskStatusFilter == _TaskStatusFilter.all) {
+         return _activeFilter == _SubFilter.unread
+           ? 'Tidak ada tugas aktif!'
+           : 'Tidak ada tugas selesai.';
        }
+       return 'Tidak ada tugas ${_activeTaskStatusFilter.label}.';
      }
     // Pengumuman
     return _activeFilter == _SubFilter.unread
@@ -697,31 +700,12 @@ String _myPostFilterLabel(_MyPostFilter f) {
                                 },
                                 items: _TaskStatusFilter.values.map((f) {
                                   int count;
-                                  switch (f) {
-                                    case _TaskStatusFilter.all:
-                                      count = _personalReports.length;
-                                      break;
-                                    case _TaskStatusFilter.open:
-                                      count = _personalReports.where((i) =>
-                                        i.status == ReportStatus.open &&
-                                        i.subStatus != ReportSubStatus.validating
-                                      ).length;
-                                      break;
-                                    case _TaskStatusFilter.validating:
-                                      count = _personalReports.where((i) =>
-                                        i.subStatus == ReportSubStatus.validating
-                                      ).length;
-                                      break;
-                                    case _TaskStatusFilter.inProgress:
-                                      count = _personalReports.where((i) =>
-                                        i.status == ReportStatus.inProgress
-                                      ).length;
-                                      break;
-                                    case _TaskStatusFilter.closed:
-                                      count = _personalReports.where((i) =>
-                                        i.status == ReportStatus.closed
-                                      ).length;
-                                      break;
+                                  if (f == _TaskStatusFilter.all) {
+                                    count = _personalReports.length;
+                                  } else {
+                                    count = _personalReports
+                                        .where((i) => i.subStatus == f.subStatus)
+                                        .length;
                                   }
                                   return DropdownMenuItem(
                                     value: f,
@@ -1423,11 +1407,15 @@ Row(
                                         fontSize: 11, color: Colors.grey)),
                               ),
                               const SizedBox(width: 12),
-                              const Icon(Icons.person_outline,
+                              const Icon(Icons.location_on_outlined,
                                   size: 12, color: Colors.grey),
                               const SizedBox(width: 4),
                               Flexible(
-                                child: Text(item.fromName ?? 'Admin',
+                                child: Text(
+                                    (item.location != null &&
+                                            item.location!.trim().isNotEmpty)
+                                        ? item.location!
+                                        : '-',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
