@@ -235,10 +235,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     if (_currentUser == null) return false;
     final fullName = _currentUser!.fullName.toLowerCase();
     final dept = (_currentUser!.department ?? '').toLowerCase();
+
+    // Hazard: match nama di picDepartment
     final pic = _report.picDepartment?.toLowerCase() ?? '';
+    final isTaggedByName = pic.contains(fullName);
+
+    // Inspection & Hazard: match dept di reported_department (departemen tagigan)
     final repDept = _report.departemen?.toLowerCase() ?? '';
-    return pic.contains(fullName) ||
-        (dept.isNotEmpty && repDept.contains(dept));
+    final isTaggedByDept = dept.isNotEmpty && repDept.contains(dept);
+
+    return isTaggedByName || isTaggedByDept;
   }
 
   bool get _isApprovedOrLater {
@@ -1396,6 +1402,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             prevEvent?.subStatus?.name ?? prevEvent?.status.name;
         final showSubStatusHeader =
             i == 0 || currentSubStatusKey != prevSubStatusKey;
+        final isRepeatedSubStatus = !showSubStatusHeader;
         final isLastInGroup = i == events.length - 1;
         final isVeryLast = status == _report.status && isLastInGroup;
 
@@ -1408,6 +1415,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             isLast: isLastInGroup,
             isCurrent: isVeryLast,
             showSubStatusHeader: showSubStatusHeader,
+            isRepeatedSubStatus: isRepeatedSubStatus,
             statusColor: statusColor,
             statusIcon: _statusIcon(status),
             formatDate: _formatDate,
@@ -1591,6 +1599,7 @@ class _TimelineItem extends StatelessWidget {
   final bool isLast;
   final bool isCurrent;
   final bool showSubStatusHeader;
+  final bool isRepeatedSubStatus;
   final Color statusColor;
   final IconData statusIcon;
   final String Function(DateTime) formatDate;
@@ -1604,6 +1613,7 @@ class _TimelineItem extends StatelessWidget {
     required this.isLast,
     required this.isCurrent,
     required this.showSubStatusHeader,
+    required this.isRepeatedSubStatus,
     required this.statusColor,
     required this.statusIcon,
     required this.formatDate,
@@ -1764,6 +1774,7 @@ class _TimelineItem extends StatelessWidget {
       isLast: isLast,
       isCurrent: isCurrent,
       showSubStatusHeader: showSubStatusHeader,
+      isRepeatedSubStatus: isRepeatedSubStatus,
       statusColor: statusColor,
       statusIcon: statusIcon,
       formatDate: formatDate,
@@ -1780,6 +1791,7 @@ class _TimelineThreadCard extends StatefulWidget {
   final bool isLast;
   final bool isCurrent;
   final bool showSubStatusHeader;
+  final bool isRepeatedSubStatus;
   final Color statusColor;
   final IconData statusIcon;
   final String Function(DateTime) formatDate;
@@ -1794,6 +1806,7 @@ class _TimelineThreadCard extends StatefulWidget {
     required this.isLast,
     required this.isCurrent,
     required this.showSubStatusHeader,
+    required this.isRepeatedSubStatus,
     required this.statusColor,
     required this.statusIcon,
     required this.formatDate,
@@ -2327,6 +2340,7 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
         widget.event.replyCount > 0 || _replies.isNotEmpty || _showComposer;
     final shouldShowMainTimelineLine =
         !widget.isLast || hasThreadActivity || widget.canReply;
+    final isRepeatedSubStatus = widget.isRepeatedSubStatus;
     final threadLineColor = Colors.blueGrey.shade100;
     final replyCount =
         _replies.isEmpty ? widget.event.replyCount : _replies.length;
@@ -2337,7 +2351,11 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
     final hasHiddenReplyRoots = replyRoots.length > visibleReplyRoots.length;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: widget.isLast ? 0 : 20),
+      padding: EdgeInsets.only(
+        bottom: widget.isLast
+            ? 0
+            : (isRepeatedSubStatus ? 8 : 20),
+      ),
       child: Stack(
         children: [
           // ── Unified vertical thread line ────────────────────────────
@@ -2364,34 +2382,40 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                       width: 40,
                       child: Column(
                         children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: widget.isCurrent
-                                  ? widget.statusColor
-                                  : widget.statusColor.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: widget.statusColor,
-                                  width: widget.isCurrent ? 2.5 : 1.5),
-                              boxShadow: widget.isCurrent
-                                  ? [
-                                      BoxShadow(
-                                          color: widget.statusColor
-                                              .withValues(alpha: 0.3),
-                                          blurRadius: 8,
-                                          spreadRadius: 1)
-                                    ]
-                                  : null,
-                            ),
-                            child: Icon(widget.statusIcon,
-                                size: 16,
+                          if (!isRepeatedSubStatus)
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
                                 color: widget.isCurrent
-                                    ? Colors.white
-                                    : widget.statusColor),
-                          ),
+                                    ? widget.statusColor
+                                    : widget.statusColor.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: widget.statusColor,
+                                    width: widget.isCurrent ? 2.5 : 1.5),
+                                boxShadow: widget.isCurrent
+                                    ? [
+                                        BoxShadow(
+                                            color: widget.statusColor
+                                                .withValues(alpha: 0.3),
+                                            blurRadius: 8,
+                                            spreadRadius: 1)
+                                      ]
+                                    : null,
+                              ),
+                              child: Icon(widget.statusIcon,
+                                  size: 16,
+                                  color: widget.isCurrent
+                                      ? Colors.white
+                                      : widget.statusColor),
+                            )
+                          else
+                            const SizedBox(
+                              width: 36,
+                              height: 36,
+                            ),
                         ],
                       ),
                     ),
