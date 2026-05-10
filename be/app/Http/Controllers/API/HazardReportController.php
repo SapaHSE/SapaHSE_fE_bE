@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\HazardReport;
 use App\Models\ReadStatus;
 use App\Models\ReportLog;
+use App\Models\ReportLogReply;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -277,7 +278,14 @@ class HazardReportController extends Controller
     public function logs(string $id)
     {
         $report = HazardReport::findOrFail($id);
-        $logs = $report->logs()->with(['user', 'taggedUser'])->get();
+        if (!$this->canAccessReportThread($report, Auth::user())) {
+            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        }
+        $logs = $report->logs()
+            ->with(['user', 'taggedUser'])
+            ->withCount('replies')
+            ->withMax('replies', 'created_at')
+            ->get();
 
         return response()->json([
             'status' => 'success',
@@ -291,20 +299,165 @@ class HazardReportController extends Controller
                         : asset('storage/' . ltrim($photoPath, '/'));
                 }
 
+                $logImageUrls = $log->image_urls;
+                if (empty($logImageUrls)) {
+                    $logImageUrls = $log->image_url ? [$log->image_url] : [];
+                }
+
                 return [
                     'id'          => $log->id,
+                    'user_id'     => $log->user_id,
                     'status'      => $log->status,
                     'sub_status'  => $log->sub_status,
                     'message'     => $log->message,
                     'image_url'   => $log->image_url,
+                    'image_urls'  => $logImageUrls,
                     'user_name'   => $log->user->full_name ?? 'System',
                     'user_photo_url' => $userPhotoUrl,
                     'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
+                    'reply_count' => (int) ($log->replies_count ?? 0),
+                    'latest_reply_at' => $log->replies_max_created_at
+                        ? now()->parse((string) $log->replies_max_created_at)->format('Y-m-d H:i:s')
+                        : null,
                     'created_at'  => $log->created_at->format('Y-m-d H:i:s'),
                     'date_human'  => $log->created_at->format('d M Y, H:i'),
                 ];
             })
         ]);
+    }
+
+    public function logReplies(string $id, string $logId)
+    {
+        $report = HazardReport::findOrFail($id);
+        if (!$this->canAccessReportThread($report, Auth::user())) {
+            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        }
+
+        $log = $report->logs()->whereKey($logId)->firstOrFail();
+        $replies = $log->replies()->with('user')->orderBy('created_at')->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $replies->map(function ($reply) {
+                $photoPath = optional($reply->user)->profile_photo;
+                $photoUrl = null;
+                if (!empty($photoPath)) {
+                    $photoPath = (string) $photoPath;
+                    $photoUrl = str_starts_with($photoPath, 'http')
+                        ? $photoPath
+                        : asset('storage/' . ltrim($photoPath, '/'));
+                }
+
+                return [
+                    'id' => $reply->id,
+                    'report_log_id' => $reply->report_log_id,
+                    'parent_reply_id' => $reply->parent_reply_id,
+                    'user_name' => $reply->user->full_name ?? 'Unknown User',
+                    'user_role' => optional($reply->user)->role,
+                    'user_photo_url' => $photoUrl,
+                    'message' => $reply->message,
+                    'attachment_url' => $reply->attachment_url,
+                    'attachment_urls' => !empty($reply->attachment_urls)
+                        ? $reply->attachment_urls
+                        : ($reply->attachment_url ? [$reply->attachment_url] : []),
+                    'created_at' => $reply->created_at->format('Y-m-d H:i:s'),
+                    'date_human' => $reply->created_at->format('d M Y, H:i'),
+                ];
+            }),
+        ]);
+    }
+
+    public function createLogReply(Request $request, string $id, string $logId)
+    {
+        $request->validate([
+            'message' => 'required|string|max:2000',
+            'parent_reply_id' => 'nullable|uuid|exists:report_log_replies,id',
+            'attachment_url' => 'nullable|url|max:500',
+            'attachment_urls' => 'nullable|array|max:10',
+            'attachment_urls.*' => 'url|max:500',
+        ]);
+
+        $report = HazardReport::findOrFail($id);
+        $user = Auth::user();
+        if (!$this->canAccessReportThread($report, $user)) {
+            return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
+        }
+        if ($report->status === 'closed') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Laporan sudah ditutup. Balasan tidak diizinkan.',
+            ], 422);
+        }
+
+        $attachmentUrls = $request->input('attachment_urls', []);
+        if (!is_array($attachmentUrls)) $attachmentUrls = [];
+        $attachmentUrls = array_values(array_filter($attachmentUrls, fn($u) => is_string($u) && $u !== ''));
+        $attachmentUrl = $request->attachment_url ?: (!empty($attachmentUrls) ? $attachmentUrls[0] : null);
+
+        $log = $report->logs()->whereKey($logId)->firstOrFail();
+
+        $parentReplyId = $request->input('parent_reply_id');
+        if ($parentReplyId) {
+            $parent = ReportLogReply::find($parentReplyId);
+            if (!$parent || $parent->report_log_id !== $log->id || $parent->parent_reply_id !== null) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Balasan hanya bisa dikirim ke balasan utama pada thread ini.',
+                ], 422);
+            }
+        }
+
+        $reply = ReportLogReply::create([
+            'report_log_id' => $log->id,
+            'parent_reply_id' => $parentReplyId,
+            'user_id' => $user->id,
+            'message' => trim((string) $request->message),
+            'attachment_url' => $attachmentUrl,
+            'attachment_urls' => empty($attachmentUrls) ? null : $attachmentUrls,
+        ]);
+        $reply->load('user');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Balasan berhasil dikirim.',
+            'data' => [
+                'id' => $reply->id,
+                'report_log_id' => $reply->report_log_id,
+                'parent_reply_id' => $reply->parent_reply_id,
+                'user_name' => $reply->user->full_name ?? 'Unknown User',
+                'user_role' => optional($reply->user)->role,
+                'user_photo_url' => optional($reply->user)->profile_photo
+                    ? (str_starts_with((string) optional($reply->user)->profile_photo, 'http')
+                        ? (string) optional($reply->user)->profile_photo
+                        : asset('storage/' . ltrim((string) optional($reply->user)->profile_photo, '/')))
+                    : null,
+                'message' => $reply->message,
+                'attachment_url' => $reply->attachment_url,
+                'attachment_urls' => !empty($reply->attachment_urls)
+                    ? $reply->attachment_urls
+                    : ($reply->attachment_url ? [$reply->attachment_url] : []),
+                'created_at' => $reply->created_at->format('Y-m-d H:i:s'),
+                'date_human' => $reply->created_at->format('d M Y, H:i'),
+            ],
+        ], 201);
+    }
+
+    private function canAccessReportThread(HazardReport $report, User $user): bool
+    {
+        if (in_array($user->role, ['admin', 'superadmin'])) return true;
+
+        if ($report->user_id === $user->id) return true;
+
+        $isAssignee = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
+            || (!empty($user->department) && $report->reported_department
+                && stripos($report->reported_department, $user->department) !== false);
+        if ($isAssignee) return true;
+
+        return ReportLog::query()
+            ->where('reportable_type', HazardReport::class)
+            ->where('reportable_id', $report->id)
+            ->where('user_id', $user->id)
+            ->exists();
     }
 
     private function formatReport(HazardReport $report, ?string $userId): array
