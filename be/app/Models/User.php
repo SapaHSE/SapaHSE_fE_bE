@@ -18,7 +18,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $position
  * @property string|null $department
  * @property string|null $company
- * @property string|null $alamat
+ * @property string|null $address
  * @property string|null $tipe_afiliasi
  * @property string|null $perusahaan_kontraktor
  * @property string|null $sub_kontraktor
@@ -53,7 +53,7 @@ class User extends Authenticatable
         'position',
         'department',
         'company',
-        'alamat',
+        'address',
         'tipe_afiliasi',
         'perusahaan_kontraktor',
         'sub_kontraktor',

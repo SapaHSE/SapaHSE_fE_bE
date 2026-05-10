@@ -82,6 +82,7 @@ class ProfileService {
     String? personalEmail,
     String? workEmail,
     String? phoneNumber,
+    String? address,
     String? position,
     String? department,
     String? company,
@@ -92,6 +93,7 @@ class ProfileService {
     if (personalEmail != null) body['personal_email'] = personalEmail;
     if (workEmail != null) body['work_email'] = workEmail;
     if (phoneNumber != null) body['phone_number'] = phoneNumber;
+    if (address != null) body['address'] = address;
     if (position != null) body['position'] = position;
     if (department != null) body['department'] = department;
     if (company != null) body['company'] = company;

@@ -743,6 +743,7 @@ final List<Map<String, dynamic>> _subTabs = [
                               fullName: nameCtrl.text,
                               personalEmail: emailCtrl.text,
                               phoneNumber: phoneCtrl.text,
+                              address: addressCtrl.text,
                               imagePath: localImageFile?.path,
                             );
 

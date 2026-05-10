@@ -35,23 +35,25 @@ class ProfileController extends Controller
 
         $request->validate([
             'full_name'     => 'nullable|string|max:100',
+            'personal_email'=> 'nullable|email|max:150|unique:users,personal_email,' . $user->id,
             'work_email'    => 'nullable|email|max:150|unique:users,work_email,' . $user->id,
             'phone_number'  => 'nullable|string|max:20',
             'position'      => 'nullable|string|max:100',
             'department'    => 'nullable|string|max:100',
             'company'       => 'nullable|string|max:100',
-            'alamat'        => 'nullable|string',
+            'address'       => 'nullable|string|max:500',
             'profile_photo' => 'nullable|image|max:2048',
             'profile_photo_url' => 'nullable|url|max:2048',
         ]);
 
         if ($request->filled('full_name'))    $user->full_name    = $request->full_name;
+        if ($request->filled('personal_email')) $user->personal_email = $request->personal_email;
         if ($request->filled('work_email'))   $user->work_email   = $request->work_email;
         if ($request->filled('phone_number')) $user->phone_number = $request->phone_number;
         if ($request->filled('position'))     $user->position     = $request->position;
         if ($request->filled('department'))   $user->department   = $request->department;
         if ($request->filled('company'))      $user->company      = $request->company;
-        if ($request->filled('alamat'))       $user->alamat       = $request->alamat;
+        if ($request->filled('address'))      $user->address      = $request->address;
 
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo) {
@@ -437,7 +439,7 @@ class ProfileController extends Controller
             'position'       => $user->position,
             'department'     => $user->department,
             'company'        => $user->company,
-            'alamat'         => $user->alamat,
+            'address'        => $user->address,
             'tipe_afiliasi'  => $user->tipe_afiliasi,
             'perusahaan_kontraktor' => $user->perusahaan_kontraktor,
             'sub_kontraktor' => $user->sub_kontraktor,
