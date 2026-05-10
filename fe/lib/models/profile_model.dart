@@ -63,7 +63,7 @@ class ProfileData {
       perusahaanKontraktor: json['perusahaan_kontraktor']?.toString(),
       subKontraktor: json['sub_kontraktor']?.toString(),
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
-      address: json['address']?.toString(),
+      address: json['alamat']?.toString() ?? json['address']?.toString(),
       role: json['role']?.toString() ?? 'user',
       isActive: parseFlexibleBool(json['is_active']),
       licenses: (json['licenses'] as List<dynamic>?)

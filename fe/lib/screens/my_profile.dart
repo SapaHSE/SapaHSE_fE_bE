@@ -4,10 +4,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:sapahse/models/profile_model.dart';
 import 'package:sapahse/services/profile_service.dart';
 import 'package:sapahse/services/storage_service.dart';
 import 'package:sapahse/utils/value_parser.dart';
+import 'package:sapahse/utils/url_helper.dart';
 import 'package:sapahse/main.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
@@ -73,7 +75,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
     _loadProfile().then((_) {
       if (widget.initialAction == 'edit_biodata') {
-        _showEditBiodataForm();
+        _showEditProfileSheet();
       } else if (widget.initialAction == 'add_license') {
         _showAddLicenseForm();
       } else if (widget.initialAction == 'add_certification') {
@@ -108,6 +110,47 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Future<void> _pickImage() async {
     _showPhotoOptions();
+  }
+
+  Future<XFile?> _pickImageForForm() async {
+    if (kIsWeb) {
+      final picker = ImagePicker();
+      return picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    }
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Pilih Sumber Foto',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF1A56C4)),
+              title: const Text('Kamera'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
+              title: const Text('Galeri'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return null;
+    final picker = ImagePicker();
+    return picker.pickImage(source: source, imageQuality: 90);
   }
 
   void _showPhotoOptions() {
@@ -261,7 +304,7 @@ final List<Map<String, dynamic>> _subTabs = [
       builder: (_) => _ProfileFabMenuSheet(
         onEditBiodata: () {
           Navigator.pop(context);
-          _showEditBiodataForm();
+          _showEditProfileSheet();
         },
         onAddLicense: () {
           Navigator.pop(context);
@@ -469,9 +512,22 @@ final List<Map<String, dynamic>> _subTabs = [
   }
 
   String? _resolveProfilePhoto() {
-    final fromProfile = _profileData?.profilePhoto;
-    if (fromProfile != null && fromProfile.isNotEmpty) return fromProfile;
-    return parseNullableDisplayName(_cachedUser?['profile_photo']);
+    final fromProfile = normalizeStorageUrl(_profileData?.profilePhoto);
+    if (parseNullableDisplayName(fromProfile) != null) return fromProfile;
+
+    final fromCacheProfilePhoto =
+        normalizeStorageUrl(parseNullableDisplayName(_cachedUser?['profile_photo']));
+    if (parseNullableDisplayName(fromCacheProfilePhoto) != null) {
+      return fromCacheProfilePhoto;
+    }
+
+    final fromCacheProfilePhotoUrl = normalizeStorageUrl(
+      parseNullableDisplayName(_cachedUser?['profile_photo_url']),
+    );
+    if (parseNullableDisplayName(fromCacheProfilePhotoUrl) != null) {
+      return fromCacheProfilePhotoUrl;
+    }
+    return null;
   }
 
   ImageProvider? _getAvatarImage() {
@@ -479,8 +535,9 @@ final List<Map<String, dynamic>> _subTabs = [
       return FileImage(File(_avatarFile!.path));
     }
     final photo = _resolveProfilePhoto();
-    if (photo != null && photo.isNotEmpty) {
-      return NetworkImage(photo);
+    final resolved = parseNullableDisplayName(photo);
+    if (resolved != null) {
+      return NetworkImage(resolved);
     }
     return null;
   }
@@ -535,7 +592,7 @@ final List<Map<String, dynamic>> _subTabs = [
   Widget _buildSubTabContent() {
     switch (_selectedSubTab) {
       case 0:
-        return _BiodataContent(data: _profileData, cachedUser: _cachedUser);
+        return _BiodataContent(data: _profileData);
       case 1:
         return _LicenseContent(
           licenses: _profileData?.licenses ?? [],
@@ -556,9 +613,16 @@ final List<Map<String, dynamic>> _subTabs = [
   }
 
 
-  void _showEditBiodataForm() {
-    final phoneCtrl = TextEditingController(text: _profileData?.phoneNumber);
+  void _showEditProfileSheet() {
+    if (_profileData == null) return;
+
+    final nikCtrl = TextEditingController(text: _profileData?.employeeId);
+    final nameCtrl = TextEditingController(text: _profileData?.fullName);
     final emailCtrl = TextEditingController(text: _profileData?.personalEmail);
+    final phoneCtrl = TextEditingController(text: _profileData?.phoneNumber);
+    final addressCtrl = TextEditingController(text: _profileData?.address);
+    XFile? localImageFile;
+    final existingProfilePhoto = parseNullableDisplayName(_resolveProfilePhoto());
 
     showModalBottomSheet(
       context: context,
@@ -567,86 +631,179 @@ final List<Map<String, dynamic>> _subTabs = [
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
           decoration: const BoxDecoration(
-            color: Colors.white,
+            color: Color(0xFFF5F5F5),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  const Text('Edit Biodata',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  IconButton(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.close),
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close)),
-                ],
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Edit Profil',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
-              _buildFieldLabel('Nomor Telepon'),
-              TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: _buildInputDecoration('Contoh: 08123456789'),
-              ),
-              const SizedBox(height: 16),
-              _buildFieldLabel('Email Pribadi'),
-              TextField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                decoration: _buildInputDecoration('Contoh: user@email.com'),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    if (!context.mounted) return;                    
-                    setState(() => _isLoading = true);
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Center(
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Colors.white,
+                              backgroundImage: localImageFile != null
+                                  ? FileImage(File(localImageFile!.path))
+                                  : (existingProfilePhoto != null
+                                      ? NetworkImage(existingProfilePhoto)
+                                      : null) as ImageProvider?,
+                              child: (localImageFile == null &&
+                                      existingProfilePhoto == null)
+                                  ? Icon(Icons.person, size: 50, color: Colors.grey.shade400)
+                                  : null,
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: () async {
+                                  final picked = await _pickImageForForm();
+                                  if (picked != null) {
+                                    setModalState(() => localImageFile = picked);
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF1A56C4),
+                                    shape: BoxShape.circle,
+                                    border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 2)),
+                                  ),
+                                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSheetField('NIK', nikCtrl, enabled: false),
+                            const SizedBox(height: 16),
+                            _buildSheetField('Nama Lengkap', nameCtrl),
+                            const SizedBox(height: 16),
+                            _buildSheetField('Email', emailCtrl, keyboardType: TextInputType.emailAddress),
+                            const SizedBox(height: 16),
+                            _buildSheetField('Nomor Telepon', phoneCtrl, keyboardType: TextInputType.phone),
+                            const SizedBox(height: 16),
+                            _buildSheetField('Alamat', addressCtrl, maxLines: 2),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            setState(() => _isLoading = true);
 
-                    final result = await ProfileService.updateProfile(
-                      phoneNumber:
-                          phoneCtrl.text.isNotEmpty ? phoneCtrl.text : null,
-                      personalEmail:
-                          emailCtrl.text.isNotEmpty ? emailCtrl.text : null,
-                    );
+                            final result = await ProfileService.updateProfile(
+                              fullName: nameCtrl.text,
+                              personalEmail: emailCtrl.text,
+                              phoneNumber: phoneCtrl.text,
+                              imagePath: localImageFile?.path,
+                            );
 
-                    if (!mounted) return;                    
-                    if (result.success) {
-                      _loadProfile();
-                    } else {
-                      setState(() => _isLoading = false);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(
-                              result.errorMessage ?? 'Gagal menyimpan')));
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF5C38FF),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+                            if (mounted) {
+                              if (result.success) {
+                                _loadProfile();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Profil berhasil diperbarui')),
+                                );
+                              } else {
+                                setState(() => _isLoading = false);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(result.errorMessage ?? 'Gagal memperbarui')),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1A56C4),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                          ),
+                          child: const Text('SIMPAN PERUBAHAN', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  child: const Text('Simpan',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSheetField(String label, TextEditingController controller,
+      {bool enabled = true, TextInputType? keyboardType, int maxLines = 1}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          enabled: enabled,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: enabled ? Colors.white : Colors.grey.shade100,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1A56C4))),
+            disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -687,7 +844,7 @@ final List<Map<String, dynamic>> _subTabs = [
               children: [
                 Row(
                   children: [
-                    const Text('Edit Data Medis',
+                    const Text('Edit Information Medis',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     const Spacer(),
@@ -1257,26 +1414,31 @@ final List<Map<String, dynamic>> _subTabs = [
 
 class _BiodataContent extends StatelessWidget {
   final ProfileData? data;
-  final Map<String, dynamic>? cachedUser;
-  const _BiodataContent({this.data, this.cachedUser});
+  const _BiodataContent({this.data});
 
-  String _resolve(String? primary, String cacheKey) {
-    return parseNullableDisplayName(primary) ??
-        parseNullableDisplayName(cachedUser?[cacheKey]) ??
-        '-';
+  void _copyToClipboard(BuildContext context, String label, String? value) {
+    if (value != null && value != '-' && value.isNotEmpty) {
+      Clipboard.setData(ClipboardData(text: value));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$label berhasil disalin'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
-  String _resolveAfiliasi() => _resolve(data?.tipeAfiliasi, 'tipe_afiliasi');
+  void _launchUrl(String urlString) async {
+    final uri = Uri.parse(urlString);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final tipeAfiliasi = _resolveAfiliasi();
-    final showKontraktor = tipeAfiliasi == 'Kontraktor' ||
-        tipeAfiliasi == 'Sub-Kontraktor' ||
-        tipeAfiliasi == 'Sub-Kont.';
-    final showSubKontraktor =
-        tipeAfiliasi == 'Sub-Kontraktor' || tipeAfiliasi == 'Sub-Kont.';
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -1284,41 +1446,52 @@ class _BiodataContent extends StatelessWidget {
         children: [
           _buildTitle('INFORMATION PERSONAL'),
           _buildCard([
-            _buildRow(context, 'NIK', _resolve(data?.employeeId, 'employee_id'),
-                locked: true, showCopyIcon: true),
-            _buildRow(
-                context, 'Nama Lengkap', _resolve(data?.fullName, 'full_name'),
-                locked: true, showCopyIcon: true),
-            _buildRow(context, 'Email',
-                _resolve(data?.personalEmail, 'personal_email'),
-                showCopyIcon: true),
-            _buildRow(
-                context, 'Phone', _resolve(data?.phoneNumber, 'phone_number'),
-                showCopyIcon: true),
-            _buildRow(context, 'Alamat', _resolve(data?.address, 'address'),
-                showCopyIcon: true),
+            _buildRow(context, 'NIK', data?.employeeId ?? '-',
+                locked: true,
+                onTap: () =>
+                    _copyToClipboard(context, 'NIK', data?.employeeId)),
+            _buildRow(context, 'Nama Lengkap', data?.fullName ?? '-',
+                locked: true,
+                onTap: () =>
+                    _copyToClipboard(context, 'Nama Lengkap', data?.fullName)),
+            _buildRow(context, 'Email', data?.personalEmail ?? '-',
+                onTap: () => _launchUrl('mailto:${data?.personalEmail ?? ""}')),
+            _buildRow(context, 'Phone', data?.phoneNumber ?? '-', onTap: () {
+              final phone = data?.phoneNumber ?? "";
+              if (phone.isNotEmpty && phone != '-') {
+                String waNumber = phone;
+                if (waNumber.startsWith('08')) {
+                  waNumber = '628' + waNumber.substring(2);
+                }
+                _launchUrl('https://wa.me/$waNumber');
+              }
+            }),
+            _buildRow(context, 'Alamat', data?.address ?? '-',
+                onTap: () =>
+                    _copyToClipboard(context, 'Alamat', data?.address)),
           ]),
           const SizedBox(height: 24),
           _buildTitle('INFORMATION EMPLOYEE'),
           _buildCard([
-            _buildRow(context, 'Tipe Afiliasi', tipeAfiliasi, locked: true),
-            _buildRow(context, 'Perusahaan Owner',
-                _resolve(data?.company, 'company'),
+            _buildRow(context, 'Tipe Afiliasi', data?.tipeAfiliasi ?? '-',
                 locked: true),
-            if (showKontraktor)
+            _buildRow(context, 'Perusahaan Owner', data?.company ?? '-',
+                locked: true),
+            if (data?.tipeAfiliasi == 'Kontraktor' ||
+                data?.tipeAfiliasi == 'Sub-Kontraktor' ||
+                data?.tipeAfiliasi == 'Sub-Kont.')
               _buildRow(context, 'Perusahaan Kontraktor',
-                  _resolve(data?.perusahaanKontraktor, 'perusahaan_kontraktor'),
+                  data?.perusahaanKontraktor ?? '-',
                   locked: true),
-            if (showSubKontraktor)
+            if (data?.tipeAfiliasi == 'Sub-Kontraktor' ||
+                data?.tipeAfiliasi == 'Sub-Kont.')
               _buildRow(context, 'Sub-Kontraktor',
-                  _resolve(data?.subKontraktor, 'sub_kontraktor'),
+                  data?.subKontraktor ?? '-',
                   locked: true),
-            _buildRow(context, 'Departemen',
-                _resolve(data?.department, 'department'),
+            _buildRow(context, 'Departemen', data?.department ?? '-',
                 locked: true),
-            _buildRow(
-                context, 'Jabatan', _resolve(data?.position, 'position'),
-                locked: true),
+            _buildRow(context, 'Jabatan', data?.position ?? '-',
+                  locked: true),
           ]),
         ],
       ),
@@ -1360,7 +1533,7 @@ class _BiodataContent extends StatelessWidget {
       );
 
   Widget _buildRow(BuildContext context, String label, String value,
-      {bool locked = false, bool showCopyIcon = false}) {
+      {bool locked = false, VoidCallback? onTap}) {
     Widget content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -1380,13 +1553,9 @@ class _BiodataContent extends StatelessWidget {
                   child: Text(value,
                       textAlign: TextAlign.right,
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          height: 1.3))),
-              if (showCopyIcon) ...[
-                const SizedBox(width: 6),
-                Icon(Icons.copy, color: Colors.grey.shade400, size: 14)
-              ],
+                           fontWeight: FontWeight.bold,
+                           fontSize: 13,
+                           height: 1.3))),
               if (locked) ...[
                 const SizedBox(width: 6),
                 const Icon(Icons.lock, color: Colors.orange, size: 14)
@@ -1397,21 +1566,9 @@ class _BiodataContent extends StatelessWidget {
       ),
     );
 
-    if (showCopyIcon) {
+    if (onTap != null) {
       return InkWell(
-        onTap: () async {
-          if (value != '-' && value.isNotEmpty) {
-            await Clipboard.setData(ClipboardData(text: value));
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('$label berhasil disalin'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            }
-          }
-        },
+        onTap: onTap,
         child: content,
       );
     }
@@ -1645,7 +1802,7 @@ class _MedicalContent extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text('DATA MEDIS',
+            child: Text('INFORMATION MEDIS',
                 style: TextStyle(
                     color: Colors.grey.shade500,
                     fontSize: 11,
@@ -1677,9 +1834,15 @@ class _MedicalContent extends StatelessWidget {
                 _buildMedicalRow(
                     'MCU Berikutnya', latest?.nextCheckupDate ?? '-'),
                 _buildDivider(),
-                _buildMedicalRow('Riwayat Penyakit', '-'),
+                _buildMedicalRow(
+                    'Konsumsi Obat Terakhir', latest?.lastMedication ?? '-'),
                 _buildDivider(),
-                _buildMedicalRow('Obat Berjalan', '-'),
+                _buildMedicalRow(
+                    'Obat Berjalan', latest?.currentMedication ?? '-'),
+                _buildDivider(),
+                _buildMedicalRow(
+                    'Penyakit Diderita', latest?.currentIllness ?? '-',
+                    isBoldValue: true),
               ],
             ),
           ),
@@ -1696,7 +1859,7 @@ class _MedicalContent extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Data medis dikelola oleh Klinik & Dokter Perusahaan',
+                    'Information medis dikelola oleh Klinik & Dokter Perusahaan',
                     style: TextStyle(
                         color: Colors.indigo.shade800,
                         fontSize: 12,
@@ -2012,8 +2175,8 @@ class _ProfileFabMenuSheet extends StatelessWidget {
             icon: Icons.person_outline,
             iconBgColor: const Color(0xFFF3E5F5),
             iconColor: const Color(0xFF8E24AA),
-            title: 'Edit Biodata',
-            subtitle: 'Perbarui nomor telepon & email',
+            title: 'Edit Profil',
+            subtitle: 'Perbarui foto, email, telepon & alamat',
             onTap: onEditBiodata,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
@@ -2022,7 +2185,7 @@ class _ProfileFabMenuSheet extends StatelessWidget {
             iconBgColor: const Color(0xFFE3F2FD),
             iconColor: const Color(0xFF1E88E5),
             title: 'Tambah Lisensi',
-            subtitle: 'Tambahkan SIM/SIO/KIMPER',
+            subtitle: 'Tambahkan SIM/SIO',
             onTap: onAddLicense,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
@@ -2039,7 +2202,7 @@ class _ProfileFabMenuSheet extends StatelessWidget {
             icon: Icons.medical_services_outlined,
             iconBgColor: const Color(0xFFFFEBEE),
             iconColor: const Color(0xFFE53935),
-            title: 'Edit Data Medis',
+            title: 'Edit Information Medis',
             subtitle: 'Perbarui info kesehatan & alergi',
             onTap: onEditMedical,
           ),

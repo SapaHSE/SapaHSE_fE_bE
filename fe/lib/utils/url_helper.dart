@@ -6,6 +6,17 @@ String? normalizeStorageUrl(String? value) {
   final trimmed = value.trim();
   if (trimmed.isEmpty) return null;
 
+  // Recover malformed values like:
+  // https://api-domain/storage/https://supabase...
+  final embeddedHttpIndex = trimmed.indexOf('https://', 8);
+  if (embeddedHttpIndex > 0) {
+    return trimmed.substring(embeddedHttpIndex);
+  }
+  final embeddedHttpAltIndex = trimmed.indexOf('http://', 7);
+  if (embeddedHttpAltIndex > 0) {
+    return trimmed.substring(embeddedHttpAltIndex);
+  }
+
   final uri = Uri.tryParse(trimmed);
   final baseUri = Uri.parse(ApiService.baseUrl);
   final origin = '${baseUri.scheme}://${baseUri.host}'
