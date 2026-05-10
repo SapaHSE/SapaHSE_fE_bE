@@ -201,10 +201,13 @@ class HazardReportController extends Controller
         $request->validate([
             'status'              => 'required|in:pending,open,in_progress,closed,rejected',
             'sub_status'          => 'nullable|string|max:50',
-            'message'             => 'nullable|string',
-            'image'               => 'nullable|image|max:8192',
-            'tagged_user_id'      => 'nullable|uuid|exists:users,id',
-            'pic_department'      => 'nullable|string|max:100',
+            'message'            => 'nullable|string',
+            'image_url'          => 'nullable|url|max:500',
+            'image_urls'         => 'nullable|array|max:10',
+            'image_urls.*'       => 'url|max:500',
+            'image'              => 'nullable|image|max:8192',
+            'tagged_user_id'     => 'nullable|uuid|exists:users,id',
+            'pic_department'     => 'nullable|string|max:100',
             'reported_department' => 'nullable|string|max:100',
         ]);
 
@@ -221,6 +224,32 @@ class HazardReportController extends Controller
 
         if (!$isAdmin && !$isReporter && !$isPja) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
+        }
+
+        // Normalize multi-image URLs (Supabase URLs uploaded by client).
+        $imageUrls = $request->input('image_urls', []);
+        if (!is_array($imageUrls)) $imageUrls = [];
+        $imageUrls = array_values(
+            array_filter(
+                array_unique(
+                    array_map('strval', $imageUrls)
+                ),
+                fn($u) => is_string($u) && $u !== '' && filter_var($u, FILTER_VALIDATE_URL) !== false
+            )
+        );
+
+        // Prefer client-supplied Supabase URL; fall back to legacy file upload.
+        $imageUrl = $request->input('image_url');
+        if (!$imageUrl && !empty($imageUrls)) {
+            $imageUrl = $imageUrls[0];
+        }
+        if (!$imageUrl && $request->hasFile('image')) {
+            $path = $request->file('image')->store('report_logs', 'public');
+            $imageUrl = asset('storage/' . $path);
+            $imageUrls = [$imageUrl];
+        }
+        if (empty($imageUrls) && $imageUrl) {
+            $imageUrls = [$imageUrl];
         }
 
         $requestedStatus = $request->status;
@@ -269,6 +298,7 @@ class HazardReportController extends Controller
             'sub_status'     => $normalizedSubStatus,
             'message'        => $request->message ?? "Status diubah",
             'image_url'      => $imageUrl,
+            'image_urls'     => !empty($imageUrls) ? json_encode($imageUrls) : null,
         ]);
 
         return response()->json([
