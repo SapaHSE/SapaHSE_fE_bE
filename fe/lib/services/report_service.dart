@@ -6,29 +6,56 @@ import '../utils/url_helper.dart';
 import 'api_service.dart';
 import 'supabase_storage_service.dart';
 
+class TaggedUser {
+  final String id;
+  final String fullName;
+  final String? role;
+
+  const TaggedUser({
+    required this.id,
+    required this.fullName,
+    this.role,
+  });
+
+  factory TaggedUser.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const TaggedUser(id: '', fullName: '');
+    return TaggedUser(
+      id: json['id']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? '',
+      role: json['role']?.toString(),
+    );
+  }
+}
+
 class ReportLogEntry {
   final String id;
+  final String? actorUserId;
   final ReportStatus status;
   final ReportSubStatus? subStatus;
   final DateTime timestamp;
   final String actor;
+  final String? actorPhotoUrl;
   final String? note;
   final String? photoUrl;
   final List<String> photoUrls;
   final int replyCount;
   final DateTime? latestReplyAt;
+  final TaggedUser? taggedUser;
 
   const ReportLogEntry({
     required this.id,
+    this.actorUserId,
     required this.status,
     required this.timestamp,
     required this.actor,
+    this.actorPhotoUrl,
     this.subStatus,
     this.note,
     this.photoUrl,
     this.photoUrls = const [],
     this.replyCount = 0,
     this.latestReplyAt,
+    this.taggedUser,
   });
 }
 
@@ -37,6 +64,7 @@ class TimelineReply {
   final String logId;
   final String? parentReplyId;
   final String actor;
+  final String? actorPhotoUrl;
   final String? userRole;
   final String message;
   final String? attachmentUrl;
@@ -48,6 +76,7 @@ class TimelineReply {
     required this.logId,
     this.parentReplyId,
     required this.actor,
+    this.actorPhotoUrl,
     this.userRole,
     required this.message,
     this.attachmentUrl,
@@ -685,6 +714,7 @@ class ReportService {
       subStatus: _subStatusFromApi(rawSubStatus) ??
           (rawStatus == 'rejected' ? ReportSubStatus.rejected : null),
       location: json['location']?.toString() ?? '-',
+      departemen: json['reported_department']?.toString(),
       createdAt: _parseDate(json['created_at']),
       reportedBy: _reportedBy(json['reported_by']),
       reporterId: _reporterId(json['reported_by']),
@@ -704,6 +734,7 @@ class ReportService {
     final photoUrls = _parseImageUrls(json);
     return ReportLogEntry(
       id: json['id']?.toString() ?? '',
+      actorUserId: json['user_id']?.toString(),
       status: _statusFromApi(rawStatus),
       subStatus: _subStatusFromApi(rawSubStatus) ??
           (rawStatus == 'rejected' ? ReportSubStatus.rejected : null),
@@ -711,11 +742,15 @@ class ReportService {
       actor: json['user_name']?.toString().trim().isNotEmpty == true
           ? json['user_name'].toString()
           : 'System',
+      actorPhotoUrl: normalizeStorageUrl(json['user_photo_url']?.toString()),
       note: json['message']?.toString(),
       photoUrl: photoUrls.isNotEmpty ? photoUrls.first : null,
       photoUrls: photoUrls,
       replyCount: (json['reply_count'] as num?)?.toInt() ?? 0,
       latestReplyAt: _parseDateOrNull(json['latest_reply_at']),
+      taggedUser: json['tagged_user'] != null
+          ? TaggedUser.fromJson(json['tagged_user'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -743,6 +778,7 @@ class ReportService {
       actor: json['user_name']?.toString().trim().isNotEmpty == true
           ? json['user_name'].toString()
           : 'Unknown User',
+      actorPhotoUrl: normalizeStorageUrl(json['user_photo_url']?.toString()),
       userRole: (roleRaw != null && roleRaw.isNotEmpty) ? roleRaw : null,
       message: json['message']?.toString() ?? '',
       attachmentUrl: urls.isNotEmpty ? urls.first : single,

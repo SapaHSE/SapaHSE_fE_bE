@@ -40,6 +40,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   final _formKey1 = GlobalKey<FormState>();
   final _formKey2 = GlobalKey<FormState>();
 
+  // Focus node for keyboard management
+  final FocusNode _focusNode = FocusNode();
+
   // ── API-loaded data ──────────────────────────────────────────────────────────
   List<HazardCategoryData> _apiCategories = [];
   List<String> _apiDepartments = [];
@@ -50,9 +53,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   bool _isLoadingAreas = false;
 
   // ── Step 1 state ─────────────────────────────────────────────────────────────
-  String? _selectedKategori;
-  String? _selectedKategoriCode; // TTA / KTA for API
-  String? _selectedSubkategori;
+  final List<String> _selectedKategori = [];
+  final List<String> _selectedKategoriCodes = []; // TTA / KTA codes for API
+  final Map<String, String> _selectedSubkategori = {}; // kategori -> subkategori
   String? _selectedPerusahaan;
   int? _selectedCompanyId;
   final Set<String> _selectedDepts = {};
@@ -62,13 +65,10 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   bool get _hasPicSelection =>
       _selectedDepts.isNotEmpty || _selectedUsers.isNotEmpty;
   bool get _canPickSubcategory =>
-      !_isLoadingData &&
-      _selectedKategori != null &&
-      _selectedKategori!.trim().isNotEmpty;
+      !_isLoadingData && _selectedKategori.isNotEmpty;
+
   bool get _canPickCompany =>
-      _canPickSubcategory &&
-      _selectedSubkategori != null &&
-      _selectedSubkategori!.trim().isNotEmpty;
+      _canPickSubcategory && _selectedSubkategori.length == _selectedKategori.length;
   bool get _canOpenTagPicker =>
       _canPickCompany &&
       _selectedPerusahaan != null &&
@@ -198,6 +198,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     _locationCtrl.dispose();
     _pelaporLocationCtrl.dispose();
     _kejadianLocationCtrl.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -205,17 +206,365 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
 
   List<String> get _kategoriList => _apiCategories.map((c) => c.name).toList();
 
-  List<String> get _subkategoriList {
-    if (_selectedKategori == null) return [];
-    final cat = _apiCategories.where((c) => c.name == _selectedKategori);
-    if (cat.isEmpty) return [];
-    return cat.first.subcategories.map((s) => s.name).toList();
+  Map<String, List<String>> get _subkategoriGrouped {
+    if (_selectedKategori.isEmpty) return {};
+    final Map<String, List<String>> groups = {};
+    for (final kat in _selectedKategori) {
+      final cat = _apiCategories.where((c) => c.name == kat);
+      if (cat.isNotEmpty) {
+        groups[kat] = cat.first.subcategories.map((s) => s.name).toList();
+      }
+    }
+    return groups;
   }
 
   List<String> get _perusahaanList =>
       _apiCompanies.map((company) => company.name).toList();
 
   List<String> get _lokasiList => _apiAreas.map((area) => area.name).toList();
+
+  void _showKategoriPicker() {
+    String query = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final q = query.toLowerCase();
+          final filteredCategories = _kategoriList
+              .where((c) => c.toLowerCase().contains(q))
+              .toList();
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Pilih Kategori Hazard',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Cari kategori...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (v) => setSheetState(() => query = v),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      if (_selectedKategori.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text('TERPILIH',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
+                                  letterSpacing: 0.5)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _selectedKategori.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final kat = entry.value;
+                              return Chip(
+                                label: Text(kat, style: const TextStyle(fontSize: 12)),
+                                onDeleted: () {
+                                  setState(() {
+                                    _selectedKategori.removeAt(index);
+                                    if (index < _selectedKategoriCodes.length) {
+                                      _selectedKategoriCodes.removeAt(index);
+                                    }
+                                    _selectedSubkategori.clear();
+                                    _selectedPerusahaan = null;
+                                    _selectedCompanyId = null;
+                                    _apiAreas = [];
+                                    _selectedLokasi = null;
+                                    _locationCtrl.clear();
+                                    _selectedDepts.clear();
+                                    _selectedUsers.clear();
+                                  });
+                                  setSheetState(() {});
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 14),
+                                backgroundColor: _blue.withValues(alpha: 0.1),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                side: BorderSide(color: _blue.withValues(alpha: 0.2)),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const Divider(height: 32),
+                      ],
+                      if (filteredCategories.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text('KATEGORI',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                  letterSpacing: 0.5)),
+                        ),
+                        ...filteredCategories.map((cat) {
+                          final isSelected = _selectedKategori.contains(cat);
+                          final catData = _apiCategories.where((c) => c.name == cat).firstOrNull;
+                          return ListTile(
+                            leading: const Icon(Icons.category_outlined, size: 20),
+                            title: Text(cat, style: const TextStyle(fontSize: 14)),
+                            trailing: Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.add_circle_outline,
+                              color: isSelected ? _blue : Colors.grey,
+                            ),
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  final idx = _selectedKategori.indexOf(cat);
+                                  _selectedKategori.remove(cat);
+                                  if (idx >= 0 && idx < _selectedKategoriCodes.length) {
+                                    _selectedKategoriCodes.removeAt(idx);
+                                  }
+                                  _selectedSubkategori.remove(cat);
+                                } else {
+                                  _selectedKategori.add(cat);
+                                  if (catData?.code != null) {
+                                    _selectedKategoriCodes.add(catData!.code);
+                                  }
+                                }
+                                _selectedSubkategori.clear();
+                              });
+                              setSheetState(() {});
+                            },
+                          );
+                        }),
+                      ],
+                      if (filteredCategories.isEmpty)
+                        const Center(
+                            child: Padding(
+                                padding: EdgeInsets.all(40),
+                                child: Text('Tidak ditemukan',
+                                    style: TextStyle(color: Colors.grey)))),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Selesai',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showSubkategoriPicker() {
+    if (_selectedKategori.isEmpty) return;
+
+    String query = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final q = query.toLowerCase();
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.85,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Pilih Subkategori Hazard',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Cari subkategori...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (v) => setSheetState(() => query = v),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      if (_selectedSubkategori.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text('TERPILIH',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
+                                  letterSpacing: 0.5)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _selectedSubkategori.entries.map((entry) {
+                              return Chip(
+                                label: Text('${entry.key}: ${entry.value}', style: const TextStyle(fontSize: 12)),
+                                onDeleted: () {
+                                  setState(() {
+                                    _selectedSubkategori.remove(entry.key);
+                                    _selectedPerusahaan = null;
+                                    _selectedCompanyId = null;
+                                    _apiAreas = [];
+                                    _selectedLokasi = null;
+                                    _locationCtrl.clear();
+                                    _selectedDepts.clear();
+                                    _selectedUsers.clear();
+                                  });
+                                  setSheetState(() {});
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 14),
+                                backgroundColor: _blue.withValues(alpha: 0.1),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                side: BorderSide(color: _blue.withValues(alpha: 0.2)),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const Divider(height: 32),
+                      ],
+                      ..._selectedKategori.expand((kategori) {
+                        final subkats = _subkategoriGrouped[kategori] ?? [];
+                        final filtered = subkats.where((s) => s.toLowerCase().contains(q)).toList();
+                        if (filtered.isEmpty) return <Widget>[];
+                        final selectedSubkat = _selectedSubkategori[kategori];
+                        return [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                            child: Text(kategori.toUpperCase(),
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey,
+                                    letterSpacing: 0.5)),
+                          ),
+                          ...filtered.map((subkat) {
+                            final isSelected = selectedSubkat == subkat;
+                            return ListTile(
+                              leading: const Icon(Icons.subdirectory_arrow_right, size: 20),
+                              title: Text(subkat, style: const TextStyle(fontSize: 14)),
+                              trailing: Icon(
+                                isSelected
+                                    ? Icons.check_circle
+                                    : Icons.add_circle_outline,
+                                color: isSelected ? _blue : Colors.grey,
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  if (isSelected) {
+                                    _selectedSubkategori.remove(kategori);
+                                  } else {
+                                    _selectedSubkategori[kategori] = subkat;
+                                  }
+                                });
+                                setSheetState(() {});
+                              },
+                            );
+                          }),
+                        ];
+                      }),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Selesai',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   void _handleCompanySelected(String? value) {
     final selectedCompany = _apiCompanies
@@ -241,6 +590,20 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   void _nextStep() {
     if (_currentStep == 0) {
       if (!_formKey1.currentState!.validate()) return;
+      if (_selectedKategori.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Kategori wajib diisi'),
+          backgroundColor: Colors.red,
+        ));
+        return;
+      }
+      if (_selectedSubkategori.length != _selectedKategori.length) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Pilih subkategori untuk setiap kategori'),
+          backgroundColor: Colors.red,
+        ));
+        return;
+      }
       if (_selectedPerusahaan == null || !_hasPicSelection) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Perusahaan dan PIC wajib diisi'),
@@ -292,9 +655,17 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     });
   }
 
+  void _keepKeyboardDismissed() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(_focusNode);
+      _focusNode.unfocus();
+    });
+  }
+
   // ── Location helpers ──────────────────────────────────────────────────────────
 
   Future<void> _pickLocationFromMap(TextEditingController ctrl) async {
+    FocusScope.of(context).unfocus();
     LatLng? current;
     if (ctrl.text.isNotEmpty) {
       final parts = ctrl.text.split(',');
@@ -318,6 +689,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       setState(() {
         ctrl.text = '${result.latitude}, ${result.longitude}';
       });
+      _keepKeyboardDismissed();
     }
   }
 
@@ -349,23 +721,27 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           imageQuality: 80,
           maxWidth: 1280,
         );
-        if (picked.isNotEmpty) {
-          for (final file in picked) {
-            final compressed = await _compressAndConvertImage(file);
-            if (compressed != null) {
-              setState(() => _photoFiles.add(compressed));
+if (picked.isNotEmpty) {
+            for (final file in picked) {
+              final compressed = await _compressAndConvertImage(file);
+              if (compressed != null) {
+                setState(() => _photoFiles.add(compressed));
+                _keepKeyboardDismissed();
+              }
             }
           }
-        }
-      } else {
-        final picked = await _picker.pickImage(
-          source: source,
-          imageQuality: 80,
-          maxWidth: 1280,
-        );
-        if (picked != null) {
-          final compressed = await _compressAndConvertImage(picked);
-          if (compressed != null) setState(() => _photoFiles.add(compressed));
+        } else {
+          final picked = await _picker.pickImage(
+            source: source,
+            imageQuality: 80,
+            maxWidth: 1280,
+          );
+          if (picked != null) {
+            final compressed = await _compressAndConvertImage(picked);
+            if (compressed != null) {
+              setState(() => _photoFiles.add(compressed));
+              _keepKeyboardDismissed();
+            }
         }
       }
     } catch (e) {
@@ -423,6 +799,13 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _pickLocationFromMap(_kejadianLocationCtrl);
+            },
+            child: const Text('Ubah di Map', style: TextStyle(color: _blue, fontWeight: FontWeight.bold)),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -449,7 +832,9 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
 
     final online = await CloudSaveService.isOnline();
 
-    final String? categoryCode = _selectedKategoriCode;
+    final String? categoryCode = _selectedKategoriCodes.isEmpty
+        ? null
+        : _selectedKategoriCodes.join(', ');
 
     final String? department =
         _selectedDepts.isEmpty ? null : _selectedDepts.join(', ');
@@ -475,7 +860,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       'pelakuPelanggaran': pelakuStr,
       'severity': severity,
       'kategori': categoryCode,
-      'subkategori': _selectedSubkategori,
+      'subkategori': _selectedSubkategori.values.join(', '),
       'photoPaths': _photoFiles.map((f) => f.path).toList(),
       'isPublic': _isPublic,
     };
@@ -509,7 +894,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           picDepartment: picDepartment,
           department: department,
           hazardCategory: categoryCode,
-          hazardSubcategory: _selectedSubkategori,
+          hazardSubcategory: _selectedSubkategori.values.join(', '),
           suggestion: _saranCtrl.text.trim(),
           pelakuPelanggaran: pelakuStr,
           pelaporLocation: _pelaporLocationCtrl.text.trim(),
@@ -1031,6 +1416,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   }
 
   void _showPelakuPicker() {
+    _keepKeyboardDismissed();
     String query = '';
 
     showModalBottomSheet(
@@ -1250,76 +1636,108 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
           if (_isLoadingData)
             const Center(child: CircularProgressIndicator())
           else
-Container(
-              decoration: kMinimalFieldContainerDecoration,
-              child: DropdownButtonFormField<String>(
-                isExpanded: true,
-                key: ValueKey('kategori_$_selectedKategori'),
-                initialValue: _selectedKategori,
-                icon: kMinimalDropdownChevron,
-                borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-                style: kMinimalDropdownTextStyle,
-                validator: (v) => v == null ? 'Wajib dipilih' : null,
-                decoration: minimalFieldDecoration(
-                    hintText: 'Pilih Kategori',
-                    prefixIcon: Icons.category_outlined),
-                items: _kategoriList
-                    .map((e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e, style: kMinimalDropdownTextStyle, overflow: TextOverflow.ellipsis)))
-                    .toList(),
-                onChanged: (v) => setState(() {
-                  _selectedKategori = v;
-                  _selectedSubkategori = null;
-                  _selectedPerusahaan = null;
-                  _selectedCompanyId = null;
-                  _apiAreas = [];
-                  _selectedLokasi = null;
-                  _locationCtrl.clear();
-                  _selectedDepts.clear();
-                  _selectedUsers.clear();
-                  final cat = _apiCategories.where((c) => c.name == v);
-                  _selectedKategoriCode =
-                      cat.isNotEmpty ? cat.first.code : null;
-                }),
+            GestureDetector(
+              onTap: () {
+                if (!_isLoadingData) {
+                  _showKategoriPicker();
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FF),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.category_outlined, size: 20, color: Colors.grey),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _selectedKategori.isEmpty
+                            ? 'Ketuk untuk memilih kategori'
+                            : '${_selectedKategori.length} kategori dipilih',
+                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade400),
+                  ],
+                ),
               ),
             ),
+          if (_selectedKategori.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _selectedKategori.asMap().entries.map((entry) {
+                final index = entry.key;
+                final kat = entry.value;
+                return Chip(
+                  label: Text(kat, style: const TextStyle(fontSize: 12)),
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                  onDeleted: () {
+                    setState(() {
+                      _selectedKategori.removeAt(index);
+                      if (index < _selectedKategoriCodes.length) {
+                        _selectedKategoriCodes.removeAt(index);
+                      }
+                      _selectedSubkategori.clear();
+                      _selectedPerusahaan = null;
+                      _selectedCompanyId = null;
+                      _apiAreas = [];
+                      _selectedLokasi = null;
+                      _locationCtrl.clear();
+                      _selectedDepts.clear();
+                      _selectedUsers.clear();
+                    });
+                  },
+                  backgroundColor: const Color(0xFFEFF4FF),
+                  side: BorderSide(color: Colors.blue.shade200),
+                );
+              }).toList(),
+            ),
+          ],
           const SizedBox(height: 14),
           _label('Subkategori Hazard *'),
           Opacity(
             opacity: _canPickSubcategory ? 1 : 0.6,
             child: IgnorePointer(
               ignoring: !_canPickSubcategory,
-              child: Container(
-                decoration: kMinimalFieldContainerDecoration,
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey('subkategori_$_selectedSubkategori'),
-                  initialValue: _selectedSubkategori,
-                  isExpanded: true,
-                  icon: kMinimalDropdownChevron,
-                  borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-                  style: kMinimalDropdownTextStyle,
-                  validator: (v) => v == null ? 'Wajib dipilih' : null,
-                  decoration: minimalFieldDecoration(
-                      hintText: 'Pilih Subkategori',
-                      prefixIcon: Icons.subdirectory_arrow_right),
-                  items: _subkategoriList
-                      .map((e) => DropdownMenuItem(
-                          value: e,
-                          child: Text(e,
-                              style: kMinimalDropdownTextStyle,
-                              overflow: TextOverflow.ellipsis)))
-                      .toList(),
-                  onChanged: (v) => setState(() {
-                    _selectedSubkategori = v;
-                    _selectedPerusahaan = null;
-                    _selectedCompanyId = null;
-                    _apiAreas = [];
-                    _selectedLokasi = null;
-                    _locationCtrl.clear();
-                    _selectedDepts.clear();
-                    _selectedUsers.clear();
-                  }),
+              child: GestureDetector(
+                onTap: _canPickSubcategory ? _showSubkategoriPicker : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                  decoration: BoxDecoration(
+                    color: _canPickSubcategory
+                        ? const Color(0xFFF8F9FF)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _canPickSubcategory
+                          ? Colors.grey.shade300
+                          : Colors.grey.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.subdirectory_arrow_right, size: 20, color: _canPickSubcategory ? Colors.grey : Colors.grey.shade400),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedSubkategori.isEmpty
+                              ? 'Ketuk untuk memilih subkategori'
+                              : '${_selectedSubkategori.length} subkategori dipilih',
+                          style: TextStyle(
+                            color: _canPickSubcategory ? Colors.black87 : Colors.grey.shade500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, size: 14, color: _canPickSubcategory ? Colors.grey.shade400 : Colors.grey.shade300),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1453,10 +1871,13 @@ child: Container(
                           value: e,
                           child: Text(e, style: kMinimalDropdownTextStyle, overflow: TextOverflow.ellipsis)))
                       .toList(),
-                  onChanged: (v) => setState(() {
-                    _selectedLokasi = v;
-                    _locationCtrl.text = v ?? '';
-                  }),
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedLokasi = v;
+                      _locationCtrl.text = v ?? '';
+                    });
+                    _keepKeyboardDismissed();
+                  },
                 ),
               ),
             ),
@@ -1466,15 +1887,11 @@ child: Container(
           TextFormField(
             controller: _kejadianLocationCtrl,
             readOnly: true,
+            onTap: () => _pickLocationFromMap(_kejadianLocationCtrl),
             validator: (v) => v!.trim().isEmpty ? 'Wajib diisi' : null,
             decoration: _inputDeco(
               hint: 'Koordinat Kejadian',
               icon: Icons.place,
-            ).copyWith(
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.map_outlined),
-                onPressed: () => _pickLocationFromMap(_kejadianLocationCtrl),
-              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -1563,7 +1980,7 @@ child: Container(
                       fontWeight: FontWeight.bold, fontSize: 16)),
               const Divider(),
               _previewItem(
-                  'Kategori', '$_selectedKategori - $_selectedSubkategori'),
+                  'Kategori', _selectedKategori.map((k) => '$k: ${_selectedSubkategori[k] ?? "-"}').join(', ')),
               _previewItem('Perusahaan', '$_selectedPerusahaan'),
               _previewItem('Departemen',
                   _selectedDepts.isEmpty ? '-' : _selectedDepts.join(', ')),
@@ -1843,7 +2260,9 @@ child: Container(
                 fontSize: 16)),
         centerTitle: true,
       ),
-      body: Stepper(
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Stepper(
         type: StepperType.horizontal,
         currentStep: _currentStep,
         elevation: 0,
@@ -1909,6 +2328,7 @@ child: Container(
           ),
         ],
       ),
+      )
     );
   }
 }

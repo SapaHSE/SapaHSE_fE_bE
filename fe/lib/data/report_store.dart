@@ -5,25 +5,33 @@ import '../services/report_service.dart';
 
 class TimelineEvent {
   final String timelineLogId;
+  final String? actorUserId;
   final ReportStatus status;
   final ReportSubStatus? subStatus;
   final DateTime timestamp;
   final String actor;
+  final String? actorPhotoUrl;
   final String? note;
   final List<String> photoPaths;
   final int replyCount;
   final DateTime? latestReplyAt;
+  final String? taggedUserId;
+  final String? taggedUserName;
 
   const TimelineEvent({
     required this.timelineLogId,
+    this.actorUserId,
     required this.status,
     this.subStatus,
     required this.timestamp,
     required this.actor,
+    this.actorPhotoUrl,
     this.note,
     this.photoPaths = const [],
     this.replyCount = 0,
     this.latestReplyAt,
+    this.taggedUserId,
+    this.taggedUserName,
   });
 
   /// Konvenien: ambil foto pertama (untuk UI lama yang baru perlu satu).
@@ -244,14 +252,18 @@ class ReportStore {
     final events = logsResult.logs.map((entry) {
       return TimelineEvent(
         timelineLogId: entry.id,
+        actorUserId: entry.actorUserId,
         status: entry.status,
         subStatus: entry.subStatus,
         timestamp: entry.timestamp,
         actor: entry.actor,
+        actorPhotoUrl: entry.actorPhotoUrl,
         note: entry.note,
         photoPaths: entry.photoUrls,
         replyCount: entry.replyCount,
         latestReplyAt: entry.latestReplyAt,
+        taggedUserId: entry.taggedUser?.id,
+        taggedUserName: entry.taggedUser?.fullName,
       );
     }).toList();
 
@@ -396,10 +408,12 @@ class ReportStore {
       }
       normalized.add(TimelineEvent(
         timelineLogId: event.timelineLogId,
+        actorUserId: event.actorUserId,
         status: event.status,
         subStatus: event.subStatus,
         timestamp: event.timestamp,
         actor: event.actor,
+        actorPhotoUrl: event.actorPhotoUrl,
         note: _sanitizeTimelineNote(event.note, event.subStatus),
         photoPaths: event.photoPaths,
         replyCount: event.replyCount,
