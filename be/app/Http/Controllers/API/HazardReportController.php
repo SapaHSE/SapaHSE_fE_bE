@@ -271,14 +271,11 @@ class HazardReportController extends Controller
             }
         }
 
-        if ($normalizedSubStatus === 'reviewing' && !$request->hasFile('image')) {
+        if ($normalizedSubStatus === 'reviewing'
+            && !$request->hasFile('image')
+            && empty($imageUrl)
+            && empty($imageUrls)) {
             return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
-        }
-
-        $imageUrl = null;
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('report_logs', 'public');
-            $imageUrl = asset('storage/' . $path);
         }
 
         $updateData = [
