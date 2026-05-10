@@ -732,6 +732,11 @@ class ReportService {
     final rawStatus = json['status']?.toString();
     final rawSubStatus = json['sub_status']?.toString();
     final photoUrls = _parseImageUrls(json);
+    final actorPhoto = normalizeStorageUrl(
+      json['user_photo_url']?.toString() ??
+          json['user_photo']?.toString() ??
+          json['photo_url']?.toString(),
+    );
     return ReportLogEntry(
       id: json['id']?.toString() ?? '',
       actorUserId: json['user_id']?.toString(),
@@ -742,7 +747,7 @@ class ReportService {
       actor: json['user_name']?.toString().trim().isNotEmpty == true
           ? json['user_name'].toString()
           : 'System',
-      actorPhotoUrl: normalizeStorageUrl(json['user_photo_url']?.toString()),
+      actorPhotoUrl: actorPhoto,
       note: json['message']?.toString(),
       photoUrl: photoUrls.isNotEmpty ? photoUrls.first : null,
       photoUrls: photoUrls,
@@ -771,6 +776,11 @@ class ReportService {
     }
     final parentRaw = json['parent_reply_id']?.toString();
     final roleRaw = json['user_role']?.toString();
+    final actorPhoto = normalizeStorageUrl(
+      json['user_photo_url']?.toString() ??
+          json['user_photo']?.toString() ??
+          json['photo_url']?.toString(),
+    );
     return TimelineReply(
       id: json['id']?.toString() ?? '',
       logId: json['report_log_id']?.toString() ?? '',
@@ -778,7 +788,7 @@ class ReportService {
       actor: json['user_name']?.toString().trim().isNotEmpty == true
           ? json['user_name'].toString()
           : 'Unknown User',
-      actorPhotoUrl: normalizeStorageUrl(json['user_photo_url']?.toString()),
+      actorPhotoUrl: actorPhoto,
       userRole: (roleRaw != null && roleRaw.isNotEmpty) ? roleRaw : null,
       message: json['message']?.toString() ?? '',
       attachmentUrl: urls.isNotEmpty ? urls.first : single,

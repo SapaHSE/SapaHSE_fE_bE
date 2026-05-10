@@ -9,6 +9,7 @@ import 'news_detail_screen.dart';
 import '../data/report_store.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/minimal_dropdown.dart';
+import '../app_globals.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -29,7 +30,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with RouteAware {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   Timer? _carouselTimer;
@@ -48,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Loading & error states
   bool _isLoading = true;
   String? _error;
+  bool _routeAwareSubscribed = false;
 
   // ── Featured News Carousel ────────────────────────────────────────────────
   List<NewsArticle> _carouselItems = [];
@@ -138,7 +140,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (!_routeAwareSubscribed && route is PageRoute) {
+      routeObserver.subscribe(this, route);
+      _routeAwareSubscribed = true;
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Force a lightweight rebuild after returning from details to keep
+    // bottom-FAB visuals consistent on some devices.
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    if (_routeAwareSubscribed) {
+      routeObserver.unsubscribe(this);
+      _routeAwareSubscribed = false;
+    }
     _carouselTimer?.cancel();
     _pageController.dispose();
     _searchController.dispose();
@@ -704,6 +727,7 @@ class _ReportCard extends StatelessWidget {
   }
 
   Widget? _dueChip() {
+    if (report.status == ReportStatus.closed) return null;
     if (report.type != ReportType.hazard) return null;
     if (report.dueDate == null) return null;
     final sisa = report.sisaHari ?? 0;

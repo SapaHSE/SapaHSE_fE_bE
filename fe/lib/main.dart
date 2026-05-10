@@ -45,6 +45,7 @@ class BBEApp extends StatelessWidget {
         fontFamily: 'Roboto',
       ),
       navigatorKey: navigatorKey,
+      navigatorObservers: [routeObserver],
       home: const SplashScreen(),
     );
   }
@@ -380,6 +381,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _screens),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'main_fab',
         onPressed: _openFabMenu,
         backgroundColor: const Color(0xFF1A56C4),
         foregroundColor: Colors.white,
