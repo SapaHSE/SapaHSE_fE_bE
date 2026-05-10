@@ -212,7 +212,10 @@ class HazardReportController extends Controller
         $user = Auth::user();
 
         // Check if user is Admin, Superadmin, the original Reporter, or tagged PJA
-        $isPja = $report->pic_department && stripos($report->pic_department, $user->full_name) !== false;
+        // PJA = name tagged in pic_department OR user's department tagged in reported_department
+        $isPja = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
+             || (!empty($user->department) && $report->reported_department
+                 && stripos($report->reported_department, $user->department) !== false);
         $isAdmin = in_array($user->role, ['admin', 'superadmin']);
         $isReporter = $report->user_id === $user->id;
 
