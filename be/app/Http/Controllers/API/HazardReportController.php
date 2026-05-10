@@ -281,17 +281,29 @@ class HazardReportController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $logs->map(fn($log) => [
-                'id'          => $log->id,
-                'status'      => $log->status,
-                'sub_status'  => $log->sub_status,
-                'message'     => $log->message,
-                'image_url'   => $log->image_url,
-                'user_name'   => $log->user->full_name ?? 'System',
-                'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
-                'created_at'  => $log->created_at->format('Y-m-d H:i:s'),
-                'date_human'  => $log->created_at->format('d M Y, H:i'),
-            ])
+            'data'   => $logs->map(function ($log) {
+                $photoPath = optional($log->user)->profile_photo;
+                $userPhotoUrl = null;
+                if (!empty($photoPath)) {
+                    $photoPath = (string) $photoPath;
+                    $userPhotoUrl = str_starts_with($photoPath, 'http')
+                        ? $photoPath
+                        : asset('storage/' . ltrim($photoPath, '/'));
+                }
+
+                return [
+                    'id'          => $log->id,
+                    'status'      => $log->status,
+                    'sub_status'  => $log->sub_status,
+                    'message'     => $log->message,
+                    'image_url'   => $log->image_url,
+                    'user_name'   => $log->user->full_name ?? 'System',
+                    'user_photo_url' => $userPhotoUrl,
+                    'tagged_user' => $log->taggedUser ? $log->taggedUser->only(['id', 'full_name', 'role']) : null,
+                    'created_at'  => $log->created_at->format('Y-m-d H:i:s'),
+                    'date_human'  => $log->created_at->format('d M Y, H:i'),
+                ];
+            })
         ]);
     }
 
