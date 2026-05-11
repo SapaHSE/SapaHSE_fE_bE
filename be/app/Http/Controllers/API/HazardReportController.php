@@ -217,13 +217,19 @@ class HazardReportController extends Controller
         // Check if user is Admin, Superadmin, the original Reporter, or tagged PJA
         // PJA = name tagged in pic_department OR user's department tagged in reported_department
         $isPja = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
-             || (!empty($user->department) && $report->reported_department
-                 && stripos($report->reported_department, $user->department) !== false);
+             || $this->csvContainsToken($report->reported_department, $user->department);
+        $isReportedUser = $this->csvContainsToken($report->pelaku_pelanggaran, $user->full_name);
         $isAdmin = in_array($user->role, ['admin', 'superadmin']);
         $isReporter = $report->user_id === $user->id;
 
         if (!$isAdmin && !$isReporter && !$isPja) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
+        }
+        if (!$isAdmin && $isReportedUser) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Akses ditolak. User terlapor tidak dapat memperbarui status laporan.',
+            ], 403);
         }
 
         // Normalize multi-image URLs (Supabase URLs uploaded by client).
@@ -479,8 +485,7 @@ class HazardReportController extends Controller
         if ($report->user_id === $user->id) return true;
 
         $isAssignee = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
-            || (!empty($user->department) && $report->reported_department
-                && stripos($report->reported_department, $user->department) !== false);
+            || $this->csvContainsToken($report->reported_department, $user->department);
         if ($isAssignee) return true;
 
         return ReportLog::query()
@@ -520,5 +525,23 @@ class HazardReportController extends Controller
             'due_date'            => $report->due_date,
             'sisa_hari'           => $report->due_date ? (now()->diffInDays($report->due_date, false)) : null,
         ];
+    }
+
+    private function csvContainsToken(?string $csv, ?string $needle): bool
+    {
+        $needle = strtolower(trim((string) $needle));
+        if ($needle === '') return false;
+
+        return in_array($needle, $this->tokenizeCsv($csv), true);
+    }
+
+    private function tokenizeCsv(?string $value): array
+    {
+        if ($value === null || trim($value) === '') return [];
+
+        return array_values(array_unique(array_filter(array_map(
+            fn($token) => strtolower(trim((string) $token)),
+            explode(',', $value)
+        ))));
     }
 }
