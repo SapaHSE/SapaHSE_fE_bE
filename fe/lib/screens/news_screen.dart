@@ -92,11 +92,16 @@ class _NewsScreenState extends State<NewsScreen> {
       final featured = _featuredArticles;
       if (featured.isEmpty) return;
       final next = (_currentCarouselPage + 1) % featured.length;
-      _carouselController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeInOut,
-      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_carouselController.hasClients) {
+          _carouselController.animateToPage(
+            next,
+            duration: const Duration(milliseconds: 450),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
     });
   }
 
@@ -240,7 +245,11 @@ class _NewsScreenState extends State<NewsScreen> {
           PageView.builder(
             controller: _carouselController,
             itemCount: featured.length,
-            onPageChanged: (i) => setState(() => _currentCarouselPage = i),
+            onPageChanged: (i) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _currentCarouselPage = i);
+              });
+            },
             itemBuilder: (_, i) => _CarouselItem(
               article: featured[i],
               onTap: () => _goToDetail(featured[i]),

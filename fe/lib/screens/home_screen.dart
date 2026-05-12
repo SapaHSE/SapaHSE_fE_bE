@@ -108,14 +108,22 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
       final filteredCount =
           _getFilteredReports(ReportStore.instance.reports.value).length;
       if (!_isLoadingMore && _displayedCount < filteredCount) {
-        setState(() {
-          _isLoadingMore = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _isLoadingMore = true;
+            });
+          }
         });
         Future.delayed(const Duration(milliseconds: 1000), () {
           if (mounted) {
-            setState(() {
-              _displayedCount += 5;
-              _isLoadingMore = false;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _displayedCount += 5;
+                  _isLoadingMore = false;
+                });
+              }
             });
           }
         });
@@ -131,11 +139,16 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
       if (!_pageController.hasClients) return;
       if (_carouselItems.isEmpty) return;
       final next = (_currentPage + 1) % _carouselItems.length;
-      _pageController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pageController.hasClients) {
+          _pageController.animateToPage(
+            next,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
     });
   }
 
@@ -379,7 +392,11 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
         children: [
           PageView.builder(
             controller: _pageController,
-            onPageChanged: (i) => setState(() => _currentPage = i),
+            onPageChanged: (i) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _currentPage = i);
+              });
+            },
             itemCount: _carouselItems.length,
             itemBuilder: (_, index) {
               final item = _carouselItems[index];
