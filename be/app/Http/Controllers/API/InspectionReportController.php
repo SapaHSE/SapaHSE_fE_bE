@@ -32,10 +32,12 @@ class InspectionReportController extends Controller
         $user   = Auth::user();
         $userId = $user->id;
 
-        // Apply privacy filter: pending reports are visible only to the creator or admins
+        // Apply privacy filter: validating reports are visible only to the creator or admins.
         if (!in_array($user->role, ['admin', 'superadmin'])) {
             $query->where(function ($q) use ($user) {
-                $q->where('status', '!=', 'pending')
+                $q->where(function ($v) {
+                    $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                })
                 ->orWhere('user_id', $user->id);
             });
         }
@@ -114,7 +116,7 @@ class InspectionReportController extends Controller
             'user_id'             => Auth::id(),
             'title'               => $request->title,
             'description'         => $request->description,
-            'status'              => 'pending',
+            'status'              => 'open',
             'sub_status'          => 'validating',
             'location'            => $request->location,
             'image_url'           => $imageUrl,
@@ -150,7 +152,7 @@ class InspectionReportController extends Controller
 
         $report->logs()->create([
             'user_id'    => Auth::id(),
-            'status'     => 'pending',
+            'status'     => 'open',
             'sub_status' => 'validating',
             'message'    => 'Laporan inspeksi baru dibuat dan sedang dalam proses validasi admin.',
         ]);

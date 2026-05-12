@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\HazardCategory;
 use App\Models\ReadStatus;
 use App\Models\HazardReport;
 use App\Models\InspectionReport;
@@ -62,7 +63,9 @@ class InboxController extends Controller
                     $q->orWhere('reported_department', 'like', '%' . $user->department . '%');
                 }
             })
-            ->where('status', '!=', 'pending')
+            ->where(function ($v) {
+                $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+            })
             ->whereNotIn('id', $readInspectionIds)
             ->count();
 
@@ -125,7 +128,9 @@ class InboxController extends Controller
                         $q->orWhere('reported_department', 'like', '%' . $user->department . '%');
                     }
                 })
-                ->where('status', '!=', 'pending');
+                ->where(function ($v) {
+                    $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                });
 
             if ($isRead !== null) {
                 if ($isRead) {
@@ -255,6 +260,8 @@ class InboxController extends Controller
         $sisaHari = $dueDate
             ? (int) $now->diffInDays($dueDate, false)
             : null;
+        [$categoryCodes, $categoryNames] = $this->resolveHazardCategories($report->hazard_category);
+        $hazardSubcategories = $this->tokenizeCsvPreserveCase($report->hazard_subcategory);
 
         return [
             'id'                  => $report->id,
@@ -277,7 +284,10 @@ class InboxController extends Controller
             'area'                => $report->area,
             'reported_department' => $report->reported_department,
             'hazard_category'     => $report->hazard_category,
+            'hazard_category_codes' => $categoryCodes,
+            'hazard_category_names' => $categoryNames,
             'hazard_subcategory'  => $report->hazard_subcategory,
+            'hazard_subcategories' => $hazardSubcategories,
             'suggestion'          => $report->suggestion,
             'due_date'            => $dueDate?->toDateTimeString(),
             'due_date_human'      => $dueDate?->translatedFormat('d M Y'),
@@ -326,5 +336,65 @@ class InboxController extends Controller
             'created_at' => $a->created_at?->toIso8601String(),
             'time_ago'   => $a->created_at?->diffForHumans(),
         ];
+    }
+
+    private function resolveHazardCategories(?string $value): array
+    {
+        $codes = $this->tokenizeCsvUpper($value);
+        if (empty($codes)) {
+            return [[], []];
+        }
+
+        $categoryMap = HazardCategory::query()
+            ->whereIn('code', $codes)
+            ->get(['code', 'name'])
+            ->mapWithKeys(fn($c) => [strtoupper((string) $c->code) => (string) $c->name])
+            ->all();
+
+        $names = [];
+        foreach ($codes as $code) {
+            $names[] = $categoryMap[$code] ?? $code;
+        }
+
+        return [$codes, $names];
+    }
+
+    private function tokenizeCsvUpper(?string $value): array
+    {
+        if ($value === null || trim($value) === '') return [];
+
+        $tokens = preg_split('/[,;]+/', $value) ?: [];
+        $result = [];
+        $seen = [];
+        foreach ($tokens as $token) {
+            $normalized = strtoupper(trim((string) $token));
+            if ($normalized === '' || isset($seen[$normalized])) {
+                continue;
+            }
+            $seen[$normalized] = true;
+            $result[] = $normalized;
+        }
+
+        return $result;
+    }
+
+    private function tokenizeCsvPreserveCase(?string $value): array
+    {
+        if ($value === null || trim($value) === '') return [];
+
+        $tokens = preg_split('/[,;]+/', $value) ?: [];
+        $result = [];
+        $seen = [];
+        foreach ($tokens as $token) {
+            $normalized = trim((string) $token);
+            $key = strtolower($normalized);
+            if ($normalized === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = $normalized;
+        }
+
+        return $result;
     }
 }

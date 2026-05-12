@@ -76,7 +76,6 @@ trait BackfillsReportLogs
      *  - closed reports cannot be modified.
      *  - rejected/deferred sub-statuses are valid terminal exits at any stage.
      *  - moving backwards in LINEAR_FLOW is rejected.
-     *  - going back to 'pending' once the report has progressed is rejected.
      *  - forward skipping is allowed only when EVERY skipped intermediate
      *    sub-status is listed in SKIPPABLE_SUB_STATUSES (currently only
      *    'preparing'), except for the admin-only validating -> assigned
@@ -103,12 +102,6 @@ trait BackfillsReportLogs
             || $newSubStatus === 'rejected'
             || $newSubStatus === 'deferred') {
             return null;
-        }
-
-        // Block regression to pre-open state.
-        if ($newStatus === 'pending'
-            && in_array($report->status, ['open', 'in_progress', 'closed'], true)) {
-            return 'Status tidak bisa dimundurkan ke pending. Timeline harus linear.';
         }
 
         if ($newSubStatus === null) {

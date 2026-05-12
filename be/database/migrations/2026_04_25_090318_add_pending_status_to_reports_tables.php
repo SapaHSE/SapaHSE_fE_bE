@@ -12,8 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE hazard_reports MODIFY COLUMN status ENUM('pending', 'open', 'in_progress', 'closed') DEFAULT 'pending'");
-        DB::statement("ALTER TABLE inspection_reports MODIFY COLUMN status ENUM('pending', 'open', 'in_progress', 'closed') DEFAULT 'pending'");
+        if ($this->supportsEnumAlter()) {
+            DB::statement("ALTER TABLE hazard_reports MODIFY COLUMN status ENUM('pending', 'open', 'in_progress', 'closed') DEFAULT 'pending'");
+            DB::statement("ALTER TABLE inspection_reports MODIFY COLUMN status ENUM('pending', 'open', 'in_progress', 'closed') DEFAULT 'pending'");
+        }
     }
 
     /**
@@ -21,7 +23,14 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE hazard_reports MODIFY COLUMN status ENUM('open', 'in_progress', 'closed') DEFAULT 'open'");
-        DB::statement("ALTER TABLE inspection_reports MODIFY COLUMN status ENUM('open', 'in_progress', 'closed') DEFAULT 'open'");
+        if ($this->supportsEnumAlter()) {
+            DB::statement("ALTER TABLE hazard_reports MODIFY COLUMN status ENUM('open', 'in_progress', 'closed') DEFAULT 'open'");
+            DB::statement("ALTER TABLE inspection_reports MODIFY COLUMN status ENUM('open', 'in_progress', 'closed') DEFAULT 'open'");
+        }
+    }
+
+    private function supportsEnumAlter(): bool
+    {
+        return in_array(DB::getDriverName(), ['mysql', 'mariadb'], true);
     }
 };

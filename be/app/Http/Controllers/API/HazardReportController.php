@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\HazardCategory;
 use App\Models\HazardReport;
 use App\Models\ReadStatus;
 use App\Models\ReportLog;
@@ -27,17 +28,21 @@ class HazardReportController extends Controller
         $user   = Auth::user();
         $userId = $user->id;
 
-        // Apply privacy filter: private reports are visible only to the creator, the targeted PJA, or admins
+        // Apply privacy filter: validating reports are private to creator/admin queue.
         if (!in_array($user->role, ['admin', 'superadmin'])) {
             $query->where(function ($q) use ($user) {
                 $q->where(function ($sq) {
                     $sq->where('is_public', true)
-                       ->where('status', '!=', 'pending');
+                       ->where(function ($v) {
+                           $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                       });
                 })
-                ->orWhere('user_id', $user->id) // Creator can see their own reports (including pending)
+                ->orWhere('user_id', $user->id) // Creator can see their own reports (including validating)
                 ->orWhere(function ($sq) use ($user) {
                     $sq->where('pic_department', 'like', '%' . $user->full_name . '%')
-                       ->where('status', '!=', 'pending');
+                       ->where(function ($v) {
+                           $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
+                       });
                 });
             });
         }
@@ -116,11 +121,14 @@ class HazardReportController extends Controller
             }
         }
 
+        $normalizedHazardCategory = $this->normalizeHazardCategoryCodes($request->hazard_category);
+        $normalizedHazardSubcategory = $this->normalizeHazardSubcategories($request->hazard_subcategory);
+
         $report = HazardReport::create([
             'user_id'             => Auth::id(),
             'title'               => $request->title,
             'description'         => $request->description,
-            'status'              => 'pending',
+            'status'              => 'open',
             'sub_status'          => 'validating',
             'location'            => $request->location,
             'pelapor_location'    => $request->pelapor_location,
@@ -132,15 +140,15 @@ class HazardReportController extends Controller
             'company'             => $request->company,
             'area'                => $request->area,
             'reported_department' => $request->reported_department,
-            'hazard_category'     => $request->hazard_category,
-            'hazard_subcategory'  => $request->hazard_subcategory,
+            'hazard_category'     => $normalizedHazardCategory,
+            'hazard_subcategory'  => $normalizedHazardSubcategory,
             'suggestion'          => $request->suggestion,
             'is_public'           => filter_var($request->input('isPublic', true), FILTER_VALIDATE_BOOLEAN),            
         ]);
 
         $report->logs()->create([
             'user_id'    => Auth::id(),
-            'status'     => 'pending',
+            'status'     => 'open',
             'sub_status' => 'validating',
             'message'    => 'Laporan hazard baru dibuat dan sedang dalam proses validasi admin.',
         ]);
@@ -199,7 +207,7 @@ class HazardReportController extends Controller
     public function updateStatus(Request $request, string $id)
     {
         $request->validate([
-            'status'              => 'required|in:pending,open,in_progress,closed,rejected',
+            'status'              => 'required|in:open,in_progress,closed,rejected',
             'sub_status'          => 'nullable|string|max:50',
             'message'            => 'nullable|string',
             'image_url'          => 'nullable|url|max:500',
@@ -497,6 +505,9 @@ class HazardReportController extends Controller
 
     private function formatReport(HazardReport $report, ?string $userId): array
     {
+        [$categoryCodes, $categoryNames] = $this->resolveHazardCategories($report->hazard_category);
+        $hazardSubcategories = $this->tokenizeCsvPreserveCase($report->hazard_subcategory);
+
         return [
             'id'                  => $report->id,
             'ticket_number'       => $report->ticket_number,
@@ -519,12 +530,75 @@ class HazardReportController extends Controller
             'area'                => $report->area,
             'reported_department' => $report->reported_department,
             'hazard_category'     => $report->hazard_category,
+            'hazard_category_codes' => $categoryCodes,
+            'hazard_category_names' => $categoryNames,
             'hazard_subcategory'  => $report->hazard_subcategory,
+            'hazard_subcategories' => $hazardSubcategories,
             'suggestion'          => $report->suggestion,
             'is_public'           => (bool)$report->is_public,
             'due_date'            => $report->due_date,
             'sisa_hari'           => $report->due_date ? (now()->diffInDays($report->due_date, false)) : null,
         ];
+    }
+
+    private function normalizeHazardCategoryCodes(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') return null;
+
+        $tokens = preg_split('/[,;]+/', $value) ?: [];
+        $codes = [];
+        $seen = [];
+        foreach ($tokens as $token) {
+            $code = strtoupper(trim((string) $token));
+            if ($code === '' || isset($seen[$code])) {
+                continue;
+            }
+            $seen[$code] = true;
+            $codes[] = $code;
+        }
+
+        return empty($codes) ? null : implode(',', $codes);
+    }
+
+    private function normalizeHazardSubcategories(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') return null;
+
+        $tokens = preg_split('/[,;]+/', $value) ?: [];
+        $names = [];
+        $seen = [];
+        foreach ($tokens as $token) {
+            $name = trim((string) $token);
+            $key = strtolower($name);
+            if ($name === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $names[] = $name;
+        }
+
+        return empty($names) ? null : implode(', ', $names);
+    }
+
+    private function resolveHazardCategories(?string $value): array
+    {
+        $codes = $this->tokenizeCsvUpper($value);
+        if (empty($codes)) {
+            return [[], []];
+        }
+
+        $categoryMap = HazardCategory::query()
+            ->whereIn('code', $codes)
+            ->get(['code', 'name'])
+            ->mapWithKeys(fn($c) => [strtoupper((string) $c->code) => (string) $c->name])
+            ->all();
+
+        $names = [];
+        foreach ($codes as $code) {
+            $names[] = $categoryMap[$code] ?? $code;
+        }
+
+        return [$codes, $names];
     }
 
     private function csvContainsToken(?string $csv, ?string $needle): bool
@@ -543,5 +617,44 @@ class HazardReportController extends Controller
             fn($token) => strtolower(trim((string) $token)),
             explode(',', $value)
         ))));
+    }
+
+    private function tokenizeCsvUpper(?string $value): array
+    {
+        if ($value === null || trim($value) === '') return [];
+
+        $tokens = preg_split('/[,;]+/', $value) ?: [];
+        $result = [];
+        $seen = [];
+        foreach ($tokens as $token) {
+            $normalized = strtoupper(trim((string) $token));
+            if ($normalized === '' || isset($seen[$normalized])) {
+                continue;
+            }
+            $seen[$normalized] = true;
+            $result[] = $normalized;
+        }
+
+        return $result;
+    }
+
+    private function tokenizeCsvPreserveCase(?string $value): array
+    {
+        if ($value === null || trim($value) === '') return [];
+
+        $tokens = preg_split('/[,;]+/', $value) ?: [];
+        $result = [];
+        $seen = [];
+        foreach ($tokens as $token) {
+            $normalized = trim((string) $token);
+            $key = strtolower($normalized);
+            if ($normalized === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $result[] = $normalized;
+        }
+
+        return $result;
     }
 }
