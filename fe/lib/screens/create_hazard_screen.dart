@@ -647,24 +647,27 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                   letterSpacing: 0.5)),
                         ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
                             children: [
-                              Chip(
-                                label: Text(_selectedPerusahaan!,
-                                    style: const TextStyle(fontSize: 12)),
-                                onDeleted: () {
+                              Expanded(
+                                child: Text(
+                                  _selectedPerusahaan!,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black87,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
                                   _clearCompanySelection();
                                   setSheetState(() {});
                                 },
-                                deleteIcon: const Icon(Icons.close, size: 14),
-                                backgroundColor: _blue.withValues(alpha: 0.1),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20)),
-                                side:
-                                    BorderSide(color: _blue.withValues(alpha: 0.2)),
+                                icon: const Icon(Icons.close, size: 18),
+                                color: Colors.grey.shade600,
+                                tooltip: 'Hapus pilihan',
                               ),
                             ],
                           ),
@@ -1524,6 +1527,10 @@ if (picked.isNotEmpty) {
   }
 
   Widget _pelakuTagField() {
+    final selectedPelakuText =
+        _selectedPelaku.map((u) => u.fullName).join(', ');
+    final hasSelectedPelaku = _selectedPelaku.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1551,10 +1558,17 @@ if (picked.isNotEmpty) {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Ketuk untuk tag pelaku',
+                    hasSelectedPelaku
+                        ? selectedPelakuText
+                        : 'Ketuk untuk tag pelaku',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color:
-                          _isLoadingData ? Colors.grey.shade500 : Colors.grey,
+                      color: _isLoadingData
+                          ? Colors.grey.shade500
+                          : (hasSelectedPelaku
+                              ? Colors.black87
+                              : Colors.grey),
                       fontSize: 13,
                     ),
                   ),
@@ -1572,22 +1586,6 @@ if (picked.isNotEmpty) {
             ),
           ),
         ),
-        if (_selectedPelaku.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: _selectedPelaku
-                .map((user) => Chip(
-                      label: Text(user.fullName,
-                          style: const TextStyle(fontSize: 12)),
-                      padding: EdgeInsets.zero,
-                      onDeleted: () => setState(() => _selectedPelaku
-                          .removeWhere((u) => u.fullName == user.fullName)),
-                    ))
-                .toList(),
-          ),
-        ],
       ],
     );
   }
