@@ -797,7 +797,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
           ),
           if (_isUrgentSectionExpanded) ...urgentReports.map(_buildTaskListItem),
           _buildTaskSectionHeader(
-            title: 'Lainnya',
+            title: 'Tugas Lainnya',
             count: otherReports.length,
             isExpanded: _isOtherSectionExpanded,
             onTap: () {
