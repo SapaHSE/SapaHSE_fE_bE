@@ -85,6 +85,8 @@ class _InboxScreenState extends State<InboxScreen>
   _SubFilter _activeFilter = _SubFilter.unread;
   _MyPostFilter _activeMyPostFilter = _MyPostFilter.all;
   _TaskStatusFilter _activeTaskStatusFilter = _TaskStatusFilter.all;
+  bool _isUrgentSectionExpanded = true;
+  bool _isOtherSectionExpanded = true;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -316,6 +318,15 @@ class _InboxScreenState extends State<InboxScreen>
 
     return list;
   }
+
+  List<InboxItem> get _urgentTaskReports => _filteredReports
+      .where((i) => i.status != ReportStatus.closed && _needsImmediateAction(i))
+      .toList();
+
+  List<InboxItem> get _otherTaskReports => _filteredReports
+      .where((i) =>
+          !(i.status != ReportStatus.closed && _needsImmediateAction(i)))
+      .toList();
 
   // Reports created by the current user, fetched from ReportService
   List<InboxItem> get _myReports =>
@@ -737,37 +748,6 @@ String _myPostFilterLabel(_MyPostFilter f) {
                         ),
             ),
 
-            // ── Tugas Butuh Tindakan Segera Banner ───────────────────────
-            if (_mainTabController.index == 1)
-              Builder(builder: (context) {
-                final urgentCount = _personalReports.where((i) =>
-                  i.status != ReportStatus.closed &&
-                  _needsImmediateAction(i)
-                ).length;
-                
-                if (urgentCount == 0) return const SizedBox.shrink();
-                
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                  color: const Color(0xFFFFF4E5),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange.shade900),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$urgentCount Tugas Butuh Tindakan Segera',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-
             // ── Content (TabBarView for smooth animations) ───────────────
             Expanded(
               child: TabBarView(
@@ -792,9 +772,43 @@ String _myPostFilterLabel(_MyPostFilter f) {
     if (_errorReports != null && _reports.isEmpty) {
       return _buildErrorState(_errorReports!, _loadReports);
     }
+    return _buildGroupedReportsList();
+  }
+
+  Widget _buildGroupedReportsList() {
+    final urgentReports = _urgentTaskReports;
+    final otherReports = _otherTaskReports;
+
     return RefreshIndicator(
       onRefresh: _loadReports,
-      child: _buildList(_filteredReports, isAnnouncement: false),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
+        children: [
+          _buildTaskSectionHeader(
+            title: 'Butuh Tindakan Segera',
+            count: urgentReports.length,
+            isExpanded: _isUrgentSectionExpanded,
+            onTap: () {
+              setState(() {
+                _isUrgentSectionExpanded = !_isUrgentSectionExpanded;
+              });
+            },
+          ),
+          if (_isUrgentSectionExpanded) ...urgentReports.map(_buildTaskListItem),
+          _buildTaskSectionHeader(
+            title: 'Lainnya',
+            count: otherReports.length,
+            isExpanded: _isOtherSectionExpanded,
+            onTap: () {
+              setState(() {
+                _isOtherSectionExpanded = !_isOtherSectionExpanded;
+              });
+            },
+          ),
+          if (_isOtherSectionExpanded) ...otherReports.map(_buildTaskListItem),
+        ],
+      ),
     );
   }
 
@@ -872,26 +886,70 @@ String _myPostFilterLabel(_MyPostFilter f) {
             },
           );
         }
-        return _InboxCard(
-          item: item,
-          formatDate: _formatDate,
-          levelResiko: _levelResiko,
-          statusColor: _statusColor,
-          statusLabel: _statusLabel,
-          severityColor: _severityColor,
-          onDetail: () {
-            _markItemRead(item);
-            Navigator.push(
-              context,
-              _FadePageRoute(
-                builder: (_) => ReportDetailScreen(report: item.toReport()),
-              ),
-            );
-          },
-        );
+        return _buildTaskCard(item);
       },
     );
   }
+
+  Widget _buildTaskSectionHeader({
+    required String title,
+    required int count,
+    required bool isExpanded,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Row(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const Spacer(),
+            Text(
+              '$count laporan',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              isExpanded
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              size: 20,
+              color: Colors.grey,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTaskListItem(InboxItem item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: _buildTaskCard(item),
+    );
+  }
+
+  Widget _buildTaskCard(InboxItem item) => _InboxCard(
+        item: item,
+        formatDate: _formatDate,
+        levelResiko: _levelResiko,
+        statusColor: _statusColor,
+        statusLabel: _statusLabel,
+        severityColor: _severityColor,
+        onDetail: () {
+          _markItemRead(item);
+          Navigator.push(
+            context,
+            _FadePageRoute(
+              builder: (_) => ReportDetailScreen(report: item.toReport()),
+            ),
+          );
+        },
+      );
 
   Widget _buildErrorState(String message, Future<void> Function() onRetry) {
     return Center(
