@@ -152,6 +152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _SettingsFabMenuSheet(
+        currentIndex: 4,
         onScanQr: () {
           Navigator.pop(context);
           Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
@@ -163,6 +164,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         onCreateInspection: () {
           Navigator.pop(context);
           Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateInspectionScreen()));
+        },
+        onAddCarousel: () {
+          Navigator.pop(context);
+        },
+        onAddNews: () {
+          Navigator.pop(context);
         },
         onEditBiodata: () {
           Navigator.pop(context);
@@ -280,10 +287,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
             _buildSectionHeader('AKUN'),
             _buildCard([
-              _buildMenuRow(Icons.person_outline, 'Edit Akun / Profil',
-                  'Biodata, lisensi, sertifikat, medis',
-                  onTap: () {}),
-              _buildDivider(),
               _buildMenuRow(Icons.lock_outline, 'Ganti Kata Sandi', '',
                   onTap: () => _showChangePasswordDialog(context)),
               _buildDivider(),
@@ -309,7 +312,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: Colors.white,
         elevation: 8,
         child: SizedBox(
-          height: 60,
+          height: 64,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -676,18 +679,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _SettingsFabMenuSheet extends StatelessWidget {
+  final int currentIndex;
   final VoidCallback onScanQr;
   final VoidCallback onCreateHazard;
   final VoidCallback onCreateInspection;
+  final VoidCallback onAddCarousel;
+  final VoidCallback onAddNews;
   final VoidCallback onEditBiodata;
   final VoidCallback onAddLicense;
   final VoidCallback onAddCertification;
   final VoidCallback onEditMedical;
 
   const _SettingsFabMenuSheet({
+    required this.currentIndex,
     required this.onScanQr,
     required this.onCreateHazard,
     required this.onCreateInspection,
+    required this.onAddCarousel,
+    required this.onAddNews,
     required this.onEditBiodata,
     required this.onAddLicense,
     required this.onAddCertification,
@@ -758,6 +767,28 @@ class _SettingsFabMenuSheet extends StatelessWidget {
             subtitle: 'Catat hasil inspeksi rutin area kerja',
             onTap: onCreateInspection,
           ),
+          if (currentIndex == 0) ...[
+            Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+            _SettingsFabMenuTile(
+              icon: Icons.add_photo_alternate_outlined,
+              iconBgColor: const Color(0xFFE8F5E9),
+              iconColor: const Color(0xFF2E7D32),
+              title: 'Tambah Gambar Carousel',
+              subtitle: 'Tambah banner gambar di halaman utama',
+              onTap: onAddCarousel,
+            ),
+          ],
+          if (currentIndex == 1) ...[
+            Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+            _SettingsFabMenuTile(
+              icon: Icons.article_outlined,
+              iconBgColor: const Color(0xFFFFF3E0),
+              iconColor: const Color(0xFFE65100),
+              title: 'Tambah Berita',
+              subtitle: 'Buat dan publikasikan berita baru',
+              onTap: onAddNews,
+            ),
+          ],
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
           _SettingsFabMenuTile(
             icon: Icons.person_outline,
@@ -773,7 +804,7 @@ class _SettingsFabMenuSheet extends StatelessWidget {
             iconBgColor: const Color(0xFFE3F2FD),
             iconColor: const Color(0xFF1E88E5),
             title: 'Tambah Lisensi',
-            subtitle: 'Tambahkan SIM/SIO/KIMPER',
+            subtitle: 'Tambahkan SIM/SIO',
             onTap: onAddLicense,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),

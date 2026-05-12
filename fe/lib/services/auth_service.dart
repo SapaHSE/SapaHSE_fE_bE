@@ -52,7 +52,6 @@ class AuthService {
     String? tipeAfiliasi,
     String? perusahaanKontraktor,
     String? subKontraktor,
-    String? simper,
   }) async {
     final response = await ApiService.post(
       '/register',
@@ -74,7 +73,6 @@ class AuthService {
           'perusahaan_kontraktor': perusahaanKontraktor,
         if (subKontraktor != null && subKontraktor.isNotEmpty)
           'sub_kontraktor': subKontraktor,
-        if (simper != null && simper.isNotEmpty) 'simper': simper,
       },
       auth: false,
     );
@@ -118,6 +116,15 @@ class AuthService {
       message: (response.data['message'] as String?) ??
           'Jika data terdaftar, tautan reset password akan dikirimkan ke email Anda.',
     );
+  }
+
+  // ── Get users list (simplified for tagging/selection) ──────────────────────
+  static Future<ApiResponse> listUsers({String? search}) async {
+    String url = '/users';
+    if (search != null && search.isNotEmpty) {
+      url += '?search=${Uri.encodeComponent(search)}';
+    }
+    return await ApiService.get(url);
   }
 
   // ── Get current user from local storage ───────────────────────────────────

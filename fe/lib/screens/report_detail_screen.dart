@@ -1,5 +1,5 @@
 import 'dart:io' show File, Platform;
-import 'package:flutter/foundation.dart' show kIsWeb, ValueListenable;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,90 +35,7 @@ class _ClampedCurve extends Curve {
   double transform(double t) => curve.transform(t.clamp(0.0, 1.0));
 }
 
-/// Anchors the secondary scroll FAB above the BottomAppBar and lifts it
-/// together with the main (notched) FAB whenever a SnackBar appears.
-///
-/// [Scaffold.geometryOf] exposes a [ValueListenable], but its `.value` may
-/// only be read during the paint phase. We can safely *listen* (no value
-/// access) anywhere; when notified we schedule a post-frame callback to
-/// read the geometry and `setState` — that puts the read in the
-/// `postFrameCallbacks`/`idle` phase, which the assert allows.
-///
-/// When Scaffold pushes its FloatingActionButton up to make room for a
-/// SnackBar, [ScaffoldGeometry.floatingActionButtonArea.top] decreases. We
-/// mirror that delta into our `bottom` padding so the scroll FAB rises
-/// together with the main FAB.
-class _ScrollFabAnchor extends StatefulWidget {
-  final Widget child;
-  const _ScrollFabAnchor({required this.child});
 
-  @override
-  State<_ScrollFabAnchor> createState() => _ScrollFabAnchorState();
-}
-
-class _ScrollFabAnchorState extends State<_ScrollFabAnchor> {
-  // Baseline distance from the body's bottom edge — clears the BottomAppBar
-  // (~60px) plus a small gap above the notched main FAB.
-  static const double _baseBottom = 84.0;
-  // How far above the BottomAppBar's top the main FAB normally sits (notch
-  // depth). Anything beyond this is surplus lift caused by SnackBar/extras.
-  static const double _idleLift = 28.0;
-
-  ValueListenable<ScaffoldGeometry>? _geometry;
-  double _bottom = _baseBottom;
-  bool _readScheduled = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final next = Scaffold.geometryOf(context);
-    if (_geometry != next) {
-      _geometry?.removeListener(_onGeometryChanged);
-      _geometry = next;
-      _geometry!.addListener(_onGeometryChanged);
-      _scheduleRead();
-    }
-  }
-
-  @override
-  void dispose() {
-    _geometry?.removeListener(_onGeometryChanged);
-    super.dispose();
-  }
-
-  void _onGeometryChanged() => _scheduleRead();
-
-  void _scheduleRead() {
-    if (_readScheduled) return;
-    _readScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _readScheduled = false;
-      if (!mounted || _geometry == null) return;
-      final g = _geometry!.value;
-      final fabArea = g.floatingActionButtonArea;
-      final navTop = g.bottomNavigationBarTop;
-      double newBottom = _baseBottom;
-      if (fabArea != null && navTop != null) {
-        final liftAboveNav = navTop - fabArea.top;
-        final extraLift = (liftAboveNav - _idleLift).clamp(0.0, 1000.0);
-        newBottom = _baseBottom + extraLift;
-      }
-      if ((newBottom - _bottom).abs() > 0.5) {
-        setState(() => _bottom = newBottom);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedPadding(
-      padding: EdgeInsets.only(bottom: _bottom),
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      child: widget.child,
-    );
-  }
-}
 
 class ReportDetailScreen extends StatefulWidget {
   final Report report;
@@ -1271,15 +1188,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           ),
           // Scroll-to-bottom / scroll-to-top FAB. Lives in the body Stack so
           // we can position it independently of the centered/notched main FAB.
-          // We listen to Scaffold.geometryOf so the FAB rises with the main
-          // FAB whenever a SnackBar is shown (Scaffold pushes the FAB up,
-          // updating floatingActionButtonArea.top — we mirror that delta into
-          // our `bottom` offset).
           Positioned(
             right: 16,
-            bottom: 0,
-            child: _ScrollFabAnchor(
-              child: AnimatedSwitcher(
+            bottom: 84.0,
+            child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 320),
                 switchInCurve: const _ClampedCurve(Curves.easeOutBack),
                 switchOutCurve: const _ClampedCurve(Curves.easeInCubic),
@@ -1332,7 +1244,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                       )
                     : const SizedBox.shrink(key: ValueKey('scroll_fab_hidden')),
               ),
-            ),
           ),
         ],
       ),

@@ -619,10 +619,16 @@ final List<Map<String, dynamic>> _subTabs = [
     final nikCtrl = TextEditingController(text: _profileData?.employeeId);
     final nameCtrl = TextEditingController(text: _profileData?.fullName);
     final emailCtrl = TextEditingController(text: _profileData?.personalEmail);
-    final phoneCtrl = TextEditingController(text: _profileData?.phoneNumber);
+    final phoneCtrl = TextEditingController(
+        text: (_profileData?.phoneNumber ?? '').replaceFirst('+62', ''));
+    final workEmailCtrl = TextEditingController(text: _profileData?.workEmail);
+    final deptCtrl = TextEditingController(text: _profileData?.department);
+    final jobCtrl = TextEditingController(text: _profileData?.position);
     final addressCtrl = TextEditingController(text: _profileData?.address);
+    final formKey = GlobalKey<FormState>();
     XFile? localImageFile;
     final existingProfilePhoto = parseNullableDisplayName(_resolveProfilePhoto());
+    final emailRegex = RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$');
 
     showModalBottomSheet(
       context: context,
@@ -709,25 +715,224 @@ final List<Map<String, dynamic>> _subTabs = [
                         ),
                       ),
                       const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildSheetField('NIK', nikCtrl, enabled: false),
-                            const SizedBox(height: 16),
-                            _buildSheetField('Nama Lengkap', nameCtrl),
-                            const SizedBox(height: 16),
-                            _buildSheetField('Email', emailCtrl, keyboardType: TextInputType.emailAddress),
-                            const SizedBox(height: 16),
-                            _buildSheetField('Nomor Telepon', phoneCtrl, keyboardType: TextInputType.phone),
-                            const SizedBox(height: 16),
-                            _buildSheetField('Alamat', addressCtrl, maxLines: 2),
-                          ],
+                      Form(
+                        key: formKey,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSheetField('NIK', nikCtrl, enabled: false),
+                              const SizedBox(height: 16),
+                              _buildSheetField(
+                                'Nama Lengkap',
+                                nameCtrl,
+                                maxLength: 25,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Nama lengkap wajib diisi';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              _buildSheetField(
+                                'Email',
+                                emailCtrl,
+                                keyboardType: TextInputType.emailAddress,
+                                maxLength: 100,
+                                validator: (v) {
+                                  final value = (v ?? '').trim();
+                                  if (value.isEmpty) return 'Email wajib diisi';
+                                  if (!emailRegex.hasMatch(value)) {
+                                    return 'Format email tidak valid';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Nomor Telepon',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.only(
+                                              left: 12, right: 6),
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade100,
+                                            border: Border.all(
+                                                color: Colors.grey.shade300),
+                                            borderRadius:
+                                                const BorderRadius.only(
+                                                    topLeft:
+                                                        Radius.circular(8),
+                                                    bottomLeft:
+                                                        Radius.circular(8)),
+                                          ),
+                                          child: const Text('+62',
+                                              style: TextStyle(
+                                                  color: Colors.black87,
+                                                  fontSize: 14)),
+                                        ),
+                                        Expanded(
+                                          child: TextFormField(
+                                            controller: phoneCtrl,
+                                            keyboardType: TextInputType.phone,
+                                            inputFormatters: [
+                                              FilteringTextInputFormatter
+                                                  .digitsOnly
+                                            ],
+                                              maxLength: 13,
+                                              style: const TextStyle(
+                                                  fontSize: 14),
+                                            autovalidateMode: AutovalidateMode
+                                                .onUserInteraction,
+                                            decoration: InputDecoration(
+                                              hintText: '812xxxxxxxx',
+                                              hintStyle: const TextStyle(
+                                                  color: Colors.grey,
+                                                  fontSize: 13),
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 10),
+                                              border: OutlineInputBorder(
+                                                  borderRadius:
+                                                      const BorderRadius.only(
+                                                          topRight:
+                                                              Radius.circular(
+                                                                  8),
+                                                          bottomRight:
+                                                              Radius.circular(
+                                                                  8)),
+                                                  borderSide: BorderSide(
+                                                      color: Colors
+                                                          .grey.shade300)),
+                                              enabledBorder:
+                                                  OutlineInputBorder(
+                                                      borderRadius:
+                                                          const BorderRadius
+                                                              .only(
+                                                          topRight:
+                                                              Radius.circular(
+                                                                  8),
+                                                          bottomRight:
+                                                              Radius.circular(
+                                                                  8),
+                                                        ),
+                                                      borderSide: BorderSide(
+                                                          color: Colors
+                                                              .grey.shade300)),
+                                              focusedBorder:
+                                                  OutlineInputBorder(
+                                                      borderRadius:
+                                                          const BorderRadius
+                                                              .only(
+                                                          topRight:
+                                                              Radius.circular(
+                                                                  8),
+                                                          bottomRight:
+                                                              Radius.circular(
+                                                                  8)),
+                                                      borderSide:
+                                                          const BorderSide(
+                                                              color: Color(
+                                                                  0xFF1A56C4))),
+                                              filled: true,
+                                              fillColor:
+                                                  Colors.white,
+                                              counterText: '',
+                                            ),
+                                            validator: (v) {
+                                              final value =
+                                                  (v ?? '').trim();
+                                              if (value.isEmpty) {
+                                                return 'Nomor telepon wajib diisi';
+                                              }
+                                              if (!RegExp(r'^8[0-9]{7,12}$')
+                                                  .hasMatch(value)) {
+                                                return 'Masukkan 8-13 digit setelah +62';
+                                              }
+                                              return null;
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              _buildSheetField(
+                                'Email Kantor (Opsional)',
+                                workEmailCtrl,
+                                keyboardType: TextInputType.emailAddress,
+                                maxLength: 100,
+                                validator: (v) {
+                                  final value = (v ?? '').trim();
+                                  if (value.isEmpty) return null;
+                                  if (!emailRegex.hasMatch(value)) {
+                                    return 'Format email kantor tidak valid';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              _buildSheetField(
+                                'Departemen',
+                                deptCtrl,
+                                enabled: false,
+                                maxLength: 25,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Departemen wajib diisi';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              _buildSheetField(
+                                'Jabatan',
+                                jobCtrl,
+                                enabled: false,
+                                maxLength: 25,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Jabatan wajib diisi';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              _buildSheetField(
+                                'Alamat',
+                                addressCtrl,
+                                maxLines: 2,
+                                maxLength: 255,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Alamat wajib diisi';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -736,14 +941,21 @@ final List<Map<String, dynamic>> _subTabs = [
                         height: 54,
                         child: ElevatedButton(
                           onPressed: () async {
+                            if (!formKey.currentState!.validate()) {
+                              return;
+                            }
+
                             Navigator.pop(context);
                             setState(() => _isLoading = true);
 
                             final result = await ProfileService.updateProfile(
-                              fullName: nameCtrl.text,
-                              personalEmail: emailCtrl.text,
-                              phoneNumber: phoneCtrl.text,
-                              address: addressCtrl.text,
+                              fullName: nameCtrl.text.trim(),
+                              personalEmail: emailCtrl.text.trim(),
+                              workEmail: workEmailCtrl.text.trim(),
+                              phoneNumber: '+62${phoneCtrl.text.trim()}',
+                              department: deptCtrl.text.trim(),
+                              position: jobCtrl.text.trim(),
+                              address: addressCtrl.text.trim(),
                               imagePath: localImageFile?.path,
                             );
 
@@ -783,19 +995,27 @@ final List<Map<String, dynamic>> _subTabs = [
   }
 
   Widget _buildSheetField(String label, TextEditingController controller,
-      {bool enabled = true, TextInputType? keyboardType, int maxLines = 1}) {
+      {bool enabled = true,
+      TextInputType? keyboardType,
+      int maxLines = 1,
+      int? maxLength,
+      String? Function(String?)? validator}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        TextField(
+        TextFormField(
           controller: controller,
           enabled: enabled,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          maxLength: maxLength,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: validator,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
+            counterText: '',
             filled: true,
             fillColor: enabled ? Colors.white : Colors.grey.shade100,
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1005,7 +1225,7 @@ final List<Map<String, dynamic>> _subTabs = [
                 ],
               ),
               const SizedBox(height: 20),
-              _buildFieldLabel('Nama Lisensi (SIM/SIO/SIMPER)'),
+              _buildFieldLabel('Nama Lisensi (SIM/SIO)'),
               TextField(
                 controller: _licenseNameController,
                 decoration:
@@ -1448,11 +1668,9 @@ class _BiodataContent extends StatelessWidget {
           _buildTitle('INFORMATION PERSONAL'),
           _buildCard([
             _buildRow(context, 'NIK', data?.employeeId ?? '-',
-                locked: true,
                 onTap: () =>
                     _copyToClipboard(context, 'NIK', data?.employeeId)),
             _buildRow(context, 'Nama Lengkap', data?.fullName ?? '-',
-                locked: true,
                 onTap: () =>
                     _copyToClipboard(context, 'Nama Lengkap', data?.fullName)),
             _buildRow(context, 'Email', data?.personalEmail ?? '-',
@@ -1474,25 +1692,19 @@ class _BiodataContent extends StatelessWidget {
           const SizedBox(height: 24),
           _buildTitle('INFORMATION EMPLOYEE'),
           _buildCard([
-            _buildRow(context, 'Tipe Afiliasi', data?.tipeAfiliasi ?? '-',
-                locked: true),
-            _buildRow(context, 'Perusahaan Owner', data?.company ?? '-',
-                locked: true),
+            _buildRow(context, 'Tipe Afiliasi', data?.tipeAfiliasi ?? '-'),
+            _buildRow(context, 'Perusahaan Owner', data?.company ?? '-'),
             if (data?.tipeAfiliasi == 'Kontraktor' ||
                 data?.tipeAfiliasi == 'Sub-Kontraktor' ||
                 data?.tipeAfiliasi == 'Sub-Kont.')
               _buildRow(context, 'Perusahaan Kontraktor',
-                  data?.perusahaanKontraktor ?? '-',
-                  locked: true),
+                  data?.perusahaanKontraktor ?? '-'),
             if (data?.tipeAfiliasi == 'Sub-Kontraktor' ||
                 data?.tipeAfiliasi == 'Sub-Kont.')
               _buildRow(context, 'Sub-Kontraktor',
-                  data?.subKontraktor ?? '-',
-                  locked: true),
-            _buildRow(context, 'Departemen', data?.department ?? '-',
-                locked: true),
-            _buildRow(context, 'Jabatan', data?.position ?? '-',
-                  locked: true),
+                  data?.subKontraktor ?? '-'),
+            _buildRow(context, 'Departemen', data?.department ?? '-'),
+            _buildRow(context, 'Jabatan', data?.position ?? '-'),
           ]),
         ],
       ),
@@ -1534,7 +1746,7 @@ class _BiodataContent extends StatelessWidget {
       );
 
   Widget _buildRow(BuildContext context, String label, String value,
-      {bool locked = false, VoidCallback? onTap}) {
+      {VoidCallback? onTap}) {
     Widget content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
@@ -1557,10 +1769,6 @@ class _BiodataContent extends StatelessWidget {
                            fontWeight: FontWeight.bold,
                            fontSize: 13,
                            height: 1.3))),
-              if (locked) ...[
-                const SizedBox(width: 6),
-                const Icon(Icons.lock, color: Colors.orange, size: 14)
-              ],
             ],
           )),
         ],
@@ -1856,7 +2064,7 @@ class _MedicalContent extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.lock, color: Colors.orange, size: 16),
+                const Icon(Icons.info_outline, color: Colors.orange, size: 16),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -1979,6 +2187,18 @@ class _ViolationContent extends StatelessWidget {
                                 style: TextStyle(
                                     color: Colors.grey.shade500, fontSize: 13),
                               ),
+                              if (v.expiredAt != null &&
+                                  v.expiredAt!.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Berlaku S/D: ${v.expiredAt}',
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/company_service.dart';
@@ -31,7 +32,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _subKontraktor;
   String? _departemen;
   final _jabatanCtrl = TextEditingController();
-  final _simperCtrl = TextEditingController();
+
   final _emailKantorCtrl = TextEditingController();
 
   List<String> _ownerList = [];
@@ -90,7 +91,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _jabatanCtrl.dispose();
-    _simperCtrl.dispose();
+
     _emailKantorCtrl.dispose();
     super.dispose();
   }
@@ -131,14 +132,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         personalEmail: _emailCtrl.text,
         workEmail: _emailKantorCtrl.text,
         password: _passCtrl.text,
-        phoneNumber: _hpCtrl.text,
+        phoneNumber: '+62${_hpCtrl.text}',
         position: _jabatanCtrl.text,
         department: _departemen ?? '',
         company: _perusahaan ?? '',
         tipeAfiliasi: _tipeAfiliasi,
         perusahaanKontraktor: _perusahaanKontraktor,
         subKontraktor: _subKontraktor,
-        simper: _simperCtrl.text,
       );
 
       if (!mounted) return;
@@ -239,40 +239,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: _buildCurrentStepContent(),
                       ),
                     ),
-
-                    // Bottom Button
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        border: Border(top: BorderSide(color: Colors.black12)),
-                      ),
-                      child: Column(
-                        children: [
-                          _buildBottomButton(),
-                          if (_currentStep == 1) ...[
-                            const SizedBox(height: 16),
-                            GestureDetector(
-                              onTap: () => Navigator.pop(context),
-                              child: const Text.rich(
-                                TextSpan(
-                                  text: 'Sudah punya akun? ',
-                                  style: TextStyle(
-                                      color: Colors.grey, fontSize: 13),
-                                  children: [
-                                    TextSpan(
-                                        text: 'Masuk',
-                                        style: TextStyle(
-                                            color: Color(0xFF3D5AFE),
-                                            fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ]
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -326,13 +292,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Container(
                       height: 2,
                       color: _currentStep > 1
-                          ? const Color(0xFF10B981)
+                          ? const Color(0xFF3D5AFE)
                           : const Color(0xFFE5E7EB))),
               Expanded(
                   child: Container(
                       height: 2,
                       color: _currentStep > 2
-                          ? const Color(0xFF10B981)
+                          ? const Color(0xFF3D5AFE)
                           : const Color(0xFFE5E7EB))),
             ],
           ),
@@ -356,8 +322,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     Color color;
     Color textColor;
     if (isDone) {
-      color = const Color(0xFF10B981);
-      textColor = const Color(0xFF10B981);
+      color = const Color(0xFF3D5AFE);
+      textColor = const Color(0xFF3D5AFE);
     } else if (isActive) {
       color = const Color(0xFF3D5AFE);
       textColor = const Color(0xFF3D5AFE);
@@ -469,36 +435,105 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _buildTextField(
                     label: 'NAMA LENGKAP *',
                     hint: 'Sesuai dokumen resmi',
-                    controller: _namaCtrl),
+                    controller: _namaCtrl,
+                    maxLength: 25),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'EMPLOYEE ID *',
-                    hint: 'Min. 10 karakter',
+                    hint: 'Min. 5 karakter',
                     controller: _empIdCtrl,
+                    maxLength: 20,
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
-                      if (v.length < 10) return 'Minimal 10 karakter';
+                      if (v.length < 5) return 'Minimal 5 karakter';
                       return null;
                     }),
                 const SizedBox(height: 16),
-                _buildTextField(
-                    label: 'NOMOR HP *',
-                    hint: 'Contoh: 0812xxxx',
-                    controller: _hpCtrl,
-                    keyboardType: TextInputType.phone,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Wajib diisi';
-                      if (!RegExp(r'^08[0-9]{8,11}$').hasMatch(v)) {
-                        return 'Gunakan format 08 (10-13 digit)';
-                      }
-                      return null;
-                    }),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLabel('NOMOR HP *'),
+                    const SizedBox(height: 6),
+                    IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.only(left: 14, right: 6),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              border:
+                                  Border.all(color: Colors.grey.shade300),
+                              borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(8),
+                                  bottomLeft: Radius.circular(8)),
+                            ),
+                            child: const Text('+62',
+                                style: TextStyle(
+                                    color: Colors.black87, fontSize: 16)),
+                          ),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _hpCtrl,
+                              keyboardType: TextInputType.phone,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly
+                              ],
+                              maxLength: 13,
+                              style: const TextStyle(fontSize: 16),
+                              decoration: InputDecoration(
+                                hintText: '812xxxxxxxx',
+                                hintStyle: const TextStyle(
+                                    color: Colors.grey, fontSize: 14),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 12),
+                                border: OutlineInputBorder(
+                                    borderRadius: const BorderRadius.only(
+                                        topRight: Radius.circular(8),
+                                        bottomRight: Radius.circular(8)),
+                                    borderSide: BorderSide(
+                                        color: Colors.grey.shade300)),
+                                enabledBorder: OutlineInputBorder(
+                                    borderRadius: const BorderRadius.only(
+                                        topRight: Radius.circular(8),
+                                        bottomRight: Radius.circular(8)),
+                                    borderSide: BorderSide(
+                                        color: Colors.grey.shade300)),
+                                focusedBorder: OutlineInputBorder(
+                                    borderRadius: const BorderRadius.only(
+                                        topRight: Radius.circular(8),
+                                        bottomRight: Radius.circular(8)),
+                                    borderSide: const BorderSide(
+                                        color: Color(0xFF1A56C4))),
+                                filled: true,
+                                fillColor: Colors.white,
+                                counterText: '',
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) {
+                                  return 'Wajib diisi';
+                                }
+                                if (!RegExp(r'^8[0-9]{7,12}$')
+                                    .hasMatch(v)) {
+                                  return 'Masukkan 8-13 digit setelah +62';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'EMAIL PRIBADI *',
                     hint: 'email@pribadi.com',
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
+                    maxLength: 100,
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
                       if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
@@ -517,6 +552,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   hint: 'Min. 8 karakter',
                   controller: _passCtrl,
                   obscureText: _obscurePass,
+                  maxLength: 72,
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Wajib diisi';
                     if (v.length < 8) return 'Minimal 8 karakter';
@@ -529,6 +565,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         size: 20),
                     onPressed: () =>
                         setState(() => _obscurePass = !_obscurePass),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildBottomButton(),
+                const SizedBox(height: 16),
+                Center(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Text.rich(
+                      TextSpan(
+                        text: 'Sudah punya akun? ',
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                        children: [
+                          TextSpan(
+                              text: 'Masuk',
+                              style: TextStyle(
+                                  color: Color(0xFF3D5AFE),
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -644,19 +701,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     label: 'JABATAN / POSISI',
                     hint: 'Contoh: Safety Officer, Operator...',
                     controller: _jabatanCtrl,
-                    isRequired: false),
+                    isRequired: false,
+                    maxLength: 25),
                 const SizedBox(height: 16),
-                _buildTextField(
-                    label: 'SIMPER / KIMPER',
-                    hint: 'Nomor SIM operasi internal (jika ada)',
-                    controller: _simperCtrl,
-                    isRequired: false),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'EMAIL PERUSAHAAN',
                     hint: 'email@perusahaan.com (opsional)',
                     controller: _emailKantorCtrl,
-                    isRequired: false),
+                    isRequired: false,
+                    maxLength: 100),
                 const Padding(
                   padding: EdgeInsets.only(top: 4),
                   child: Text('Tidak semua karyawan memiliki email perusahaan',
@@ -699,6 +753,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 24),
+          _buildBottomButton(),
         ],
       ),
     );
@@ -741,7 +797,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const Divider(),
               _buildReviewRow('Employee ID', _empIdCtrl.text),
               const Divider(),
-              _buildReviewRow('Nomor HP', _hpCtrl.text),
+              _buildReviewRow('Nomor HP', '+62${_hpCtrl.text}'),
               const Divider(),
               _buildReviewRow('Email Pribadi', _emailCtrl.text),
               const Divider(),
@@ -804,10 +860,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ? '— (opsional)'
                       : _emailKantorCtrl.text,
                   isGrey: _emailKantorCtrl.text.isEmpty),
-              const Divider(),
-              _buildReviewRow('SIMPER',
-                  _simperCtrl.text.isEmpty ? '— (opsional)' : _simperCtrl.text,
-                  isGrey: _simperCtrl.text.isEmpty),
             ],
           ),
         ),
@@ -836,9 +888,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 8),
               _buildBullet(
-                  'Email pribadi (${_emailCtrl.text.isEmpty ? "..." : _emailCtrl.text})'),
-              _buildBullet(
-                  'Employee ID (${_empIdCtrl.text.isEmpty ? "..." : _empIdCtrl.text})'),
+                  'Employee ID (${_empIdCtrl.text.isEmpty ? "..." : _empIdCtrl.text})')
             ],
           ),
         ),
@@ -877,6 +927,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 32),
+        _buildBottomButton(),
       ],
     );
   }
@@ -915,12 +967,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFD1FAE5),
+                        color: const Color(0xFFEEF2FF),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text('Karyawan $value',
                           style: const TextStyle(
-                              color: Color(0xFF059669),
+                              color: const Color(0xFF3D5AFE),
                               fontSize: 11,
                               fontWeight: FontWeight.bold)),
                     ),
@@ -994,6 +1046,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
     Widget? suffixIcon,
+    String? prefixText,
+    List<TextInputFormatter>? inputFormatters,
+    int? maxLength,
     String? Function(String?)? validator,
   }) {
     return Column(
@@ -1005,9 +1060,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          inputFormatters: inputFormatters,
+          maxLength: maxLength,
           decoration: InputDecoration(
+            counterText: '',
             hintText: hint,
             hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+            prefixText: prefixText != null ? '$prefixText ' : null,
+            prefixStyle: const TextStyle(color: Colors.black87, fontSize: 14),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(

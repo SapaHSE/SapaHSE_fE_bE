@@ -275,6 +275,7 @@ class UserViolation {
   final String title;
   final String? location;
   final String? dateOfViolation;
+  final String? expiredAt;
   final String status;
   final String? sanction;
 
@@ -283,6 +284,7 @@ class UserViolation {
     required this.title,
     this.location,
     this.dateOfViolation,
+    this.expiredAt,
     required this.status,
     this.sanction,
   });
@@ -293,6 +295,7 @@ class UserViolation {
       title: json['title']?.toString() ?? '',
       location: json['location']?.toString(),
       dateOfViolation: json['date_of_violation']?.toString(),
+      expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'Aktif',
       sanction: json['sanction']?.toString(),
     );
