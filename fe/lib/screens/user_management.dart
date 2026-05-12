@@ -443,6 +443,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           elevation: 4,
           child: const Icon(Icons.add, size: 30),
         ),
+        extendBody: true,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: BottomAppBar(
           shape: const CircularNotchedRectangle(),
@@ -1539,6 +1540,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               child: const Icon(Icons.add, size: 30),
             )
           : null,
+      extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),

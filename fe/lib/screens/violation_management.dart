@@ -340,6 +340,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
               child: const Icon(Icons.add, size: 30),
             )
           : null,
+      extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),

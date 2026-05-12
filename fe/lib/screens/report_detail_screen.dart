@@ -512,6 +512,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
     return Scaffold(
       backgroundColor: widget.isDialog ? Colors.white : const Color(0xFFF0F0F0),
+      extendBody: !widget.isDialog,
       floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
       floatingActionButtonLocation: widget.isDialog
           ? FloatingActionButtonLocation.centerFloat
@@ -1572,9 +1573,15 @@ class _TimelineStatusGroupSection extends StatelessWidget {
                           children: [
                             Flexible(
                               flex: 11,
-                              child: ClipPath(
-                                clipper: const _TimelineStatusBannerClipper(),
-                                child: Container(
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(12),
+                                  bottomLeft: Radius.circular(12),
+                                ),
+                                child: ClipPath(
+                                  clipBehavior: Clip.antiAlias,
+                                  clipper: const _TimelineStatusBannerClipper(),
+                                  child: Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       begin: Alignment.centerLeft,
@@ -1593,41 +1600,42 @@ class _TimelineStatusGroupSection extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 24,
-                                        height: 24,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: Colors.white,
-                                            width: 1.1,
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 24,
+                                          height: 24,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                              color: Colors.white,
+                                              width: 1.1,
+                                            ),
+                                            color: Colors.white
+                                                .withValues(alpha: 0.14),
                                           ),
-                                          color: Colors.white
-                                              .withValues(alpha: 0.14),
-                                        ),
-                                        child: Icon(
-                                          statusIcon,
-                                          size: 13,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          group.label,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          textAlign: TextAlign.left,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
+                                          child: Icon(
+                                            statusIcon,
+                                            size: 13,
                                             color: Colors.white,
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            group.label,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            textAlign: TextAlign.left,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1689,6 +1697,7 @@ class _TimelineStatusBannerClipper extends CustomClipper<Path> {
   Path getClip(Size size) {
     const slashInset = 16.0;
     final cut = slashInset.clamp(0, size.width / 2).toDouble();
+
     return Path()
       ..moveTo(0, 0)
       ..lineTo(size.width - cut, 0)

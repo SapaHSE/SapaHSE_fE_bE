@@ -264,6 +264,7 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
         elevation: 4,
         child: const Icon(Icons.add, size: 30),
       ),
+      extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
