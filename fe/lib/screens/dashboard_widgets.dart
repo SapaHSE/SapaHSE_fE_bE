@@ -182,17 +182,14 @@ class DashboardSeverityBadge extends StatelessWidget {
 
 class DashboardStatusBadge extends StatelessWidget {
   final ReportStatus status;
-  const DashboardStatusBadge(this.status, {super.key});
+  final String? labelOverride;
+  const DashboardStatusBadge(this.status, {super.key, this.labelOverride});
 
   @override
   Widget build(BuildContext context) {
     Color color;
     IconData icon;
     switch (status) {
-      case ReportStatus.pending:
-        color = const Color(0xFFF59E0B); // Amber
-        icon = Icons.hourglass_empty;
-        break;
       case ReportStatus.open:
         color = const Color(0xFF2563EB);
         icon = Icons.radio_button_checked;
@@ -218,7 +215,7 @@ class DashboardStatusBadge extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 14),
           const SizedBox(width: 8),
-          Text(status.label.toUpperCase(),
+          Text((labelOverride ?? status.label).toUpperCase(),
               style: TextStyle(
                   color: color,
                   fontSize: 10,
@@ -424,7 +421,10 @@ class _DashboardReportCardState extends State<DashboardReportCard> {
                       ),
                     ),
                     const Spacer(),
-                    DashboardStatusBadge(r.status),
+                    DashboardStatusBadge(
+                      r.displayStatus,
+                      labelOverride: r.displayStatusLabel,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),

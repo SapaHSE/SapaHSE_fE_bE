@@ -654,13 +654,28 @@ class ReportService {
     final rawStatus = json['status']?.toString();
     final rawSubStatus = json['sub_status']?.toString();
     final imageUrls = _parseImageUrls(json);
+    final categoryCodes = _parseHazardCategoryCodes(
+      json['hazard_category_codes'],
+      json['hazard_category']?.toString(),
+    );
+    final categoryNames = _parseHazardCategoryNames(
+      json['hazard_category_names'],
+      categoryCodes,
+    );
+    final subcategories = _parseCsvList(
+      json['hazard_subcategories'],
+      json['hazard_subcategory']?.toString(),
+    );
     return Report(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '-',
       description: json['description']?.toString() ?? '-',
       type: ReportType.hazard,
-      category: _hazardCategoryFromApi(json['hazard_category']?.toString()),
+      category: _hazardCategoryFromCodes(categoryCodes),
+      hazardCategoryCodes: categoryCodes,
+      hazardCategoryNames: categoryNames,
       subkategori: json['hazard_subcategory']?.toString(),
+      hazardSubcategories: subcategories,
       severity: severity,
       status: _statusFromApi(rawStatus),
       subStatus: _subStatusFromApi(rawSubStatus) ??
@@ -839,7 +854,8 @@ class ReportService {
       case 'rejected':
         return ReportStatus.closed;
       case 'pending':
-        return ReportStatus.pending;
+        // Legacy compatibility: pending is treated as open.
+        return ReportStatus.open;
       case 'open':
       default:
         return ReportStatus.open;
@@ -848,8 +864,6 @@ class ReportService {
 
   static String _statusToApi(ReportStatus status) {
     switch (status) {
-      case ReportStatus.pending:
-        return 'pending';
       case ReportStatus.inProgress:
         return 'in_progress';
       case ReportStatus.closed:
@@ -894,8 +908,9 @@ class ReportService {
     }
   }
 
-  static HazardCategory? _hazardCategoryFromApi(String? value) {
-    switch (value) {
+  static HazardCategory? _hazardCategoryFromCodes(List<String> codes) {
+    if (codes.isEmpty) return null;
+    switch (codes.first) {
       case 'TTA':
         return HazardCategory.unsafeAct;
       case 'KTA':
@@ -903,6 +918,45 @@ class ReportService {
       default:
         return null;
     }
+  }
+
+  static List<String> _parseHazardCategoryCodes(
+      dynamic rawCodes, String? rawCategory) {
+    return _parseCsvList(rawCodes, rawCategory, uppercase: true);
+  }
+
+  static List<String> _parseHazardCategoryNames(
+      dynamic rawNames, List<String> fallbackCodes) {
+    final names = _parseCsvList(rawNames, null);
+    return names.isEmpty ? fallbackCodes : names;
+  }
+
+  static List<String> _parseCsvList(
+    dynamic rawList,
+    String? rawCsv, {
+    bool uppercase = false,
+  }) {
+    final source = <String>[];
+    if (rawList is List) {
+      for (final item in rawList) {
+        source.add(item?.toString() ?? '');
+      }
+    } else if (rawCsv != null) {
+      source.addAll(rawCsv.split(RegExp(r'[,;]')));
+    }
+
+    final result = <String>[];
+    final seen = <String>{};
+    for (final item in source) {
+      var normalized = item.trim();
+      if (uppercase) normalized = normalized.toUpperCase();
+      if (normalized.isEmpty) continue;
+      final key = uppercase ? normalized : normalized.toLowerCase();
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      result.add(normalized);
+    }
+    return result;
   }
 
   static HazardCategory _inspectionCategoryFromArea(String? area) {

@@ -81,6 +81,11 @@ class InboxItem {
   final ReportSeverity? severity;
   final String? namePja;
   final String? reportedDepartment;
+  final String? hazardCategory;
+  final List<String> hazardCategoryCodes;
+  final List<String> hazardCategoryNames;
+  final String? hazardSubcategory;
+  final List<String> hazardSubcategories;
   final String? area;
   final String? result;
   final String? notes;
@@ -111,6 +116,11 @@ class InboxItem {
     this.severity,
     this.namePja,
     this.reportedDepartment,
+    this.hazardCategory,
+    this.hazardCategoryCodes = const [],
+    this.hazardCategoryNames = const [],
+    this.hazardSubcategory,
+    this.hazardSubcategories = const [],
     this.area,
     this.result,
     this.notes,
@@ -162,6 +172,19 @@ class InboxItem {
 
     final rawStatus = json['status']?.toString();
     final rawSubStatus = json['sub_status']?.toString();
+    final hazardCategoryCodes = _parseCsvList(
+      json['hazard_category_codes'],
+      json['hazard_category']?.toString(),
+      uppercase: true,
+    );
+    final hazardCategoryNames = _parseCsvList(
+      json['hazard_category_names'],
+      null,
+    );
+    final hazardSubcategories = _parseCsvList(
+      json['hazard_subcategories'],
+      json['hazard_subcategory']?.toString(),
+    );
 
     return InboxItem(
       id: json['id']?.toString() ?? '',
@@ -180,6 +203,13 @@ class InboxItem {
       severity: _parseSeverity(json['severity']?.toString() ?? _severityFromInspectionResult(json['result']?.toString())),
       namePja: json['name_pja']?.toString(),
       reportedDepartment: json['reported_department']?.toString(),
+      hazardCategory: json['hazard_category']?.toString(),
+      hazardCategoryCodes: hazardCategoryCodes,
+      hazardCategoryNames: hazardCategoryNames.isEmpty
+          ? hazardCategoryCodes
+          : hazardCategoryNames,
+      hazardSubcategory: json['hazard_subcategory']?.toString(),
+      hazardSubcategories: hazardSubcategories,
       area: json['area']?.toString(),
       result: json['result']?.toString(),
       notes: json['notes']?.toString(),
@@ -205,6 +235,10 @@ class InboxItem {
       severity: severity ?? ReportSeverity.medium,
       status: status ?? ReportStatus.open,
       subStatus: subStatus,
+      hazardCategoryCodes: hazardCategoryCodes,
+      hazardCategoryNames: hazardCategoryNames,
+      subkategori: hazardSubcategory,
+      hazardSubcategories: hazardSubcategories,
       location: location ?? '-',
       createdAt: createdAt,
       reportedBy: reportedBy?.fullName ?? 'Unknown User',
@@ -247,7 +281,8 @@ class InboxItem {
       case 'rejected':
         return ReportStatus.closed;
       case 'pending':
-        return ReportStatus.pending;
+        // Legacy compatibility: pending is treated as open.
+        return ReportStatus.open;
       case 'open':
       default:
         return ReportStatus.open;
@@ -288,5 +323,33 @@ class InboxItem {
       default:
         return null;
     }
+  }
+
+  static List<String> _parseCsvList(
+    dynamic rawList,
+    String? rawCsv, {
+    bool uppercase = false,
+  }) {
+    final source = <String>[];
+    if (rawList is List) {
+      for (final raw in rawList) {
+        source.add(raw?.toString() ?? '');
+      }
+    } else if (rawCsv != null) {
+      source.addAll(rawCsv.split(RegExp(r'[,;]')));
+    }
+
+    final result = <String>[];
+    final seen = <String>{};
+    for (final item in source) {
+      var normalized = item.trim();
+      if (uppercase) normalized = normalized.toUpperCase();
+      if (normalized.isEmpty) continue;
+      final key = uppercase ? normalized : normalized.toLowerCase();
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      result.add(normalized);
+    }
+    return result;
   }
 }

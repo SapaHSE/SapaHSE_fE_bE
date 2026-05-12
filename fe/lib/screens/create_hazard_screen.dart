@@ -14,7 +14,6 @@ import '../services/cloud_save_service.dart';
 import '../services/company_service.dart';
 import '../services/report_service.dart';
 import 'map_picker_screen.dart';
-import '../widgets/minimal_dropdown.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +93,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   // ── Step 2 state ─────────────────────────────────────────────────────────────
   final _titleCtrl = TextEditingController();
   ReportSeverity? _selectedSeverity;
+  bool _showSeverityError = false;
   final _kronologiCtrl = TextEditingController();
   final _saranCtrl = TextEditingController();
   final Set<UserEntry> _selectedPelaku = {};
@@ -566,7 +566,188 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     );
   }
 
+  void _clearCompanySelection() {
+    setState(() {
+      _selectedPerusahaan = null;
+      _selectedCompanyId = null;
+      _selectedDepts.clear();
+      _ensureLockedDeptsSelected();
+      _selectedUsers.clear();
+      _selectedLokasi = null;
+      _locationCtrl.clear();
+      _apiAreas = [];
+    });
+
+    _loadAreasForCompany(null);
+  }
+
+  void _showPerusahaanPicker() {
+    if (!_canPickCompany) return;
+
+    String query = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final q = query.toLowerCase();
+          final filteredCompanies = _perusahaanList
+              .where((c) => c.toLowerCase().contains(q))
+              .toList();
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Pilih Perusahaan',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Cari perusahaan...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (v) => setSheetState(() => query = v),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      if (_selectedPerusahaan != null &&
+                          _selectedPerusahaan!.trim().isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text('TERPILIH',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue,
+                                  letterSpacing: 0.5)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              Chip(
+                                label: Text(_selectedPerusahaan!,
+                                    style: const TextStyle(fontSize: 12)),
+                                onDeleted: () {
+                                  _clearCompanySelection();
+                                  setSheetState(() {});
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 14),
+                                backgroundColor: _blue.withValues(alpha: 0.1),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                side:
+                                    BorderSide(color: _blue.withValues(alpha: 0.2)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 32),
+                      ],
+                      if (filteredCompanies.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text('PERUSAHAAN',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                  letterSpacing: 0.5)),
+                        ),
+                        ...filteredCompanies.map((companyName) {
+                          final isSelected = _selectedPerusahaan == companyName;
+                          return ListTile(
+                            leading:
+                                const Icon(Icons.business_outlined, size: 20),
+                            title: Text(companyName,
+                                style: const TextStyle(fontSize: 14)),
+                            trailing: Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: isSelected ? _blue : Colors.grey,
+                            ),
+                            onTap: () {
+                              if (isSelected) {
+                                _clearCompanySelection();
+                              } else {
+                                _handleCompanySelected(companyName);
+                              }
+                              setSheetState(() {});
+                            },
+                          );
+                        }),
+                      ],
+                      if (filteredCompanies.isEmpty)
+                        const Center(
+                            child: Padding(
+                                padding: EdgeInsets.all(40),
+                                child: Text('Tidak ditemukan',
+                                    style: TextStyle(color: Colors.grey)))),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text('Selesai',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _handleCompanySelected(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      _clearCompanySelection();
+      return;
+    }
+
     final selectedCompany = _apiCompanies
         .cast<CompanyData?>()
         .firstWhere((company) => company?.name == value, orElse: () => null);
@@ -614,14 +795,10 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       setState(() => _currentStep++);
       _scrollToTop();
     } else if (_currentStep == 1) {
-      if (!_formKey2.currentState!.validate()) return;
-      if (_selectedSeverity == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Status risiko wajib dipilih'),
-          backgroundColor: Colors.red,
-        ));
-        return;
-      }
+      final isFormValid = _formKey2.currentState!.validate();
+      final hasSeverity = _selectedSeverity != null;
+      setState(() => _showSeverityError = !hasSeverity);
+      if (!isFormValid || !hasSeverity) return;
       _showPinpointConfirmationDialog(() {
         setState(() => _currentStep++);
         _scrollToTop();
@@ -1592,38 +1769,6 @@ if (picked.isNotEmpty) {
     );
   }
 
-  // ── Searchable Perusahaan Dropdown ────────────────────────────────────────────
-  // Refactored to match the standard styling pattern while preserving search
-  // functionality via a bottom-sheet search UI.
-
-  Widget _perusahaanDropdown({
-    required List<String> companies,
-    required String? selectedValue,
-    required ValueChanged<String?> onChanged,
-    required bool canPick,
-  }) {
-    // Use a standard DropdownButtonFormField to match other fields' styling.
-    return DropdownButtonFormField<String>(
-      key: ValueKey('perusahaan_\${selectedValue ?? "null"}'),
-      initialValue: selectedValue,
-      icon: kMinimalDropdownChevron,
-      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-      style: kMinimalDropdownTextStyle,
-      validator: (v) => v == null ? 'Wajib dipilih' : null,
-      decoration: minimalFieldDecoration(
-        hintText: 'Pilih / Cari Perusahaan',
-        prefixIcon: Icons.business_outlined,
-      ),
-      items: companies
-          .map((e) => DropdownMenuItem(
-                value: e,
-                child: Text(e, style: kMinimalDropdownTextStyle),
-              ))
-          .toList(),
-      onChanged: canPick ? onChanged : null,
-    );
-  }
-
   // ── Step 1 ────────────────────────────────────────────────────────────────────
 
   Widget _buildStep1() {
@@ -1657,8 +1802,13 @@ if (picked.isNotEmpty) {
                       child: Text(
                         _selectedKategori.isEmpty
                             ? 'Ketuk untuk memilih kategori'
-                            : '${_selectedKategori.length} kategori dipilih',
-                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                            : _selectedKategori.join(', '),
+                        style: TextStyle(
+                          color: _selectedKategori.isEmpty
+                              ? Colors.grey.shade500
+                              : Colors.black87,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade400),
@@ -1666,39 +1816,6 @@ if (picked.isNotEmpty) {
                 ),
               ),
             ),
-          if (_selectedKategori.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: _selectedKategori.asMap().entries.map((entry) {
-                final index = entry.key;
-                final kat = entry.value;
-                return Chip(
-                  label: Text(kat, style: const TextStyle(fontSize: 12)),
-                  deleteIcon: const Icon(Icons.close, size: 16),
-                  onDeleted: () {
-                    setState(() {
-                      _selectedKategori.removeAt(index);
-                      if (index < _selectedKategoriCodes.length) {
-                        _selectedKategoriCodes.removeAt(index);
-                      }
-                      _selectedSubkategori.clear();
-                      _selectedPerusahaan = null;
-                      _selectedCompanyId = null;
-                      _apiAreas = [];
-                      _selectedLokasi = null;
-                      _locationCtrl.clear();
-                      _selectedDepts.clear();
-                      _selectedUsers.clear();
-                    });
-                  },
-                  backgroundColor: const Color(0xFFEFF4FF),
-                  side: BorderSide(color: Colors.blue.shade200),
-                );
-              }).toList(),
-            ),
-          ],
           const SizedBox(height: 14),
           _label('Subkategori Hazard *'),
           Opacity(
@@ -1728,7 +1845,7 @@ if (picked.isNotEmpty) {
                         child: Text(
                           _selectedSubkategori.isEmpty
                               ? 'Ketuk untuk memilih subkategori'
-                              : '${_selectedSubkategori.length} subkategori dipilih',
+                              : _selectedSubkategori.values.join(', '),
                           style: TextStyle(
                             color: _canPickSubcategory ? Colors.black87 : Colors.grey.shade500,
                             fontSize: 13,
@@ -1743,16 +1860,49 @@ if (picked.isNotEmpty) {
             ),
           ),
           const SizedBox(height: 14),
-          _label('Perusahaan (Ketik untuk mencari) *'),
+          _label('Perusahaan *'),
           Opacity(
             opacity: _canPickCompany ? 1 : 0.6,
             child: IgnorePointer(
               ignoring: !_canPickCompany,
-              child: _perusahaanDropdown(
-                companies: _perusahaanList,
-                selectedValue: _selectedPerusahaan,
-                onChanged: _handleCompanySelected,
-                canPick: _canPickCompany,
+              child: GestureDetector(
+                onTap: _canPickCompany ? _showPerusahaanPicker : null,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                  decoration: BoxDecoration(
+                    color: _canPickCompany
+                        ? const Color(0xFFF8F9FF)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _canPickCompany
+                          ? Colors.grey.shade300
+                          : Colors.grey.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.business_outlined, size: 20, color: _canPickCompany ? Colors.grey : Colors.grey.shade400),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          (_selectedPerusahaan == null ||
+                                  _selectedPerusahaan!.trim().isEmpty)
+                              ? 'Ketuk untuk memilih perusahaan'
+                              : _selectedPerusahaan!,
+                          style: TextStyle(
+                            color: (_selectedPerusahaan == null ||
+                                    _selectedPerusahaan!.trim().isEmpty)
+                                ? Colors.grey.shade500
+                                : Colors.black87,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, size: 14, color: _canPickCompany ? Colors.grey.shade400 : Colors.grey.shade300),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -1778,58 +1928,84 @@ if (picked.isNotEmpty) {
             decoration: _inputDeco(hint: 'Judul laporan'),
           ),
           const SizedBox(height: 14),
-          _label('Status Resiko *'),
+          _label('Status Risiko *'),
           Opacity(
             opacity: _canPickSeverity ? 1 : 0.45,
             child: IgnorePointer(
               ignoring: !_canPickSeverity,
-              child: Row(
-                children: [
-                  ReportSeverity.low,
-                  ReportSeverity.medium,
-                  ReportSeverity.high,
-                ].map((s) {
-                  final isSelected = _selectedSeverity == s;
-                  final colors = {
-                    ReportSeverity.low: Colors.green,
-                    ReportSeverity.medium: Colors.orange,
-                    ReportSeverity.high: Colors.red,
-                  };
-                  final baseColor = colors[s]!;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedSeverity = s),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected ? baseColor : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: _canPickSeverity
-                                  ? (isSelected
-                                      ? baseColor
-                                      : Colors.grey.shade300)
-                                  : Colors.grey.shade300,
-                              width: isSelected ? 2 : 1),
-                        ),
-                        child: Text(
-                          s.name.toUpperCase(),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : Colors.grey.shade700,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: (_showSeverityError && _selectedSeverity == null)
+                        ? Theme.of(context).colorScheme.error
+                        : Colors.transparent,
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    ReportSeverity.low,
+                    ReportSeverity.medium,
+                    ReportSeverity.high,
+                  ].map((s) {
+                    final isSelected = _selectedSeverity == s;
+                    final colors = {
+                      ReportSeverity.low: Colors.green,
+                      ReportSeverity.medium: Colors.orange,
+                      ReportSeverity.high: Colors.red,
+                    };
+                    final baseColor = colors[s]!;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          _selectedSeverity = s;
+                          _showSeverityError = false;
+                        }),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isSelected ? baseColor : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: _canPickSeverity
+                                    ? (isSelected
+                                        ? baseColor
+                                        : Colors.grey.shade300)
+                                    : Colors.grey.shade300,
+                                width: isSelected ? 2 : 1),
+                          ),
+                          child: Text(
+                            s.name.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.grey.shade700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
           ),
+          if (_showSeverityError && _selectedSeverity == null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 12),
+              child: Text(
+                'Wajib dipilih',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           const SizedBox(height: 14),
           _label('Deskripsi Kronologi *'),
           TextFormField(
@@ -1853,32 +2029,39 @@ if (picked.isNotEmpty) {
             opacity: _selectedCompanyId != null && !_isLoadingAreas ? 1 : 0.5,
             child: IgnorePointer(
               ignoring: _selectedCompanyId == null || _isLoadingAreas,
-child: Container(
-                decoration: kMinimalFieldContainerDecoration,
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  key: ValueKey('lokasi_$_selectedLokasi'),
-                  initialValue: _selectedLokasi,
-                  icon: kMinimalDropdownChevron,
-                  borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-                  style: kMinimalDropdownTextStyle,
-                  validator: (v) => v == null ? 'Wajib dipilih' : null,
-                  decoration: minimalFieldDecoration(
-                      hintText: 'Pilih Lokasi',
-                      prefixIcon: Icons.location_on_outlined),
-                  items: _lokasiList
-                      .map((e) => DropdownMenuItem(
-                          value: e,
-                          child: Text(e, style: kMinimalDropdownTextStyle, overflow: TextOverflow.ellipsis)))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() {
-                      _selectedLokasi = v;
-                      _locationCtrl.text = v ?? '';
-                    });
-                    _keepKeyboardDismissed();
-                  },
+              child: DropdownButtonFormField<String>(
+                isExpanded: true,
+                key: ValueKey('lokasi_$_selectedLokasi'),
+                initialValue: _selectedLokasi,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 20, color: Colors.grey),
+                borderRadius: BorderRadius.circular(8),
+                style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1F2937)),
+                validator: (v) => v == null ? 'Wajib dipilih' : null,
+                decoration: _inputDeco(
+                  hint: 'Pilih Lokasi',
+                  icon: Icons.location_city,
                 ),
+                items: _lokasiList
+                    .map((e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF1F2937)),
+                            overflow: TextOverflow.ellipsis)))
+                    .toList(),
+                onChanged: (v) {
+                  setState(() {
+                    _selectedLokasi = v;
+                    _locationCtrl.text = v ?? '';
+                  });
+                  _keepKeyboardDismissed();
+                },
               ),
             ),
           ),
@@ -1980,7 +2163,13 @@ child: Container(
                       fontWeight: FontWeight.bold, fontSize: 16)),
               const Divider(),
               _previewItem(
-                  'Kategori', _selectedKategori.map((k) => '$k: ${_selectedSubkategori[k] ?? "-"}').join(', ')),
+                  'Kategori',
+                  _selectedKategori.isEmpty ? '-' : _selectedKategori.join(', ')),
+              _previewItem(
+                  'Subkategori',
+                  _selectedSubkategori.isEmpty
+                      ? '-'
+                      : _selectedSubkategori.values.join(', ')),
               _previewItem('Perusahaan', '$_selectedPerusahaan'),
               _previewItem('Departemen',
                   _selectedDepts.isEmpty ? '-' : _selectedDepts.join(', ')),
@@ -1991,7 +2180,7 @@ child: Container(
                       : _selectedUsers.map((u) => u.fullName).join(', ')),
               _previewItem('Judul', _titleCtrl.text),
               _previewItem(
-                  'Resiko', _selectedSeverity?.name.toUpperCase() ?? '-'),
+                  'Risiko', _selectedSeverity?.name.toUpperCase() ?? '-'),
               _previewItem('Kronologi', _kronologiCtrl.text),
               if (_saranCtrl.text.trim().isNotEmpty)
                 _previewItem('Saran', _saranCtrl.text),

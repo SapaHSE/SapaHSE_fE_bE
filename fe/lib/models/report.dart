@@ -4,7 +4,7 @@ enum ReportType { hazard, inspection }
 
 enum ReportSeverity { low, medium, high, critical }
 
-enum ReportStatus { pending, open, inProgress, closed }
+enum ReportStatus { open, inProgress, closed }
 
 // Sub-kategori hazard / inspection
 enum HazardCategory {
@@ -67,7 +67,10 @@ class Report {
   final String description;
   final ReportType type;
   final HazardCategory? category;
+  final List<String> hazardCategoryCodes;
+  final List<String> hazardCategoryNames;
   final String? subkategori; // hazard_subcategory from API
+  final List<String> hazardSubcategories;
   final ReportSeverity severity;
   final ReportStatus status;
   final ReportSubStatus? subStatus;
@@ -102,7 +105,10 @@ class Report {
     required this.description,
     required this.type,
     this.category,
+    this.hazardCategoryCodes = const [],
+    this.hazardCategoryNames = const [],
     this.subkategori,
+    this.hazardSubcategories = const [],
     required this.severity,
     required this.status,
     this.subStatus,
@@ -136,6 +142,18 @@ class Report {
         : ReportType.hazard;
     final rawStatus = json['status']?.toString();
     final rawSubStatus = json['sub_status']?.toString();
+    final hazardCategoryCodes = _parseHazardCategoryCodes(
+      json['hazard_category_codes'],
+      json['hazard_category']?.toString(),
+    );
+    final hazardCategoryNames = _parseHazardCategoryNames(
+      json['hazard_category_names'],
+      hazardCategoryCodes,
+    );
+    final hazardSubcategories = _parseCsvList(
+      json['hazard_subcategories'],
+      json['hazard_subcategory']?.toString(),
+    );
 
     final checklistRaw = json['checklist_items'];
     List<ChecklistItem>? checklistItems;
@@ -166,9 +184,12 @@ class Report {
       title: json['title']?.toString() ?? '-',
       description: json['description']?.toString() ?? '-',
       type: type,
-      category: _categoryFromApi(
-          json['hazard_category']?.toString(), type, json['area']?.toString()),
+      category: _categoryFromCodes(
+          hazardCategoryCodes, type, json['area']?.toString()),
+      hazardCategoryCodes: hazardCategoryCodes,
+      hazardCategoryNames: hazardCategoryNames,
       subkategori: json['hazard_subcategory']?.toString(),
+      hazardSubcategories: hazardSubcategories,
       severity: _severityFromApi(
           json['severity']?.toString(), json['result']?.toString()),
       status: _statusFromApi(rawStatus),
@@ -214,7 +235,8 @@ class Report {
       case 'rejected':
         return ReportStatus.closed;
       case 'pending':
-        return ReportStatus.pending;
+        // Legacy compatibility: pending is treated as open.
+        return ReportStatus.open;
       default:
         return ReportStatus.open;
     }
@@ -255,10 +277,11 @@ class Report {
     return ReportSeverity.medium;
   }
 
-  static HazardCategory? _categoryFromApi(
-      String? cat, ReportType type, String? area) {
+  static HazardCategory? _categoryFromCodes(
+      List<String> codes, ReportType type, String? area) {
     if (type == ReportType.hazard) {
-      switch (cat) {
+      if (codes.isEmpty) return null;
+      switch (codes.first) {
         case 'TTA':
           return HazardCategory.unsafeAct;
         case 'KTA':
@@ -275,6 +298,45 @@ class Report {
       return HazardCategory.routineInspection;
     }
     return null;
+  }
+
+  static List<String> _parseHazardCategoryCodes(
+      dynamic rawCodes, String? rawCategory) {
+    return _parseCsvList(rawCodes, rawCategory, uppercase: true);
+  }
+
+  static List<String> _parseHazardCategoryNames(
+      dynamic rawNames, List<String> fallbackCodes) {
+    final names = _parseCsvList(rawNames, null);
+    return names.isEmpty ? fallbackCodes : names;
+  }
+
+  static List<String> _parseCsvList(
+    dynamic rawList,
+    String? rawCsv, {
+    bool uppercase = false,
+  }) {
+    final source = <String>[];
+    if (rawList is List) {
+      for (final raw in rawList) {
+        source.add(raw?.toString() ?? '');
+      }
+    } else if (rawCsv != null) {
+      source.addAll(rawCsv.split(RegExp(r'[,;]')));
+    }
+
+    final result = <String>[];
+    final seen = <String>{};
+    for (final item in source) {
+      var normalized = item.trim();
+      if (uppercase) normalized = normalized.toUpperCase();
+      if (normalized.isEmpty) continue;
+      final key = uppercase ? normalized : normalized.toLowerCase();
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      result.add(normalized);
+    }
+    return result;
   }
 
   static DateTime _parseDate(dynamic raw) {
@@ -363,8 +425,6 @@ extension ReportSeverityLabel on ReportSeverity {
 extension ReportStatusLabel on ReportStatus {
   String get label {
     switch (this) {
-      case ReportStatus.pending:
-        return 'Dalam Pengecekan Admin';
       case ReportStatus.open:
         return 'Open';
       case ReportStatus.inProgress:
@@ -418,8 +478,6 @@ extension ReportSubStatusInfo on ReportSubStatus {
 
   static List<ReportSubStatus> forStatus(ReportStatus s) {
     switch (s) {
-      case ReportStatus.pending:
-        return [];
       case ReportStatus.open:
         return [
           ReportSubStatus.validating,
@@ -439,5 +497,21 @@ extension ReportSubStatusInfo on ReportSubStatus {
           ReportSubStatus.deferred
         ];
     }
+  }
+}
+
+extension ReportDisplayInfo on Report {
+  ReportStatus get displayStatus {
+    if (subStatus == ReportSubStatus.validating) {
+      return ReportStatus.open;
+    }
+    return status;
+  }
+
+  String get displayStatusLabel {
+    if (subStatus == ReportSubStatus.validating) {
+      return ReportSubStatus.validating.label;
+    }
+    return status.label;
   }
 }

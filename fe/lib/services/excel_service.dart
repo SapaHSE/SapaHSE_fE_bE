@@ -84,10 +84,14 @@ class ExcelService {
         report.title,
         report.location,
         report.type.label,
-        report.category?.label ?? '-',
+        report.type == ReportType.hazard
+            ? (report.hazardCategoryNames.isNotEmpty
+                ? report.hazardCategoryNames.join(', ')
+                : (report.category?.label ?? '-'))
+            : (report.category?.label ?? '-'),
         report.type == ReportType.hazard ? report.severity.label : '-',
         report.reportedBy,
-        report.status.label,
+        report.displayStatusLabel,
       ];
 
       for (int j = 0; j < values.length; j++) {

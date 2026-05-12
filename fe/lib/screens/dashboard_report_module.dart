@@ -642,7 +642,10 @@ class _DashboardReportModuleState extends State<DashboardReportModule> {
               DataCell(Text(r.location)),
               if (widget.type == ReportType.hazard)
                 DataCell(DashboardSeverityBadge(r.severity)),
-              DataCell(DashboardStatusBadge(r.status)),
+              DataCell(DashboardStatusBadge(
+                r.displayStatus,
+                labelOverride: r.displayStatusLabel,
+              )),
               DataCell(Text(_fmt(r.createdAt),
                   style:
                       const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),

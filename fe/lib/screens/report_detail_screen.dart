@@ -241,18 +241,28 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       };
 
   Color _statusColor(ReportStatus s) => switch (s) {
-        ReportStatus.pending => const Color(0xFFFF9800), // Amber/Orange
         ReportStatus.open => const Color(0xFF2196F3),
         ReportStatus.inProgress => const Color(0xFF9C27B0),
         ReportStatus.closed => const Color(0xFF757575),
       };
 
   IconData _statusIcon(ReportStatus s) => switch (s) {
-        ReportStatus.pending => Icons.hourglass_empty,
         ReportStatus.open => Icons.flag_outlined,
         ReportStatus.inProgress => Icons.autorenew,
         ReportStatus.closed => Icons.check_circle_outline,
       };
+
+  String _categoryDisplayValue(Report report) {
+    if (report.type == ReportType.hazard) {
+      if (report.hazardCategoryNames.isNotEmpty) {
+        return report.hazardCategoryNames.join(', ');
+      }
+      if (report.hazardCategoryCodes.isNotEmpty) {
+        return report.hazardCategoryCodes.join(', ');
+      }
+    }
+    return report.category?.label ?? report.type.label;
+  }
 
   String _formatDate(DateTime dt) {
     final m = [
@@ -661,8 +671,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                         bottom: 12,
                         left: 16,
                         child: Row(children: [
-                          _badge(_report.status.label,
-                              _statusColor(_report.status)),
+                          _badge(_report.displayStatusLabel,
+                              _statusColor(_report.displayStatus)),
                           const SizedBox(width: 8),
                           _badge(_report.severity.label,
                               _severityColor(_report.severity)),
@@ -771,8 +781,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                         _DetailRow(
                             icon: Icons.category_outlined,
                             label: 'Kategori',
-                            value:
-                                _report.category?.label ?? _report.type.label),
+                            value: _categoryDisplayValue(_report)),
                         if (_report.subkategori != null &&
                             _report.subkategori!.isNotEmpty) ...[
                           const SizedBox(height: 12),
@@ -3808,7 +3817,9 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                                 letterSpacing: 0.5)),
                         const SizedBox(height: 2),
                         Text(
-                          '${widget.report.status.label}${widget.report.subStatus != null ? ' → ${widget.report.subStatus!.label}' : ''}',
+                          widget.report.subStatus == ReportSubStatus.validating
+                              ? ReportSubStatus.validating.label
+                              : '${widget.report.status.label}${widget.report.subStatus != null ? ' → ${widget.report.subStatus!.label}' : ''}',
                           style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,

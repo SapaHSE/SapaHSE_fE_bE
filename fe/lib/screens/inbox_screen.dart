@@ -26,7 +26,7 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
 }
 
 enum _SubFilter { unread, read }
-enum _MyPostFilter { all, draft, pending, approved, rejected }
+enum _MyPostFilter { all, draft, validating, approved, rejected }
 enum _TaskStatusFilter {
   all,
   validating,
@@ -385,7 +385,7 @@ class _InboxScreenState extends State<InboxScreen>
         return all;
       case _MyPostFilter.draft:
         return drafts;
-      case _MyPostFilter.pending:
+      case _MyPostFilter.validating:
         return _myReports.where((i) => i.subStatus == ReportSubStatus.validating).toList();
       case _MyPostFilter.approved:
         return _myReports.where((i) =>
@@ -487,8 +487,6 @@ class _InboxScreenState extends State<InboxScreen>
 
   Color _statusColor(ReportStatus s) {
     switch (s) {
-      case ReportStatus.pending:
-        return const Color(0xFFFF9800); // Amber
       case ReportStatus.open:
         return const Color(0xFF2196F3); // Biru
       case ReportStatus.inProgress:
@@ -513,8 +511,6 @@ class _InboxScreenState extends State<InboxScreen>
 
   String _statusLabel(ReportStatus s) {
     switch (s) {
-      case ReportStatus.pending:
-        return 'Pengecekan Admin';
       case ReportStatus.open:
         return 'Open';
       case ReportStatus.inProgress:
@@ -538,7 +534,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
   switch (f) {
     case _MyPostFilter.all: return 'Semua';
     case _MyPostFilter.draft: return 'Draft';
-    case _MyPostFilter.pending: return 'Validating';
+    case _MyPostFilter.validating: return 'Validating';
     case _MyPostFilter.approved: return 'Approved';
     case _MyPostFilter.rejected: return 'Closed';
   }
@@ -664,7 +660,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
                                 count = _myDrafts.length + _myReports.length;
                               } else if (f == _MyPostFilter.draft) {
                                 count = _myDrafts.length;
-                              } else if (f == _MyPostFilter.pending) {
+                              } else if (f == _MyPostFilter.validating) {
                                 count = _myReports.where((i) => i.subStatus == ReportSubStatus.validating).length;
                               } else if (f == _MyPostFilter.approved) {
                                 count = _myReports.where((i) =>

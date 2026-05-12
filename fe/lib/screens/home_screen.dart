@@ -705,9 +705,7 @@ class _ReportCard extends StatelessWidget {
   }
 
   Color get _statusColor {
-    switch (report.status) {
-      case ReportStatus.pending:
-        return const Color(0xFFFF9800);
+    switch (report.displayStatus) {
       case ReportStatus.open:
         return const Color(0xFF2196F3);
       case ReportStatus.inProgress:
@@ -929,9 +927,7 @@ class _ReportCard extends StatelessWidget {
                                             alpha: 0.3)),
                                   ),
                                   child: Text(
-                                    report.subStatus == ReportSubStatus.validating
-                                        ? 'Validating'
-                                        : report.status.label,
+                                    report.displayStatusLabel,
                                     style: TextStyle(
                                         color: _statusColor,
                                         fontSize: 9,
