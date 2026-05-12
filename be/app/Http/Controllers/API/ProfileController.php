@@ -499,6 +499,7 @@ class ProfileController extends Controller
                 'title'             => $v->title,
                 'location'          => $v->location,
                 'date_of_violation' => $v->date_of_violation?->format('Y-m-d'),
+                'expired_at'        => $v->expired_at?->format('Y-m-d'),
                 'status'            => $v->status,
                 'sanction'          => $v->sanction,
             ]) : [],

@@ -31,7 +31,7 @@ class AuthController extends Controller
             'position'       => 'required|string|max:100',
             'department'     => 'required|string|max:100',
             'company'        => 'required|string|max:150',
-            'alamat'         => 'nullable|string',
+            'address'        => 'nullable|string|max:500',
             'tipe_afiliasi'  => 'nullable|string|max:50',
             'perusahaan_kontraktor' => 'nullable|string|max:150',
             'sub_kontraktor' => 'nullable|string|max:150',
@@ -59,7 +59,7 @@ class AuthController extends Controller
             'position'                  => $request->position,
             'department'                => $request->department,
             'company'                   => $request->company,
-            'alamat'                    => $request->alamat,
+            'address'                   => $request->address,
             'tipe_afiliasi'             => $request->tipe_afiliasi,
             'perusahaan_kontraktor'     => $request->perusahaan_kontraktor,
             'sub_kontraktor'            => $request->sub_kontraktor,
@@ -295,7 +295,7 @@ class AuthController extends Controller
             'position'       => 'required|string|max:100',
             'department'     => 'required|string|max:100',
             'company'        => 'required|string|max:100',
-            'alamat'         => 'nullable|string',
+            'address'        => 'nullable|string|max:500',
             'tipe_afiliasi'  => 'nullable|string|max:50',
             'perusahaan_kontraktor' => 'nullable|string|max:100',
             'sub_kontraktor' => 'nullable|string|max:100',
@@ -314,7 +314,7 @@ class AuthController extends Controller
             'position'       => $request->position,
             'department'     => $request->department,
             'company'        => $request->company,
-            'alamat'         => $request->alamat,
+            'address'        => $request->address,
             'tipe_afiliasi'  => $request->tipe_afiliasi,
             'perusahaan_kontraktor' => $request->perusahaan_kontraktor,
             'sub_kontraktor' => $request->sub_kontraktor,
@@ -346,7 +346,7 @@ class AuthController extends Controller
             'position'       => 'required|string|max:100',
             'department'     => 'required|string|max:100',
             'company'        => 'required|string|max:100',
-            'alamat'         => 'nullable|string',
+            'address'        => 'nullable|string|max:500',
             'tipe_afiliasi'  => 'nullable|string|max:50',
             'perusahaan_kontraktor' => 'nullable|string|max:100',
             'sub_kontraktor' => 'nullable|string|max:100',
@@ -390,6 +390,40 @@ class AuthController extends Controller
         ]);
     }
 
+    // GET /api/admin/violations
+    public function adminViolationsIndex(Request $request)
+    {
+        UserViolation::where('status', 'Aktif')
+            ->whereNotNull('expired_at')
+            ->where('expired_at', '<', now()->toDateString())
+            ->update(['status' => 'Selesai']);
+
+        $search = $request->query('search');
+        $perPage = $request->query('per_page', 10);
+
+        $query = UserViolation::with('user:id,full_name,employee_id,profile_photo')
+            ->orderBy('date_of_violation', 'desc');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($uq) use ($search) {
+                        $uq->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('employee_id', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $violations = $query->paginate($perPage);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Violations retrieved successfully',
+            'data'    => $violations,
+        ]);
+    }
+
     // POST /api/admin/users/{id}/violations
     public function adminStoreViolation(Request $request, $id)
     {
@@ -398,14 +432,18 @@ class AuthController extends Controller
         $request->validate([
             'title'             => 'required|string|max:150',
             'location'          => 'nullable|string|max:150',
-            'date_of_violation' => 'required|date',
+            'date_of_violation' => 'nullable|date',
+            'expired_at'        => 'nullable|date',
             'status'            => 'nullable|string|max:50',
             'sanction'          => 'nullable|string|max:200',
         ]);
 
-        $violation = $user->violations()->create($request->only(
-            'title', 'location', 'date_of_violation', 'status', 'sanction'
-        ));
+        $data = $request->only('title', 'location', 'date_of_violation', 'expired_at', 'status', 'sanction');
+        if (empty($data['date_of_violation'])) {
+            $data['date_of_violation'] = now()->toDateString();
+        }
+
+        $violation = $user->violations()->create($data);
 
         return response()->json([
             'status'  => 'success',
@@ -422,13 +460,14 @@ class AuthController extends Controller
         $request->validate([
             'title'             => 'required|string|max:150',
             'location'          => 'nullable|string|max:150',
-            'date_of_violation' => 'required|date',
+            'date_of_violation' => 'nullable|date',
+            'expired_at'        => 'nullable|date',
             'status'            => 'nullable|string|max:50',
             'sanction'          => 'nullable|string|max:200',
         ]);
 
         $violation->update($request->only(
-            'title', 'location', 'date_of_violation', 'status', 'sanction'
+            'title', 'location', 'date_of_violation', 'expired_at', 'status', 'sanction'
         ));
 
         return response()->json([
@@ -574,13 +613,15 @@ class AuthController extends Controller
             'position'       => $user->position,
             'department'     => $user->department,
             'company'        => $user->company,
-            'alamat'         => $user->alamat,
+            'address'        => $user->address,
             'tipe_afiliasi'  => $user->tipe_afiliasi,
             'perusahaan_kontraktor' => $user->perusahaan_kontraktor,
             'sub_kontraktor' => $user->sub_kontraktor,
             'simper'         => $user->simper,
             'profile_photo'  => $user->profile_photo
-                ? asset('storage/' . $user->profile_photo)
+                ? (filter_var($user->profile_photo, FILTER_VALIDATE_URL)
+                    ? $user->profile_photo
+                    : asset('storage/' . $user->profile_photo))
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,

@@ -13,7 +13,8 @@ return new class extends Migration
             $table->uuid('user_id');
             $table->string('title', 150);
             $table->string('location', 150)->nullable();
-            $table->date('date_of_violation');
+            $table->date('date_of_violation')->useCurrent();
+            $table->date('expired_at')->nullable();
             $table->string('status', 50)->default('Aktif'); // Aktif, Selesai, etc.
             $table->string('sanction', 200)->nullable();
             $table->timestamps();

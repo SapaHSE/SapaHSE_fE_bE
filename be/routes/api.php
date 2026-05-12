@@ -219,6 +219,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/users/{id}', [AuthController::class, 'adminDestroy'])->middleware('role:admin,superadmin');
 
     // Admin: Manage Violations
+    Route::get('/admin/violations', [AuthController::class, 'adminViolationsIndex'])->middleware('role:admin,superadmin');
     Route::post('/admin/users/{id}/violations', [AuthController::class, 'adminStoreViolation'])->middleware('role:admin,superadmin');
     Route::put('/admin/violations/{violationId}', [AuthController::class, 'adminUpdateViolation'])->middleware('role:admin,superadmin');
     Route::delete('/admin/violations/{violationId}', [AuthController::class, 'adminDestroyViolation'])->middleware('role:admin,superadmin');

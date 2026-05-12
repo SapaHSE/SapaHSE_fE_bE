@@ -17,6 +17,7 @@ class UserViolation extends Model
         'title',
         'location',
         'date_of_violation',
+        'expired_at',
         'status',
         'sanction',
     ];
@@ -25,6 +26,7 @@ class UserViolation extends Model
     {
         return [
             'date_of_violation' => 'date',
+            'expired_at' => 'date',
         ];
     }
 
