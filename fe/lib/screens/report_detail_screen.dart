@@ -1268,6 +1268,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
     for (var i = 0; i < groups.length; i++) {
       final group = groups[i];
+      final isFirstGroup = i == 0;
       final statusColor = _statusColor(group.status);
       final isLastGroup = i == groups.length - 1;
 
@@ -1276,6 +1277,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         canViewReplies: canViewRepliesInThread,
         canReply: canReplyInThread,
         group: group,
+        isFirstGroup: isFirstGroup,
         isLastGroup: isLastGroup,
         isCurrentGroup: isLastGroup,
         statusColor: statusColor,
@@ -1491,6 +1493,7 @@ class _TimelineStatusGroupSection extends StatelessWidget {
   final bool canViewReplies;
   final bool canReply;
   final _TimelineStatusGroup group;
+  final bool isFirstGroup;
   final bool isLastGroup;
   final bool isCurrentGroup;
   final Color statusColor;
@@ -1502,6 +1505,7 @@ class _TimelineStatusGroupSection extends StatelessWidget {
     required this.canViewReplies,
     required this.canReply,
     required this.group,
+    required this.isFirstGroup,
     required this.isLastGroup,
     required this.isCurrentGroup,
     required this.statusColor,
@@ -1509,42 +1513,38 @@ class _TimelineStatusGroupSection extends StatelessWidget {
     required this.formatDate,
   });
 
-  Widget _buildStatusBadge() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: isCurrentGroup
-            ? statusColor
-            : statusColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Text(
-        group.label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: isCurrentGroup ? Colors.white : statusColor,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final lineColor = statusColor.withValues(alpha: 0.18);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLastGroup ? 0 : 18),
-      child: Stack(
+    return Stack(
         children: [
           Positioned(
-            top: 40,
+            top: isFirstGroup ? 24 : 0,
             bottom: 0,
             left: 19,
             width: 2,
             child: ColoredBox(color: lineColor),
+          ),
+          Positioned(
+            top: 24,
+            left: 20,
+            width: 28,
+            height: 1.5,
+            child: ColoredBox(color: lineColor),
+          ),
+          Positioned(
+            top: 18,
+            left: 14,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: statusColor, width: 2),
+              ),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1552,45 +1552,12 @@ class _TimelineStatusGroupSection extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(
-                    width: 40,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: isCurrentGroup
-                            ? statusColor
-                            : Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: statusColor,
-                          width: isCurrentGroup ? 2.5 : 1.5,
-                        ),
-                        boxShadow: isCurrentGroup
-                            ? [
-                                BoxShadow(
-                                  color: statusColor.withValues(alpha: 0.28),
-                                  blurRadius: 8,
-                                  spreadRadius: 1,
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Icon(
-                        statusIcon,
-                        size: 16,
-                        color: isCurrentGroup ? Colors.white : statusColor,
-                      ),
-                    ),
-                  ),
+                  const SizedBox(width: 40),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
+                      padding: EdgeInsets.zero,
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         color: const Color(0xFFF8F9FF),
                         borderRadius: BorderRadius.circular(12),
@@ -1598,37 +1565,94 @@ class _TimelineStatusGroupSection extends StatelessWidget {
                           color: statusColor.withValues(alpha: 0.18),
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Flexible(
-                            flex: 3,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _buildStatusBadge(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.access_time,
-                            size: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            flex: 2,
-                            child: Text(
-                              formatDate(group.startedAt),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w500,
+                      child: SizedBox(
+                        height: 48,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Flexible(
+                              flex: 11,
+                              child: ClipPath(
+                                clipper: const _TimelineStatusBannerClipper(),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [
+                                        statusColor,
+                                        Color.lerp(
+                                              statusColor,
+                                              Colors.black,
+                                              0.12,
+                                            ) ??
+                                            statusColor,
+                                      ],
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 1.1,
+                                          ),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.14),
+                                        ),
+                                        child: Icon(
+                                          statusIcon,
+                                          size: 13,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          group.label,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.left,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                            Flexible(
+                              flex: 9,
+                              child: Container(
+                                alignment: Alignment.center,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 10),
+                                child: Text(
+                                  formatDate(group.startedAt),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1650,11 +1674,32 @@ class _TimelineStatusGroupSection extends StatelessWidget {
                   formatDate: formatDate,
                 );
               }),
+              if (!isLastGroup) const SizedBox(height: 18),
             ],
           ),
         ],
-      ),
-    );
+      );
+  }
+}
+
+class _TimelineStatusBannerClipper extends CustomClipper<Path> {
+  const _TimelineStatusBannerClipper();
+
+  @override
+  Path getClip(Size size) {
+    const slashInset = 16.0;
+    final cut = slashInset.clamp(0, size.width / 2).toDouble();
+    return Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width - cut, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(covariant _TimelineStatusBannerClipper oldClipper) {
+    return false;
   }
 }
 
