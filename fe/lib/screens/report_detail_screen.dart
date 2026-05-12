@@ -57,12 +57,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   bool _showScrollToBottom = false;
   bool _isScrolledToBottom = false;
   bool _showTimeline = false;
+  int _activeSnackBars = 0;
 
   final ScrollController _scrollController = ScrollController();
   late final AnimationController _updateStatusFabController;
 
   static const _blue = Color(0xFF1A56C4);
   static const _blueLight = Color(0xFFEFF4FF);
+  static const double _kBottomBarHeight = 60.0;
+  static const double _kBottomBarGap = 8.0;
+  static const double _kScrollFabDialogBase = 16.0;
+  static const double _kScrollFabSnackbarLift = 72.0;
 
   @override
   void initState() {
@@ -120,6 +125,34 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  double get _scrollFabBottomOffset {
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final base = widget.isDialog
+        ? _kScrollFabDialogBase + safeBottom
+        : _kBottomBarHeight + _kBottomBarGap + safeBottom;
+    final snackLift = _activeSnackBars > 0 ? _kScrollFabSnackbarLift : 0.0;
+    return base + snackLift;
+  }
+
+  ScaffoldFeatureController<SnackBar, SnackBarClosedReason>?
+      _showTrackedSnackBar(SnackBar snackBar) {
+    if (!mounted) return null;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return null;
+
+    setState(() => _activeSnackBars++);
+    final controller = messenger.showSnackBar(snackBar);
+    controller.closed.whenComplete(() {
+      if (!mounted) return;
+      setState(() {
+        if (_activeSnackBars > 0) {
+          _activeSnackBars--;
+        }
+      });
+    });
+    return controller;
   }
 
   void _onTabTapped(int index) {
@@ -469,6 +502,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         report: _report,
         isAdmin: _isAdmin || _isSuperadmin,
         isSuperadmin: _isSuperadmin,
+        onShowSnackBar: _showTrackedSnackBar,
         onUpdate: (updatedReport) {
           setState(() {
             _report = updatedReport;
@@ -811,7 +845,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                                   _report.pelaporLocation!.split(',');
                               if (coords.length != 2) {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  _showTrackedSnackBar(
                                     const SnackBar(
                                         content: Text(
                                             'Format koordinat tidak valid')),
@@ -823,7 +857,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                               final lng = double.tryParse(coords[1].trim());
                               if (lat == null || lng == null) {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  _showTrackedSnackBar(
                                     const SnackBar(
                                         content: Text(
                                             'Format koordinat tidak valid')),
@@ -844,7 +878,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                                 await launchUrl(appleMapsUrl);
                               } else {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  _showTrackedSnackBar(
                                     const SnackBar(
                                         content: Text(
                                             'Tidak dapat membuka aplikasi peta')),
@@ -955,7 +989,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                                   _report.kejadianLocation!.split(',');
                               if (coords.length != 2) {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  _showTrackedSnackBar(
                                     const SnackBar(
                                         content: Text(
                                             'Format koordinat tidak valid')),
@@ -967,7 +1001,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                               final lng = double.tryParse(coords[1].trim());
                               if (lat == null || lng == null) {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  _showTrackedSnackBar(
                                     const SnackBar(
                                         content: Text(
                                             'Format koordinat tidak valid')),
@@ -988,7 +1022,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                                 await launchUrl(appleMapsUrl);
                               } else {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  _showTrackedSnackBar(
                                     const SnackBar(
                                         content: Text(
                                             'Tidak dapat membuka aplikasi peta')),
@@ -1198,9 +1232,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
           ),
           // Scroll-to-bottom / scroll-to-top FAB. Lives in the body Stack so
           // we can position it independently of the centered/notched main FAB.
-          Positioned(
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
             right: 16,
-            bottom: 84.0,
+            bottom: _scrollFabBottomOffset,
             child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 320),
                 switchInCurve: const _ClampedCurve(Curves.easeOutBack),
@@ -1277,6 +1313,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         reportId: _report.id,
         canViewReplies: canViewRepliesInThread,
         canReply: canReplyInThread,
+        onShowSnackBar: _showTrackedSnackBar,
         group: group,
         isFirstGroup: isFirstGroup,
         isLastGroup: isLastGroup,
@@ -1493,6 +1530,8 @@ class _TimelineStatusGroupSection extends StatelessWidget {
   final String reportId;
   final bool canViewReplies;
   final bool canReply;
+  final ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? Function(
+      SnackBar snackBar) onShowSnackBar;
   final _TimelineStatusGroup group;
   final bool isFirstGroup;
   final bool isLastGroup;
@@ -1505,6 +1544,7 @@ class _TimelineStatusGroupSection extends StatelessWidget {
     required this.reportId,
     required this.canViewReplies,
     required this.canReply,
+    required this.onShowSnackBar,
     required this.group,
     required this.isFirstGroup,
     required this.isLastGroup,
@@ -1675,6 +1715,7 @@ class _TimelineStatusGroupSection extends StatelessWidget {
                   reportId: reportId,
                   canViewReplies: canViewReplies,
                   canReply: canReply,
+                  onShowSnackBar: onShowSnackBar,
                   event: event,
                   isLastInGroup: isLastInGroup,
                   isCurrent: isCurrentGroup && isLastInGroup,
@@ -1717,6 +1758,8 @@ class _TimelineItem extends StatelessWidget {
   final String reportId;
   final bool canViewReplies;
   final bool canReply;
+  final ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? Function(
+      SnackBar snackBar) onShowSnackBar;
   final TimelineEvent event;
   final bool isLastInGroup;
   final bool isCurrent;
@@ -1727,6 +1770,7 @@ class _TimelineItem extends StatelessWidget {
     required this.reportId,
     required this.canViewReplies,
     required this.canReply,
+    required this.onShowSnackBar,
     required this.event,
     required this.isLastInGroup,
     required this.isCurrent,
@@ -1890,6 +1934,7 @@ class _TimelineItem extends StatelessWidget {
       statusColor: statusColor,
       formatDate: formatDate,
       openTimelinePreview: _openTimelinePreview,
+      onShowSnackBar: onShowSnackBar,
     );
   }
 }
@@ -1898,6 +1943,8 @@ class _TimelineThreadCard extends StatefulWidget {
   final String reportId;
   final bool canViewReplies;
   final bool canReply;
+  final ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? Function(
+      SnackBar snackBar) onShowSnackBar;
   final TimelineEvent event;
   final bool isLastInGroup;
   final bool isCurrent;
@@ -1910,6 +1957,7 @@ class _TimelineThreadCard extends StatefulWidget {
     required this.reportId,
     required this.canViewReplies,
     required this.canReply,
+    required this.onShowSnackBar,
     required this.event,
     required this.isLastInGroup,
     required this.isCurrent,
@@ -2044,7 +2092,7 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      widget.onShowSnackBar(
         const SnackBar(content: Text('Gagal mengirim balasan.')),
       );
     } finally {
@@ -2706,7 +2754,7 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                     if (_replies.isEmpty) await _loadReplies(force: true);
                     if (!context.mounted) return;
                     if (_replies.isEmpty && widget.event.replyCount > 0) {
-                      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                      widget.onShowSnackBar(
                         const SnackBar(
                           content: Text(
                               'Balasan tidak bisa dimuat. Coba refresh atau periksa akses akun.'),
@@ -3189,12 +3237,15 @@ class _UpdateStatusSheet extends StatefulWidget {
   final Report report;
   final bool isAdmin;
   final bool isSuperadmin;
+  final ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? Function(
+      SnackBar snackBar) onShowSnackBar;
   final Function(Report) onUpdate;
 
   const _UpdateStatusSheet({
     required this.report,
     required this.isAdmin,
     required this.isSuperadmin,
+    required this.onShowSnackBar,
     required this.onUpdate,
   });
 
@@ -3726,7 +3777,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
 
   Future<void> _handleSave() async {
     if (!_canSelectMainStatus(_selectedStatus)) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      widget.onShowSnackBar(
         const SnackBar(
             content: Text('Anda tidak memiliki izin memilih status ini.')),
       );
@@ -3734,7 +3785,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     }
     final allowedSub = _allowedSubStatusesFor(_selectedStatus);
     if (_selectedSub != null && !allowedSub.contains(_selectedSub)) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      widget.onShowSnackBar(
         const SnackBar(
             content: Text('Anda tidak memiliki izin memilih sub-status ini.')),
       );
@@ -3742,7 +3793,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     }
 
     if (_selectedSub == ReportSubStatus.reviewing && _attachedPhotos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      widget.onShowSnackBar(
         const SnackBar(content: Text('Foto bukti wajib dilampirkan!')),
       );
       return;
@@ -3790,7 +3841,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
       if (mounted) {
         widget.onUpdate(updated);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        widget.onShowSnackBar(SnackBar(
           content:
               Text('Status berhasil diperbarui ke ${_selectedStatus.label}'),
           backgroundColor: _selectedStatus == ReportStatus.open
@@ -3806,7 +3857,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
         final cleaned = raw.startsWith('Exception: ')
             ? raw.substring('Exception: '.length)
             : raw;
-        ScaffoldMessenger.of(context).showSnackBar(
+        widget.onShowSnackBar(
           SnackBar(
             content: Text('Gagal memperbarui status: $cleaned'),
             backgroundColor: Colors.red,
