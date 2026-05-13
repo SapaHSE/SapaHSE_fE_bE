@@ -42,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   String _selectedType = 'All Report';
   String _statusFilter = 'Aktif';
 
-  int _displayedCount = 5;
+  int _displayedCount = 25;
   bool _isLoadingMore = false;
   final ScrollController _scrollController = ScrollController();
 
@@ -205,6 +205,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     return Material(
       color: const Color(0xFFF2F2F2),
       child: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             SapaHseHeader(

@@ -187,7 +187,7 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
                       } else {
                         res = await ApiService.post('/news', payload);
                       }
-                      if (res.success && mounted) {
+                      if (res.success && context.mounted) {
                         Navigator.pop(ctx);
                         _fetchNews(page: 1);
                         showDialog(
@@ -198,7 +198,7 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
                                 'Berita baru telah berhasil dipublikasikan.',
                           ),
                         );
-                      } else if (mounted) {
+                      } else if (context.mounted) {
                         setModalState(() => isLoading = false);
                       }
                     },
@@ -222,6 +222,7 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
     if (detailRes.success && detailRes.data['data'] != null) {
       fullNews = NewsModel.fromJson(detailRes.data['data']);
     }
+    if (!mounted) return;
 
     final titleCtrl = TextEditingController(text: fullNews.title);
     final excerptCtrl = TextEditingController(text: fullNews.excerpt);
@@ -353,7 +354,7 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
                         res = await ApiService.put('/news/${n.id}', fields);
                       }
 
-                      if (res.success && mounted) {
+                      if (res.success && context.mounted) {
                         Navigator.pop(ctx);
                         _fetchNews(page: _currentNewsPage);
                         showDialog(
@@ -364,7 +365,7 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
                                 'Berita berhasil diperbarui dengan data terbaru.',
                           ),
                         );
-                      } else if (mounted) {
+                      } else if (context.mounted) {
                         setModalState(() => isLoading = false);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -494,9 +495,9 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
                         'Apakah Anda yakin ingin menghapus "${n.title}"? Tindakan ini tidak dapat dibatalkan.',
                   ),
                 );
-                if (confirm == true && mounted) {
+                if (confirm == true && context.mounted) {
                   final res = await ApiService.delete('/news/${n.id}');
-                  if (res.success && mounted) {
+                  if (res.success && context.mounted) {
                     _fetchNews(page: _currentNewsPage);
                     showDialog(
                       context: context,
@@ -505,7 +506,7 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
                         message: 'Berita telah berhasil dihapus dari sistem.',
                       ),
                     );
-                  } else if (mounted) {
+                  } else if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(res.errorMessage ?? 'Gagal menghapus berita'),

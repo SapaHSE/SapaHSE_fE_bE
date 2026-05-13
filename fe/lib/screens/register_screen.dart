@@ -972,7 +972,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       child: Text('Karyawan $value',
                           style: const TextStyle(
-                              color: const Color(0xFF3D5AFE),
+                              color: Color(0xFF3D5AFE),
                               fontSize: 11,
                               fontWeight: FontWeight.bold)),
                     ),

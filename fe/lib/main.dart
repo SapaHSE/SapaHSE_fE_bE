@@ -379,7 +379,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF0F0F0),
       body: IndexedStack(index: _currentIndex, children: _screens),
+      extendBody: true,
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
       floatingActionButton: FloatingActionButton(
         heroTag: 'main_fab',
         onPressed: _openFabMenu,
@@ -389,7 +392,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         elevation: 4,
         child: const Icon(Icons.add, size: 30),
       ),
-      extendBody: true,
+
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),

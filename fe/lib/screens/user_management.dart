@@ -206,8 +206,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       if (_selectedFilter == 'Inactive') return !isActive;
       if (_selectedFilter == 'User') return role == 'user' && isActive;
       if (_selectedFilter == 'Admin') return role == 'admin' && isActive;
-      if (_selectedFilter == 'Superadmin')
+      if (_selectedFilter == 'Superadmin') {
         return role == 'superadmin' && isActive;
+      }
 
       return true; // Semua
     }).toList();
@@ -829,8 +830,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Widget _buildRejectedHistoryTab() {
-    if (_isLoadingRejected)
+    if (_isLoadingRejected) {
       return const Center(child: CircularProgressIndicator());
+    }
     if (_rejectedUsers.isEmpty) {
       return Center(
         child: Column(
@@ -1318,7 +1320,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
+                          color: Colors.black.withValues(alpha: 0.03),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -1565,7 +1567,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -1648,7 +1650,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? _blue.withOpacity(0.05) : Colors.white,
+          color: isSelected ? _blue.withValues(alpha: 0.05) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected ? _blue : Colors.grey.shade200,
@@ -1657,7 +1659,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: _blue.withOpacity(0.1),
+                    color: _blue.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -2140,8 +2142,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
               ),
             ),
             validator: (v) {
-              if (required && (v == null || v.trim().isEmpty))
+              if (required && (v == null || v.trim().isEmpty)) {
                 return 'Wajib diisi';
+              }
               if (isPhone && v != null && v.trim().isNotEmpty) {
                 if (!RegExp(r'^\+62[0-9]{8,13}$').hasMatch(v.trim())) {
                   return 'Gunakan format +62 (10-13 digit)';

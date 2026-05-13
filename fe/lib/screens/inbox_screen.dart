@@ -19,6 +19,7 @@ import '../widgets/sapa_hse_header.dart';
 import '../widgets/minimal_dropdown.dart';
 import '../services/storage_service.dart';
 import '../services/cloud_save_service.dart';
+import '../utils/url_helper.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -116,6 +117,7 @@ class _InboxScreenState extends State<InboxScreen>
   String? _errorAnnouncements;
   String? _errorMyReports;
   String? _currentUserId;
+  Map<String, String?> _currentUserSnapshot = const {};
 
   @override
   void initState() {
@@ -160,9 +162,32 @@ class _InboxScreenState extends State<InboxScreen>
       setState(() {
         _currentUserId = user['id']?.toString();
         _isSuperadmin = (user['role']?.toString().toLowerCase() == 'superadmin');
+        _currentUserSnapshot = _buildCurrentUserSnapshot(user);
       });
       _loadMyReports();
     }
+  }
+
+  String? _asTrimmedOrNull(dynamic value) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty || raw == '-') return null;
+    return raw;
+  }
+
+  Map<String, String?> _buildCurrentUserSnapshot(Map<String, dynamic> user) {
+    return {
+      'full_name':
+          _asTrimmedOrNull(user['full_name']) ?? _asTrimmedOrNull(user['name']),
+      'department': _asTrimmedOrNull(user['department']),
+      'company': _asTrimmedOrNull(user['company']),
+      'personal_email': _asTrimmedOrNull(user['personal_email']) ??
+          _asTrimmedOrNull(user['work_email']),
+      'employee_id': _asTrimmedOrNull(user['employee_id']),
+      'position': _asTrimmedOrNull(user['position']),
+      'phone_number': _asTrimmedOrNull(user['phone_number']),
+      'profile_photo':
+          normalizeStorageUrl(_asTrimmedOrNull(user['profile_photo'])),
+    };
   }
 
   @override
@@ -282,6 +307,7 @@ class _InboxScreenState extends State<InboxScreen>
   }
 
   InboxItem _licenseToInboxItem(UserLicense license) {
+    final submitter = _currentUserSnapshot;
     final submittedAt = _parseDateTextOrNull(license.submittedAt) ??
         _parseDateTextOrNull(license.reviewedAt) ??
         _parseDateTextOrNull(license.obtainedAt) ??
@@ -297,6 +323,14 @@ class _InboxScreenState extends State<InboxScreen>
       approvalStatus: license.approvalStatus,
       rejectionReason: license.rejectionReason,
       submittedAt: _parseDateTextOrNull(license.submittedAt),
+      submitterName: submitter['full_name'],
+      submitterDept: submitter['department'],
+      submitterCompany: submitter['company'],
+      submitterEmail: submitter['personal_email'],
+      submitterEmployeeId: submitter['employee_id'],
+      submitterPosition: submitter['position'],
+      submitterPhone: submitter['phone_number'],
+      submitterPhotoUrl: submitter['profile_photo'],
       itemName: license.name,
       itemNumber: license.licenseNumber,
       itemFileUrl: license.fileUrl,
@@ -306,6 +340,7 @@ class _InboxScreenState extends State<InboxScreen>
   }
 
   InboxItem _certificationToInboxItem(UserCertification certification) {
+    final submitter = _currentUserSnapshot;
     final submittedAt = _parseDateTextOrNull(certification.submittedAt) ??
         _parseDateTextOrNull(certification.reviewedAt) ??
         _parseDateTextOrNull(certification.obtainedAt) ??
@@ -321,6 +356,14 @@ class _InboxScreenState extends State<InboxScreen>
       approvalStatus: certification.approvalStatus,
       rejectionReason: certification.rejectionReason,
       submittedAt: _parseDateTextOrNull(certification.submittedAt),
+      submitterName: submitter['full_name'],
+      submitterDept: submitter['department'],
+      submitterCompany: submitter['company'],
+      submitterEmail: submitter['personal_email'],
+      submitterEmployeeId: submitter['employee_id'],
+      submitterPosition: submitter['position'],
+      submitterPhone: submitter['phone_number'],
+      submitterPhotoUrl: submitter['profile_photo'],
       itemName: certification.name,
       itemIssuer: certification.issuer,
       itemFileUrl: certification.fileUrl,
@@ -674,6 +717,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
     return Material(
       color: const Color(0xFFF5F5F5),
       child: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // ── Custom Header matching Profile design (Unified Container) ────
@@ -1046,150 +1090,11 @@ String _myPostFilterLabel(_MyPostFilter f) {
     );
   }
 
-  ({String label, Color bg, Color fg, Color border}) _approvalStatusStyle(
-      String? rawStatus) {
-    final status = (rawStatus ?? 'pending').toLowerCase();
-    switch (status) {
-      case 'approved':
-        return (
-          label: 'Disetujui',
-          bg: const Color(0xFFE8F5E9),
-          fg: const Color(0xFF2E7D32),
-          border: const Color(0xFFB7E1BC)
-        );
-      case 'rejected':
-        return (
-          label: 'Ditolak',
-          bg: const Color(0xFFFFEBEE),
-          fg: const Color(0xFFC62828),
-          border: const Color(0xFFFFCDD2)
-        );
-      default:
-        return (
-          label: 'Menunggu',
-          bg: const Color(0xFFFFF8E1),
-          fg: const Color(0xFFEF6C00),
-          border: const Color(0xFFFFE082)
-        );
-    }
-  }
-
-  Widget _buildMyApprovalStatusCard(InboxItem item) {
-    final style = _approvalStatusStyle(item.approvalStatus);
-    final isLicense = item.itemType == InboxItemType.approvalLicense;
-    final icon = isLicense ? Icons.badge_outlined : Icons.workspace_premium_outlined;
-    final accent = isLicense ? const Color(0xFFEF6C00) : const Color(0xFF6A1B9A);
-    final subtitle = isLicense
-        ? (item.itemNumber?.isNotEmpty == true
-            ? 'No. ${item.itemNumber}'
-            : (item.description ?? '-'))
-        : (item.itemIssuer?.isNotEmpty == true
-            ? 'Penerbit: ${item.itemIssuer}'
-            : (item.description ?? '-'));
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () => _showMyApprovalDetail(context, item),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: accent.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: accent),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: style.bg,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: style.border),
-                  ),
-                  child: Text(
-                    style.label,
-                    style: TextStyle(
-                      color: style.fg,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.event_outlined, size: 14, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text(
-                  _formatDate(item.submittedAt ?? item.createdAt),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            if ((item.rejectionReason ?? '').trim().isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Ada alasan penolakan. Tap kartu untuk lihat detail.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.red.shade700,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _buildMyApprovalStatusCard(InboxItem item) => ApprovalTaskCard(
+        item: item,
+        onTap: () => _showMyApprovalDetail(context, item),
+        showActionButtons: false,
+      );
 
   void _showMyApprovalDetail(BuildContext context, InboxItem item) {
     showModalBottomSheet(
@@ -1304,6 +1209,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
   Widget _buildApprovalTaskCard(InboxItem item) => ApprovalTaskCard(
         item: item,
         isProcessing: _approvalActionLoading[item.id] == true,
+        showActionButtons: true,
         onTap: () {
           _markItemRead(item);
           _showApprovalDetail(context, item);

@@ -396,14 +396,14 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
   }
 
   Widget _buildCategoryCard(CompanyData company, Color color, List<AreaData> areas) {
-    final bgColor = color.withOpacity(0.05);
+    final bgColor = color.withValues(alpha: 0.05);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -450,7 +450,7 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
                   label: const Text('Tambah Lokasi'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: color,
-                    side: BorderSide(color: color.withOpacity(0.5)),
+                    side: BorderSide(color: color.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -698,7 +698,7 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
         ),
         child: Row(
           children: [
@@ -769,7 +769,7 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -806,8 +806,8 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
   Widget _buildDropdown() {
     return Container(
       decoration: kMinimalFieldContainerDecoration,
-      child: DropdownButtonFormField<int>(
-        value: _selectedCompanyId,
+        child: DropdownButtonFormField<int>(
+          initialValue: _selectedCompanyId,
         decoration: minimalFieldDecoration(),
         icon: kMinimalDropdownChevron,
         borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
@@ -972,7 +972,7 @@ class _LocationFabMenuSheet extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),

@@ -304,7 +304,7 @@ class _ScanResultSheet extends StatelessWidget {
 class _ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black.withOpacity(0.55);
+    final paint = Paint()..color = Colors.black.withValues(alpha: 0.55);
     const cutoutSize = 260.0;
     final cutoutLeft = (size.width - cutoutSize) / 2;
     final cutoutTop = (size.height - cutoutSize) / 2;

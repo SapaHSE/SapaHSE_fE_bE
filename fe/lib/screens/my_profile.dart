@@ -6,8 +6,12 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sapahse/models/profile_model.dart';
+import 'package:sapahse/models/department_model.dart';
+import 'package:sapahse/services/company_service.dart';
+import 'package:sapahse/services/department_service.dart';
 import 'package:sapahse/services/profile_service.dart';
 import 'package:sapahse/services/storage_service.dart';
+import 'package:sapahse/utils/approval_status_ui.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/utils/url_helper.dart';
 import 'package:sapahse/main.dart';
@@ -40,6 +44,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   ProfileData? _profileData;
   Map<String, dynamic>? _cachedUser;
   String? _loadError;
+  List<String> _ownerList = [];
+  List<String> _kontraktorList = [];
+  List<String> _subkontraktorList = [];
+  bool _isFetchingCompanies = false;
 
   // Persistent State for License Form
   final TextEditingController _licenseNameController = TextEditingController();
@@ -68,6 +76,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchCompanyData();
     if (widget.initialAction == 'add_license') {
       _selectedSubTab = 1;
     } else if (widget.initialAction == 'add_certification') {
@@ -86,6 +95,30 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         _showEditMedicalForm();
       }
     });
+  }
+
+  Future<void> _fetchCompanyData() async {
+    if (_isFetchingCompanies) return;
+    _isFetchingCompanies = true;
+
+    try {
+      final results = await Future.wait([
+        CompanyService.getCompanies(category: 'owner', active: true),
+        CompanyService.getCompanies(category: 'kontraktor', active: true),
+        CompanyService.getCompanies(category: 'subkontraktor', active: true),
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _ownerList = results[0].map((e) => e.name).toList();
+        _kontraktorList = results[1].map((e) => e.name).toList();
+        _subkontraktorList = results[2].map((e) => e.name).toList();
+      });
+    } catch (e) {
+      debugPrint('Error fetching companies in Profile: $e');
+    } finally {
+      _isFetchingCompanies = false;
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -214,7 +247,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             toolbarTitle: 'Crop Foto Profil',
             toolbarColor: const Color(0xFF1A56C4),
             toolbarWidgetColor: Colors.white,
-            statusBarColor: const Color(0xFF1A56C4),
             activeControlsWidgetColor: const Color(0xFF1A56C4),
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
@@ -263,6 +295,75 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         ),
       );
     }
+  }
+
+  void _showFullScreenProfileImage() {
+    final imageProvider = _getAvatarImage();
+    if (imageProvider == null) {
+      _pickImage();
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      builder: (context) => Stack(
+        children: [
+          Center(
+            child: InteractiveViewer(
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                padding: const EdgeInsets.all(20),
+                child: Image(
+                  image: imageProvider,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 40,
+            right: 20,
+            child: Material(
+              color: Colors.transparent,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 40,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _pickImage();
+                  },
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Ubah Foto'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      side: const BorderSide(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   final List<Map<String, dynamic>> _subTabs = [
@@ -333,7 +434,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF0F0F0),
       appBar: AppBar(
         title: const Text('My Profile',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
@@ -364,6 +465,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         elevation: 4,
         child: const Icon(Icons.add, size: 30),
       ),
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
       extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
@@ -469,17 +571,20 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             ),
           Stack(
             children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: const Color(0xFF1A56C4),
-                backgroundImage: _getAvatarImage(),
-                child: !hasAvatar
-                    ? Text(initials,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold))
-                    : null,
+              GestureDetector(
+                onTap: _showFullScreenProfileImage,
+                child: CircleAvatar(
+                  radius: 50,
+                  backgroundColor: const Color(0xFF1A56C4),
+                  backgroundImage: _getAvatarImage(),
+                  child: !hasAvatar
+                      ? Text(initials,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold))
+                      : null,
+                ),
               ),
               Positioned(
                 bottom: 0,
@@ -562,12 +667,19 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               width: 80,
               margin: const EdgeInsets.only(right: 12),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? tab['color'].withOpacity(0.1)
-                    : Colors.transparent,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: isSelected ? tab['color'] : Colors.grey.shade200),
+                  color: isSelected ? tab['color'] : Colors.grey.shade200,
+                  width: isSelected ? 1.4 : 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -633,6 +745,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final existingProfilePhoto =
         parseNullableDisplayName(_resolveProfilePhoto());
     final emailRegex = RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$');
+    String localTipeAfiliasi = _profileData?.tipeAfiliasi ?? 'Owner';
+    if (localTipeAfiliasi == 'Sub-Kontraktor') {
+      localTipeAfiliasi = 'Sub-Kont.';
+    }
+    String? localSelectedPerusahaan = _profileData?.company;
+    String? localSelectedPerusahaanKontraktor =
+        _profileData?.perusahaanKontraktor;
+    String? localSelectedSubKontraktor = _profileData?.subKontraktor;
 
     showModalBottomSheet(
       context: context,
@@ -893,17 +1013,22 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 },
                               ),
                               const SizedBox(height: 16),
-                              _buildSheetField(
-                                'Departemen',
-                                deptCtrl,
-                                enabled: false,
-                                maxLength: 25,
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) {
-                                    return 'Departemen wajib diisi';
-                                  }
-                                  return null;
-                                },
+                              GestureDetector(
+                                onTap: () => _showDepartmentPicker(
+                                    context, deptCtrl, setModalState),
+                                child: _buildSheetField(
+                                  'Departemen',
+                                  deptCtrl,
+                                  enabled: false,
+                                  maxLength: 25,
+                                  suffixIcon: Icons.arrow_drop_down,
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) {
+                                      return 'Departemen wajib diisi';
+                                    }
+                                    return null;
+                                  },
+                                ),
                               ),
                               const SizedBox(height: 16),
                               _buildSheetField(
@@ -931,6 +1056,54 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                   return null;
                                 },
                               ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Tipe Afiliasi *',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              const SizedBox(height: 8),
+                              _buildAfiliasiButtons(localTipeAfiliasi, (val) {
+                                setModalState(() {
+                                  localTipeAfiliasi = val;
+                                  if (val == 'Owner') {
+                                    localSelectedPerusahaanKontraktor = null;
+                                    localSelectedSubKontraktor = null;
+                                  } else if (val == 'Kontraktor') {
+                                    localSelectedSubKontraktor = null;
+                                  }
+                                });
+                              }),
+                              const SizedBox(height: 16),
+                              _buildDropdownField(
+                                'Perusahaan Owner',
+                                localSelectedPerusahaan,
+                                _ownerList,
+                                (v) => setModalState(
+                                    () => localSelectedPerusahaan = v),
+                                required: true,
+                              ),
+                              if (localTipeAfiliasi == 'Kontraktor' ||
+                                  localTipeAfiliasi == 'Sub-Kont.') ...[
+                                const SizedBox(height: 16),
+                                _buildDropdownField(
+                                  'Perusahaan Kontraktor',
+                                  localSelectedPerusahaanKontraktor,
+                                  _kontraktorList,
+                                  (v) => setModalState(() =>
+                                      localSelectedPerusahaanKontraktor = v),
+                                ),
+                              ],
+                              if (localTipeAfiliasi == 'Sub-Kont.') ...[
+                                const SizedBox(height: 16),
+                                _buildDropdownField(
+                                  'Sub-Kontraktor',
+                                  localSelectedSubKontraktor,
+                                  _subkontraktorList,
+                                  (v) => setModalState(
+                                      () => localSelectedSubKontraktor = v),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -956,25 +1129,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               department: deptCtrl.text.trim(),
                               position: jobCtrl.text.trim(),
                               address: addressCtrl.text.trim(),
+                              tipeAfiliasi:
+                                  localTipeAfiliasi == 'Sub-Kont.'
+                                      ? 'Sub-Kontraktor'
+                                      : localTipeAfiliasi,
+                              company: localSelectedPerusahaan,
+                              perusahaanKontraktor:
+                                  localSelectedPerusahaanKontraktor ?? '',
+                              subKontraktor: localSelectedSubKontraktor ?? '',
                               imagePath: localImageFile?.path,
                             );
 
-                            if (mounted) {
-                              if (result.success) {
-                                _loadProfile();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text('Profil berhasil diperbarui')),
-                                );
-                              } else {
-                                setState(() => _isLoading = false);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                      content: Text(result.errorMessage ??
-                                          'Gagal memperbarui')),
-                                );
-                              }
+                            if (!context.mounted) return;
+                            if (result.success) {
+                              _loadProfile();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Profil berhasil diperbarui')),
+                              );
+                            } else {
+                              setState(() => _isLoading = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(result.errorMessage ??
+                                        'Gagal memperbarui')),
+                              );
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -1005,6 +1184,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       TextInputType? keyboardType,
       int maxLines = 1,
       int? maxLength,
+      IconData? suffixIcon,
       String? Function(String?)? validator}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1028,6 +1208,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             counterText: '',
             filled: true,
             fillColor: enabled ? Colors.white : Colors.grey.shade100,
+            suffixIcon: suffixIcon != null ? Icon(suffixIcon) : null,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             enabledBorder: OutlineInputBorder(
@@ -1045,6 +1226,117 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
+  void _showDepartmentPicker(BuildContext context,
+      TextEditingController controller, StateSetter setModalState) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _DepartmentPickerSheet(
+        initialValue: controller.text,
+        onSelected: (val) {
+          setModalState(() {
+            controller.text = val;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildAfiliasiButtons(
+      String selectedType, Function(String) onSelected) {
+    final types = ['Owner', 'Kontraktor', 'Sub-Kont.'];
+    return Row(
+      children: types.map((type) {
+        final isSelected = selectedType == type;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: GestureDetector(
+              onTap: () => onSelected(type),
+              child: Container(
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF1A56C4) : Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFF1A56C4)
+                        : Colors.grey.shade300,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isSelected)
+                      const Icon(Icons.check, color: Colors.white, size: 16),
+                    if (isSelected) const SizedBox(width: 4),
+                    Text(
+                      type,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontSize: 12,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildDropdownField(String label, String? value, List<String> items,
+      Function(String?) onChanged,
+      {bool required = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label + (required ? ' *' : ''),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          initialValue: items.contains(value) ? value : null,
+          validator: required
+              ? (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return '$label wajib dipilih';
+                  }
+                  return null;
+                }
+              : null,
+          decoration: InputDecoration(
+            fillColor: Colors.grey.shade50,
+            filled: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          items: items
+              .map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e, style: const TextStyle(fontSize: 13)),
+                  ))
+              .toList(),
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+
   void _showEditMedicalForm() {
     final medicals = _profileData?.medicals ?? [];
     final latest = medicals.isNotEmpty ? medicals.first : null;
@@ -1052,8 +1344,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final bloodTypeCtrl = TextEditingController(text: latest?.bloodType);
     final heightCtrl = TextEditingController(text: latest?.height);
     final weightCtrl = TextEditingController(text: latest?.weight);
-    final bloodPressureCtrl =
-        TextEditingController(text: latest?.bloodPressure);
     final allergiesCtrl = TextEditingController(text: latest?.allergies);
     final lastMedicationCtrl =
         TextEditingController(text: latest?.lastMedication);
@@ -1061,6 +1351,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         TextEditingController(text: latest?.currentMedication);
     final currentIllnessCtrl =
         TextEditingController(text: latest?.currentIllness);
+    String systolic = '';
+    String diastolic = '';
+    if (latest?.bloodPressure != null && latest!.bloodPressure!.contains('/')) {
+      final parts = latest.bloodPressure!.split('/');
+      systolic = parts[0].trim();
+      diastolic = parts.length > 1 ? parts[1].trim() : '';
+    }
+    final systolicCtrl = TextEditingController(text: systolic);
+    final diastolicCtrl = TextEditingController(text: diastolic);
 
     showModalBottomSheet(
       context: context,
@@ -1096,16 +1395,69 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 ),
                 const SizedBox(height: 20),
                 _buildFieldLabel('Golongan Darah'),
-                TextField(
-                  controller: bloodTypeCtrl,
-                  decoration: _buildInputDecoration('Contoh: O, A, B, AB'),
+                InkWell(
+                  onTap: () => _showBloodTypePicker(
+                      context, bloodTypeCtrl, setModalState),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          bloodTypeCtrl.text.isEmpty
+                              ? 'Pilih Golongan Darah'
+                              : bloodTypeCtrl.text,
+                          style: TextStyle(
+                            color: bloodTypeCtrl.text.isEmpty
+                                ? Colors.grey.shade400
+                                : Colors.black,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(Icons.arrow_drop_down,
+                            color: Colors.grey.shade400),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _buildFieldLabel('Tinggi Badan (cm)'),
-                TextField(
-                  controller: heightCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: _buildInputDecoration('Contoh: 170'),
+                InkWell(
+                  onTap: () =>
+                      _showHeightPicker(context, heightCtrl, setModalState),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          heightCtrl.text.isEmpty
+                              ? 'Pilih Tinggi Badan'
+                              : '${heightCtrl.text} cm',
+                          style: TextStyle(
+                            color: heightCtrl.text.isEmpty
+                                ? Colors.grey.shade400
+                                : Colors.black,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(Icons.arrow_drop_down,
+                            color: Colors.grey.shade400),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _buildFieldLabel('Berat Badan (kg)'),
@@ -1115,10 +1467,30 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   decoration: _buildInputDecoration('Contoh: 65'),
                 ),
                 const SizedBox(height: 16),
-                _buildFieldLabel('Tekanan Darah'),
-                TextField(
-                  controller: bloodPressureCtrl,
-                  decoration: _buildInputDecoration('Contoh: 120/80'),
+                _buildFieldLabel('Tekanan Darah (Sistolik / Diastolik)'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: systolicCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: _buildInputDecoration('Sistolik (ex: 120)'),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('/',
+                          style: TextStyle(fontSize: 20, color: Colors.grey)),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: diastolicCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration:
+                            _buildInputDecoration('Diastolik (ex: 80)'),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 _buildFieldLabel('Alergi'),
@@ -1179,21 +1551,23 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         bloodType: bloodTypeCtrl.text,
                         height: heightCtrl.text,
                         weight: weightCtrl.text,
-                        bloodPressure: bloodPressureCtrl.text,
+                        bloodPressure: systolicCtrl.text.isNotEmpty &&
+                                diastolicCtrl.text.isNotEmpty
+                            ? '${systolicCtrl.text}/${diastolicCtrl.text}'
+                            : '',
                         allergies: allergiesCtrl.text,
                         lastMedication: lastMedicationCtrl.text,
                         currentMedication: currentMedicationCtrl.text,
                         currentIllness: currentIllnessCtrl.text,
                       );
 
+                      if (!context.mounted) return;
                       if (result.success) {
-                        if (mounted) _loadProfile();
+                        _loadProfile();
                       } else {
-                        if (mounted) {
-                          setState(() => _isLoading = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(result.message)));
-                        }
+                        setState(() => _isLoading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(result.message)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -1210,6 +1584,76 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showBloodTypePicker(BuildContext context, TextEditingController ctrl,
+      StateSetter setModalState) {
+    final types = ['A', 'B', 'AB', 'O'];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Pilih Golongan Darah',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            ...types.map((type) => ListTile(
+                  title: Text(type,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    setModalState(() => ctrl.text = type);
+                    Navigator.pop(context);
+                  },
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showHeightPicker(BuildContext context, TextEditingController ctrl,
+      StateSetter setModalState) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          children: [
+            const Text('Pilih Tinggi Badan (cm)',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.builder(
+                itemCount: 251,
+                itemBuilder: (context, index) {
+                  final height = (index + 50).toString();
+                  return ListTile(
+                    title: Text('$height cm', textAlign: TextAlign.center),
+                    onTap: () {
+                      setModalState(() => ctrl.text = height);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1272,8 +1716,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     lastDate:
                         DateTime.now().add(const Duration(days: 365 * 10)),
                   );
-                  if (picked != null)
+                  if (picked != null) {
                     setModalState(() => _licenseObtainedAt = picked);
+                  }
                 },
                 child: Container(
                   padding:
@@ -1312,8 +1757,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     lastDate:
                         DateTime.now().add(const Duration(days: 365 * 10)),
                   );
-                  if (picked != null)
+                  if (picked != null) {
                     setModalState(() => _licenseSelectedDate = picked);
+                  }
                 },
                 child: Container(
                   padding:
@@ -1381,19 +1827,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       imageFile: _licenseImage,
                     );
 
+                    if (!context.mounted) return;
                     if (result.success) {
                       _licenseNameController.clear();
                       _licenseNumberController.clear();
                       _licenseObtainedAt = null;
                       _licenseSelectedDate = null;
                       _licenseImage = null;
-                      if (mounted) _loadProfile(); // Refresh
+                      _loadProfile(); // Refresh
                     } else {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(result.message)));
-                      }
+                      setState(() => _isLoading = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(result.message)));
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -1581,19 +2026,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       imageFile: _certImage,
                     );
 
+                    if (!context.mounted) return;
                     if (result.success) {
                       _certNameController.clear();
                       _certIssuerController.clear();
                       _certObtainedAt = null;
                       _certExpiredAt = null;
                       _certImage = null;
-                      if (mounted) _loadProfile(); // Refresh
+                      _loadProfile(); // Refresh
                     } else {
-                      if (mounted) {
-                        setState(() => _isLoading = false);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(result.message)));
-                      }
+                      setState(() => _isLoading = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(result.message)));
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -1720,7 +2164,7 @@ class _BiodataContent extends StatelessWidget {
               if (phone.isNotEmpty && phone != '-') {
                 String waNumber = phone;
                 if (waNumber.startsWith('08')) {
-                  waNumber = '628' + waNumber.substring(2);
+                  waNumber = '628${waNumber.substring(2)}';
                 }
                 _launchUrl('https://wa.me/$waNumber');
               }
@@ -1839,25 +2283,21 @@ class _LicenseContent extends StatelessWidget {
           ...licenses.map((l) {
             final isAktif = l.isActive;
             final approvalStatus = l.approvalStatus.toLowerCase();
-            final approvalLabel = approvalStatus == 'approved'
-                ? 'Disetujui'
-                : approvalStatus == 'rejected'
-                    ? 'Ditolak'
-                    : 'Menunggu';
-            final approvalBg = approvalStatus == 'approved'
-                ? const Color(0xFFE8F5E9)
-                : approvalStatus == 'rejected'
-                    ? const Color(0xFFFFEBEE)
-                    : const Color(0xFFFFF8E1);
-            final approvalFg = approvalStatus == 'approved'
-                ? const Color(0xFF2E7D32)
-                : approvalStatus == 'rejected'
-                    ? const Color(0xFFC62828)
-                    : const Color(0xFFEF6C00);
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+            final approvalStyle = approvalStatusStyle(approvalStatus);
+            return InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _LicenseDetailPage(license: l),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
@@ -1865,124 +2305,126 @@ class _LicenseContent extends StatelessWidget {
                           isAktif ? Colors.grey.shade200 : Colors.red.shade100),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                        color: Colors.black.withValues(alpha: 0.02),
                         blurRadius: 10,
                         offset: const Offset(0, 4))
                   ]),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE3F2FD),
-                      borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE3F2FD),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.badge_outlined,
+                          color: Color(0xFF1E88E5), size: 24),
                     ),
-                    child: const Icon(Icons.badge_outlined,
-                        color: Color(0xFF1E88E5), size: 24),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l.name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15)),
+                          const SizedBox(height: 4),
+                          Text('No. ${l.licenseNumber}',
+                              style: TextStyle(
+                                  color: Colors.grey.shade500, fontSize: 13)),
+                          if (l.obtainedAt != null)
+                            Text('Diperoleh: ${l.obtainedAt}',
+                                style: TextStyle(
+                                    color: Colors.grey.shade400, fontSize: 12)),
+                          if (l.expiredAt != null)
+                            Text('Berlaku s/d: ${l.expiredAt}',
+                                style: TextStyle(
+                                    color: Colors.grey.shade400, fontSize: 12)),
+                          if (l.fileUrl != null) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                l.fileUrl!,
+                                height: 60,
+                                width: 100,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const SizedBox(),
+                              ),
+                            ),
+                          ],
+                          if (approvalStatus == 'rejected' &&
+                              (l.rejectionReason ?? '').trim().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            TextButton.icon(
+                              onPressed: () {
+                                showDialog<void>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title:
+                                        const Text('Alasan Penolakan Lisensi'),
+                                    content: Text(l.rejectionReason!.trim()),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text('Tutup'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.info_outline, size: 16),
+                              label: const Text('Lihat Alasan'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(l.name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
-                        const SizedBox(height: 4),
-                        Text('No. ${l.licenseNumber}',
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: approvalStyle.bg,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            approvalStyle.label,
                             style: TextStyle(
-                                color: Colors.grey.shade500, fontSize: 13)),
-                        if (l.obtainedAt != null)
-                          Text('Diperoleh: ${l.obtainedAt}',
-                              style: TextStyle(
-                                  color: Colors.grey.shade400, fontSize: 12)),
-                        if (l.expiredAt != null)
-                          Text('Berlaku s/d: ${l.expiredAt}',
-                              style: TextStyle(
-                                  color: Colors.grey.shade400, fontSize: 12)),
-                        if (l.fileUrl != null) ...[
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              l.fileUrl!,
-                              height: 60,
-                              width: 100,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const SizedBox(),
+                              color: approvalStyle.fg,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
                           ),
-                        ],
-                        if (approvalStatus == 'rejected' &&
-                            (l.rejectionReason ?? '').trim().isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          TextButton.icon(
-                            onPressed: () {
-                              showDialog<void>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text('Alasan Penolakan Lisensi'),
-                                  content: Text(l.rejectionReason!.trim()),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      child: const Text('Tutup'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.info_outline, size: 16),
-                            label: const Text('Lihat Alasan'),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isAktif
+                                ? const Color(0xFFE8F5E9)
+                                : const Color(0xFFFFEBEE),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ],
+                          child: Text(
+                            isAktif ? 'Aktif' : 'Expired',
+                            style: TextStyle(
+                              color: isAktif
+                                  ? const Color(0xFF2E7D32)
+                                  : const Color(0xFFD32F2F),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: approvalBg,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          approvalLabel,
-                          style: TextStyle(
-                            color: approvalFg,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isAktif
-                              ? const Color(0xFFE8F5E9)
-                              : const Color(0xFFFFEBEE),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          isAktif ? 'Aktif' : 'Expired',
-                          style: TextStyle(
-                            color: isAktif
-                                ? const Color(0xFF2E7D32)
-                                : const Color(0xFFD32F2F),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           }),
@@ -2007,149 +2449,147 @@ class _CertificationContent extends StatelessWidget {
           ...certifications.map((c) {
             final isAktif = c.isActive;
             final approvalStatus = c.approvalStatus.toLowerCase();
-            final approvalLabel = approvalStatus == 'approved'
-                ? 'Disetujui'
-                : approvalStatus == 'rejected'
-                    ? 'Ditolak'
-                    : 'Menunggu';
-            final approvalBg = approvalStatus == 'approved'
-                ? const Color(0xFFE8F5E9)
-                : approvalStatus == 'rejected'
-                    ? const Color(0xFFFFEBEE)
-                    : const Color(0xFFFFF8E1);
-            final approvalFg = approvalStatus == 'approved'
-                ? const Color(0xFF2E7D32)
-                : approvalStatus == 'rejected'
-                    ? const Color(0xFFC62828)
-                    : const Color(0xFFEF6C00);
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+            final approvalStyle = approvalStatusStyle(approvalStatus);
+            return InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        _CertificationDetailPage(certification: c),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade200),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                        color: Colors.black.withValues(alpha: 0.02),
                         blurRadius: 10,
                         offset: const Offset(0, 4))
                   ]),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3E5F5),
-                      borderRadius: BorderRadius.circular(12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3E5F5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.workspace_premium_outlined,
+                          color: Color(0xFF6A1B9A), size: 24),
                     ),
-                    child: const Icon(Icons.workspace_premium_outlined,
-                        color: Color(0xFF6A1B9A), size: 24),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(c.name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15)),
+                          const SizedBox(height: 4),
+                          Text(c.issuer,
+                              style: TextStyle(
+                                  color: Colors.grey.shade500, fontSize: 13)),
+                          if (c.obtainedAt != null)
+                            Text('Diperoleh: ${c.obtainedAt}',
+                                style: TextStyle(
+                                    color: Colors.grey.shade400, fontSize: 12)),
+                          if (c.expiredAt != null)
+                            Text('Berlaku s/d: ${c.expiredAt}',
+                                style: TextStyle(
+                                    color: Colors.grey.shade400, fontSize: 12)),
+                          if (c.fileUrl != null) ...[
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                c.fileUrl!,
+                                height: 60,
+                                width: 100,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const SizedBox(),
+                              ),
+                            ),
+                          ],
+                          if (approvalStatus == 'rejected' &&
+                              (c.rejectionReason ?? '').trim().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            TextButton.icon(
+                              onPressed: () {
+                                showDialog<void>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text(
+                                        'Alasan Penolakan Sertifikat'),
+                                    content: Text(c.rejectionReason!.trim()),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx),
+                                        child: const Text('Tutup'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.info_outline, size: 16),
+                              label: const Text('Lihat Alasan'),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(c.name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
-                        const SizedBox(height: 4),
-                        Text(c.issuer,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: approvalStyle.bg,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            approvalStyle.label,
                             style: TextStyle(
-                                color: Colors.grey.shade500, fontSize: 13)),
-                        if (c.obtainedAt != null)
-                          Text('Diperoleh: ${c.obtainedAt}',
-                              style: TextStyle(
-                                  color: Colors.grey.shade400, fontSize: 12)),
-                        if (c.expiredAt != null)
-                          Text('Berlaku s/d: ${c.expiredAt}',
-                              style: TextStyle(
-                                  color: Colors.grey.shade400, fontSize: 12)),
-                        if (c.fileUrl != null) ...[
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              c.fileUrl!,
-                              height: 60,
-                              width: 100,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const SizedBox(),
+                              color: approvalStyle.fg,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
                           ),
-                        ],
-                        if (approvalStatus == 'rejected' &&
-                            (c.rejectionReason ?? '').trim().isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          TextButton.icon(
-                            onPressed: () {
-                              showDialog<void>(
-                                context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title:
-                                      const Text('Alasan Penolakan Sertifikat'),
-                                  content: Text(c.rejectionReason!.trim()),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      child: const Text('Tutup'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.info_outline, size: 16),
-                            label: const Text('Lihat Alasan'),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isAktif
+                                ? const Color(0xFFE8F5E9)
+                                : const Color(0xFFFFF3E0),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ],
+                          child: Text(
+                            isAktif ? 'Aktif' : 'Renew',
+                            style: TextStyle(
+                              color: isAktif
+                                  ? const Color(0xFF2E7D32)
+                                  : const Color(0xFFEF6C00),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: approvalBg,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          approvalLabel,
-                          style: TextStyle(
-                            color: approvalFg,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isAktif
-                              ? const Color(0xFFE8F5E9)
-                              : const Color(0xFFFFF3E0),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          isAktif ? 'Aktif' : 'Renew',
-                          style: TextStyle(
-                            color: isAktif
-                                ? const Color(0xFF2E7D32)
-                                : const Color(0xFFEF6C00),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           }),
@@ -2311,93 +2751,575 @@ class _ViolationContent extends StatelessWidget {
             final color = isAktif ? Colors.red.shade700 : Colors.grey.shade700;
             final bgColor = isAktif ? Colors.red.shade50 : Colors.grey.shade100;
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
+            return InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _ViolationDetailPage(violation: v),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.grey.shade200),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
+                        color: Colors.black.withValues(alpha: 0.02),
                         blurRadius: 4,
                         offset: const Offset(0, 2))
                   ]),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                v.title,
-                                style: TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${v.location ?? "-"} · ${v.dateOfViolation ?? "-"}',
-                                style: TextStyle(
-                                    color: Colors.grey.shade500, fontSize: 13),
-                              ),
-                              if (v.expiredAt != null &&
-                                  v.expiredAt!.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Berlaku S/D: ${v.expiredAt}',
-                                  style: TextStyle(
-                                    color: Colors.blue.shade700,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            v.status,
-                            style: TextStyle(
-                                color: color,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (v.sanction != null && v.sanction!.isNotEmpty) ...[
-                    Divider(height: 1, color: Colors.grey.shade100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text(
-                        'Sanksi: ${v.sanction}',
-                        style: TextStyle(color: color, fontSize: 13),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  v.title,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${v.location ?? "-"} · ${v.dateOfViolation ?? "-"}',
+                                  style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 13),
+                                ),
+                                if (v.expiredAt != null &&
+                                    v.expiredAt!.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Berlaku S/D: ${v.expiredAt}',
+                                    style: TextStyle(
+                                      color: Colors.blue.shade700,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: bgColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              v.status,
+                              style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
+                    if (v.sanction != null && v.sanction!.isNotEmpty) ...[
+                      Divider(height: 1, color: Colors.grey.shade100),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'Sanksi: ${v.sanction}',
+                          style: TextStyle(color: color, fontSize: 13),
+                        ),
+                      ),
+                    ],
                   ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _LicenseDetailPage extends StatelessWidget {
+  final UserLicense license;
+  const _LicenseDetailPage({required this.license});
+
+  @override
+  Widget build(BuildContext context) {
+    final approvalStyle = approvalStatusStyle(license.approvalStatus);
+    final activeColor =
+        license.isActive ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F);
+    final activeBg =
+        license.isActive ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F0F0),
+      appBar: AppBar(
+        title: const Text('Detail Lisensi',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DetailHeader(
+              icon: Icons.badge_outlined,
+              iconColor: const Color(0xFF1E88E5),
+              iconBgColor: const Color(0xFFE3F2FD),
+              title: license.name,
+              subtitle: 'No. ${license.licenseNumber}',
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _StatusPill(
+                  label: approvalStyle.label,
+                  foreground: approvalStyle.fg,
+                  background: approvalStyle.bg,
+                ),
+                _StatusPill(
+                  label: license.isActive ? 'Aktif' : 'Expired',
+                  foreground: activeColor,
+                  background: activeBg,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _DetailCard(
+              children: [
+                _DetailInfoRow('Nama Lisensi', license.name),
+                _DetailInfoRow('Nomor Lisensi', license.licenseNumber),
+                _DetailInfoRow('Tanggal Diperoleh', license.obtainedAt ?? '-'),
+                _DetailInfoRow('Berlaku Sampai', license.expiredAt ?? '-'),
+                _DetailInfoRow('Status', license.status),
+                _DetailInfoRow('Diajukan', license.submittedAt ?? '-'),
+                _DetailInfoRow('Direview', license.reviewedAt ?? '-'),
+              ],
+            ),
+            if ((license.rejectionReason ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _RejectionReasonCard(reason: license.rejectionReason!.trim()),
+            ],
+            if (license.fileUrl != null && license.fileUrl!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _AttachmentPreview(url: license.fileUrl!, title: 'Foto Lisensi'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CertificationDetailPage extends StatelessWidget {
+  final UserCertification certification;
+  const _CertificationDetailPage({required this.certification});
+
+  @override
+  Widget build(BuildContext context) {
+    final approvalStyle = approvalStatusStyle(certification.approvalStatus);
+    final activeColor = certification.isActive
+        ? const Color(0xFF2E7D32)
+        : const Color(0xFFEF6C00);
+    final activeBg = certification.isActive
+        ? const Color(0xFFE8F5E9)
+        : const Color(0xFFFFF3E0);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F0F0),
+      appBar: AppBar(
+        title: const Text('Detail Sertifikat',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DetailHeader(
+              icon: Icons.workspace_premium_outlined,
+              iconColor: const Color(0xFF6A1B9A),
+              iconBgColor: const Color(0xFFF3E5F5),
+              title: certification.name,
+              subtitle: certification.issuer,
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _StatusPill(
+                  label: approvalStyle.label,
+                  foreground: approvalStyle.fg,
+                  background: approvalStyle.bg,
+                ),
+                _StatusPill(
+                  label: certification.isActive ? 'Aktif' : 'Renew',
+                  foreground: activeColor,
+                  background: activeBg,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _DetailCard(
+              children: [
+                _DetailInfoRow('Nama Sertifikat', certification.name),
+                _DetailInfoRow('Lembaga Penerbit', certification.issuer),
+                _DetailInfoRow(
+                    'Tanggal Diperoleh', certification.obtainedAt ?? '-'),
+                _DetailInfoRow('Berlaku Sampai', certification.expiredAt ?? '-'),
+                _DetailInfoRow('Status', certification.status),
+                _DetailInfoRow('Diajukan', certification.submittedAt ?? '-'),
+                _DetailInfoRow('Direview', certification.reviewedAt ?? '-'),
+              ],
+            ),
+            if ((certification.rejectionReason ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _RejectionReasonCard(
+                  reason: certification.rejectionReason!.trim()),
+            ],
+            if (certification.fileUrl != null &&
+                certification.fileUrl!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _AttachmentPreview(
+                  url: certification.fileUrl!, title: 'Foto Sertifikat'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ViolationDetailPage extends StatelessWidget {
+  final UserViolation violation;
+  const _ViolationDetailPage({required this.violation});
+
+  @override
+  Widget build(BuildContext context) {
+    final isAktif = violation.status.toLowerCase() == 'aktif';
+    final color = isAktif ? Colors.red.shade700 : Colors.grey.shade700;
+    final bgColor = isAktif ? Colors.red.shade50 : Colors.grey.shade100;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F0F0),
+      appBar: AppBar(
+        title: const Text('Detail Pelanggaran',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DetailHeader(
+              icon: Icons.warning_amber_rounded,
+              iconColor: color,
+              iconBgColor: bgColor,
+              title: violation.title,
+              subtitle: violation.location ?? '-',
+            ),
+            const SizedBox(height: 16),
+            _StatusPill(
+              label: violation.status,
+              foreground: color,
+              background: bgColor,
+            ),
+            const SizedBox(height: 16),
+            _DetailCard(
+              children: [
+                _DetailInfoRow('Pelanggaran', violation.title),
+                _DetailInfoRow('Lokasi', violation.location ?? '-'),
+                _DetailInfoRow('Tanggal', violation.dateOfViolation ?? '-'),
+                _DetailInfoRow('Berlaku Sampai', violation.expiredAt ?? '-'),
+                _DetailInfoRow('Status', violation.status),
+                _DetailInfoRow('Sanksi', violation.sanction ?? '-'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailHeader extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBgColor;
+  final String title;
+  final String subtitle;
+
+  const _DetailHeader({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBgColor,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: iconColor, size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 17)),
+                const SizedBox(height: 4),
+                Text(subtitle,
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailCard extends StatelessWidget {
+  final List<Widget> children;
+  const _DetailCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: children
+            .asMap()
+            .entries
+            .map((entry) => Column(
+                  children: [
+                    entry.value,
+                    if (entry.key < children.length - 1)
+                      Divider(
+                        height: 1,
+                        color: Colors.grey.shade100,
+                        indent: 16,
+                        endIndent: 16,
+                      ),
+                  ],
+                ))
+            .toList(),
+      ),
+    );
+  }
+}
+
+class _DetailInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  const _DetailInfoRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label,
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String label;
+  final Color foreground;
+  final Color background;
+
+  const _StatusPill({
+    required this.label,
+    required this.foreground,
+    required this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foreground,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _RejectionReasonCard extends StatelessWidget {
+  final String reason;
+  const _RejectionReasonCard({required this.reason});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEBEE),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFFCDD2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFD32F2F), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              reason,
+              style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AttachmentPreview extends StatelessWidget {
+  final String url;
+  final String title;
+  const _AttachmentPreview({required this.url, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(title.toUpperCase(),
+              style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold)),
+        ),
+        InkWell(
+          onTap: () {
+            showDialog(
+              context: context,
+              barrierColor: Colors.black.withValues(alpha: 0.9),
+              builder: (context) => Stack(
+                children: [
+                  Center(
+                    child: InteractiveViewer(
+                      child: Image.network(url, fit: BoxFit.contain),
+                    ),
+                  ),
+                  Positioned(
+                    top: 40,
+                    right: 20,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: IconButton(
+                        icon: const Icon(Icons.close,
+                            color: Colors.white, size: 30),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             );
-          }).toList(),
-        ],
-      ),
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(
+              url,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                color: Colors.white,
+                child: Text('Gagal memuat lampiran',
+                    style: TextStyle(color: Colors.grey.shade600)),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2604,6 +3526,216 @@ class _ProfileFabMenuSheet extends StatelessWidget {
                       side: BorderSide(color: Colors.grey.shade200)),
                 ),
                 child: const Text('Batal', style: TextStyle(fontSize: 14)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DepartmentPickerSheet extends StatefulWidget {
+  final String initialValue;
+  final Function(String) onSelected;
+
+  const _DepartmentPickerSheet({
+    required this.initialValue,
+    required this.onSelected,
+  });
+
+  @override
+  State<_DepartmentPickerSheet> createState() => _DepartmentPickerSheetState();
+}
+
+class _DepartmentPickerSheetState extends State<_DepartmentPickerSheet> {
+  List<DepartmentData> _allDepartments = [];
+  List<DepartmentData> _filteredDepartments = [];
+  String? _selectedValue;
+  bool _isLoading = true;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedValue = widget.initialValue;
+    _fetchDepartments();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchDepartments() async {
+    try {
+      final deps = await DepartmentService.getDepartments();
+      if (!mounted) return;
+      setState(() {
+        _allDepartments = deps;
+        _filteredDepartments = deps;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _filterDepartments(String query) {
+    setState(() {
+      _filteredDepartments = _allDepartments
+          .where((d) => d.name.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Pilih Departemen',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A56C4),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _filterDepartments,
+              decoration: InputDecoration(
+                hintText: 'Cari...',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+                filled: true,
+                fillColor: const Color(0xFFF0F4F8),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'DAFTAR DEPARTEMEN',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade400,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    itemCount: _filteredDepartments.length,
+                    itemBuilder: (context, index) {
+                      final dep = _filteredDepartments[index];
+                      final isSelected = _selectedValue == dep.name;
+                      return InkWell(
+                        onTap: () => setState(() => _selectedValue = dep.name),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 16),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: Colors.grey.shade100),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  dep.name,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                isSelected
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_off,
+                                color: isSelected
+                                    ? const Color(0xFF4CAF50)
+                                    : const Color(0xFF1A56C4)
+                                        .withValues(alpha: 0.5),
+                                size: 24,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _selectedValue == null
+                    ? null
+                    : () {
+                        widget.onSelected(_selectedValue!);
+                        Navigator.pop(context);
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A56C4),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text(
+                  'Simpan',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ),
           ),

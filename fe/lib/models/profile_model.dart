@@ -92,6 +92,7 @@ class UserLicense {
   final String id;
   final String name;
   final String licenseNumber;
+  final String? issuer;
   final String? obtainedAt;
   final String? expiredAt;
   final String status;
@@ -106,6 +107,7 @@ class UserLicense {
     required this.id,
     required this.name,
     required this.licenseNumber,
+    this.issuer,
     this.obtainedAt,
     this.expiredAt,
     required this.status,
@@ -122,6 +124,7 @@ class UserLicense {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       licenseNumber: json['license_number']?.toString() ?? '',
+      issuer: json['issuer']?.toString(),
       obtainedAt: json['obtained_at']?.toString(),
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'active',
@@ -140,6 +143,7 @@ class UserLicense {
 class UserCertification {
   final String id;
   final String name;
+  final String? certificationNumber;
   final String issuer;
   final String? obtainedAt;
   final String? expiredAt;
@@ -154,6 +158,7 @@ class UserCertification {
   UserCertification({
     required this.id,
     required this.name,
+    this.certificationNumber,
     required this.issuer,
     this.obtainedAt,
     this.expiredAt,
@@ -170,6 +175,7 @@ class UserCertification {
     return UserCertification(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
+      certificationNumber: json['certification_number']?.toString(),
       issuer: json['issuer']?.toString() ?? '',
       obtainedAt: json['obtained_at']?.toString(),
       expiredAt: json['expired_at']?.toString(),

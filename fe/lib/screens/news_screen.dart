@@ -140,6 +140,7 @@ class _NewsScreenState extends State<NewsScreen> {
     return Material(
       color: const Color(0xFFF2F2F2),
       child: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             SapaHseHeader(

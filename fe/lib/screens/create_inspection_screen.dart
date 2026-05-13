@@ -483,9 +483,10 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
+                final navigator = Navigator.of(context);
                 Navigator.pop(context);
                 Future.delayed(const Duration(milliseconds: 100), () {
-                  if (context.mounted) Navigator.pop(context);
+                  navigator.pop();
                 });
               },
               style: ElevatedButton.styleFrom(

@@ -177,7 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF2F2F2),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -421,8 +421,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .join()
         .toUpperCase();
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -511,52 +524,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? trailingText,
     VoidCallback? onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                  color: iconBg, borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: iconColor),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                      color: iconBg, borderRadius: BorderRadius.circular(12)),
+                  child: Icon(icon, color: iconColor),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: Colors.black87)),
+                      const SizedBox(height: 2),
+                      Text(subtitle,
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
+                if (trailingText != null)
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFFFEBEE),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Text(trailingText,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFD32F2F),
+                            fontWeight: FontWeight.w700)),
+                  ),
+                Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                          color: Colors.black87)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                ],
-              ),
-            ),
-            if (trailingText != null)
-              Container(
-                margin: const EdgeInsets.only(right: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
-                    borderRadius: BorderRadius.circular(12)),
-                child: Text(trailingText,
-                    style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFD32F2F),
-                        fontWeight: FontWeight.w700)),
-              ),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
-          ],
+          ),
         ),
       ),
     );
@@ -629,6 +662,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SnackBar(content: Text('Module Plugin akan segera hadir')),
             ),
           ),
+          if (canManageViolations) ...[
+            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+            _buildMenuItem(
+              icon: Icons.gavel_outlined,
+              iconBg: const Color(0xFFFFEBEE),
+              iconColor: const Color(0xFFD32F2F),
+              title: 'User Violations',
+              subtitle: 'Catat & kelola pelanggaran karyawan',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const ViolationManagementScreen()),
+              ),
+            ),
+          ],
           if (isAdmin) ...[
             const SizedBox(height: 24),
             _buildSectionHeader('ALAT ADMIN',
@@ -646,10 +694,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             Divider(height: 1, color: Colors.grey.shade100, indent: 70),
             _buildMenuItem(
+              icon: Icons.assignment_turned_in_outlined,
+              iconBg: const Color(0xFFE8F5E9),
+              iconColor: const Color(0xFF2E7D32),
+              title: 'Approval Dokumen',
+              subtitle: 'Lisensi & sertifikasi karyawan',
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Approval Dokumen akan segera hadir')),
+              ),
+            ),
+            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+            _buildMenuItem(
               icon: Icons.folder_special,
               iconBg: const Color(0xFFFBE9E7),
               iconColor: const Color(0xFFD84315),
-              title: 'Kategori Laporan',
+              title: 'Category & Subcategory Report',
               subtitle: 'Daftar TTA, KTA & subkategori',
               onTap: () => Navigator.push(
                 context,
@@ -670,7 +730,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     builder: (_) => const CompanyManagementScreen()),
               ),
             ),
-            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
             _buildMenuItem(
               icon: Icons.corporate_fare,
               iconBg: const Color(0xFFE8EAF6),
@@ -696,21 +755,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     builder: (_) => const LocationManagementScreen()),
               ),
             ),
-            if (canManageViolations) ...[
-              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-              _buildMenuItem(
-                icon: Icons.gavel_outlined,
-                iconBg: const Color(0xFFFFEBEE),
-                iconColor: const Color(0xFFD32F2F),
-                title: 'Pelanggaran User',
-                subtitle: 'Catat & kelola pelanggaran karyawan',
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const ViolationManagementScreen()),
-                ),
-              ),
-            ],
           ],
           if (isSuperAdmin) ...[
             const SizedBox(height: 24),

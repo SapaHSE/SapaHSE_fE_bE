@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../models/inbox_item.dart';
+import '../utils/approval_status_ui.dart';
 
 class ApprovalDetailSheet extends StatefulWidget {
   final InboxItem item;
@@ -77,34 +78,8 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
     return '$dd/$mm/$yyyy';
   }
 
-  ({String label, Color bg, Color fg, Color border}) _statusStyle(
-    String? rawStatus,
-  ) {
-    final status = (rawStatus ?? 'pending').toLowerCase();
-    switch (status) {
-      case 'approved':
-        return (
-          label: 'Disetujui',
-          bg: const Color(0xFFE8F5E9),
-          fg: const Color(0xFF2E7D32),
-          border: const Color(0xFFB7E1BC)
-        );
-      case 'rejected':
-        return (
-          label: 'Ditolak',
-          bg: const Color(0xFFFFEBEE),
-          fg: const Color(0xFFC62828),
-          border: const Color(0xFFFFCDD2)
-        );
-      default:
-        return (
-          label: 'Menunggu',
-          bg: const Color(0xFFFFF8E1),
-          fg: const Color(0xFFEF6C00),
-          border: const Color(0xFFFFE082)
-        );
-    }
-  }
+  ApprovalStatusStyle _statusStyle(String? rawStatus) =>
+      approvalStatusStyle(rawStatus);
 
   Future<void> _runAction(Future<bool> Function() action) async {
     if (_submitting) return;
@@ -116,6 +91,151 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
       Navigator.pop(context);
       widget.onDone?.call();
     }
+  }
+
+  Future<void> _showAttachmentPreview(String imageUrl) async {
+    await precacheImage(
+      CachedNetworkImageProvider(imageUrl),
+      context,
+    );
+    if (!mounted) return;
+
+    final images = <String>[imageUrl];
+    final previewController = PageController(initialPage: 0);
+    final Map<int, TransformationController> controllers = {};
+    final Map<int, VoidCallback> listeners = {};
+    var doubleTapPosition = Offset.zero;
+    const doubleTapZoomScale = 2.5;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) {
+          var currentIndex = 0;
+          var isZoomed = false;
+          return StatefulBuilder(
+            builder: (context, setPreviewState) {
+              TransformationController controllerFor(int i) {
+                final existing = controllers[i];
+                if (existing != null) return existing;
+                final c = TransformationController();
+                void listener() {
+                  final scale = c.value.getMaxScaleOnAxis();
+                  final zoomed = scale > 1.0;
+                  if (zoomed != isZoomed) {
+                    setPreviewState(() => isZoomed = zoomed);
+                  }
+                }
+
+                c.addListener(listener);
+                controllers[i] = c;
+                listeners[i] = listener;
+                return c;
+              }
+
+              void handleDoubleTap(int i) {
+                final c = controllerFor(i);
+                final currentScale = c.value.getMaxScaleOnAxis();
+                if (currentScale > 1.0) {
+                  c.value = Matrix4.identity();
+                } else {
+                  const s = doubleTapZoomScale;
+                  final x = -doubleTapPosition.dx * (s - 1);
+                  final y = -doubleTapPosition.dy * (s - 1);
+                  c.value = Matrix4(
+                    s,
+                    0,
+                    0,
+                    0,
+                    0,
+                    s,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                    x,
+                    y,
+                    0,
+                    1,
+                  );
+                }
+              }
+
+              return Scaffold(
+                backgroundColor: Colors.black,
+                appBar: AppBar(
+                  backgroundColor: Colors.transparent,
+                  iconTheme: const IconThemeData(color: Colors.white),
+                  elevation: 0,
+                  title: Text(
+                    '${currentIndex + 1}/${images.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                extendBodyBehindAppBar: true,
+                body: PageView.builder(
+                  controller: previewController,
+                  physics: isZoomed
+                      ? const NeverScrollableScrollPhysics()
+                      : const PageScrollPhysics(),
+                  onPageChanged: (idx) {
+                    final old = currentIndex;
+                    setPreviewState(() {
+                      currentIndex = idx;
+                      isZoomed = false;
+                    });
+                    controllers[old]?.value = Matrix4.identity();
+                  },
+                  itemCount: images.length,
+                  itemBuilder: (context, index) {
+                    return Center(
+                      child: GestureDetector(
+                        onDoubleTapDown: (details) =>
+                            doubleTapPosition = details.localPosition,
+                        onDoubleTap: () => handleDoubleTap(index),
+                        child: InteractiveViewer(
+                          minScale: 1.0,
+                          maxScale: 4.0,
+                          transformationController: controllerFor(index),
+                          child: CachedNetworkImage(
+                            imageUrl: images[index],
+                            fit: BoxFit.contain,
+                            placeholder: (_, __) =>
+                                const CircularProgressIndicator(
+                                  color: Colors.white,
+                                ),
+                            errorWidget: (_, __, ___) => const Icon(
+                              Icons.image,
+                              color: Colors.white54,
+                              size: 80,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+
+    for (final entry in controllers.entries) {
+      final listener = listeners[entry.key];
+      if (listener != null) {
+        entry.value.removeListener(listener);
+      }
+      entry.value.dispose();
+    }
+    previewController.dispose();
   }
 
   Widget _row(String label, String? value) {
@@ -155,13 +275,11 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
     final item = widget.item;
     final submitDate = item.submittedAt ?? item.createdAt;
     final status = _statusStyle(item.approvalStatus);
+    final sheetHeight = MediaQuery.of(context).size.height * 0.85;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      maxChildSize: 0.95,
-      minChildSize: 0.45,
-      expand: false,
-      builder: (_, controller) => Container(
+    return SizedBox(
+      height: sheetHeight,
+      child: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -182,7 +300,6 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
             const SizedBox(height: 12),
             Expanded(
               child: ListView(
-                controller: controller,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 children: [
                   Row(
@@ -294,28 +411,36 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                       'Lampiran Dokumen',
                       style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Ketuk gambar untuk preview',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
                     const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: item.itemFileUrl!,
-                        height: 180,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
+                    GestureDetector(
+                      onTap: () => _showAttachmentPreview(item.itemFileUrl!),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: CachedNetworkImage(
+                          imageUrl: item.itemFileUrl!,
                           height: 180,
-                          color: Colors.grey.shade100,
-                          child: const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            height: 180,
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
                           ),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          height: 120,
-                          color: Colors.grey.shade100,
-                          alignment: Alignment.center,
-                          child: const Text(
-                            'Preview tidak tersedia',
-                            style: TextStyle(color: Colors.grey),
+                          errorWidget: (_, __, ___) => Container(
+                            height: 120,
+                            color: Colors.grey.shade100,
+                            alignment: Alignment.center,
+                            child: const Text(
+                              'Preview tidak tersedia',
+                              style: TextStyle(color: Colors.grey),
+                            ),
                           ),
                         ),
                       ),
@@ -343,8 +468,17 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                   ? null
                                   : () => _runAction(widget.onReject!),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red.shade700,
-                                side: BorderSide(color: Colors.red.shade200),
+                                foregroundColor: const Color(0xFFC62828),
+                                backgroundColor:
+                                    const Color(0xFFC62828).withValues(alpha: 0.08),
+                                side: BorderSide(
+                                  color: const Color(0xFFC62828).withValues(
+                                    alpha: 0.42,
+                                  ),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 12),
                               ),
@@ -356,18 +490,27 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                         strokeWidth: 2,
                                       ),
                                     )
-                                  : const Text('Tolak'),
+                                  : const Text(
+                                      'Tolak',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton(
                               onPressed: _submitting
                                   ? null
                                   : () => _runAction(widget.onApprove!),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2E7D32),
+                                backgroundColor: const Color(0xFF2F80ED),
                                 foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 12),
                               ),
@@ -383,7 +526,12 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                         ),
                                       ),
                                     )
-                                  : const Text('Setujui'),
+                                  : const Text(
+                                      'Setujui',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                             ),
                           ),
                         ],

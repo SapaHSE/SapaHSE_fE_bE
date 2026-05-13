@@ -116,6 +116,7 @@ class InboxItem {
   final String? submitterEmployeeId;
   final String? submitterPosition;
   final String? submitterPhone;
+  final String? submitterPhotoUrl;
   final String? itemName;
   final String? itemNumber;
   final String? itemIssuer;
@@ -167,6 +168,7 @@ class InboxItem {
     this.submitterEmployeeId,
     this.submitterPosition,
     this.submitterPhone,
+    this.submitterPhotoUrl,
     this.itemName,
     this.itemNumber,
     this.itemIssuer,
@@ -239,6 +241,8 @@ class InboxItem {
         submitterEmployeeId: submitter['employee_id']?.toString(),
         submitterPosition: submitter['position']?.toString(),
         submitterPhone: submitter['phone_number']?.toString(),
+        submitterPhotoUrl:
+            normalizeStorageUrl(submitter['profile_photo']?.toString()),
         itemName: approvalItem['name']?.toString(),
         itemNumber: approvalItem['license_number']?.toString(),
         itemIssuer: approvalItem['issuer']?.toString(),

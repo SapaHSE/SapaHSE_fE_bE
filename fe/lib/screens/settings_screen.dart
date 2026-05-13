@@ -531,115 +531,158 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool isLoading = false;
     String? errorMsg;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (_, setDialogState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Ubah Password',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (errorMsg != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error_outline,
-                          color: Colors.red.shade600, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(errorMsg!,
-                            style: TextStyle(
-                                color: Colors.red.shade700, fontSize: 13)),
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Color(0xFFF5F5F5))),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Ubah Password',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (errorMsg != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.red.shade100),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(errorMsg!,
+                                  style: TextStyle(color: Colors.red.shade800, fontSize: 13)),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
-                  ),
+                    
+                    _buildDialogField('Password Lama', oldCtrl, hint: 'Masukkan password lama'),
+                    const SizedBox(height: 16),
+                    _buildDialogField('Password Baru', newCtrl, hint: 'Minimal 8 karakter'),
+                    const SizedBox(height: 16),
+                    _buildDialogField('Konfirmasi Password Baru', confirmCtrl, hint: 'Ulangi password baru'),
+                    
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : () async {
+                          setModalState(() {
+                            isLoading = true;
+                            errorMsg = null;
+                          });
+
+                          final result = await ProfileService.changePassword(
+                            currentPassword: oldCtrl.text,
+                            newPassword: newCtrl.text,
+                            confirmPassword: confirmCtrl.text,
+                          );
+
+                          if (!context.mounted) return;
+
+                          if (result.success) {
+                            Navigator.pop(context);
+                            await StorageService.clear();
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Password berhasil diubah. Silakan login kembali.')),
+                            );
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (_) => const LoginScreen()),
+                              (route) => false,
+                            );
+                          } else {
+                            setModalState(() {
+                              isLoading = false;
+                              errorMsg = result.message;
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A56C4),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        child: isLoading
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('SIMPAN PERUBAHAN', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-              _PasswordField(controller: oldCtrl, hint: 'Password lama'),
-              const SizedBox(height: 10),
-              _PasswordField(controller: newCtrl, hint: 'Password baru'),
-              const SizedBox(height: 10),
-              _PasswordField(
-                  controller: confirmCtrl, hint: 'Konfirmasi password baru'),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      setDialogState(() {
-                        isLoading = true;
-                        errorMsg = null;
-                      });
-
-                      final result = await ProfileService.changePassword(
-                        currentPassword: oldCtrl.text,
-                        newPassword: newCtrl.text,
-                        confirmPassword: confirmCtrl.text,
-                      );
-
-                      if (!dialogContext.mounted) return;
-
-                      if (result.success) {
-                        Navigator.pop(dialogContext);
-                        await StorageService.clear();
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(result.message),
-                            backgroundColor: Colors.green.shade600,
-                            behavior: SnackBarBehavior.floating,
-                            margin: const EdgeInsets.all(16),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
-                        );
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const LoginScreen()),
-                          (route) => false,
-                        );
-                      } else {
-                        setDialogState(() {
-                          isLoading = false;
-                          errorMsg = result.message;
-                        });
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1565C0),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2))
-                  : const Text('Simpan'),
-            ),
-          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDialogField(String label, TextEditingController controller, {required String hint}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          obscureText: true,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+            filled: true,
+            fillColor: const Color(0xFFF8F9FA),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF1A56C4), width: 1.5)),
+          ),
+        ),
+      ],
     );
   }
 
@@ -907,50 +950,6 @@ class _SettingsFabMenuTile extends StatelessWidget {
       );
 }
 
-class _PasswordField extends StatefulWidget {
-  final TextEditingController controller;
-  final String hint;
-  const _PasswordField({required this.controller, required this.hint});
-
-  @override
-  State<_PasswordField> createState() => _PasswordFieldState();
-}
-
-class _PasswordFieldState extends State<_PasswordField> {
-  bool _obscure = true;
-
-  @override
-  Widget build(BuildContext context) => TextField(
-        controller: widget.controller,
-        obscureText: _obscure,
-        style: const TextStyle(fontSize: 14),
-        decoration: InputDecoration(
-          hintText: widget.hint,
-          hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300)),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF1565C0))),
-          suffixIcon: IconButton(
-            icon: Icon(
-                _obscure
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-                size: 20,
-                color: Colors.grey),
-            onPressed: () => setState(() => _obscure = !_obscure),
-          ),
-        ),
-      );
-}
-
 class _SettingsNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -993,3 +992,4 @@ class _SettingsNavItem extends StatelessWidget {
     );
   }
 }
+

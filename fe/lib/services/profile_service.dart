@@ -86,6 +86,9 @@ class ProfileService {
     String? position,
     String? department,
     String? company,
+    String? tipeAfiliasi,
+    String? perusahaanKontraktor,
+    String? subKontraktor,
     String? imagePath,
   }) async {
     final body = <String, dynamic>{};
@@ -97,6 +100,11 @@ class ProfileService {
     if (position != null) body['position'] = position;
     if (department != null) body['department'] = department;
     if (company != null) body['company'] = company;
+    if (tipeAfiliasi != null) body['tipe_afiliasi'] = tipeAfiliasi;
+    if (perusahaanKontraktor != null) {
+      body['perusahaan_kontraktor'] = perusahaanKontraktor;
+    }
+    if (subKontraktor != null) body['sub_kontraktor'] = subKontraktor;
 
     // Upload avatar to Supabase Storage first (if provided)
     if (imagePath != null && imagePath.isNotEmpty) {
@@ -163,6 +171,7 @@ class ProfileService {
   static Future<SimpleResult> addLicense({
     required String name,
     required String licenseNumber,
+    String? issuer,
     String? obtainedAt,
     String? expiredAt,
     String status = 'active',
@@ -171,6 +180,7 @@ class ProfileService {
     final body = <String, dynamic>{
       'name': name,
       'license_number': licenseNumber,
+      if (issuer != null && issuer.isNotEmpty) 'issuer': issuer,
       'obtained_at': obtainedAt ?? '',
       'expired_at': expiredAt ?? '',
       'status': status,
@@ -196,9 +206,49 @@ class ProfileService {
     return SimpleResult.success('Lisensi berhasil ditambahkan.');
   }
 
+  static Future<SimpleResult> updateLicense({
+    required String id,
+    required String name,
+    required String licenseNumber,
+    String? issuer,
+    String? obtainedAt,
+    String? expiredAt,
+    String status = 'active',
+    XFile? imageFile,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      'license_number': licenseNumber,
+      if (issuer != null && issuer.isNotEmpty) 'issuer': issuer,
+      'obtained_at': obtainedAt ?? '',
+      'expired_at': expiredAt ?? '',
+      'status': status,
+    };
+
+    if (imageFile != null && imageFile.path.isNotEmpty) {
+      final fileUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imageFile.path,
+        folder: SupabaseConfig.licensesFolder,
+      );
+      if (fileUrl == null) {
+        return SimpleResult.error('Gagal mengunggah file lisensi ke Supabase.');
+      }
+      body['file_url'] = fileUrl;
+    }
+
+    final response = await ApiService.put('/profile/license/$id', body);
+    if (!response.success) {
+      return SimpleResult.error(
+        response.errorMessage ?? 'Gagal memperbarui lisensi.',
+      );
+    }
+    return SimpleResult.success('Lisensi berhasil diperbarui.');
+  }
+
   // ── Add Certification ───────────────────────────────────────────────────────
   static Future<SimpleResult> addCertification({
     required String name,
+    String? certificationNumber,
     required String issuer,
     String? obtainedAt,
     String? expiredAt,
@@ -207,6 +257,8 @@ class ProfileService {
   }) async {
     final body = <String, dynamic>{
       'name': name,
+      if (certificationNumber != null && certificationNumber.isNotEmpty)
+        'certification_number': certificationNumber,
       'issuer': issuer,
       'obtained_at': obtainedAt ?? '',
       'expired_at': expiredAt ?? '',
@@ -233,6 +285,48 @@ class ProfileService {
       );
     }
     return SimpleResult.success('Sertifikasi berhasil ditambahkan.');
+  }
+
+  static Future<SimpleResult> updateCertification({
+    required String id,
+    required String name,
+    String? certificationNumber,
+    required String issuer,
+    String? obtainedAt,
+    String? expiredAt,
+    String status = 'active',
+    XFile? imageFile,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      if (certificationNumber != null && certificationNumber.isNotEmpty)
+        'certification_number': certificationNumber,
+      'issuer': issuer,
+      'obtained_at': obtainedAt ?? '',
+      'expired_at': expiredAt ?? '',
+      'status': status,
+    };
+
+    if (imageFile != null && imageFile.path.isNotEmpty) {
+      final fileUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imageFile.path,
+        folder: SupabaseConfig.certificationsFolder,
+      );
+      if (fileUrl == null) {
+        return SimpleResult.error(
+          'Gagal mengunggah file sertifikasi ke Supabase.',
+        );
+      }
+      body['file_url'] = fileUrl;
+    }
+
+    final response = await ApiService.put('/profile/certification/$id', body);
+    if (!response.success) {
+      return SimpleResult.error(
+        response.errorMessage ?? 'Gagal memperbarui sertifikasi.',
+      );
+    }
+    return SimpleResult.success('Sertifikasi berhasil diperbarui.');
   }
 
   // ── Change password ───────────────────────────────────────────────────────

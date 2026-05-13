@@ -1,26 +1,33 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../models/inbox_item.dart';
+import '../utils/approval_status_ui.dart';
 
 class ApprovalTaskCard extends StatelessWidget {
   final InboxItem item;
   final VoidCallback onTap;
-  final VoidCallback onApprove;
-  final VoidCallback onReject;
+  final VoidCallback? onApprove;
+  final VoidCallback? onReject;
   final bool isProcessing;
+  final bool showActionButtons;
 
   const ApprovalTaskCard({
     super.key,
     required this.item,
     required this.onTap,
-    required this.onApprove,
-    required this.onReject,
+    this.onApprove,
+    this.onReject,
     this.isProcessing = false,
+    this.showActionButtons = false,
   });
 
   static const _regColor = Color(0xFF1A56C4);
   static const _licenseColor = Color(0xFFEF6C00);
   static const _certColor = Color(0xFF6A1B9A);
+
+  bool get _isRegistration => item.itemType == InboxItemType.approvalRegistration;
+  bool get _isLicense => item.itemType == InboxItemType.approvalLicense;
 
   Color get _accent {
     switch (item.itemType) {
@@ -35,30 +42,33 @@ class ApprovalTaskCard extends StatelessWidget {
     }
   }
 
-  IconData get _icon {
+  String get _typeLabel {
     switch (item.itemType) {
       case InboxItemType.approvalRegistration:
-        return Icons.person_add_alt_1;
+        return 'REGISTRASI';
       case InboxItemType.approvalLicense:
-        return Icons.badge_outlined;
+        return 'LICENSE';
       case InboxItemType.approvalCertification:
-        return Icons.workspace_premium;
+        return 'CERTIFICATE';
       default:
-        return Icons.assignment_turned_in_outlined;
+        return 'APPROVAL';
     }
   }
 
-  String get _categoryLabel {
-    switch (item.itemType) {
-      case InboxItemType.approvalRegistration:
-        return 'REGISTRASI USER';
-      case InboxItemType.approvalLicense:
-        return 'INPUT LISENSI';
-      case InboxItemType.approvalCertification:
-        return 'INPUT SERTIFIKAT';
-      default:
-        return 'PENGAJUAN';
+  String? get _metaInfo {
+    if (_isLicense) {
+      if ((item.itemNumber ?? '').trim().isNotEmpty) {
+        return 'No. ${item.itemNumber!.trim()}';
+      }
+      return null;
     }
+    if (_isRegistration) {
+      return null;
+    }
+    if ((item.itemIssuer ?? '').trim().isNotEmpty) {
+      return 'Penerbit: ${item.itemIssuer!.trim()}';
+    }
+    return null;
   }
 
   String _formatDate(DateTime value) {
@@ -68,165 +78,356 @@ class ApprovalTaskCard extends StatelessWidget {
     return '$dd/$mm/$yyyy';
   }
 
+  String _initials(String? name) {
+    final raw = (name ?? '').trim();
+    if (raw.isEmpty) return 'U';
+    final parts = raw.split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+    if (parts.isEmpty) return 'U';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
+  }
+
+  ApprovalStatusStyle _statusStyle(String? rawStatus) =>
+      approvalStatusStyle(rawStatus);
+
+  Widget _buildInputDefaultIcon() {
+    final IconData iconData;
+    final Color iconColor;
+    final Color iconBgColor;
+
+    if (_isLicense) {
+      iconData = Icons.badge_outlined;
+      iconColor = const Color(0xFF1E88E5);
+      iconBgColor = const Color(0xFFE3F2FD);
+    } else {
+      iconData = Icons.workspace_premium_outlined;
+      iconColor = const Color(0xFF6A1B9A);
+      iconBgColor = const Color(0xFFF3E5F5);
+    }
+
+    return Container(
+      color: iconBgColor,
+      alignment: Alignment.center,
+      child: Icon(
+        iconData,
+        color: iconColor.withValues(alpha: 0.95),
+        size: 56,
+      ),
+    );
+  }
+
+  Widget _buildImagePreview() {
+    final imageUrl = (item.itemFileUrl ?? '').trim();
+    if (!_isRegistration && imageUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => Container(
+          color: Colors.grey.shade200,
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        errorWidget: (_, __, ___) => _buildInputDefaultIcon(),
+      );
+    }
+
+    final photoUrl = (item.submitterPhotoUrl ?? '').trim();
+    if (_isRegistration && photoUrl.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: photoUrl,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => Container(
+          color: Colors.grey.shade200,
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        errorWidget: (_, __, ___) => Container(
+          color: Colors.grey.shade100,
+          alignment: Alignment.center,
+          child: CircleAvatar(
+            radius: 24,
+            backgroundColor: _accent.withValues(alpha: 0.18),
+            child: Text(
+              _initials(item.submitterName),
+              style: TextStyle(
+                color: _accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_isRegistration) {
+      return Container(
+        color: Colors.grey.shade100,
+        alignment: Alignment.center,
+        child: CircleAvatar(
+          radius: 24,
+          backgroundColor: _accent.withValues(alpha: 0.18),
+          child: Text(
+            _initials(item.submitterName),
+            style: TextStyle(
+              color: _accent,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _buildInputDefaultIcon();
+  }
+
+  Widget _buildLeftPanel() {
+    return Container(
+      width: 110,
+      color: Colors.grey.shade50,
+      child: Column(
+        children: [
+          Expanded(child: _buildImagePreview()),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            color: _accent,
+            child: Text(
+              _typeLabel,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final submittedAt = item.submittedAt ?? item.createdAt;
-    final submitter = item.submitterName ?? 'Pemohon';
-    final department = item.submitterDept ?? '-';
+    final status = _statusStyle(item.approvalStatus);
+    final statusPending = normalizeApprovalStatus(item.approvalStatus) == 'pending';
+    final showActions = showActionButtons &&
+        statusPending &&
+        onApprove != null &&
+        onReject != null;
 
-    return InkWell(
+    final submitter = (item.submitterName ?? 'Pemohon').trim();
+    final department = (item.submitterDept ?? '').trim();
+    final submitterLine =
+        department.isEmpty ? submitter : '$submitter • $department';
+    final metaInfo = _metaInfo;
+    final hasMetaInfo = metaInfo != null && metaInfo.trim().isNotEmpty;
+    final cardContentHeight = showActions
+        ? (hasMetaInfo ? 106.0 : 100.0)
+        : (hasMetaInfo ? 104.0 : 98.0);
+
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: _accent.withValues(alpha: 0.25)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: Column(
-          children: [
-            Container(
-              height: 5,
-              decoration: BoxDecoration(
-                color: _accent,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: _accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(_icon, color: _accent, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            children: [
+              SizedBox(
+                height: cardContentHeight,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildLeftPanel(),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _categoryLabel,
-                              style: TextStyle(
-                                color: _accent,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
                             Text(
                               item.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
                                 color: Colors.black87,
+                                height: 1.2,
+                              ),
+                            ),
+                            if (hasMetaInfo) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                metaInfo,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.black54,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                            const Spacer(),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 11,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 3),
+                                Flexible(
+                                  child: Text(
+                                    _formatDate(submittedAt),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.person_outline,
+                                  size: 11,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    submitterLine,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: status.bg,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: status.border),
+                                ),
+                                child: Text(
+                                  status.label,
+                                  style: TextStyle(
+                                    color: status.fg,
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF8E1),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0xFFFFE082)),
-                        ),
-                        child: const Text(
-                          'Menunggu',
-                          style: TextStyle(
-                            color: Color(0xFFEF6C00),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if ((item.description ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      item.description!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black54,
-                        height: 1.35,
-                      ),
                     ),
                   ],
-                  const SizedBox(height: 10),
-                  Row(
+                ),
+              ),
+              if (showActions)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: Row(
                     children: [
-                      const Icon(Icons.person_outline, size: 14, color: Colors.grey),
-                      const SizedBox(width: 4),
                       Expanded(
-                        child: Text(
-                          '$submitter • $department',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        child: OutlinedButton(
+                          onPressed: isProcessing ? null : onReject,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFC62828),
+                            backgroundColor:
+                                const Color(0xFFC62828).withValues(alpha: 0.08),
+                            side: BorderSide(
+                              color: const Color(0xFFC62828).withValues(
+                                alpha: 0.42,
+                              ),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: isProcessing
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Tolak',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      const Icon(Icons.event_outlined, size: 14, color: Colors.grey),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDate(submittedAt),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isProcessing ? null : onApprove,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2F80ED),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: isProcessing
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Text(
+                                  'Setujui',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                        ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: isProcessing ? null : onReject,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red.shade700,
-                        side: BorderSide(color: Colors.red.shade200),
-                      ),
-                      child: const Text('Tolak'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: isProcessing ? null : onApprove,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2E7D32),
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Setujui'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
     );
