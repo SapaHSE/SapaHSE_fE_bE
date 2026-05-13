@@ -16,7 +16,8 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
   _FadePageRoute({required this.builder})
       : super(
-          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -42,7 +43,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   // Persistent State for License Form
   final TextEditingController _licenseNameController = TextEditingController();
-  final TextEditingController _licenseNumberController = TextEditingController();
+  final TextEditingController _licenseNumberController =
+      TextEditingController();
   DateTime? _licenseObtainedAt;
   DateTime? _licenseSelectedDate;
 
@@ -52,7 +54,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   DateTime? _certObtainedAt;
   DateTime? _certExpiredAt;
   XFile? _licenseImage;
-  XFile? _certImage;  
+  XFile? _certImage;
 
   @override
   void dispose() {
@@ -139,7 +141,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
+              leading:
+                  const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
               title: const Text('Galeri'),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
@@ -182,7 +185,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
+              leading:
+                  const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
               title: const Text('Galeri'),
               onTap: () {
                 Navigator.pop(ctx);
@@ -261,29 +265,29 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
   }
 
-final List<Map<String, dynamic>> _subTabs = [
-  {
-    'label': 'Biodata',
-    'icon': Icons.person,
-    'color': const Color(0xFF1A56C4)
-  },
-  {'label': 'Lisensi', 'icon': Icons.badge, 'color': const Color(0xFF1A56C4)},
-  {
-    'label': 'Pelanggaran',
-    'icon': Icons.warning_amber_rounded,
-    'color': const Color(0xFF1A56C4)
-  },
-  {
-    'label': 'Sertifikat',
-    'icon': Icons.workspace_premium,
-    'color': const Color(0xFF1A56C4)
-  },
-  {
-    'label': 'Medis',
-    'icon': Icons.medical_services,
-    'color': const Color(0xFF1A56C4)
-  },
-];
+  final List<Map<String, dynamic>> _subTabs = [
+    {
+      'label': 'Biodata',
+      'icon': Icons.person,
+      'color': const Color(0xFF1A56C4)
+    },
+    {'label': 'Lisensi', 'icon': Icons.badge, 'color': const Color(0xFF1A56C4)},
+    {
+      'label': 'Pelanggaran',
+      'icon': Icons.warning_amber_rounded,
+      'color': const Color(0xFF1A56C4)
+    },
+    {
+      'label': 'Sertifikat',
+      'icon': Icons.workspace_premium,
+      'color': const Color(0xFF1A56C4)
+    },
+    {
+      'label': 'Medis',
+      'icon': Icons.medical_services,
+      'color': const Color(0xFF1A56C4)
+    },
+  ];
 
   void _onTabTapped(int index) {
     if (index == 4) {
@@ -324,7 +328,7 @@ final List<Map<String, dynamic>> _subTabs = [
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading){
+    if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -432,8 +436,7 @@ final List<Map<String, dynamic>> _subTabs = [
           if (_loadError != null)
             Container(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFF8E1),
                 borderRadius: BorderRadius.circular(12),
@@ -516,8 +519,8 @@ final List<Map<String, dynamic>> _subTabs = [
     final fromProfile = normalizeStorageUrl(_profileData?.profilePhoto);
     if (parseNullableDisplayName(fromProfile) != null) return fromProfile;
 
-    final fromCacheProfilePhoto =
-        normalizeStorageUrl(parseNullableDisplayName(_cachedUser?['profile_photo']));
+    final fromCacheProfilePhoto = normalizeStorageUrl(
+        parseNullableDisplayName(_cachedUser?['profile_photo']));
     if (parseNullableDisplayName(fromCacheProfilePhoto) != null) {
       return fromCacheProfilePhoto;
     }
@@ -613,7 +616,6 @@ final List<Map<String, dynamic>> _subTabs = [
     }
   }
 
-
   void _showEditProfileSheet() {
     if (_profileData == null) return;
 
@@ -628,7 +630,8 @@ final List<Map<String, dynamic>> _subTabs = [
     final addressCtrl = TextEditingController(text: _profileData?.address);
     final formKey = GlobalKey<FormState>();
     XFile? localImageFile;
-    final existingProfilePhoto = parseNullableDisplayName(_resolveProfilePhoto());
+    final existingProfilePhoto =
+        parseNullableDisplayName(_resolveProfilePhoto());
     final emailRegex = RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$');
 
     showModalBottomSheet(
@@ -648,7 +651,8 @@ final List<Map<String, dynamic>> _subTabs = [
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -663,7 +667,8 @@ final List<Map<String, dynamic>> _subTabs = [
                       child: Text(
                         'Edit Profil',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
                     const SizedBox(width: 48),
@@ -688,7 +693,8 @@ final List<Map<String, dynamic>> _subTabs = [
                                       : null) as ImageProvider?,
                               child: (localImageFile == null &&
                                       existingProfilePhoto == null)
-                                  ? Icon(Icons.person, size: 50, color: Colors.grey.shade400)
+                                  ? Icon(Icons.person,
+                                      size: 50, color: Colors.grey.shade400)
                                   : null,
                             ),
                             Positioned(
@@ -698,7 +704,8 @@ final List<Map<String, dynamic>> _subTabs = [
                                 onTap: () async {
                                   final picked = await _pickImageForForm();
                                   if (picked != null) {
-                                    setModalState(() => localImageFile = picked);
+                                    setModalState(
+                                        () => localImageFile = picked);
                                   }
                                 },
                                 child: Container(
@@ -706,9 +713,11 @@ final List<Map<String, dynamic>> _subTabs = [
                                   decoration: const BoxDecoration(
                                     color: Color(0xFF1A56C4),
                                     shape: BoxShape.circle,
-                                    border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 2)),
+                                    border: Border.fromBorderSide(BorderSide(
+                                        color: Colors.white, width: 2)),
                                   ),
-                                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                                  child: const Icon(Icons.camera_alt,
+                                      color: Colors.white, size: 16),
                                 ),
                               ),
                             ),
@@ -780,8 +789,7 @@ final List<Map<String, dynamic>> _subTabs = [
                                                 color: Colors.grey.shade300),
                                             borderRadius:
                                                 const BorderRadius.only(
-                                                    topLeft:
-                                                        Radius.circular(8),
+                                                    topLeft: Radius.circular(8),
                                                     bottomLeft:
                                                         Radius.circular(8)),
                                           ),
@@ -798,9 +806,9 @@ final List<Map<String, dynamic>> _subTabs = [
                                               FilteringTextInputFormatter
                                                   .digitsOnly
                                             ],
-                                              maxLength: 13,
-                                              style: const TextStyle(
-                                                  fontSize: 14),
+                                            maxLength: 13,
+                                            style:
+                                                const TextStyle(fontSize: 14),
                                             autovalidateMode: AutovalidateMode
                                                 .onUserInteraction,
                                             decoration: InputDecoration(
@@ -824,44 +832,35 @@ final List<Map<String, dynamic>> _subTabs = [
                                                   borderSide: BorderSide(
                                                       color: Colors
                                                           .grey.shade300)),
-                                              enabledBorder:
-                                                  OutlineInputBorder(
-                                                      borderRadius:
-                                                          const BorderRadius
-                                                              .only(
-                                                          topRight:
-                                                              Radius.circular(
-                                                                  8),
-                                                          bottomRight:
-                                                              Radius.circular(
-                                                                  8),
-                                                        ),
-                                                      borderSide: BorderSide(
-                                                          color: Colors
-                                                              .grey.shade300)),
-                                              focusedBorder:
-                                                  OutlineInputBorder(
-                                                      borderRadius:
-                                                          const BorderRadius
-                                                              .only(
+                                              enabledBorder: OutlineInputBorder(
+                                                  borderRadius:
+                                                      const BorderRadius.only(
+                                                    topRight:
+                                                        Radius.circular(8),
+                                                    bottomRight:
+                                                        Radius.circular(8),
+                                                  ),
+                                                  borderSide: BorderSide(
+                                                      color: Colors
+                                                          .grey.shade300)),
+                                              focusedBorder: OutlineInputBorder(
+                                                  borderRadius:
+                                                      const BorderRadius.only(
                                                           topRight:
                                                               Radius.circular(
                                                                   8),
                                                           bottomRight:
                                                               Radius.circular(
                                                                   8)),
-                                                      borderSide:
-                                                          const BorderSide(
-                                                              color: Color(
-                                                                  0xFF1A56C4))),
+                                                  borderSide: const BorderSide(
+                                                      color:
+                                                          Color(0xFF1A56C4))),
                                               filled: true,
-                                              fillColor:
-                                                  Colors.white,
+                                              fillColor: Colors.white,
                                               counterText: '',
                                             ),
                                             validator: (v) {
-                                              final value =
-                                                  (v ?? '').trim();
+                                              final value = (v ?? '').trim();
                                               if (value.isEmpty) {
                                                 return 'Nomor telepon wajib diisi';
                                               }
@@ -964,12 +963,16 @@ final List<Map<String, dynamic>> _subTabs = [
                               if (result.success) {
                                 _loadProfile();
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Profil berhasil diperbarui')),
+                                  const SnackBar(
+                                      content:
+                                          Text('Profil berhasil diperbarui')),
                                 );
                               } else {
                                 setState(() => _isLoading = false);
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(result.errorMessage ?? 'Gagal memperbarui')),
+                                  SnackBar(
+                                      content: Text(result.errorMessage ??
+                                          'Gagal memperbarui')),
                                 );
                               }
                             }
@@ -977,10 +980,12 @@ final List<Map<String, dynamic>> _subTabs = [
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF1A56C4),
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                             elevation: 0,
                           ),
-                          child: const Text('SIMPAN PERUBAHAN', style: TextStyle(fontWeight: FontWeight.bold)),
+                          child: const Text('SIMPAN PERUBAHAN',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -1004,7 +1009,11 @@ final List<Map<String, dynamic>> _subTabs = [
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+        Text(label,
+            style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         TextFormField(
           controller: controller,
@@ -1019,10 +1028,17 @@ final List<Map<String, dynamic>> _subTabs = [
             counterText: '',
             filled: true,
             fillColor: enabled ? Colors.white : Colors.grey.shade100,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF1A56C4))),
-            disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade200)),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade300)),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF1A56C4))),
+            disabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey.shade200)),
           ),
         ),
       ],
@@ -1039,9 +1055,12 @@ final List<Map<String, dynamic>> _subTabs = [
     final bloodPressureCtrl =
         TextEditingController(text: latest?.bloodPressure);
     final allergiesCtrl = TextEditingController(text: latest?.allergies);
-    final lastMedicationCtrl = TextEditingController(text: latest?.lastMedication);
-    final currentMedicationCtrl = TextEditingController(text: latest?.currentMedication);
-    final currentIllnessCtrl = TextEditingController(text: latest?.currentIllness);
+    final lastMedicationCtrl =
+        TextEditingController(text: latest?.lastMedication);
+    final currentMedicationCtrl =
+        TextEditingController(text: latest?.currentMedication);
+    final currentIllnessCtrl =
+        TextEditingController(text: latest?.currentIllness);
 
     showModalBottomSheet(
       context: context,
@@ -1117,7 +1136,8 @@ final List<Map<String, dynamic>> _subTabs = [
                           _buildFieldLabel('Konsumsi Obat Terakhir'),
                           TextField(
                             controller: lastMedicationCtrl,
-                            decoration: _buildInputDecoration('Contoh: Paracetamol'),
+                            decoration:
+                                _buildInputDecoration('Contoh: Paracetamol'),
                           ),
                         ],
                       ),
@@ -1130,7 +1150,8 @@ final List<Map<String, dynamic>> _subTabs = [
                           _buildFieldLabel('Obat Berjalan'),
                           TextField(
                             controller: currentMedicationCtrl,
-                            decoration: _buildInputDecoration('Contoh: Metformin'),
+                            decoration:
+                                _buildInputDecoration('Contoh: Metformin'),
                           ),
                         ],
                       ),
@@ -1142,7 +1163,8 @@ final List<Map<String, dynamic>> _subTabs = [
                 TextField(
                   controller: currentIllnessCtrl,
                   maxLines: 2,
-                  decoration: _buildInputDecoration('Contoh: Diabetes, Hipertensi...'),
+                  decoration:
+                      _buildInputDecoration('Contoh: Diabetes, Hipertensi...'),
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
@@ -1245,28 +1267,34 @@ final List<Map<String, dynamic>> _subTabs = [
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: DateTime.now(),
-                    firstDate: DateTime.now().subtract(const Duration(days: 365 * 5)),
-                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                    firstDate:
+                        DateTime.now().subtract(const Duration(days: 365 * 5)),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 10)),
                   );
                   if (picked != null)
                     setModalState(() => _licenseObtainedAt = picked);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade600),
+                      Icon(Icons.calendar_today,
+                          size: 18, color: Colors.grey.shade600),
                       const SizedBox(width: 12),
                       Text(
                         _licenseObtainedAt == null
                             ? 'Pilih Tanggal'
                             : '${_licenseObtainedAt!.day}/${_licenseObtainedAt!.month}/${_licenseObtainedAt!.year}',
                         style: TextStyle(
-                            color: _licenseObtainedAt == null ? Colors.grey.shade500 : Colors.black),
+                            color: _licenseObtainedAt == null
+                                ? Colors.grey.shade500
+                                : Colors.black),
                       ),
                     ],
                   ),
@@ -1320,7 +1348,7 @@ final List<Map<String, dynamic>> _subTabs = [
                   final picker = ImagePicker();
                   final picked = await picker.pickImage(
                       source: ImageSource.gallery, imageQuality: 70);
-                  if (picked != null){
+                  if (picked != null) {
                     setModalState(() => _licenseImage = picked);
                   }
                 },
@@ -1439,29 +1467,35 @@ final List<Map<String, dynamic>> _subTabs = [
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: DateTime.now(),
-                    firstDate: DateTime.now().subtract(const Duration(days: 365 * 10)),
-                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                    firstDate:
+                        DateTime.now().subtract(const Duration(days: 365 * 10)),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 10)),
                   );
                   if (picked != null) {
                     setModalState(() => _certObtainedAt = picked);
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade600),
+                      Icon(Icons.calendar_today,
+                          size: 18, color: Colors.grey.shade600),
                       const SizedBox(width: 12),
                       Text(
                         _certObtainedAt == null
                             ? 'Pilih Tanggal'
                             : '${_certObtainedAt!.day}/${_certObtainedAt!.month}/${_certObtainedAt!.year}',
                         style: TextStyle(
-                            color: _certObtainedAt == null ? Colors.grey.shade500 : Colors.black),
+                            color: _certObtainedAt == null
+                                ? Colors.grey.shade500
+                                : Colors.black),
                       ),
                     ],
                   ),
@@ -1474,29 +1508,35 @@ final List<Map<String, dynamic>> _subTabs = [
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: DateTime.now(),
-                    firstDate: DateTime.now().subtract(const Duration(days: 365 * 10)),
-                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                    firstDate:
+                        DateTime.now().subtract(const Duration(days: 365 * 10)),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 10)),
                   );
                   if (picked != null) {
                     setModalState(() => _certExpiredAt = picked);
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade600),
+                      Icon(Icons.calendar_today,
+                          size: 18, color: Colors.grey.shade600),
                       const SizedBox(width: 12),
                       Text(
                         _certExpiredAt == null
                             ? 'Pilih Tanggal'
                             : '${_certExpiredAt!.day}/${_certExpiredAt!.month}/${_certExpiredAt!.year}',
                         style: TextStyle(
-                            color: _certExpiredAt == null ? Colors.grey.shade500 : Colors.black),
+                            color: _certExpiredAt == null
+                                ? Colors.grey.shade500
+                                : Colors.black),
                       ),
                     ],
                   ),
@@ -1629,7 +1669,6 @@ final List<Map<String, dynamic>> _subTabs = [
       ),
     );
   }
-
 }
 
 // ── SUB-TAB WIDGETS (INTERNAL) ──────────────────────────────────────────────
@@ -1702,8 +1741,7 @@ class _BiodataContent extends StatelessWidget {
                   data?.perusahaanKontraktor ?? '-'),
             if (data?.tipeAfiliasi == 'Sub-Kontraktor' ||
                 data?.tipeAfiliasi == 'Sub-Kont.')
-              _buildRow(context, 'Sub-Kontraktor',
-                  data?.subKontraktor ?? '-'),
+              _buildRow(context, 'Sub-Kontraktor', data?.subKontraktor ?? '-'),
             _buildRow(context, 'Departemen', data?.department ?? '-'),
             _buildRow(context, 'Jabatan', data?.position ?? '-'),
           ]),
@@ -1767,9 +1805,9 @@ class _BiodataContent extends StatelessWidget {
                   child: Text(value,
                       textAlign: TextAlign.right,
                       style: const TextStyle(
-                           fontWeight: FontWeight.bold,
-                           fontSize: 13,
-                           height: 1.3))),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          height: 1.3))),
             ],
           )),
         ],

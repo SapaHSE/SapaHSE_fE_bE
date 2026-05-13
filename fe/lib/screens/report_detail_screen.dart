@@ -64,10 +64,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
 
   static const _blue = Color(0xFF1A56C4);
   static const _blueLight = Color(0xFFEFF4FF);
-  static const double _kBottomBarHeight = 60.0;
+  static const double _kBottomBarHeight = 76.0;
   static const double _kBottomBarGap = 8.0;
   static const double _kScrollFabDialogBase = 16.0;
   static const double _kScrollFabSnackbarLift = 72.0;
+  static const double _kBottomReachedThreshold = 20.0;
 
   @override
   void initState() {
@@ -105,7 +106,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       setState(() => _showScrollToBottom = shouldShow);
     }
     // Track if scrolled to (or very near) the bottom.
-    final atBottom = remaining < 50;
+    final atBottom = remaining < _kBottomReachedThreshold;
     if (atBottom != _isScrolledToBottom) {
       setState(() => _isScrolledToBottom = atBottom);
     }
@@ -1225,7 +1226,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     },
                   ),
 
-                  const SizedBox(height: 112),
+                  const SizedBox(height: 136),
                 ],
               ),
             ),
