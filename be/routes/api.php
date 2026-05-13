@@ -227,5 +227,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Admin: Verification
     Route::put('/admin/licenses/{id}/verify', [AuthController::class, 'adminVerifyLicense'])->middleware('role:admin,superadmin');
     Route::put('/admin/certifications/{id}/verify', [AuthController::class, 'adminVerifyCertification'])->middleware('role:admin,superadmin');
+    Route::put('/admin/licenses/{id}/approve', [AuthController::class, 'adminApproveLicense'])->middleware('role:superadmin');
+    Route::post('/admin/licenses/{id}/reject', [AuthController::class, 'adminRejectLicense'])->middleware('role:superadmin');
+    Route::put('/admin/certifications/{id}/approve', [AuthController::class, 'adminApproveCertification'])->middleware('role:superadmin');
+    Route::post('/admin/certifications/{id}/reject', [AuthController::class, 'adminRejectCertification'])->middleware('role:superadmin');
         
 });

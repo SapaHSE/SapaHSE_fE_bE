@@ -8,6 +8,9 @@ use App\Models\HazardCategory;
 use App\Models\ReadStatus;
 use App\Models\HazardReport;
 use App\Models\InspectionReport;
+use App\Models\User;
+use App\Models\UserCertification;
+use App\Models\UserLicense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,18 +29,36 @@ class InboxController extends Controller
         $readHazardIds = ReadStatus::where('user_id', $userId)
             ->where('item_type', 'hazard_report')
             ->pluck('item_id');
-        
+
         $readInspectionIds = ReadStatus::where('user_id', $userId)
             ->where('item_type', 'inspection_report')
             ->pluck('item_id');
 
-        // Admin / Superadmin act as the verification queue and see all `validating` hazards
-        // in addition to reports where they are the PJA / Tersangka.
-        $isAdminOrSA = in_array($user->role, ['admin', 'superadmin']);
+        $readAnnouncementIds = ReadStatus::where('user_id', $userId)
+            ->where('item_type', 'announcement')
+            ->pluck('item_id');
+
+        // Admin / Superadmin melihat queue validating.
+        $isAdminOrSA = in_array($user->role, ['admin', 'superadmin'], true);
+        $isSuper = $user->role === 'superadmin';
+
+        $readApprovalRegistrationIds = collect();
+        $readApprovalLicenseIds = collect();
+        $readApprovalCertificationIds = collect();
+
+        if ($isSuper) {
+            $readApprovalRegistrationIds = ReadStatus::where('user_id', $userId)
+                ->where('item_type', 'approval_registration')
+                ->pluck('item_id');
+            $readApprovalLicenseIds = ReadStatus::where('user_id', $userId)
+                ->where('item_type', 'approval_license')
+                ->pluck('item_id');
+            $readApprovalCertificationIds = ReadStatus::where('user_id', $userId)
+                ->where('item_type', 'approval_certification')
+                ->pluck('item_id');
+        }
 
         // Personal: reports where user is PJA, Tersangka Pelanggaran, Inspector, or tagged.
-        // Hazard hanya muncul setelah lolos validasi admin (sub_status != 'validating'),
-        // KECUALI untuk admin/superadmin — mereka justru perlu melihat antrian validasi.
         $personalHazardUnread = HazardReport::where(function ($q) use ($user, $isAdminOrSA) {
                 $q->where(function ($qq) use ($user) {
                     $qq->where(function ($pj) use ($user) {
@@ -57,7 +78,7 @@ class InboxController extends Controller
             ->whereNotIn('id', $readHazardIds)
             ->count();
 
-        $personalInspectionUnread = InspectionReport::where(function($q) use ($user) {
+        $personalInspectionUnread = InspectionReport::where(function ($q) use ($user) {
                 $q->where('name_inspector', $user->full_name);
                 if (!empty($user->department)) {
                     $q->orWhere('reported_department', 'like', '%' . $user->department . '%');
@@ -69,13 +90,25 @@ class InboxController extends Controller
             ->whereNotIn('id', $readInspectionIds)
             ->count();
 
-        $readAnnouncementIds = ReadStatus::where('user_id', $userId)
-            ->where('item_type', 'announcement')
-            ->pluck('item_id');
-        
         $unreadAnnouncementsCount = Announcement::active()
             ->whereNotIn('id', $readAnnouncementIds)
             ->count();
+
+        $pendingRegistrationUnread = 0;
+        $pendingLicenseUnread = 0;
+        $pendingCertificationUnread = 0;
+        if ($isSuper) {
+            $pendingRegistrationUnread = User::where('registration_status', 'pending')
+                ->whereNotIn('id', $readApprovalRegistrationIds)
+                ->count();
+            $pendingLicenseUnread = UserLicense::where('approval_status', 'pending')
+                ->whereNotIn('id', $readApprovalLicenseIds)
+                ->count();
+            $pendingCertificationUnread = UserCertification::where('approval_status', 'pending')
+                ->whereNotIn('id', $readApprovalCertificationIds)
+                ->count();
+        }
+        $approvalUnreadCount = $pendingRegistrationUnread + $pendingLicenseUnread + $pendingCertificationUnread;
 
         // ── 2. Fetch data sesuai tab ───────────────────────────────────────────
         if ($type === 'announcement') {
@@ -98,12 +131,7 @@ class InboxController extends Controller
 
             $paged = $query->latest()->paginate($perPage);
             $data  = $paged->getCollection()->map(fn($a) => $this->formatAnnouncement($a, $userId));
-
         } else {
-            // Gabungkan Hazard dan Inspection yang relevan.
-            // Hazard: tampil bagi PJA atau Tersangka Pelanggaran, hanya setelah lolos validasi admin.
-            // Tambahan: admin/superadmin juga melihat semua laporan dengan sub_status 'validating'
-            // sebagai antrian verifikasi mereka.
             $hQuery = HazardReport::with(['user'])
                 ->where(function ($q) use ($user, $isAdminOrSA) {
                     $q->where(function ($qq) use ($user) {
@@ -152,29 +180,49 @@ class InboxController extends Controller
                 $iQuery->where($searchCallback);
             }
 
-            // Gabungkan hasil (ini manual gabung karena beda tabel)
-            $hazards = $hQuery->get()->map(function(HazardReport $r) use ($userId) {
+            $hazards = $hQuery->get()->map(function (HazardReport $r) use ($userId) {
                 return $this->formatHazard($r, $userId);
             });
-            $inspections = $iQuery->get()->map(function(InspectionReport $r) use ($userId) {
+            $inspections = $iQuery->get()->map(function (InspectionReport $r) use ($userId) {
                 return $this->formatInspection($r, $userId);
             });
 
-            $merged = $hazards->concat($inspections)->sortByDesc('created_at')->values();
-            
-            // Manual pagination for merged collection
+            $approvalItems = collect();
+            if ($isSuper) {
+                $approvalItems = $this->pendingRegistrationItems($readApprovalRegistrationIds)
+                    ->concat($this->pendingLicenseItems($readApprovalLicenseIds))
+                    ->concat($this->pendingCertificationItems($readApprovalCertificationIds));
+
+                if ($isRead !== null) {
+                    $approvalItems = $approvalItems
+                        ->filter(fn(array $item) => (bool) $item['is_read'] === $isRead)
+                        ->values();
+                }
+
+                if ($search) {
+                    $approvalItems = $approvalItems
+                        ->filter(fn(array $item) => $this->matchesApprovalSearch($item, $search))
+                        ->values();
+                }
+            }
+
+            $merged = $hazards
+                ->concat($inspections)
+                ->concat($approvalItems)
+                ->sortByDesc('created_at')
+                ->values();
+
             $currentPage = $request->input('page', 1);
             $pagedData = $merged->forPage($currentPage, $perPage);
-            
+
             $data = $pagedData;
             $totalMerged = $merged->count();
-            
-            // Re-mocking pagination object values for response
+
             $metaExtra = [
                 'total'        => $totalMerged,
                 'per_page'     => $perPage,
-                'current_page' => (int)$currentPage,
-                'last_page'    => ceil($totalMerged / $perPage),
+                'current_page' => (int) $currentPage,
+                'last_page'    => (int) ceil($totalMerged / max($perPage, 1)),
                 'has_more'     => ($currentPage * $perPage) < $totalMerged,
             ];
         }
@@ -182,9 +230,10 @@ class InboxController extends Controller
         return response()->json([
             'status'       => 'success',
             'unread_count' => [
-                'total'         => $personalHazardUnread + $personalInspectionUnread + $unreadAnnouncementsCount,
-                'personal'      => $personalHazardUnread + $personalInspectionUnread,
+                'total'         => $personalHazardUnread + $personalInspectionUnread + $approvalUnreadCount + $unreadAnnouncementsCount,
+                'personal'      => $personalHazardUnread + $personalInspectionUnread + $approvalUnreadCount,
                 'announcements' => $unreadAnnouncementsCount,
+                'approvals'     => $approvalUnreadCount,
             ],
             'meta' => isset($metaExtra) ? $metaExtra : [
                 'total'        => $paged->total(),
@@ -201,7 +250,7 @@ class InboxController extends Controller
     {
         $request->validate([
             'item_id'   => 'required|string',
-            'item_type' => 'required|in:hazard_report,inspection_report,announcement',
+            'item_type' => 'required|in:hazard_report,inspection_report,announcement,approval_registration,approval_license,approval_certification',
         ]);
 
         ReadStatus::firstOrCreate([
@@ -218,7 +267,8 @@ class InboxController extends Controller
 
     public function markAllAsRead()
     {
-        $userId = Auth::id();
+        $user = Auth::user();
+        $userId = $user->id;
 
         // Mark all hazards
         foreach (HazardReport::pluck('id') as $id) {
@@ -247,10 +297,213 @@ class InboxController extends Controller
             ], ['read_at' => now()]);
         }
 
+        if ($user->role === 'superadmin') {
+            foreach (User::where('registration_status', 'pending')->pluck('id') as $id) {
+                ReadStatus::firstOrCreate([
+                    'user_id'   => $userId,
+                    'item_id'   => $id,
+                    'item_type' => 'approval_registration',
+                ], ['read_at' => now()]);
+            }
+
+            foreach (UserLicense::where('approval_status', 'pending')->pluck('id') as $id) {
+                ReadStatus::firstOrCreate([
+                    'user_id'   => $userId,
+                    'item_id'   => $id,
+                    'item_type' => 'approval_license',
+                ], ['read_at' => now()]);
+            }
+
+            foreach (UserCertification::where('approval_status', 'pending')->pluck('id') as $id) {
+                ReadStatus::firstOrCreate([
+                    'user_id'   => $userId,
+                    'item_id'   => $id,
+                    'item_type' => 'approval_certification',
+                ], ['read_at' => now()]);
+            }
+        }
+
         return response()->json([
             'status'  => 'success',
             'message' => 'All items marked as read',
         ]);
+    }
+
+    private function pendingRegistrationItems($readIds)
+    {
+        return User::where('registration_status', 'pending')
+            ->latest('created_at')
+            ->get()
+            ->map(function (User $user) use ($readIds) {
+                return $this->formatApprovalRegistration($user, $readIds->contains($user->id));
+            });
+    }
+
+    private function pendingLicenseItems($readIds)
+    {
+        return UserLicense::with('user')
+            ->where('approval_status', 'pending')
+            ->latest('submitted_at')
+            ->latest('created_at')
+            ->get()
+            ->map(function (UserLicense $license) use ($readIds) {
+                return $this->formatApprovalLicense($license, $readIds->contains($license->id));
+            });
+    }
+
+    private function pendingCertificationItems($readIds)
+    {
+        return UserCertification::with('user')
+            ->where('approval_status', 'pending')
+            ->latest('submitted_at')
+            ->latest('created_at')
+            ->get()
+            ->map(function (UserCertification $certification) use ($readIds) {
+                return $this->formatApprovalCertification($certification, $readIds->contains($certification->id));
+            });
+    }
+
+    private function formatApprovalRegistration(User $user, bool $isRead): array
+    {
+        return [
+            'id'              => $user->id,
+            'item_type'       => 'approval_registration',
+            'title'           => 'Registrasi Akun Baru',
+            'description'     => 'Mengajukan pembuatan akun SapaHSE',
+            'approval_status' => 'pending',
+            'submitted_at'    => $user->created_at?->toIso8601String(),
+            'is_read'         => $isRead,
+            'submitter'       => [
+                'id'             => $user->id,
+                'full_name'      => $user->full_name,
+                'employee_id'    => $user->employee_id,
+                'personal_email' => $user->personal_email,
+                'phone_number'   => $user->phone_number,
+                'position'       => $user->position,
+                'department'     => $user->department,
+                'company'        => $user->company,
+            ],
+            'created_at'      => $user->created_at?->toIso8601String(),
+            'time_ago'        => $user->created_at?->diffForHumans(),
+        ];
+    }
+
+    private function formatApprovalLicense(UserLicense $license, bool $isRead): array
+    {
+        $submittedAt = $license->submitted_at ?? $license->created_at;
+        $submitter = $license->user;
+
+        return [
+            'id'              => $license->id,
+            'item_type'       => 'approval_license',
+            'title'           => $license->name,
+            'description'     => 'Pengajuan input lisensi',
+            'approval_status' => $license->approval_status ?? 'pending',
+            'rejection_reason' => $license->rejection_reason,
+            'submitted_at'    => $submittedAt?->toIso8601String(),
+            'is_read'         => $isRead,
+            'submitter'       => $submitter ? [
+                'id'             => $submitter->id,
+                'full_name'      => $submitter->full_name,
+                'employee_id'    => $submitter->employee_id,
+                'personal_email' => $submitter->personal_email,
+                'phone_number'   => $submitter->phone_number,
+                'position'       => $submitter->position,
+                'department'     => $submitter->department,
+                'company'        => $submitter->company,
+            ] : null,
+            'item'            => [
+                'id'             => $license->id,
+                'name'           => $license->name,
+                'license_number' => $license->license_number,
+                'obtained_at'    => $license->obtained_at?->format('Y-m-d'),
+                'expired_at'     => $license->expired_at?->format('Y-m-d'),
+                'status'         => $license->status,
+                'file_url'       => $this->resolveFileUrl($license->file_path),
+            ],
+            'created_at'      => $submittedAt?->toIso8601String(),
+            'time_ago'        => $submittedAt?->diffForHumans(),
+        ];
+    }
+
+    private function formatApprovalCertification(UserCertification $certification, bool $isRead): array
+    {
+        $submittedAt = $certification->submitted_at ?? $certification->created_at;
+        $submitter = $certification->user;
+
+        return [
+            'id'              => $certification->id,
+            'item_type'       => 'approval_certification',
+            'title'           => $certification->name,
+            'description'     => 'Pengajuan input sertifikat',
+            'approval_status' => $certification->approval_status ?? 'pending',
+            'rejection_reason' => $certification->rejection_reason,
+            'submitted_at'    => $submittedAt?->toIso8601String(),
+            'is_read'         => $isRead,
+            'submitter'       => $submitter ? [
+                'id'             => $submitter->id,
+                'full_name'      => $submitter->full_name,
+                'employee_id'    => $submitter->employee_id,
+                'personal_email' => $submitter->personal_email,
+                'phone_number'   => $submitter->phone_number,
+                'position'       => $submitter->position,
+                'department'     => $submitter->department,
+                'company'        => $submitter->company,
+            ] : null,
+            'item'            => [
+                'id'          => $certification->id,
+                'name'        => $certification->name,
+                'issuer'      => $certification->issuer,
+                'obtained_at' => $certification->obtained_at?->format('Y-m-d'),
+                'expired_at'  => $certification->expired_at?->format('Y-m-d'),
+                'status'      => $certification->status,
+                'file_url'    => $this->resolveFileUrl($certification->file_path),
+            ],
+            'created_at'      => $submittedAt?->toIso8601String(),
+            'time_ago'        => $submittedAt?->diffForHumans(),
+        ];
+    }
+
+    private function resolveFileUrl(?string $filePath): ?string
+    {
+        if ($filePath === null || trim($filePath) === '') {
+            return null;
+        }
+
+        return filter_var($filePath, FILTER_VALIDATE_URL)
+            ? $filePath
+            : asset('storage/' . $filePath);
+    }
+
+    private function matchesApprovalSearch(array $item, string $search): bool
+    {
+        $needle = strtolower(trim($search));
+        if ($needle === '') {
+            return true;
+        }
+
+        $submitter = $item['submitter'] ?? [];
+        $approvalItem = $item['item'] ?? [];
+
+        $haystack = [
+            (string) ($item['title'] ?? ''),
+            (string) ($item['description'] ?? ''),
+            (string) ($submitter['full_name'] ?? ''),
+            (string) ($submitter['employee_id'] ?? ''),
+            (string) ($submitter['department'] ?? ''),
+            (string) ($submitter['company'] ?? ''),
+            (string) ($approvalItem['name'] ?? ''),
+            (string) ($approvalItem['license_number'] ?? ''),
+            (string) ($approvalItem['issuer'] ?? ''),
+        ];
+
+        foreach ($haystack as $value) {
+            if ($value !== '' && stripos($value, $needle) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function formatHazard(HazardReport $report, ?string $userId): array

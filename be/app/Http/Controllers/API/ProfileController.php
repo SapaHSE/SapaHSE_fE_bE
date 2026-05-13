@@ -152,15 +152,24 @@ class ProfileController extends Controller
             'expired_at'     => 'nullable|date', 
             'status'         => 'required|string|in:active,expired,suspended',
             'file'           => 'nullable|file|max:5120', // Max 5MB
+            'file_url'       => 'nullable|url|max:2048',
         ]);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
         $data = $request->only('name', 'license_number', 'obtained_at', 'expired_at', 'status');
+        $data['approval_status'] = 'pending';
+        $data['is_verified'] = false;
+        $data['rejection_reason'] = null;
+        $data['reviewed_by'] = null;
+        $data['reviewed_at'] = null;
+        $data['submitted_at'] = now();
         
         if ($request->hasFile('file')) {
             $data['file_path'] = $request->file('file')->store('licenses', 'public');
+        } elseif ($request->filled('file_url')) {
+            $data['file_path'] = $request->file_url;
         }
 
         $license = $user->licenses()->create($data);
@@ -248,15 +257,24 @@ class ProfileController extends Controller
             'expired_at'  => 'nullable|date',
             'status' => 'required|string|in:active,expired',
             'file'   => 'nullable|file|max:5120', // Max 5MB
+            'file_url' => 'nullable|url|max:2048',
         ]);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
         $data = $request->only('name', 'issuer', 'obtained_at', 'expired_at', 'status');
+        $data['approval_status'] = 'pending';
+        $data['is_verified'] = false;
+        $data['rejection_reason'] = null;
+        $data['reviewed_by'] = null;
+        $data['reviewed_at'] = null;
+        $data['submitted_at'] = now();
 
         if ($request->hasFile('file')) {
             $data['file_path'] = $request->file('file')->store('certifications', 'public');
+        } elseif ($request->filled('file_url')) {
+            $data['file_path'] = $request->file_url;
         }
 
         $cert = $user->certifications()->create($data);
@@ -460,17 +478,35 @@ class ProfileController extends Controller
                 'expired_at'     => $l->expired_at?->format('Y-m-d'),
                 'status'         => $l->status,
                 'is_verified'    => (bool) $l->is_verified,
-                'file_url'       => $l->file_path ? \asset('storage/' . $l->file_path) : null,
+                'approval_status'=> $l->approval_status,
+                'rejection_reason' => $l->rejection_reason,
+                'submitted_at'   => $l->submitted_at?->toIso8601String(),
+                'reviewed_at'    => $l->reviewed_at?->toIso8601String(),
+                'reviewed_by'    => $l->reviewed_by,
+                'file_url'       => $l->file_path
+                    ? (\filter_var($l->file_path, FILTER_VALIDATE_URL)
+                        ? $l->file_path
+                        : \asset('storage/' . $l->file_path))
+                    : null,
             ]) : [],
             'certifications' => $user->relationLoaded('certifications') ? $user->certifications->map(fn($c) => [
                 'id'          => $c->id,
                 'name'        => $c->name,
                 'issuer'      => $c->issuer,
-                'obtained_at' => $c->obtained_at,
-                'expired_at'  => $c->expired_at,
+                'obtained_at' => $c->obtained_at?->format('Y-m-d'),
+                'expired_at'  => $c->expired_at?->format('Y-m-d'),
                 'status'      => $c->status,
                 'is_verified' => (bool) $c->is_verified,
-                'file_url'    => $c->file_path ? \asset('storage/' . $c->file_path) : null,
+                'approval_status'=> $c->approval_status,
+                'rejection_reason' => $c->rejection_reason,
+                'submitted_at'   => $c->submitted_at?->toIso8601String(),
+                'reviewed_at'    => $c->reviewed_at?->toIso8601String(),
+                'reviewed_by'    => $c->reviewed_by,
+                'file_url'    => $c->file_path
+                    ? (\filter_var($c->file_path, FILTER_VALIDATE_URL)
+                        ? $c->file_path
+                        : \asset('storage/' . $c->file_path))
+                    : null,
             ]) : [],
             'medicals'       => $user->relationLoaded('medicals') ? $user->medicals->map(fn($m) => [
                 'id'                => $m->id,

@@ -11,6 +11,7 @@ use App\Models\UserLicense;
 use App\Models\UserCertification;
 use App\Mail\RegistrationRejectedMail;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -492,8 +493,29 @@ class AuthController extends Controller
     // PUT /api/admin/licenses/{id}/verify
     public function adminVerifyLicense(Request $request, $id)
     {
+        if ($request->boolean('is_verified', true)) {
+            return $this->adminApproveLicense($id);
+        }
+
         $license = UserLicense::findOrFail($id);
-        $license->update(['is_verified' => $request->boolean('is_verified', true)]);
+        $reason = trim((string) $request->input('reason', 'Ditolak melalui endpoint verifikasi lisensi.'));
+        if ($reason === '') {
+            $reason = 'Ditolak melalui endpoint verifikasi lisensi.';
+        }
+        if ($license->approval_status !== 'pending') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya lisensi dengan status pending yang dapat ditolak.',
+            ], 422);
+        }
+
+        $license->update([
+            'is_verified' => false,
+            'approval_status' => 'rejected',
+            'rejection_reason' => $reason,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
 
         return response()->json([
             'status'  => 'success',
@@ -505,13 +527,150 @@ class AuthController extends Controller
     // PUT /api/admin/certifications/{id}/verify
     public function adminVerifyCertification(Request $request, $id)
     {
+        if ($request->boolean('is_verified', true)) {
+            return $this->adminApproveCertification($id);
+        }
+
         $cert = UserCertification::findOrFail($id);
-        $cert->update(['is_verified' => $request->boolean('is_verified', true)]);
+        $reason = trim((string) $request->input('reason', 'Ditolak melalui endpoint verifikasi sertifikasi.'));
+        if ($reason === '') {
+            $reason = 'Ditolak melalui endpoint verifikasi sertifikasi.';
+        }
+        if ($cert->approval_status !== 'pending') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya sertifikasi dengan status pending yang dapat ditolak.',
+            ], 422);
+        }
+
+        $cert->update([
+            'is_verified' => false,
+            'approval_status' => 'rejected',
+            'rejection_reason' => $reason,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
 
         return response()->json([
             'status'  => 'success',
             'message' => 'Certification verification updated successfully.',
             'data'    => $cert,
+        ]);
+    }
+
+    // PUT /api/admin/licenses/{id}/approve
+    public function adminApproveLicense($id)
+    {
+        $license = UserLicense::with('user')->findOrFail($id);
+
+        if ($license->approval_status !== 'pending') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya lisensi dengan status pending yang dapat disetujui.',
+            ], 422);
+        }
+
+        $license->update([
+            'approval_status' => 'approved',
+            'is_verified' => true,
+            'rejection_reason' => null,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Lisensi berhasil disetujui.',
+            'data'    => $license->fresh(),
+        ]);
+    }
+
+    // POST /api/admin/licenses/{id}/reject
+    public function adminRejectLicense(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:2000',
+        ]);
+
+        $license = UserLicense::with('user')->findOrFail($id);
+
+        if ($license->approval_status !== 'pending') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya lisensi dengan status pending yang dapat ditolak.',
+            ], 422);
+        }
+
+        $license->update([
+            'approval_status' => 'rejected',
+            'is_verified' => false,
+            'rejection_reason' => trim((string) $request->input('reason')),
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Lisensi berhasil ditolak.',
+            'data'    => $license->fresh(),
+        ]);
+    }
+
+    // PUT /api/admin/certifications/{id}/approve
+    public function adminApproveCertification($id)
+    {
+        $certification = UserCertification::with('user')->findOrFail($id);
+
+        if ($certification->approval_status !== 'pending') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya sertifikasi dengan status pending yang dapat disetujui.',
+            ], 422);
+        }
+
+        $certification->update([
+            'approval_status' => 'approved',
+            'is_verified' => true,
+            'rejection_reason' => null,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Sertifikasi berhasil disetujui.',
+            'data'    => $certification->fresh(),
+        ]);
+    }
+
+    // POST /api/admin/certifications/{id}/reject
+    public function adminRejectCertification(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:2000',
+        ]);
+
+        $certification = UserCertification::with('user')->findOrFail($id);
+
+        if ($certification->approval_status !== 'pending') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya sertifikasi dengan status pending yang dapat ditolak.',
+            ], 422);
+        }
+
+        $certification->update([
+            'approval_status' => 'rejected',
+            'is_verified' => false,
+            'rejection_reason' => trim((string) $request->input('reason')),
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Sertifikasi berhasil ditolak.',
+            'data'    => $certification->fresh(),
         ]);
     }
 

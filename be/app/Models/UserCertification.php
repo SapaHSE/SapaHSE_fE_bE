@@ -16,16 +16,30 @@ class UserCertification extends Model
         'obtained_at',
         'expired_at',
         'status',
+        'is_verified',
+        'approval_status',
+        'rejection_reason',
+        'reviewed_by',
+        'reviewed_at',
+        'submitted_at',
         'file_path',
     ];
 
     protected $casts = [
         'obtained_at' => 'date',
         'expired_at'  => 'date',
+        'is_verified' => 'boolean',
+        'reviewed_at' => 'datetime',
+        'submitted_at' => 'datetime',
     ];
 
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }
