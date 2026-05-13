@@ -96,6 +96,10 @@ class UserLicense {
   final String? expiredAt;
   final String status;
   final bool isVerified;
+  final String approvalStatus;
+  final String? rejectionReason;
+  final String? submittedAt;
+  final String? reviewedAt;
   final String? fileUrl;
 
   UserLicense({
@@ -106,6 +110,10 @@ class UserLicense {
     this.expiredAt,
     required this.status,
     this.isVerified = false,
+    this.approvalStatus = 'pending',
+    this.rejectionReason,
+    this.submittedAt,
+    this.reviewedAt,
     this.fileUrl,
   });
 
@@ -118,6 +126,10 @@ class UserLicense {
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'active',
       isVerified: parseFlexibleBool(json['is_verified']),
+      approvalStatus: json['approval_status']?.toString() ?? 'pending',
+      rejectionReason: json['rejection_reason']?.toString(),
+      submittedAt: json['submitted_at']?.toString(),
+      reviewedAt: json['reviewed_at']?.toString(),
       fileUrl: normalizeStorageUrl(json['file_url']?.toString()),
     );
   }
@@ -133,6 +145,10 @@ class UserCertification {
   final String? expiredAt;
   final String status;
   final bool isVerified;
+  final String approvalStatus;
+  final String? rejectionReason;
+  final String? submittedAt;
+  final String? reviewedAt;
   final String? fileUrl;
 
   UserCertification({
@@ -143,6 +159,10 @@ class UserCertification {
     this.expiredAt,
     required this.status,
     this.isVerified = false,
+    this.approvalStatus = 'pending',
+    this.rejectionReason,
+    this.submittedAt,
+    this.reviewedAt,
     this.fileUrl,
   });
 
@@ -155,6 +175,10 @@ class UserCertification {
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'active',
       isVerified: parseFlexibleBool(json['is_verified']),
+      approvalStatus: json['approval_status']?.toString() ?? 'pending',
+      rejectionReason: json['rejection_reason']?.toString(),
+      submittedAt: json['submitted_at']?.toString(),
+      reviewedAt: json['reviewed_at']?.toString(),
       fileUrl: normalizeStorageUrl(json['file_url']?.toString()),
     );
   }

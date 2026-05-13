@@ -4,10 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/inbox_item.dart';
+import '../models/profile_model.dart';
 import '../models/report.dart';
+import '../services/api_service.dart';
+import '../services/approval_service.dart';
 import '../services/inbox_service.dart';
+import '../services/profile_service.dart';
 import '../services/report_service.dart';
 import 'report_detail_screen.dart';
+import '../widgets/approval_detail_sheet.dart';
+import '../widgets/approval_task_card.dart';
+import '../widgets/reject_reason_dialog.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/minimal_dropdown.dart';
 import '../services/storage_service.dart';
@@ -26,7 +33,7 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
 }
 
 enum _SubFilter { unread, read }
-enum _MyPostFilter { all, draft, validating, approved, rejected }
+enum _MyPostFilter { all, draft, validating, approved, rejected, license, certificate }
 enum _TaskStatusFilter {
   all,
   validating,
@@ -85,6 +92,8 @@ class _InboxScreenState extends State<InboxScreen>
   _SubFilter _activeFilter = _SubFilter.unread;
   _MyPostFilter _activeMyPostFilter = _MyPostFilter.all;
   _TaskStatusFilter _activeTaskStatusFilter = _TaskStatusFilter.all;
+  bool _isSuperadmin = false;
+  bool _isApprovalQueueExpanded = true;
   bool _isUrgentSectionExpanded = true;
   bool _isOtherSectionExpanded = true;
   bool _isSearching = false;
@@ -97,6 +106,9 @@ class _InboxScreenState extends State<InboxScreen>
   List<InboxItem> _announcements = [];
   List<Report> _myRawReports = [];
   List<ReportDraft> _myDrafts = [];
+  List<UserLicense> _myLicenses = [];
+  List<UserCertification> _myCertifications = [];
+  final Map<String, bool> _approvalActionLoading = {};
   bool _loadingReports = false;
   bool _loadingAnnouncements = false;
   bool _loadingMyReports = false;
@@ -147,6 +159,7 @@ class _InboxScreenState extends State<InboxScreen>
     if (user != null) {
       setState(() {
         _currentUserId = user['id']?.toString();
+        _isSuperadmin = (user['role']?.toString().toLowerCase() == 'superadmin');
       });
       _loadMyReports();
     }
@@ -213,10 +226,14 @@ class _InboxScreenState extends State<InboxScreen>
     final results = await Future.wait([
       ReportService.getReports(),
       CloudSaveService.instance.getDrafts(),
+      ProfileService.getLicenses(),
+      ProfileService.getCertifications(),
     ]);
 
     final reportResult = results[0] as ReportListResult;
     final drafts = results[1] as List<ReportDraft>;
+    final licensesResult = results[2] as LicensesResult;
+    final certificationsResult = results[3] as CertificationsResult;
 
     if (!mounted) return;
     setState(() {
@@ -229,6 +246,13 @@ class _InboxScreenState extends State<InboxScreen>
       } else {
         _errorMyReports = reportResult.errorMessage;
       }
+      _myLicenses = licensesResult.success ? licensesResult.licenses : [];
+      _myCertifications =
+          certificationsResult.success ? certificationsResult.certifications : [];
+      if (!licensesResult.success || !certificationsResult.success) {
+        _errorMyReports ??=
+            licensesResult.errorMessage ?? certificationsResult.errorMessage;
+      }
     });
   }
 
@@ -236,6 +260,8 @@ class _InboxScreenState extends State<InboxScreen>
     return InboxItem(
       id: r.id,
       itemType: InboxItemType.report,
+      backendItemType:
+          r.type == ReportType.hazard ? 'hazard_report' : 'inspection_report',
       isRead: true,
       title: r.title,
       createdAt: r.createdAt,
@@ -247,6 +273,59 @@ class _InboxScreenState extends State<InboxScreen>
       imageUrl: r.imageUrl,
       severity: r.severity,
       ticketNumber: r.ticketNumber,
+    );
+  }
+
+  DateTime? _parseDateTextOrNull(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    return DateTime.tryParse(raw.replaceFirst(' ', 'T'))?.toLocal();
+  }
+
+  InboxItem _licenseToInboxItem(UserLicense license) {
+    final submittedAt = _parseDateTextOrNull(license.submittedAt) ??
+        _parseDateTextOrNull(license.reviewedAt) ??
+        _parseDateTextOrNull(license.obtainedAt) ??
+        DateTime.now();
+    return InboxItem(
+      id: license.id,
+      itemType: InboxItemType.approvalLicense,
+      backendItemType: 'approval_license',
+      isRead: true,
+      title: license.name,
+      createdAt: submittedAt,
+      description: 'Nomor Lisensi: ${license.licenseNumber}',
+      approvalStatus: license.approvalStatus,
+      rejectionReason: license.rejectionReason,
+      submittedAt: _parseDateTextOrNull(license.submittedAt),
+      itemName: license.name,
+      itemNumber: license.licenseNumber,
+      itemFileUrl: license.fileUrl,
+      itemObtainedAt: _parseDateTextOrNull(license.obtainedAt),
+      itemExpiredAt: _parseDateTextOrNull(license.expiredAt),
+    );
+  }
+
+  InboxItem _certificationToInboxItem(UserCertification certification) {
+    final submittedAt = _parseDateTextOrNull(certification.submittedAt) ??
+        _parseDateTextOrNull(certification.reviewedAt) ??
+        _parseDateTextOrNull(certification.obtainedAt) ??
+        DateTime.now();
+    return InboxItem(
+      id: certification.id,
+      itemType: InboxItemType.approvalCertification,
+      backendItemType: 'approval_certification',
+      isRead: true,
+      title: certification.name,
+      createdAt: submittedAt,
+      description: 'Penerbit: ${certification.issuer}',
+      approvalStatus: certification.approvalStatus,
+      rejectionReason: certification.rejectionReason,
+      submittedAt: _parseDateTextOrNull(certification.submittedAt),
+      itemName: certification.name,
+      itemIssuer: certification.issuer,
+      itemFileUrl: certification.fileUrl,
+      itemObtainedAt: _parseDateTextOrNull(certification.obtainedAt),
+      itemExpiredAt: _parseDateTextOrNull(certification.expiredAt),
     );
   }
 
@@ -268,7 +347,16 @@ class _InboxScreenState extends State<InboxScreen>
   }
 
   // Reports where user is tagged (inbox tasks assigned to the user)
-  List<InboxItem> get _personalReports => _reports;
+  List<InboxItem> get _personalReports =>
+      _reports.where((i) => i.itemType == InboxItemType.report).toList();
+
+  List<InboxItem> get _pendingApprovalItems => _isSuperadmin
+      ? _reports
+          .where((i) =>
+              i.isApproval &&
+              (i.approvalStatus?.toLowerCase() ?? 'pending') == 'pending')
+          .toList()
+      : const [];
 
   // Filtered reports by status with sorting
   List<InboxItem> get _filteredReports {
@@ -332,6 +420,12 @@ class _InboxScreenState extends State<InboxScreen>
   List<InboxItem> get _myReports =>
       _myRawReports.map(_reportToInboxItem).toList();
 
+  List<InboxItem> get _myLicenseItems =>
+      _myLicenses.map(_licenseToInboxItem).toList();
+
+  List<InboxItem> get _myCertificationItems =>
+      _myCertifications.map(_certificationToInboxItem).toList();
+
   int _severityValue(ReportSeverity? s) {
     if (s == null) return 0;
     switch (s) {
@@ -378,6 +472,9 @@ class _InboxScreenState extends State<InboxScreen>
     final drafts = _myDrafts.map((d) => InboxItem(
           id: d.id,
           itemType: InboxItemType.report,
+          backendItemType: d.type == DraftType.hazard
+              ? 'hazard_report'
+              : 'inspection_report',
           isRead: true,
           title: '[DRAFT] ${d.title}',
           createdAt: d.createdAt,
@@ -388,24 +485,43 @@ class _InboxScreenState extends State<InboxScreen>
           location: d.data['location']?.toString() ?? '-',
           severity: _parseSeverity(d.data['severity']),
         )).toList();
+    final licenses = _myLicenseItems;
+    final certifications = _myCertificationItems;
+    final approvals = <InboxItem>[...licenses, ...certifications];
+    final reportApproved = _myReports.where((i) =>
+        i.subStatus != ReportSubStatus.validating &&
+        i.subStatus != ReportSubStatus.rejected &&
+        i.status != ReportStatus.closed);
+    final reportRejected = _myReports.where((i) => i.status == ReportStatus.closed);
+    final approvalPending = approvals
+        .where((i) => (i.approvalStatus ?? 'pending').toLowerCase() == 'pending');
+    final approvalApproved = approvals
+        .where((i) => (i.approvalStatus ?? '').toLowerCase() == 'approved');
+    final approvalRejected = approvals
+        .where((i) => (i.approvalStatus ?? '').toLowerCase() == 'rejected');
 
     switch (_activeMyPostFilter) {
       case _MyPostFilter.all:
-        final all = [...drafts, ..._myReports];
+        final all = [...drafts, ..._myReports, ...approvals];
         all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         return all;
       case _MyPostFilter.draft:
         return drafts;
       case _MyPostFilter.validating:
-        return _myReports.where((i) => i.subStatus == ReportSubStatus.validating).toList();
+        return [
+          ..._myReports.where((i) => i.subStatus == ReportSubStatus.validating),
+          ...approvalPending,
+        ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       case _MyPostFilter.approved:
-        return _myReports.where((i) =>
-          i.subStatus != ReportSubStatus.validating &&
-          i.subStatus != ReportSubStatus.rejected &&
-          i.status != ReportStatus.closed
-        ).toList();
+        return [...reportApproved, ...approvalApproved]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       case _MyPostFilter.rejected:
-        return _myReports.where((i) => i.status == ReportStatus.closed).toList();
+        return [...reportRejected, ...approvalRejected]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      case _MyPostFilter.license:
+        return [...licenses]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      case _MyPostFilter.certificate:
+        return [...certifications]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
   }
 
@@ -438,7 +554,7 @@ class _InboxScreenState extends State<InboxScreen>
   int get _readAnnouncementCount =>
       _announcements.where((i) => i.isRead).length;
 
-  int get _unreadReports => _personalReports.where((i) => !i.isRead).length;
+  int get _unreadReports => _reports.where((i) => !i.isRead).length;
   int get _unreadAnnouncements => _announcements.where((i) => !i.isRead).length;
   int get _unreadMyReports => _myReports.where((i) => !i.isRead).length;
 
@@ -451,9 +567,9 @@ class _InboxScreenState extends State<InboxScreen>
     });
 
     // Fire-and-forget — rollback if it fails.
-    final typeStr =
-        item.itemType == InboxItemType.report ? 'report' : 'announcement';
-    InboxService.markRead(itemId: item.id, itemType: typeStr).then((res) {
+    InboxService
+        .markRead(itemId: item.id, itemType: item.backendItemType)
+        .then((res) {
       if (!mounted) return;
       if (!res.success) {
         setState(() {
@@ -547,7 +663,9 @@ String _myPostFilterLabel(_MyPostFilter f) {
     case _MyPostFilter.draft: return 'Draft';
     case _MyPostFilter.validating: return 'Validating';
     case _MyPostFilter.approved: return 'Approved';
-    case _MyPostFilter.rejected: return 'Closed';
+    case _MyPostFilter.rejected: return 'Rejected';
+    case _MyPostFilter.license: return 'Lisensi';
+    case _MyPostFilter.certificate: return 'Sertifikat';
   }
 }
 
@@ -666,21 +784,52 @@ String _myPostFilterLabel(_MyPostFilter f) {
                               if (val != null) setState(() => _activeMyPostFilter = val);
                             },
                             items: _MyPostFilter.values.map((f) {
+                              final approvalItems = [
+                                ..._myLicenseItems,
+                                ..._myCertificationItems,
+                              ];
                               int count = 0;
                               if (f == _MyPostFilter.all) {
-                                count = _myDrafts.length + _myReports.length;
+                                count =
+                                    _myDrafts.length + _myReports.length + approvalItems.length;
                               } else if (f == _MyPostFilter.draft) {
                                 count = _myDrafts.length;
                               } else if (f == _MyPostFilter.validating) {
-                                count = _myReports.where((i) => i.subStatus == ReportSubStatus.validating).length;
+                                count = _myReports
+                                        .where((i) => i.subStatus == ReportSubStatus.validating)
+                                        .length +
+                                    approvalItems
+                                        .where((i) =>
+                                            (i.approvalStatus ?? 'pending')
+                                                .toLowerCase() ==
+                                            'pending')
+                                        .length;
                               } else if (f == _MyPostFilter.approved) {
                                 count = _myReports.where((i) =>
                                   i.subStatus != ReportSubStatus.validating &&
                                   i.subStatus != ReportSubStatus.rejected &&
                                   i.status != ReportStatus.closed
-                                ).length;
+                                ).length +
+                                    approvalItems
+                                        .where((i) =>
+                                            (i.approvalStatus ?? '')
+                                                .toLowerCase() ==
+                                            'approved')
+                                        .length;
                               } else if (f == _MyPostFilter.rejected) {
-                                count = _myReports.where((i) => i.status == ReportStatus.closed).length;
+                                count = _myReports
+                                        .where((i) => i.status == ReportStatus.closed)
+                                        .length +
+                                    approvalItems
+                                        .where((i) =>
+                                            (i.approvalStatus ?? '')
+                                                .toLowerCase() ==
+                                            'rejected')
+                                        .length;
+                              } else if (f == _MyPostFilter.license) {
+                                count = _myLicenseItems.length;
+                              } else if (f == _MyPostFilter.certificate) {
+                                count = _myCertificationItems.length;
                               }
                               return DropdownMenuItem(
                                 value: f,
@@ -776,6 +925,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
   }
 
   Widget _buildGroupedReportsList() {
+    final approvalItems = _pendingApprovalItems;
     final urgentReports = _urgentTaskReports;
     final otherReports = _otherTaskReports;
 
@@ -785,6 +935,20 @@ String _myPostFilterLabel(_MyPostFilter f) {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
         children: [
+          if (_isSuperadmin && approvalItems.isNotEmpty) ...[
+            _buildTaskSectionHeader(
+              title: 'Antrian Persetujuan',
+              count: approvalItems.length,
+              countLabel: 'pengajuan',
+              isExpanded: _isApprovalQueueExpanded,
+              onTap: () {
+                setState(() {
+                  _isApprovalQueueExpanded = !_isApprovalQueueExpanded;
+                });
+              },
+            ),
+            if (_isApprovalQueueExpanded) ...approvalItems.map(_buildTaskListItem),
+          ],
           _buildTaskSectionHeader(
             title: 'Butuh Tindakan Segera',
             count: urgentReports.length,
@@ -826,15 +990,218 @@ String _myPostFilterLabel(_MyPostFilter f) {
   }
 
   Widget _buildMyReportsTab() {
-    if (_loadingMyReports && _myRawReports.isEmpty) {
+    if (_loadingMyReports &&
+        _myRawReports.isEmpty &&
+        _myLicenses.isEmpty &&
+        _myCertifications.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_errorMyReports != null && _myRawReports.isEmpty) {
+    if (_errorMyReports != null &&
+        _myRawReports.isEmpty &&
+        _myLicenses.isEmpty &&
+        _myCertifications.isEmpty) {
       return _buildErrorState(_errorMyReports!, _loadMyReports);
     }
     return RefreshIndicator(
       onRefresh: _loadMyReports,
-      child: _buildList(_activeMyReports, isAnnouncement: false),
+      child: _buildMyPostList(_activeMyReports),
+    );
+  }
+
+  Widget _buildMyPostList(List<InboxItem> list) {
+    if (list.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.5,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.inbox_outlined, size: 52, color: Colors.grey.shade300),
+                  const SizedBox(height: 12),
+                  Text(
+                    _getEmptyStateMessage(),
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      itemCount: list.length,
+      itemBuilder: (context, i) {
+        final item = list[i];
+        if (item.isApproval) {
+          return _buildMyApprovalStatusCard(item);
+        }
+        return _buildTaskCard(item);
+      },
+    );
+  }
+
+  ({String label, Color bg, Color fg, Color border}) _approvalStatusStyle(
+      String? rawStatus) {
+    final status = (rawStatus ?? 'pending').toLowerCase();
+    switch (status) {
+      case 'approved':
+        return (
+          label: 'Disetujui',
+          bg: const Color(0xFFE8F5E9),
+          fg: const Color(0xFF2E7D32),
+          border: const Color(0xFFB7E1BC)
+        );
+      case 'rejected':
+        return (
+          label: 'Ditolak',
+          bg: const Color(0xFFFFEBEE),
+          fg: const Color(0xFFC62828),
+          border: const Color(0xFFFFCDD2)
+        );
+      default:
+        return (
+          label: 'Menunggu',
+          bg: const Color(0xFFFFF8E1),
+          fg: const Color(0xFFEF6C00),
+          border: const Color(0xFFFFE082)
+        );
+    }
+  }
+
+  Widget _buildMyApprovalStatusCard(InboxItem item) {
+    final style = _approvalStatusStyle(item.approvalStatus);
+    final isLicense = item.itemType == InboxItemType.approvalLicense;
+    final icon = isLicense ? Icons.badge_outlined : Icons.workspace_premium_outlined;
+    final accent = isLicense ? const Color(0xFFEF6C00) : const Color(0xFF6A1B9A);
+    final subtitle = isLicense
+        ? (item.itemNumber?.isNotEmpty == true
+            ? 'No. ${item.itemNumber}'
+            : (item.description ?? '-'))
+        : (item.itemIssuer?.isNotEmpty == true
+            ? 'Penerbit: ${item.itemIssuer}'
+            : (item.description ?? '-'));
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => _showMyApprovalDetail(context, item),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: accent.withValues(alpha: 0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: accent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: style.bg,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: style.border),
+                  ),
+                  child: Text(
+                    style.label,
+                    style: TextStyle(
+                      color: style.fg,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.event_outlined, size: 14, color: Colors.grey),
+                const SizedBox(width: 6),
+                Text(
+                  _formatDate(item.submittedAt ?? item.createdAt),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            if ((item.rejectionReason ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Ada alasan penolakan. Tap kartu untuk lihat detail.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMyApprovalDetail(BuildContext context, InboxItem item) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ApprovalDetailSheet(
+        item: item,
+        showActionButtons: false,
+      ),
     );
   }
 
@@ -896,6 +1263,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
     required int count,
     required bool isExpanded,
     required VoidCallback onTap,
+    String countLabel = 'laporan',
   }) {
     return InkWell(
       onTap: onTap,
@@ -909,7 +1277,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
             ),
             const Spacer(),
             Text(
-              '$count laporan',
+              '$count $countLabel',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(width: 4),
@@ -929,9 +1297,24 @@ String _myPostFilterLabel(_MyPostFilter f) {
   Widget _buildTaskListItem(InboxItem item) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: _buildTaskCard(item),
+      child: item.isApproval ? _buildApprovalTaskCard(item) : _buildTaskCard(item),
     );
   }
+
+  Widget _buildApprovalTaskCard(InboxItem item) => ApprovalTaskCard(
+        item: item,
+        isProcessing: _approvalActionLoading[item.id] == true,
+        onTap: () {
+          _markItemRead(item);
+          _showApprovalDetail(context, item);
+        },
+        onApprove: () {
+          _handleApprovalCardAction(item, approve: true);
+        },
+        onReject: () {
+          _handleApprovalCardAction(item, approve: false);
+        },
+      );
 
   Widget _buildTaskCard(InboxItem item) => _InboxCard(
         item: item,
@@ -942,14 +1325,135 @@ String _myPostFilterLabel(_MyPostFilter f) {
         severityColor: _severityColor,
         onDetail: () {
           _markItemRead(item);
-          Navigator.push(
-            context,
-            _FadePageRoute(
-              builder: (_) => ReportDetailScreen(report: item.toReport()),
-            ),
-          );
+          if (item.isApproval) {
+            _showApprovalDetail(context, item);
+          } else {
+            Navigator.push(
+              context,
+              _FadePageRoute(
+                builder: (_) => ReportDetailScreen(report: item.toReport()),
+              ),
+            );
+          }
         },
       );
+
+  Future<void> _handleApprovalCardAction(
+    InboxItem item, {
+    required bool approve,
+  }) async {
+    if (_approvalActionLoading[item.id] == true) return;
+
+    String? reason;
+    if (!approve) {
+      reason = await showRejectReasonDialog(
+        context,
+        title: 'Tolak Pengajuan',
+        confirmLabel: 'Tolak',
+      );
+      if (reason == null) return;
+    }
+
+    setState(() => _approvalActionLoading[item.id] = true);
+    final ok = await _runApprovalAction(
+      item: item,
+      approve: approve,
+      reason: reason,
+    );
+    if (!mounted) return;
+    setState(() => _approvalActionLoading.remove(item.id));
+    if (ok) {
+      await Future.wait([_loadReports(), _loadMyReports()]);
+    }
+  }
+
+  Future<bool> _runApprovalAction({
+    required InboxItem item,
+    required bool approve,
+    String? reason,
+  }) async {
+    ApiResponse response;
+    switch (item.itemType) {
+      case InboxItemType.approvalRegistration:
+        response = approve
+            ? await ApprovalService.approveRegistration(item.id)
+            : await ApprovalService.rejectRegistration(item.id, reason ?? '');
+        break;
+      case InboxItemType.approvalLicense:
+        response = approve
+            ? await ApprovalService.approveLicense(item.id)
+            : await ApprovalService.rejectLicense(item.id, reason ?? '');
+        break;
+      case InboxItemType.approvalCertification:
+        response = approve
+            ? await ApprovalService.approveCertification(item.id)
+            : await ApprovalService.rejectCertification(item.id, reason ?? '');
+        break;
+      default:
+        return false;
+    }
+
+    if (!mounted) return false;
+
+    if (response.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            approve ? 'Pengajuan berhasil disetujui.' : 'Pengajuan berhasil ditolak.',
+          ),
+        ),
+      );
+      return true;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(response.errorMessage ?? 'Gagal memproses persetujuan.'),
+      ),
+    );
+    return false;
+  }
+
+  void _showApprovalDetail(BuildContext context, InboxItem item) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ApprovalDetailSheet(
+        item: item,
+        onApprove: () async {
+          final ok = await _runApprovalAction(item: item, approve: true);
+          if (ok) {
+            await Future.wait([_loadReports(), _loadMyReports()]);
+          }
+          return ok;
+        },
+        onReject: () async {
+          final reason = await showRejectReasonDialog(
+            context,
+            title: 'Tolak Pengajuan',
+            confirmLabel: 'Tolak',
+          );
+          if (reason == null) return false;
+          final ok = await _runApprovalAction(
+            item: item,
+            approve: false,
+            reason: reason,
+          );
+          if (ok) {
+            await Future.wait([_loadReports(), _loadMyReports()]);
+          }
+          return ok;
+        },
+        onDone: () {
+          _loadReports();
+          _loadMyReports();
+        },
+      ),
+    );
+  }
 
   Widget _buildErrorState(String message, Future<void> Function() onRetry) {
     return Center(
@@ -980,6 +1484,8 @@ String _myPostFilterLabel(_MyPostFilter f) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      isDismissible: true,
+      enableDrag: true,
       backgroundColor: Colors.transparent,
       builder: (sheetCtx) => DraggableScrollableSheet(
         initialChildSize: 0.6,

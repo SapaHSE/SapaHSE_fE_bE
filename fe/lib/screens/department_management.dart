@@ -211,7 +211,7 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
               : RefreshIndicator(
                   onRefresh: _loadInitialData,
                   child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
                     itemCount: _departments.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {

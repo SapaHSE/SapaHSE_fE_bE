@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/company_service.dart';
 import '../services/department_service.dart';
+import '../widgets/reject_reason_dialog.dart';
 import 'package:sapahse/main.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -149,58 +150,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _rejectUser(String id) async {
-    final reasonCtrl = TextEditingController();
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text(
-          'Tolak Pendaftaran',
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Berikan alasan penolakan (opsional):',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reasonCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText:
-                    'Contoh: NIK tidak ditemukan atau data tidak valid...',
-                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Tolak Pendaftaran',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+    final reason = await showRejectReasonDialog(
+      context,
+      title: 'Tolak Pendaftaran',
+      description: 'Berikan alasan penolakan:',
+      hintText: 'Contoh: NIK tidak ditemukan atau data tidak valid...',
+      confirmLabel: 'Tolak Pendaftaran',
+      requireReason: false,
     );
-
-    if (confirm == true) {
+    if (reason != null) {
       setState(() => _isLoadingUnapproved = true);
       final response = await ApiService.post('/admin/users/$id/reject', {
-        'reason': reasonCtrl.text.trim(),
+        'reason': reason,
       });
       if (mounted) {
         setState(() => _isLoadingUnapproved = false);
@@ -549,7 +510,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 64),
                   itemCount: users.length,
                   itemBuilder: (context, index) {
                     final user = users[index];
@@ -715,7 +676,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 64),
       itemCount: _unapprovedUsers.length,
       itemBuilder: (context, index) {
         final user = _unapprovedUsers[index];
@@ -887,7 +848,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 64),
       itemCount: _rejectedUsers.length,
       itemBuilder: (context, index) {
         final log = _rejectedUsers[index];
@@ -1523,7 +1484,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         ),
                     ],
                   ],
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 88),
                 ],
               ),
             ),

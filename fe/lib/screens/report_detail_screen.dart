@@ -68,7 +68,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   static const double _kBottomBarGap = 8.0;
   static const double _kScrollFabDialogBase = 16.0;
   static const double _kScrollFabSnackbarLift = 72.0;
-  static const double _kBottomReachedThreshold = 20.0;
+  static const double _kBottomReachedThreshold = 5.0;
 
   @override
   void initState() {
@@ -1226,7 +1226,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     },
                   ),
 
-                  const SizedBox(height: 136),
+                  const SizedBox(height: 160),
                 ],
               ),
             ),

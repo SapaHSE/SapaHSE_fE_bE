@@ -313,7 +313,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                     : RefreshIndicator(
                         onRefresh: () => _fetchViolations(refresh: true),
                         child: ListView.builder(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 64),
                           itemCount: _violations.length +
                               (_currentPage < _lastPage ? 1 : 0),
                           itemBuilder: (context, index) {

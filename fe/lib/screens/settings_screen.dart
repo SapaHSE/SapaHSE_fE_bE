@@ -208,7 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 100),
+        padding: const EdgeInsets.only(bottom: 148),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

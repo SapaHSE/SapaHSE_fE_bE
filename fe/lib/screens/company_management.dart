@@ -293,7 +293,7 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 148),
         children: [
           _buildInfoBanner(),
           const SizedBox(height: 16),

@@ -343,7 +343,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           builder: (_) => const SettingsScreen()));
                 },
               ),
-              const SizedBox(height: 80),
+              const SizedBox(height: 128),
             ],
           ),
         ),
@@ -602,7 +602,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isSuperAdmin || (role == 'admin' && department.contains('hse'));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 80),
+      padding: const EdgeInsets.only(bottom: 128),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -280,7 +280,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                         .toList(),
                   ),
 
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 160),
                 ],
               ),
             ),

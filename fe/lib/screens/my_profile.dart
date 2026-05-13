@@ -352,7 +352,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             _buildSubTabBar(),
             const SizedBox(height: 20),
             _buildSubTabContent(),
-            const SizedBox(height: 40),
+            const SizedBox(height: 200),
           ],
         ),
       ),
@@ -1838,6 +1838,22 @@ class _LicenseContent extends StatelessWidget {
         children: [
           ...licenses.map((l) {
             final isAktif = l.isActive;
+            final approvalStatus = l.approvalStatus.toLowerCase();
+            final approvalLabel = approvalStatus == 'approved'
+                ? 'Disetujui'
+                : approvalStatus == 'rejected'
+                    ? 'Ditolak'
+                    : 'Menunggu';
+            final approvalBg = approvalStatus == 'approved'
+                ? const Color(0xFFE8F5E9)
+                : approvalStatus == 'rejected'
+                    ? const Color(0xFFFFEBEE)
+                    : const Color(0xFFFFF8E1);
+            final approvalFg = approvalStatus == 'approved'
+                ? const Color(0xFF2E7D32)
+                : approvalStatus == 'rejected'
+                    ? const Color(0xFFC62828)
+                    : const Color(0xFFEF6C00);
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
@@ -1898,28 +1914,73 @@ class _LicenseContent extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if (approvalStatus == 'rejected' &&
+                            (l.rejectionReason ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          TextButton.icon(
+                            onPressed: () {
+                              showDialog<void>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Alasan Penolakan Lisensi'),
+                                  content: Text(l.rejectionReason!.trim()),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('Tutup'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.info_outline, size: 16),
+                            label: const Text('Lihat Alasan'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isAktif
-                          ? const Color(0xFFE8F5E9)
-                          : const Color(0xFFFFEBEE),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      isAktif ? 'Aktif' : 'Expired',
-                      style: TextStyle(
-                        color: isAktif
-                            ? const Color(0xFF2E7D32)
-                            : const Color(0xFFD32F2F),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: approvalBg,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          approvalLabel,
+                          style: TextStyle(
+                            color: approvalFg,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isAktif
+                              ? const Color(0xFFE8F5E9)
+                              : const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isAktif ? 'Aktif' : 'Expired',
+                          style: TextStyle(
+                            color: isAktif
+                                ? const Color(0xFF2E7D32)
+                                : const Color(0xFFD32F2F),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1945,6 +2006,22 @@ class _CertificationContent extends StatelessWidget {
         children: [
           ...certifications.map((c) {
             final isAktif = c.isActive;
+            final approvalStatus = c.approvalStatus.toLowerCase();
+            final approvalLabel = approvalStatus == 'approved'
+                ? 'Disetujui'
+                : approvalStatus == 'rejected'
+                    ? 'Ditolak'
+                    : 'Menunggu';
+            final approvalBg = approvalStatus == 'approved'
+                ? const Color(0xFFE8F5E9)
+                : approvalStatus == 'rejected'
+                    ? const Color(0xFFFFEBEE)
+                    : const Color(0xFFFFF8E1);
+            final approvalFg = approvalStatus == 'approved'
+                ? const Color(0xFF2E7D32)
+                : approvalStatus == 'rejected'
+                    ? const Color(0xFFC62828)
+                    : const Color(0xFFEF6C00);
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
@@ -2003,28 +2080,74 @@ class _CertificationContent extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if (approvalStatus == 'rejected' &&
+                            (c.rejectionReason ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          TextButton.icon(
+                            onPressed: () {
+                              showDialog<void>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title:
+                                      const Text('Alasan Penolakan Sertifikat'),
+                                  content: Text(c.rejectionReason!.trim()),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('Tutup'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.info_outline, size: 16),
+                            label: const Text('Lihat Alasan'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isAktif
-                          ? const Color(0xFFE8F5E9)
-                          : const Color(0xFFFFF3E0),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      isAktif ? 'Aktif' : 'Renew',
-                      style: TextStyle(
-                        color: isAktif
-                            ? const Color(0xFF2E7D32)
-                            : const Color(0xFFEF6C00),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: approvalBg,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          approvalLabel,
+                          style: TextStyle(
+                            color: approvalFg,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isAktif
+                              ? const Color(0xFFE8F5E9)
+                              : const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          isAktif ? 'Aktif' : 'Renew',
+                          style: TextStyle(
+                            color: isAktif
+                                ? const Color(0xFF2E7D32)
+                                : const Color(0xFFEF6C00),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

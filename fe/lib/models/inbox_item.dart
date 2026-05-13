@@ -1,7 +1,13 @@
 import '../utils/url_helper.dart';
 import 'report.dart';
 
-enum InboxItemType { report, announcement }
+enum InboxItemType {
+  report,
+  announcement,
+  approvalRegistration,
+  approvalLicense,
+  approvalCertification,
+}
 
 class InboxReporter {
   final String fullName;
@@ -66,6 +72,7 @@ class InboxChecklistItem {
 class InboxItem {
   final String id;
   final InboxItemType itemType;
+  final String backendItemType;
   bool isRead; // mutable for optimistic updates
   final String title;
   final DateTime createdAt;
@@ -101,9 +108,28 @@ class InboxItem {
   final String? fromName;
   final InboxAuthor? createdBy;
 
+  // Approval-only
+  final String? submitterName;
+  final String? submitterDept;
+  final String? submitterCompany;
+  final String? submitterEmail;
+  final String? submitterEmployeeId;
+  final String? submitterPosition;
+  final String? submitterPhone;
+  final String? itemName;
+  final String? itemNumber;
+  final String? itemIssuer;
+  final String? itemFileUrl;
+  final DateTime? itemObtainedAt;
+  final DateTime? itemExpiredAt;
+  final String? approvalStatus;
+  final String? rejectionReason;
+  final DateTime? submittedAt;
+
   InboxItem({
     required this.id,
     required this.itemType,
+    required this.backendItemType,
     required this.isRead,
     required this.title,
     required this.createdAt,
@@ -134,20 +160,42 @@ class InboxItem {
     this.body,
     this.fromName,
     this.createdBy,
+    this.submitterName,
+    this.submitterDept,
+    this.submitterCompany,
+    this.submitterEmail,
+    this.submitterEmployeeId,
+    this.submitterPosition,
+    this.submitterPhone,
+    this.itemName,
+    this.itemNumber,
+    this.itemIssuer,
+    this.itemFileUrl,
+    this.itemObtainedAt,
+    this.itemExpiredAt,
+    this.approvalStatus,
+    this.rejectionReason,
+    this.submittedAt,
   });
 
   factory InboxItem.fromJson(Map<String, dynamic> json) {
-    final type = json['item_type']?.toString() == 'announcement'
-        ? InboxItemType.announcement
-        : InboxItemType.report;
+    final rawType = json['item_type']?.toString() ?? 'hazard_report';
+    final type = switch (rawType) {
+      'announcement' => InboxItemType.announcement,
+      'approval_registration' => InboxItemType.approvalRegistration,
+      'approval_license' => InboxItemType.approvalLicense,
+      'approval_certification' => InboxItemType.approvalCertification,
+      _ => InboxItemType.report,
+    };
 
-    final createdAt = _parseDate(json['created_at']);
+    final createdAt = _parseDate(json['created_at'] ?? json['submitted_at']);
 
     if (type == InboxItemType.announcement) {
       final rawCreator = json['created_by'];
       return InboxItem(
         id: json['id']?.toString() ?? '',
         itemType: InboxItemType.announcement,
+        backendItemType: rawType,
         isRead: json['is_read'] == true,
         title: json['title']?.toString() ?? '-',
         createdAt: createdAt,
@@ -157,6 +205,46 @@ class InboxItem {
         createdBy: rawCreator is Map<String, dynamic>
             ? InboxAuthor.fromJson(rawCreator)
             : null,
+      );
+    }
+
+    if (type == InboxItemType.approvalRegistration ||
+        type == InboxItemType.approvalLicense ||
+        type == InboxItemType.approvalCertification) {
+      final rawSubmitter = json['submitter'];
+      final submitter = rawSubmitter is Map
+          ? Map<String, dynamic>.from(rawSubmitter)
+          : const <String, dynamic>{};
+      final rawApprovalItem = json['item'];
+      final approvalItem = rawApprovalItem is Map
+          ? Map<String, dynamic>.from(rawApprovalItem)
+          : const <String, dynamic>{};
+
+      return InboxItem(
+        id: json['id']?.toString() ?? '',
+        itemType: type,
+        backendItemType: rawType,
+        isRead: json['is_read'] == true,
+        title: json['title']?.toString() ?? '-',
+        createdAt: createdAt,
+        timeAgo: json['time_ago']?.toString(),
+        description: json['description']?.toString(),
+        approvalStatus: json['approval_status']?.toString(),
+        rejectionReason: json['rejection_reason']?.toString(),
+        submittedAt: _parseDateOrNull(json['submitted_at']),
+        submitterName: submitter['full_name']?.toString(),
+        submitterDept: submitter['department']?.toString(),
+        submitterCompany: submitter['company']?.toString(),
+        submitterEmail: submitter['personal_email']?.toString(),
+        submitterEmployeeId: submitter['employee_id']?.toString(),
+        submitterPosition: submitter['position']?.toString(),
+        submitterPhone: submitter['phone_number']?.toString(),
+        itemName: approvalItem['name']?.toString(),
+        itemNumber: approvalItem['license_number']?.toString(),
+        itemIssuer: approvalItem['issuer']?.toString(),
+        itemFileUrl: normalizeStorageUrl(approvalItem['file_url']?.toString()),
+        itemObtainedAt: _parseDateOrNull(approvalItem['obtained_at']),
+        itemExpiredAt: _parseDateOrNull(approvalItem['expired_at']),
       );
     }
 
@@ -189,6 +277,7 @@ class InboxItem {
     return InboxItem(
       id: json['id']?.toString() ?? '',
       itemType: InboxItemType.report,
+      backendItemType: rawType,
       isRead: json['is_read'] == true,
       title: json['title']?.toString() ?? '-',
       createdAt: createdAt,
@@ -224,6 +313,11 @@ class InboxItem {
           ((json['sisa_hari'] as num?)?.toInt() ?? 0) < 0,
     );
   }
+
+  bool get isApproval =>
+      itemType == InboxItemType.approvalRegistration ||
+      itemType == InboxItemType.approvalLicense ||
+      itemType == InboxItemType.approvalCertification;
 
   /// Builds a minimal [Report] for navigation into ReportDetailScreen.
   Report toReport() {
