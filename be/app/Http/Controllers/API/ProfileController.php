@@ -41,6 +41,9 @@ class ProfileController extends Controller
             'position'      => 'nullable|string|max:100',
             'department'    => 'nullable|string|max:100',
             'company'       => 'nullable|string|max:100',
+            'tipe_afiliasi' => 'nullable|string|max:50',
+            'perusahaan_kontraktor' => 'nullable|string|max:100',
+            'sub_kontraktor' => 'nullable|string|max:100',
             'address'       => 'nullable|string|max:500',
             'profile_photo' => 'nullable|image|max:2048',
             'profile_photo_url' => 'nullable|url|max:2048',
@@ -53,6 +56,11 @@ class ProfileController extends Controller
         if ($request->filled('position'))     $user->position     = $request->position;
         if ($request->filled('department'))   $user->department   = $request->department;
         if ($request->filled('company'))      $user->company      = $request->company;
+        if ($request->has('tipe_afiliasi')) $user->tipe_afiliasi = $request->tipe_afiliasi;
+        if ($request->has('perusahaan_kontraktor')) {
+            $user->perusahaan_kontraktor = $request->perusahaan_kontraktor;
+        }
+        if ($request->has('sub_kontraktor')) $user->sub_kontraktor = $request->sub_kontraktor;
         if ($request->filled('address'))      $user->address      = $request->address;
 
         if ($request->hasFile('profile_photo')) {
