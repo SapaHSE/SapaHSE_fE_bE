@@ -382,6 +382,7 @@ class InboxController extends Controller
                 'position'       => $user->position,
                 'department'     => $user->department,
                 'company'        => $user->company,
+                'profile_photo'  => $this->resolveFileUrl($user->profile_photo),
             ],
             'created_at'      => $user->created_at?->toIso8601String(),
             'time_ago'        => $user->created_at?->diffForHumans(),
@@ -411,6 +412,7 @@ class InboxController extends Controller
                 'position'       => $submitter->position,
                 'department'     => $submitter->department,
                 'company'        => $submitter->company,
+                'profile_photo'  => $this->resolveFileUrl($submitter->profile_photo),
             ] : null,
             'item'            => [
                 'id'             => $license->id,
@@ -449,6 +451,7 @@ class InboxController extends Controller
                 'position'       => $submitter->position,
                 'department'     => $submitter->department,
                 'company'        => $submitter->company,
+                'profile_photo'  => $this->resolveFileUrl($submitter->profile_photo),
             ] : null,
             'item'            => [
                 'id'          => $certification->id,
