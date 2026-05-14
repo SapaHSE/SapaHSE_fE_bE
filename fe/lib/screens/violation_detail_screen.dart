@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/profile_model.dart';
 import '../main.dart';
+import '../widgets/fab_notched_bottom_bar.dart';
 
 class ViolationDetailScreen extends StatelessWidget {
   final UserViolation violation;
@@ -155,40 +156,34 @@ class ViolationDetailScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        
-        
-        color: Colors.white,
-        
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _DetailNavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  index: 0,
-                  onTap: (idx) => _onTabTapped(context, idx)),
-              _DetailNavItem(
-                  icon: Icons.article_outlined,
-                  label: 'News',
-                  index: 1,
-                  onTap: (idx) => _onTabTapped(context, idx)),
-              const SizedBox(width: 48),
-              _DetailNavItem(
-                  icon: Icons.inbox_outlined,
-                  label: 'Inbox',
-                  index: 3,
-                  onTap: (idx) => _onTabTapped(context, idx)),
-              _DetailNavItem(
-                  icon: Icons.menu,
-                  label: 'Menu',
-                  index: 4,
-                  isActive: true,
-                  onTap: (idx) => _onTabTapped(context, idx)),
-            ],
-          ),
+      bottomNavigationBar: FabNotchedBottomBar(
+        notchRadius: 0,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _DetailNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                onTap: (idx) => _onTabTapped(context, idx)),
+            _DetailNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                onTap: (idx) => _onTabTapped(context, idx)),
+            const SizedBox(width: 56),
+            _DetailNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                onTap: (idx) => _onTabTapped(context, idx)),
+            _DetailNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                isActive: true,
+                onTap: (idx) => _onTabTapped(context, idx)),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton(

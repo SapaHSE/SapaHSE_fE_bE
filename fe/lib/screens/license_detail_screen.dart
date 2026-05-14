@@ -4,6 +4,7 @@ import 'dart:io';
 import '../models/profile_model.dart';
 import '../services/profile_service.dart';
 import '../main.dart';
+import '../widgets/fab_notched_bottom_bar.dart';
 
 class LicenseDetailScreen extends StatefulWidget {
   final UserLicense license;
@@ -224,40 +225,34 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        
-        
-        color: Colors.white,
-        
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _DetailNavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  index: 0,
-                  onTap: _onTabTapped),
-              _DetailNavItem(
-                  icon: Icons.article_outlined,
-                  label: 'News',
-                  index: 1,
-                  onTap: _onTabTapped),
-              const SizedBox(width: 48),
-              _DetailNavItem(
-                  icon: Icons.inbox_outlined,
-                  label: 'Inbox',
-                  index: 3,
-                  onTap: _onTabTapped),
-              _DetailNavItem(
-                  icon: Icons.menu,
-                  label: 'Menu',
-                  index: 4,
-                  isActive: true,
-                  onTap: _onTabTapped),
-            ],
-          ),
+      bottomNavigationBar: FabNotchedBottomBar(
+        notchRadius: 0,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _DetailNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                onTap: _onTabTapped),
+            _DetailNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                onTap: _onTabTapped),
+            const SizedBox(width: 56),
+            _DetailNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                onTap: _onTabTapped),
+            _DetailNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                isActive: true,
+                onTap: _onTabTapped),
+          ],
         ),
       ),
       floatingActionButton: FloatingActionButton(

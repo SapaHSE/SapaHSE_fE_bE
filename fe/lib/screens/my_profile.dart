@@ -15,6 +15,7 @@ import 'package:sapahse/utils/approval_status_ui.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/utils/url_helper.dart';
 import 'package:sapahse/main.dart';
+import 'package:sapahse/widgets/fab_notched_bottom_bar.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -27,6 +28,62 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
           },
           transitionDuration: const Duration(milliseconds: 200),
         );
+}
+
+String _displayValue(String? value) =>
+    parseNullableDisplayName(value)?.trim() ?? '';
+
+bool _sameDisplayValue(String a, String b) =>
+    a.trim().toLowerCase() == b.trim().toLowerCase();
+
+String companyLookupKey(String value) {
+  final normalized = value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[.,]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ');
+  return normalized.startsWith('pt ')
+      ? normalized.substring(3).trim()
+      : normalized;
+}
+
+String _ownerCompanyDisplay(
+  String owner,
+  Map<String, String> ownerCompanyCodeLookup,
+) {
+  if (owner.isEmpty) return '';
+  final key = companyLookupKey(owner);
+  return ownerCompanyCodeLookup[key] ?? '';
+}
+
+String formatCompanyAffiliation({
+  required String? tipeAfiliasi,
+  required String? ownerCompany,
+  required String? contractorCompany,
+  required String? subContractorCompany,
+  Map<String, String> ownerCompanyCodeLookup = const {},
+}) {
+  final type = _displayValue(tipeAfiliasi).toLowerCase();
+  final owner = _displayValue(ownerCompany);
+  final ownerCode = _ownerCompanyDisplay(owner, ownerCompanyCodeLookup);
+  final contractor = _displayValue(contractorCompany);
+  final subContractor = _displayValue(subContractorCompany);
+
+  String withOwner(String primary) {
+    if (primary.isEmpty) return ownerCode.isEmpty ? '-' : ownerCode;
+    if (ownerCode.isEmpty || _sameDisplayValue(primary, ownerCode)) {
+      return primary;
+    }
+    return '$primary ($ownerCode)';
+  }
+
+  if (type == 'kontraktor') {
+    return withOwner(contractor);
+  }
+  if (type == 'sub-kontraktor' || type == 'sub-kont.') {
+    return withOwner(subContractor);
+  }
+  return ownerCode.isEmpty ? '-' : ownerCode;
 }
 
 class MyProfileScreen extends StatefulWidget {
@@ -45,6 +102,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   Map<String, dynamic>? _cachedUser;
   String? _loadError;
   List<String> _ownerList = [];
+  Map<String, String> _ownerCodeByName = const {};
   List<String> _kontraktorList = [];
   List<String> _subkontraktorList = [];
   bool _isFetchingCompanies = false;
@@ -111,6 +169,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       if (!mounted) return;
       setState(() {
         _ownerList = results[0].map((e) => e.name).toList();
+        _ownerCodeByName = {
+          for (final company in results[0])
+            if ((company.code ?? '').trim().isNotEmpty)
+              companyLookupKey(company.name): company.code!.trim(),
+          for (final company in results[0])
+            if ((company.code ?? '').trim().isNotEmpty)
+              companyLookupKey(company.code!): company.code!.trim(),
+        };
         _kontraktorList = results[1].map((e) => e.name).toList();
         _subkontraktorList = results[2].map((e) => e.name).toList();
       });
@@ -434,7 +500,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F0F0),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('My Profile',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
@@ -468,43 +534,36 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
       extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: Colors.white,
-        elevation: 8,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _ProfileNavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  index: 0,
-                  currentIndex: 4,
-                  onTap: _onTabTapped),
-              _ProfileNavItem(
-                  icon: Icons.article_outlined,
-                  label: 'News',
-                  index: 1,
-                  currentIndex: 4,
-                  onTap: _onTabTapped),
-              const SizedBox(width: 48),
-              _ProfileNavItem(
-                  icon: Icons.inbox_outlined,
-                  label: 'Inbox',
-                  index: 3,
-                  currentIndex: 4,
-                  onTap: _onTabTapped),
-              _ProfileNavItem(
-                  icon: Icons.menu,
-                  label: 'Menu',
-                  index: 4,
-                  currentIndex: 4,
-                  onTap: _onTabTapped),
-            ],
-          ),
+      bottomNavigationBar: FabNotchedBottomBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _ProfileNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _ProfileNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            const SizedBox(width: 56),
+            _ProfileNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _ProfileNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+          ],
         ),
       ),
     );
@@ -520,9 +579,15 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final department = parseNullableDisplayName(_profileData?.department) ??
         parseNullableDisplayName(_cachedUser?['department']) ??
         '-';
-    final company = parseNullableDisplayName(_profileData?.company) ??
-        parseNullableDisplayName(_cachedUser?['company']) ??
-        '-';
+    final company = _profileData == null
+        ? parseNullableDisplayName(_cachedUser?['company']) ?? '-'
+        : formatCompanyAffiliation(
+            tipeAfiliasi: _profileData?.tipeAfiliasi,
+            ownerCompany: _profileData?.company,
+            contractorCompany: _profileData?.perusahaanKontraktor,
+            subContractorCompany: _profileData?.subKontraktor,
+            ownerCompanyCodeLookup: _ownerCodeByName,
+          );
     final initials = name
         .split(' ')
         .take(2)
@@ -708,7 +773,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   Widget _buildSubTabContent() {
     switch (_selectedSubTab) {
       case 0:
-        return _BiodataContent(data: _profileData);
+        return _BiodataContent(
+          data: _profileData,
+          ownerCompanyCodeLookup: _ownerCodeByName,
+        );
       case 1:
         return _LicenseContent(
           licenses: _profileData?.licenses ?? [],
@@ -758,14 +826,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (modalContext, setModalState) => Container(
           decoration: const BoxDecoration(
             color: Color(0xFFF5F5F5),
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -781,7 +849,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(sheetContext),
                     ),
                     const Expanded(
                       child: Text(
@@ -1015,7 +1083,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               const SizedBox(height: 16),
                               GestureDetector(
                                 onTap: () => _showDepartmentPicker(
-                                    context, deptCtrl, setModalState),
+                                    modalContext, deptCtrl, setModalState),
                                 child: _buildSheetField(
                                   'Departemen',
                                   deptCtrl,
@@ -1118,7 +1186,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               return;
                             }
 
-                            Navigator.pop(context);
+                            Navigator.pop(sheetContext);
                             setState(() => _isLoading = true);
 
                             final result = await ProfileService.updateProfile(
@@ -1140,9 +1208,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               imagePath: localImageFile?.path,
                             );
 
-                            if (!context.mounted) return;
+                            if (!mounted) return;
                             if (result.success) {
-                              _loadProfile();
+                              await _loadProfile();
+                              if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                     content: Text('Profil berhasil diperbarui')),
@@ -1365,8 +1434,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (modalContext, setModalState) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1375,7 +1444,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -1389,7 +1458,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     const Spacer(),
                     IconButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(sheetContext),
                         icon: const Icon(Icons.close)),
                   ],
                 ),
@@ -1397,7 +1466,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 _buildFieldLabel('Golongan Darah'),
                 InkWell(
                   onTap: () => _showBloodTypePicker(
-                      context, bloodTypeCtrl, setModalState),
+                      modalContext, bloodTypeCtrl, setModalState),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 14),
@@ -1430,7 +1499,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 _buildFieldLabel('Tinggi Badan (cm)'),
                 InkWell(
                   onTap: () =>
-                      _showHeightPicker(context, heightCtrl, setModalState),
+                      _showHeightPicker(modalContext, heightCtrl, setModalState),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 14),
@@ -1544,10 +1613,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   height: 54,
                   child: ElevatedButton(
                     onPressed: () async {
-                      Navigator.pop(context);
+                      Navigator.pop(sheetContext);
                       setState(() => _isLoading = true);
 
                       final result = await ProfileService.updateMedical(
+                        id: latest?.id,
                         bloodType: bloodTypeCtrl.text,
                         height: heightCtrl.text,
                         weight: weightCtrl.text,
@@ -1561,9 +1631,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         currentIllness: currentIllnessCtrl.text,
                       );
 
-                      if (!context.mounted) return;
+                      if (!mounted) return;
                       if (result.success) {
-                        _loadProfile();
+                        await _loadProfile();
                       } else {
                         setState(() => _isLoading = false);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1664,8 +1734,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (modalContext, setModalState) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1674,7 +1744,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1687,7 +1757,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const Spacer(),
                   IconButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(sheetContext),
                       icon: const Icon(Icons.close)),
                 ],
               ),
@@ -1709,7 +1779,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               InkWell(
                 onTap: () async {
                   final picked = await showDatePicker(
-                    context: context,
+                    context: modalContext,
                     initialDate: DateTime.now(),
                     firstDate:
                         DateTime.now().subtract(const Duration(days: 365 * 5)),
@@ -1750,7 +1820,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               InkWell(
                 onTap: () async {
                   final picked = await showDatePicker(
-                    context: context,
+                    context: modalContext,
                     initialDate: DateTime.now(),
                     firstDate:
                         DateTime.now().subtract(const Duration(days: 365 * 5)),
@@ -1812,7 +1882,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       return;
                     }
 
-                    Navigator.pop(context); // Close modal
+                    Navigator.pop(sheetContext); // Close modal
                     setState(() => _isLoading = true);
 
                     final result = await ProfileService.addLicense(
@@ -1827,14 +1897,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       imageFile: _licenseImage,
                     );
 
-                    if (!context.mounted) return;
+                    if (!mounted) return;
                     if (result.success) {
                       _licenseNameController.clear();
                       _licenseNumberController.clear();
                       _licenseObtainedAt = null;
                       _licenseSelectedDate = null;
                       _licenseImage = null;
-                      _loadProfile(); // Refresh
+                      await _loadProfile(); // Refresh
                     } else {
                       setState(() => _isLoading = false);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1864,8 +1934,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (modalContext, setModalState) => Container(
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1874,7 +1944,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1887,7 +1957,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const Spacer(),
                   IconButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.pop(sheetContext),
                       icon: const Icon(Icons.close)),
                 ],
               ),
@@ -1910,7 +1980,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               InkWell(
                 onTap: () async {
                   final picked = await showDatePicker(
-                    context: context,
+                    context: modalContext,
                     initialDate: DateTime.now(),
                     firstDate:
                         DateTime.now().subtract(const Duration(days: 365 * 10)),
@@ -1951,7 +2021,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               InkWell(
                 onTap: () async {
                   final picked = await showDatePicker(
-                    context: context,
+                    context: modalContext,
                     initialDate: DateTime.now(),
                     firstDate:
                         DateTime.now().subtract(const Duration(days: 365 * 10)),
@@ -2011,7 +2081,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       return;
                     }
 
-                    Navigator.pop(context); // Close modal
+                    Navigator.pop(sheetContext); // Close modal
                     setState(() => _isLoading = true);
 
                     final result = await ProfileService.addCertification(
@@ -2026,14 +2096,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       imageFile: _certImage,
                     );
 
-                    if (!context.mounted) return;
+                    if (!mounted) return;
                     if (result.success) {
                       _certNameController.clear();
                       _certIssuerController.clear();
                       _certObtainedAt = null;
                       _certExpiredAt = null;
                       _certImage = null;
-                      _loadProfile(); // Refresh
+                      await _loadProfile(); // Refresh
                     } else {
                       setState(() => _isLoading = false);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -2119,7 +2189,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
 class _BiodataContent extends StatelessWidget {
   final ProfileData? data;
-  const _BiodataContent({this.data});
+  final Map<String, String> ownerCompanyCodeLookup;
+  const _BiodataContent({
+    this.data,
+    this.ownerCompanyCodeLookup = const {},
+  });
 
   void _copyToClipboard(BuildContext context, String label, String? value) {
     if (value != null && value != '-' && value.isNotEmpty) {
@@ -2177,15 +2251,17 @@ class _BiodataContent extends StatelessWidget {
           _buildTitle('INFORMATION EMPLOYEE'),
           _buildCard([
             _buildRow(context, 'Tipe Afiliasi', data?.tipeAfiliasi ?? '-'),
-            _buildRow(context, 'Perusahaan Owner', data?.company ?? '-'),
-            if (data?.tipeAfiliasi == 'Kontraktor' ||
-                data?.tipeAfiliasi == 'Sub-Kontraktor' ||
-                data?.tipeAfiliasi == 'Sub-Kont.')
-              _buildRow(context, 'Perusahaan Kontraktor',
-                  data?.perusahaanKontraktor ?? '-'),
-            if (data?.tipeAfiliasi == 'Sub-Kontraktor' ||
-                data?.tipeAfiliasi == 'Sub-Kont.')
-              _buildRow(context, 'Sub-Kontraktor', data?.subKontraktor ?? '-'),
+            _buildRow(
+              context,
+              'Perusahaan',
+              formatCompanyAffiliation(
+                tipeAfiliasi: data?.tipeAfiliasi,
+                ownerCompany: data?.company,
+                contractorCompany: data?.perusahaanKontraktor,
+                subContractorCompany: data?.subKontraktor,
+                ownerCompanyCodeLookup: ownerCompanyCodeLookup,
+              ),
+            ),
             _buildRow(context, 'Departemen', data?.department ?? '-'),
             _buildRow(context, 'Jabatan', data?.position ?? '-'),
           ]),

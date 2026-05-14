@@ -194,6 +194,7 @@ class InboxItem {
 
     if (type == InboxItemType.announcement) {
       final rawCreator = json['created_by'];
+
       return InboxItem(
         id: json['id']?.toString() ?? '',
         itemType: InboxItemType.announcement,
@@ -221,6 +222,8 @@ class InboxItem {
       final approvalItem = rawApprovalItem is Map
           ? Map<String, dynamic>.from(rawApprovalItem)
           : const <String, dynamic>{};
+      final submitterPhotoUrl =
+          normalizeStorageUrl(submitter['profile_photo']?.toString());
 
       return InboxItem(
         id: json['id']?.toString() ?? '',
@@ -241,12 +244,13 @@ class InboxItem {
         submitterEmployeeId: submitter['employee_id']?.toString(),
         submitterPosition: submitter['position']?.toString(),
         submitterPhone: submitter['phone_number']?.toString(),
-        submitterPhotoUrl:
-            normalizeStorageUrl(submitter['profile_photo']?.toString()),
+        submitterPhotoUrl: submitterPhotoUrl,
         itemName: approvalItem['name']?.toString(),
         itemNumber: approvalItem['license_number']?.toString(),
         itemIssuer: approvalItem['issuer']?.toString(),
-        itemFileUrl: normalizeStorageUrl(approvalItem['file_url']?.toString()),
+        itemFileUrl: type == InboxItemType.approvalRegistration
+            ? submitterPhotoUrl
+            : normalizeStorageUrl(approvalItem['file_url']?.toString()),
         itemObtainedAt: _parseDateOrNull(approvalItem['obtained_at']),
         itemExpiredAt: _parseDateOrNull(approvalItem['expired_at']),
       );

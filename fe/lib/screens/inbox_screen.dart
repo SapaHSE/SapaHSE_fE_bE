@@ -1260,6 +1260,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
       if (reason == null) return;
     }
 
+    if (!mounted) return;
     setState(() => _approvalActionLoading[item.id] = true);
     final ok = await _runApprovalAction(
       item: item,

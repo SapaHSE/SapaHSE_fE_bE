@@ -3,6 +3,7 @@ import '../services/report_service.dart';
 import '../services/storage_service.dart';
 import 'package:sapahse/main.dart';
 import '../widgets/minimal_dropdown.dart';
+import '../widgets/fab_notched_bottom_bar.dart';
 
 class KategoriLaporanScreen extends StatefulWidget {
   const KategoriLaporanScreen({super.key});
@@ -364,23 +365,16 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
       ),
       extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: Colors.white,
-        elevation: 8,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _KategoriNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
-              _KategoriNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
-              const SizedBox(width: 48),
-              _KategoriNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
-              _KategoriNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
-            ],
-          ),
+      bottomNavigationBar: FabNotchedBottomBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _KategoriNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
+            _KategoriNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+            const SizedBox(width: 56),
+            _KategoriNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
+            _KategoriNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+          ],
         ),
       ),
     );

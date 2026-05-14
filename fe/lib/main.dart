@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -14,11 +15,17 @@ import 'screens/profile_screen.dart';
 import 'screens/create_hazard_screen.dart';
 import 'screens/create_inspection_screen.dart';
 import 'screens/qr_scan_screen.dart';
+import 'widgets/fab_notched_bottom_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    systemNavigationBarColor: Colors.black,
+    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarDividerColor: Colors.black,
+  ));
   await SharedPreferences.getInstance();
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
@@ -394,27 +401,20 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       ),
 
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: Colors.white,
-        elevation: 8,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(icon: Icons.home, label: 'Home', index: 0,
-                  currentIndex: _currentIndex, onTap: _onTabTapped),
-              _NavItem(icon: Icons.article_outlined, label: 'News', index: 1,
-                  currentIndex: _currentIndex, onTap: _onTabTapped),
-              const SizedBox(width: 48),
-              _NavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3,
-                  currentIndex: _currentIndex, onTap: _onTabTapped),
-              _NavItem(icon: Icons.menu, label: 'Menu', index: 4,
-                  currentIndex: _currentIndex, onTap: _onTabTapped),
-            ],
-          ),
+      bottomNavigationBar: FabNotchedBottomBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _NavItem(icon: Icons.home, label: 'Home', index: 0,
+                currentIndex: _currentIndex, onTap: _onTabTapped),
+            _NavItem(icon: Icons.article_outlined, label: 'News', index: 1,
+                currentIndex: _currentIndex, onTap: _onTabTapped),
+            const SizedBox(width: 56),
+            _NavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3,
+                currentIndex: _currentIndex, onTap: _onTabTapped),
+            _NavItem(icon: Icons.menu, label: 'Menu', index: 4,
+                currentIndex: _currentIndex, onTap: _onTabTapped),
+          ],
         ),
       ),
     );

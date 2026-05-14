@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../data/news_data.dart';
 import '../services/news_service.dart';
 import 'package:sapahse/main.dart';
+import '../widgets/fab_notched_bottom_bar.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -297,23 +298,16 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
       ),
       extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: Colors.white,
-        elevation: 8,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NewsNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 1, onTap: _onTabTapped),
-              _NewsNavItem(icon: Icons.article, label: 'News', index: 1, currentIndex: 1, onTap: _onTabTapped),
-              const SizedBox(width: 48),
-              _NewsNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 1, onTap: _onTabTapped),
-              _NewsNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 1, onTap: _onTabTapped),
-            ],
-          ),
+      bottomNavigationBar: FabNotchedBottomBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _NewsNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 1, onTap: _onTabTapped),
+            _NewsNavItem(icon: Icons.article, label: 'News', index: 1, currentIndex: 1, onTap: _onTabTapped),
+            const SizedBox(width: 56),
+            _NewsNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 1, onTap: _onTabTapped),
+            _NewsNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 1, onTap: _onTabTapped),
+          ],
         ),
       ),
     );

@@ -5,6 +5,7 @@ import '../services/storage_service.dart';
 import 'package:intl/intl.dart';
 import '../main.dart';
 import 'dart:async';
+import '../widgets/fab_notched_bottom_bar.dart';
 
 String _userInitial(dynamic value) {
   final text = value?.toString().trim() ?? '';
@@ -31,6 +32,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _userRole;
   String? _userDept;
+  String _selectedStatus = 'Semua';
 
   bool get _hasFullAccess {
     if (_userRole == 'superadmin') return true;
@@ -232,6 +234,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
     final result = await ViolationService.getViolations(
       page: _currentPage,
       search: _searchController.text,
+      status: _selectedStatus,
     );
 
     if (mounted) {
@@ -303,8 +306,10 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                 ],
               ),
             )
-          else
+          else ...[
             _buildSearchBar(),
+            _buildFilterRow(),
+          ],
           Expanded(
             child: _isLoading && _violations.isEmpty
                 ? const Center(child: CircularProgressIndicator())
@@ -313,7 +318,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                     : RefreshIndicator(
                         onRefresh: () => _fetchViolations(refresh: true),
                         child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
                           itemCount: _violations.length +
                               (_currentPage < _lastPage ? 1 : 0),
                           itemBuilder: (context, index) {
@@ -342,43 +347,36 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
           : null,
       extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: Colors.white,
-        elevation: 8,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  index: 0,
-                  currentIndex: 4,
-                  onTap: _onTabTapped),
-              _NavItem(
-                  icon: Icons.article_outlined,
-                  label: 'News',
-                  index: 1,
-                  currentIndex: 4,
-                  onTap: _onTabTapped),
-              const SizedBox(width: 48),
-              _NavItem(
-                  icon: Icons.inbox_outlined,
-                  label: 'Inbox',
-                  index: 3,
-                  currentIndex: 4,
-                  onTap: _onTabTapped),
-              _NavItem(
-                  icon: Icons.menu,
-                  label: 'Menu',
-                  index: 4,
-                  currentIndex: 4,
-                  onTap: _onTabTapped),
-            ],
-          ),
+      bottomNavigationBar: FabNotchedBottomBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _NavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _NavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            const SizedBox(width: 56),
+            _NavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _NavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+          ],
         ),
       ),
     );
@@ -401,6 +399,51 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
           ),
         ),
         onChanged: _onSearchChanged,
+      ),
+    );
+  }
+
+  Widget _buildFilterRow() {
+    final statuses = ['Semua', 'Aktif', 'Selesai'];
+    return Container(
+      height: 50,
+      color: Colors.white,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: statuses.length,
+        itemBuilder: (context, index) {
+          final status = statuses[index];
+          final isSelected = _selectedStatus == status;
+
+          Color color = Colors.blue;
+          if (status == 'Aktif') color = Colors.red;
+          if (status == 'Selesai') color = Colors.green;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: ChoiceChip(
+              label: Text(
+                status,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: color,
+              backgroundColor: color.withValues(alpha: 0.05),
+              side: BorderSide(
+                  color: isSelected ? color : color.withValues(alpha: 0.2)),
+              onSelected: (selected) {
+                if (!selected) return;
+                setState(() => _selectedStatus = status);
+                _fetchViolations(refresh: true);
+              },
+            ),
+          );
+        },
       ),
     );
   }

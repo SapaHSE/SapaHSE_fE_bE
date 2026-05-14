@@ -4,6 +4,7 @@ import '../services/storage_service.dart';
 import '../services/company_service.dart';
 import '../services/department_service.dart';
 import '../widgets/reject_reason_dialog.dart';
+import '../widgets/fab_notched_bottom_bar.dart';
 import 'package:sapahse/main.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -407,47 +408,40 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ),
         extendBody: true,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        bottomNavigationBar: BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 8,
-          color: Colors.white,
-          elevation: 8,
-          child: SizedBox(
-            height: 60,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _UserNavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  index: 0,
-                  currentIndex: 4,
-                  onTap: _onTabTapped,
-                ),
-                _UserNavItem(
-                  icon: Icons.article_outlined,
-                  label: 'News',
-                  index: 1,
-                  currentIndex: 4,
-                  onTap: _onTabTapped,
-                ),
-                const SizedBox(width: 48),
-                _UserNavItem(
-                  icon: Icons.inbox_outlined,
-                  label: 'Inbox',
-                  index: 3,
-                  currentIndex: 4,
-                  onTap: _onTabTapped,
-                ),
-                _UserNavItem(
-                  icon: Icons.menu,
-                  label: 'Menu',
-                  index: 4,
-                  currentIndex: 4,
-                  onTap: _onTabTapped,
-                ),
-              ],
-            ),
+        bottomNavigationBar: FabNotchedBottomBar(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _UserNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped,
+              ),
+              _UserNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped,
+              ),
+              const SizedBox(width: 56),
+              _UserNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped,
+              ),
+              _UserNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped,
+              ),
+            ],
           ),
         ),
       ),
@@ -511,7 +505,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 64),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
                   itemCount: users.length,
                   itemBuilder: (context, index) {
                     final user = users[index];
@@ -1505,47 +1499,40 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           : null,
       extendBody: true,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: Colors.white,
-        elevation: 8,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _UserNavItem(
-                icon: Icons.home,
-                label: 'Home',
-                index: 0,
-                currentIndex: 4,
-                onTap: _onDetailTabTapped,
-              ),
-              _UserNavItem(
-                icon: Icons.article_outlined,
-                label: 'News',
-                index: 1,
-                currentIndex: 4,
-                onTap: _onDetailTabTapped,
-              ),
-              const SizedBox(width: 48),
-              _UserNavItem(
-                icon: Icons.inbox_outlined,
-                label: 'Inbox',
-                index: 3,
-                currentIndex: 4,
-                onTap: _onDetailTabTapped,
-              ),
-              _UserNavItem(
-                icon: Icons.menu,
-                label: 'Menu',
-                index: 4,
-                currentIndex: 4,
-                onTap: _onDetailTabTapped,
-              ),
-            ],
-          ),
+      bottomNavigationBar: FabNotchedBottomBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _UserNavItem(
+              icon: Icons.home,
+              label: 'Home',
+              index: 0,
+              currentIndex: 4,
+              onTap: _onDetailTabTapped,
+            ),
+            _UserNavItem(
+              icon: Icons.article_outlined,
+              label: 'News',
+              index: 1,
+              currentIndex: 4,
+              onTap: _onDetailTabTapped,
+            ),
+            const SizedBox(width: 56),
+            _UserNavItem(
+              icon: Icons.inbox_outlined,
+              label: 'Inbox',
+              index: 3,
+              currentIndex: 4,
+              onTap: _onDetailTabTapped,
+            ),
+            _UserNavItem(
+              icon: Icons.menu,
+              label: 'Menu',
+              index: 4,
+              currentIndex: 4,
+              onTap: _onDetailTabTapped,
+            ),
+          ],
         ),
       ),
     );

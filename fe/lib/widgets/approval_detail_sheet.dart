@@ -276,6 +276,10 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
     final submitDate = item.submittedAt ?? item.createdAt;
     final status = _statusStyle(item.approvalStatus);
     final sheetHeight = MediaQuery.of(context).size.height * 0.85;
+    final attachmentTitle =
+        item.itemType == InboxItemType.approvalRegistration
+            ? 'Foto Profil'
+            : 'Lampiran Dokumen';
 
     return SizedBox(
       height: sheetHeight,
@@ -407,9 +411,9 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                   ],
                   if ((item.itemFileUrl ?? '').isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    const Text(
-                      'Lampiran Dokumen',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    Text(
+                      attachmentTitle,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     const SizedBox(height: 4),
                     const Text(

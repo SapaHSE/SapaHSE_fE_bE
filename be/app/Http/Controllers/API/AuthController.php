@@ -400,6 +400,7 @@ class AuthController extends Controller
             ->update(['status' => 'Selesai']);
 
         $search = $request->query('search');
+        $status = $request->query('status');
         $perPage = $request->query('per_page', 10);
 
         $query = UserViolation::with('user:id,full_name,employee_id,profile_photo')
@@ -414,6 +415,10 @@ class AuthController extends Controller
                             ->orWhere('employee_id', 'like', "%{$search}%");
                     });
             });
+        }
+
+        if ($status && $status !== 'Semua') {
+            $query->where('status', $status);
         }
 
         $violations = $query->paginate($perPage);

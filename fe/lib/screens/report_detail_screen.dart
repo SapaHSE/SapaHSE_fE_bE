@@ -12,6 +12,7 @@ import '../services/storage_service.dart';
 import '../services/supabase_storage_service.dart';
 import '../config/supabase_config.dart';
 import '../main.dart';
+import '../widgets/fab_notched_bottom_bar.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -567,43 +568,36 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       ),
       bottomNavigationBar: widget.isDialog
           ? null
-          : BottomAppBar(
-              shape: const CircularNotchedRectangle(),
-              notchMargin: 8,
-              color: Colors.white,
-              elevation: 8,
-              child: SizedBox(
-                height: 60,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _ReportDetailNavItem(
-                        icon: Icons.home,
-                        label: 'Home',
-                        index: 0,
-                        currentIndex: -1,
-                        onTap: _onTabTapped),
-                    _ReportDetailNavItem(
-                        icon: Icons.article_outlined,
-                        label: 'News',
-                        index: 1,
-                        currentIndex: -1,
-                        onTap: _onTabTapped),
-                    const SizedBox(width: 48),
-                    _ReportDetailNavItem(
-                        icon: Icons.inbox_outlined,
-                        label: 'Inbox',
-                        index: 3,
-                        currentIndex: -1,
-                        onTap: _onTabTapped),
-                    _ReportDetailNavItem(
-                        icon: Icons.menu,
-                        label: 'Menu',
-                        index: 4,
-                        currentIndex: -1,
-                        onTap: _onTabTapped),
-                  ],
-                ),
+          : FabNotchedBottomBar(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _ReportDetailNavItem(
+                      icon: Icons.home,
+                      label: 'Home',
+                      index: 0,
+                      currentIndex: -1,
+                      onTap: _onTabTapped),
+                  _ReportDetailNavItem(
+                      icon: Icons.article_outlined,
+                      label: 'News',
+                      index: 1,
+                      currentIndex: -1,
+                      onTap: _onTabTapped),
+                  const SizedBox(width: 56),
+                  _ReportDetailNavItem(
+                      icon: Icons.inbox_outlined,
+                      label: 'Inbox',
+                      index: 3,
+                      currentIndex: -1,
+                      onTap: _onTabTapped),
+                  _ReportDetailNavItem(
+                      icon: Icons.menu,
+                      label: 'Menu',
+                      index: 4,
+                      currentIndex: -1,
+                      onTap: _onTabTapped),
+                ],
               ),
             ),
       appBar: widget.isDialog

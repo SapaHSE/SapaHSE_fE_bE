@@ -116,12 +116,31 @@ class ApprovalTaskCard extends StatelessWidget {
     );
   }
 
+  Widget _buildRegistrationDefaultImage() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: _accent.withValues(alpha: 0.12),
+      alignment: Alignment.center,
+      child: Text(
+        _initials(item.submitterName),
+        style: TextStyle(
+          color: _accent,
+          fontSize: 28,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0,
+        ),
+      ),
+    );
+  }
+
   Widget _buildImagePreview() {
     final imageUrl = (item.itemFileUrl ?? '').trim();
     if (!_isRegistration && imageUrl.isNotEmpty) {
       return CachedNetworkImage(
         imageUrl: imageUrl,
         width: double.infinity,
+        height: double.infinity,
         fit: BoxFit.cover,
         placeholder: (_, __) => Container(
           color: Colors.grey.shade200,
@@ -136,45 +155,18 @@ class ApprovalTaskCard extends StatelessWidget {
       return CachedNetworkImage(
         imageUrl: photoUrl,
         width: double.infinity,
+        height: double.infinity,
         fit: BoxFit.cover,
         placeholder: (_, __) => Container(
           color: Colors.grey.shade200,
           child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         ),
-        errorWidget: (_, __, ___) => Container(
-          color: Colors.grey.shade100,
-          alignment: Alignment.center,
-          child: CircleAvatar(
-            radius: 24,
-            backgroundColor: _accent.withValues(alpha: 0.18),
-            child: Text(
-              _initials(item.submitterName),
-              style: TextStyle(
-                color: _accent,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ),
+        errorWidget: (_, __, ___) => _buildRegistrationDefaultImage(),
       );
     }
 
     if (_isRegistration) {
-      return Container(
-        color: Colors.grey.shade100,
-        alignment: Alignment.center,
-        child: CircleAvatar(
-          radius: 24,
-          backgroundColor: _accent.withValues(alpha: 0.18),
-          child: Text(
-            _initials(item.submitterName),
-            style: TextStyle(
-              color: _accent,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      );
+      return _buildRegistrationDefaultImage();
     }
 
     return _buildInputDefaultIcon();

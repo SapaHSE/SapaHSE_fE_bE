@@ -14,3 +14,4 @@ fe/linux/flutter/generated_plugins.cmake
 fe/macos/Flutter/GeneratedPluginRegistrant.swift
 fe/windows/flutter/generated_plugin_registrant.cc
 fe/windows/flutter/generated_plugins.cmake
+.vscode/launch.json

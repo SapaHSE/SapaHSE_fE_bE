@@ -139,6 +139,7 @@ class ProfileService {
 
   // ── Update Medical ──────────────────────────────────────────────────────────
   static Future<SimpleResult> updateMedical({
+    String? id,
     String? bloodType,
     String? height,
     String? weight,
@@ -148,7 +149,7 @@ class ProfileService {
     String? currentMedication,
     String? currentIllness,
   }) async {
-    final response = await ApiService.post('/profile/medical', {
+    final body = {
       'blood_type': bloodType,
       'height': height,
       'weight': weight,
@@ -157,7 +158,11 @@ class ProfileService {
       'last_medication': lastMedication,
       'current_medication': currentMedication,
       'current_illness': currentIllness,
-    });
+    };
+
+    final response = id != null && id.isNotEmpty
+        ? await ApiService.put('/profile/medical/$id', body)
+        : await ApiService.post('/profile/medical', body);
 
     if (!response.success) {
       return SimpleResult.error(

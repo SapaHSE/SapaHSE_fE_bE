@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../models/profile_model.dart';
+import '../services/company_service.dart';
 import '../services/profile_service.dart';
 import '../services/storage_service.dart';
 import '../utils/value_parser.dart';
@@ -19,6 +20,8 @@ import 'create_hazard_screen.dart';
 import 'create_inspection_screen.dart';
 import 'qr_scan_screen.dart';
 import 'department_management.dart';
+import 'document_approval_screen.dart';
+import '../widgets/fab_notched_bottom_bar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -32,6 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   ProfileData? _profileData;
   Map<String, dynamic>? _cachedUser;
   String? _loadError;
+  Map<String, String> _ownerCodeByName = const {};
 
   String get _effectiveRole {
     return (parseNullableDisplayName(_profileData?.role) ??
@@ -50,8 +54,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchOwnerCompanyCodes();
     _loadCachedUser();
     _loadProfile();
+  }
+
+  Future<void> _fetchOwnerCompanyCodes() async {
+    try {
+      final owners = await CompanyService.getCompanies(category: 'owner');
+      if (!mounted) return;
+      setState(() {
+        _ownerCodeByName = {
+          for (final company in owners)
+            if ((company.code ?? '').trim().isNotEmpty)
+              companyLookupKey(company.name): company.code!.trim(),
+          for (final company in owners)
+            if ((company.code ?? '').trim().isNotEmpty)
+              companyLookupKey(company.code!): company.code!.trim(),
+        };
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[ProfileScreen] Failed to load owner company codes: $e');
+      }
+    }
   }
 
   Future<void> _loadCachedUser() async {
@@ -286,44 +312,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 extendBody: true,
                                 floatingActionButtonLocation:
                                     FloatingActionButtonLocation.centerDocked,
-                                bottomNavigationBar: BottomAppBar(
-                                  shape: const CircularNotchedRectangle(),
-                                  notchMargin: 8,
-                                  color: Colors.white,
-                                  elevation: 8,
-                                  child: SizedBox(
-                                    height: 64,
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceAround,
-                                      children: [
-                                        _ProfileNavItem(
-                                            icon: Icons.home,
-                                            label: 'Home',
-                                            index: 0,
-                                            currentIndex: 4,
-                                            onTap: _onTabTapped),
-                                        _ProfileNavItem(
-                                            icon: Icons.article_outlined,
-                                            label: 'News',
-                                            index: 1,
-                                            currentIndex: 4,
-                                            onTap: _onTabTapped),
-                                        const SizedBox(width: 48),
-                                        _ProfileNavItem(
-                                            icon: Icons.inbox_outlined,
-                                            label: 'Inbox',
-                                            index: 3,
-                                            currentIndex: 4,
-                                            onTap: _onTabTapped),
-                                        _ProfileNavItem(
-                                            icon: Icons.menu,
-                                            label: 'Menu',
-                                            index: 4,
-                                            currentIndex: 4,
-                                            onTap: _onTabTapped),
-                                      ],
-                                    ),
+                                bottomNavigationBar: FabNotchedBottomBar(
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _ProfileNavItem(
+                                          icon: Icons.home,
+                                          label: 'Home',
+                                          index: 0,
+                                          currentIndex: 4,
+                                          onTap: _onTabTapped),
+                                      _ProfileNavItem(
+                                          icon: Icons.article_outlined,
+                                          label: 'News',
+                                          index: 1,
+                                          currentIndex: 4,
+                                          onTap: _onTabTapped),
+                                      const SizedBox(width: 56),
+                                      _ProfileNavItem(
+                                          icon: Icons.inbox_outlined,
+                                          label: 'Inbox',
+                                          index: 3,
+                                          currentIndex: 4,
+                                          onTap: _onTabTapped),
+                                      _ProfileNavItem(
+                                          icon: Icons.menu,
+                                          label: 'Menu',
+                                          index: 4,
+                                          currentIndex: 4,
+                                          onTap: _onTabTapped),
+                                    ],
                                   ),
                                 ),
                               )));
@@ -404,9 +423,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final position = parseNullableDisplayName(_profileData?.position) ??
         parseNullableDisplayName(_cachedUser?['position']) ??
         '-';
-    final company = parseNullableDisplayName(_profileData?.company) ??
-        parseNullableDisplayName(_cachedUser?['company']) ??
-        '-';
+    final company = formatCompanyAffiliation(
+      tipeAfiliasi:
+          _profileData?.tipeAfiliasi ?? _cachedUser?['tipe_afiliasi']?.toString(),
+      ownerCompany: _profileData?.company ?? _cachedUser?['company']?.toString(),
+      contractorCompany: _profileData?.perusahaanKontraktor ??
+          _cachedUser?['perusahaan_kontraktor']?.toString(),
+      subContractorCompany:
+          _profileData?.subKontraktor ?? _cachedUser?['sub_kontraktor']?.toString(),
+      ownerCompanyCodeLookup: _ownerCodeByName,
+    );
     final role = parseNullableDisplayName(_profileData?.role) ??
         parseNullableDisplayName(_cachedUser?['role']);
     final profilePhoto = (_profileData?.profilePhoto?.isNotEmpty ?? false)
@@ -699,9 +725,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               iconColor: const Color(0xFF2E7D32),
               title: 'Approval Dokumen',
               subtitle: 'Lisensi & sertifikasi karyawan',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Approval Dokumen akan segera hadir')),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const DocumentApprovalScreen()),
               ),
             ),
             Divider(height: 1, color: Colors.grey.shade100, indent: 70),
