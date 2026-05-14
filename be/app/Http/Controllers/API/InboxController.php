@@ -584,6 +584,8 @@ class InboxController extends Controller
             'item_type' => 'announcement',
             'title'     => $a->title,
             'body'      => $a->body,
+            'is_urgent' => $a->is_urgent,
+            'image_url' => $this->resolveFileUrl($a->image_url),
             'subtitle'  => $creatorName,
             'from'      => $creatorName,
             'from_name' => $creatorName,
