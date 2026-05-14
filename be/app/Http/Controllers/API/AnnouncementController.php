@@ -136,16 +136,22 @@ class AnnouncementController extends Controller
 
     private function formatAnnouncement(Announcement $a, string $userId, bool $withBody = false): array
     {
+        $expiresAt = ($a->is_urgent && $a->created_at)
+            ? $a->created_at->copy()->addDays(3)->toIso8601String()
+            : null;
+
         $data = [
             'id'         => $a->id,
             'title'      => $a->title,
             'is_urgent'  => $a->is_urgent,
+            'expires_at' => $expiresAt,
             'image_url'  => $this->resolveFileUrl($a->image_url),
             'is_read'    => $a->isReadBy($userId),
             'created_by' => $a->creator ? [
                 'id'        => $a->creator->id,
                 'full_name' => $a->creator->full_name,
                 'position'  => $a->creator->position,
+                'company'   => $a->creator->company,
             ] : null,
             'created_at' => $a->created_at?->toDateTimeString(),
             'time_ago'   => $a->created_at?->diffForHumans(),

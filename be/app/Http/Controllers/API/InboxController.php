@@ -579,18 +579,22 @@ class InboxController extends Controller
     private function formatAnnouncement(Announcement $a, ?string $userId): array
     {
         $creatorName = $a->creator?->full_name ?? 'Admin';
+        $expiresAt = ($a->is_urgent && $a->created_at)
+            ? $a->created_at->copy()->addDays(3)->toIso8601String()
+            : null;
         return [
             'id'        => $a->id,
             'item_type' => 'announcement',
             'title'     => $a->title,
             'body'      => $a->body,
             'is_urgent' => $a->is_urgent,
+            'expires_at' => $expiresAt,
             'image_url' => $this->resolveFileUrl($a->image_url),
             'subtitle'  => $creatorName,
             'from'      => $creatorName,
             'from_name' => $creatorName,
             'is_read'   => $userId ? $a->isReadBy($userId) : false,
-            'created_by' => $a->creator ? $a->creator->only(['full_name', 'position']) : null,
+            'created_by' => $a->creator ? $a->creator->only(['full_name', 'position', 'company']) : null,
             'created_at' => $a->created_at?->toIso8601String(),
             'time_ago'   => $a->created_at?->diffForHumans(),
         ];
