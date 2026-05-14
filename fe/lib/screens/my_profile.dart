@@ -83,7 +83,7 @@ String formatCompanyAffiliation({
   if (type == 'sub-kontraktor' || type == 'sub-kont.') {
     return withOwner(subContractor);
   }
-  return ownerCode.isEmpty ? '-' : ownerCode;
+  return ownerCode.isEmpty ? '-' : owner;
 }
 
 class MyProfileScreen extends StatefulWidget {
@@ -106,6 +106,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   List<String> _kontraktorList = [];
   List<String> _subkontraktorList = [];
   bool _isFetchingCompanies = false;
+  String? _userRole;
 
   // Persistent State for License Form
   final TextEditingController _licenseNameController = TextEditingController();
@@ -190,7 +191,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   Future<void> _loadProfile() async {
     final cached = await StorageService.getUser();
     if (mounted) {
-      setState(() => _cachedUser = cached);
+      setState(() {
+        _cachedUser = cached;
+        _userRole = cached?['role']?.toString();
+      });
     }
 
     final result = await ProfileService.getProfile();
@@ -1082,14 +1086,21 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               ),
                               const SizedBox(height: 16),
                               GestureDetector(
-                                onTap: () => _showDepartmentPicker(
-                                    modalContext, deptCtrl, setModalState),
+                                onTap: _userRole == 'admin' ||
+                                        _userRole == 'superadmin'
+                                    ? () => _showDepartmentPicker(
+                                        modalContext, deptCtrl, setModalState)
+                                    : null,
                                 child: _buildSheetField(
                                   'Departemen',
                                   deptCtrl,
-                                  enabled: false,
+                                  enabled: _userRole == 'admin' ||
+                                      _userRole == 'superadmin',
                                   maxLength: 25,
-                                  suffixIcon: Icons.arrow_drop_down,
+                                  suffixIcon: _userRole == 'admin' ||
+                                          _userRole == 'superadmin'
+                                      ? Icons.arrow_drop_down
+                                      : null,
                                   validator: (v) {
                                     if (v == null || v.trim().isEmpty) {
                                       return 'Departemen wajib diisi';
