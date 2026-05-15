@@ -320,7 +320,7 @@ class InspectionReportController extends Controller
             $updateData['reported_department'] = $request->reported_department;
         }
 
-        DB::transaction(function () use ($report, $updateData, $normalizedStatus, $normalizedSubStatus, $request, $imageUrl, $imageUrls) {
+        return DB::transaction(function () use ($report, $updateData, $normalizedStatus, $normalizedSubStatus, $request, $imageUrl, $imageUrls) {
             $this->backfillSkippedSubStatusLogs($report, $normalizedSubStatus, $request->tagged_user_id);
 
             $report->update($updateData);
@@ -330,17 +330,34 @@ class InspectionReportController extends Controller
                 'tagged_user_id' => $request->tagged_user_id,
                 'status'         => $normalizedStatus,
                 'sub_status'     => $normalizedSubStatus,
-                'message'        => $request->message,
+                'message'        => $request->message ?? "Status diubah",
                 'image_url'      => $imageUrl,
-                'image_urls'     => empty($imageUrls) ? null : $imageUrls,
+                'image_urls'     => !empty($imageUrls) ? json_encode($imageUrls) : null,
+            ]);
+
+            // Kirim notifikasi ke pembuat laporan
+            try {
+                $reporter = $report->user;
+                if ($reporter && $reporter->id !== Auth::id()) {
+                    $statusText = $normalizedSubStatus ?: $normalizedStatus;
+                    $this->notificationService->createNotification(
+                        $reporter,
+                        'inspection_update',
+                        "Update Laporan Inspeksi",
+                        "Status laporan '{$report->title}' Anda diubah menjadi: " . strtoupper($statusText),
+                        ['report_id' => $report->id, 'type' => 'inspection']
+                    );
+                }
+            } catch (\Exception $e) {
+                \Log::error('Gagal mengirim notifikasi update inspeksi: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Status laporan berhasil diperbarui.',
+                'data'    => $this->formatReport($report->fresh(['user', 'checklistItems']), Auth::id()),
             ]);
         });
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Status laporan berhasil diperbarui.',
-            'data'    => $this->formatReport($report->fresh(['user', 'checklistItems']), Auth::id()),
-        ]);
     }
 
     public function logs(string $id)
@@ -492,6 +509,33 @@ class InspectionReportController extends Controller
             'attachment_urls' => empty($attachmentUrls) ? null : $attachmentUrls,
         ]);
         $reply->load('user');
+
+        // Kirim notifikasi ke pihak terkait
+        try {
+            // 1. Notif ke reporter (jika bukan reporter yang balas)
+            if ($report->user_id !== $user->id) {
+                $this->notificationService->createNotification(
+                    $report->user,
+                    'inspection_reply',
+                    "Komentar Baru di Laporan Inspeksi",
+                    "{$user->full_name} membalas laporan '{$report->title}'",
+                    ['report_id' => $report->id, 'type' => 'inspection', 'log_id' => $log->id]
+                );
+            }
+            
+            // 2. Notif ke pembuat log (jika bukan pembuat log dan bukan reporter)
+            if ($log->user_id !== $user->id && $log->user_id !== $report->user_id) {
+                $this->notificationService->createNotification(
+                    $log->user,
+                    'inspection_reply',
+                    "Komentar Baru di Log Laporan",
+                    "{$user->full_name} membalas pesan Anda di laporan '{$report->title}'",
+                    ['report_id' => $report->id, 'type' => 'inspection', 'log_id' => $log->id]
+                );
+            }
+        } catch (\Exception $e) {
+            \Log::error('Gagal mengirim notifikasi balasan inspeksi: ' . $e->getMessage());
+        }
 
         return response()->json([
             'status' => 'success',

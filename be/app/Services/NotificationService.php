@@ -165,6 +165,36 @@ class NotificationService
     }
 
     /**
+     * Send push notification to all active users
+     */
+    public function sendPushToAll(string $title, string $body, array $data = []): int
+    {
+        $users = User::where('is_active', true)
+            ->whereNotNull('fcm_token')
+            ->get();
+
+        $count = 0;
+        foreach ($users as $user) {
+            // Create record in database
+            Notification::create([
+                'user_id' => $user->id,
+                'type'    => $data['type'] ?? 'broadcast',
+                'title'   => $title,
+                'body'    => $body,
+                'data'    => $data,
+                'status'  => 'pending',
+            ]);
+
+            // Send push
+            if ($this->sendPushNotification($user, $title, $body, $data)) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
      * Mark notification as read
      */
     public function markAsRead(Notification $notification): void

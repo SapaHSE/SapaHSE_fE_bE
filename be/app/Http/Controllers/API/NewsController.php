@@ -10,6 +10,13 @@ use Illuminate\Support\Facades\Storage;
 
 class NewsController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(\App\Services\NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     // GET /api/news
     // Filter  : ?category=K3/HSE &is_featured=1
     // Search  : ?search=keyword
@@ -86,6 +93,17 @@ class NewsController extends Controller
             'is_featured' => $request->boolean('is_featured', false),
             'is_active'   => true,
         ]);
+
+        // Broadcast notification
+        try {
+            $this->notificationService->sendPushToAll(
+                "Berita HSE Baru",
+                $news->title,
+                ['news_id' => $news->id, 'type' => 'news']
+            );
+        } catch (\Exception $e) {
+            \Log::error('Gagal broadcast berita: ' . $e->getMessage());
+        }
 
         return response()->json([
             'status'  => 'success',

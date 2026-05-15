@@ -312,6 +312,23 @@ class HazardReportController extends Controller
             'image_urls'     => !empty($imageUrls) ? json_encode($imageUrls) : null,
         ]);
 
+        // Kirim notifikasi ke pembuat laporan
+        try {
+            $reporter = $report->user;
+            if ($reporter && $reporter->id !== Auth::id()) {
+                $statusText = $normalizedSubStatus ?: $normalizedStatus;
+                $this->notificationService->createNotification(
+                    $reporter,
+                    'hazard_update',
+                    "Update Laporan Hazard",
+                    "Status laporan '{$report->title}' Anda diubah menjadi: " . strtoupper($statusText),
+                    ['report_id' => $report->id, 'type' => 'hazard']
+                );
+            }
+        } catch (\Exception $e) {
+            \Log::error('Gagal mengirim notifikasi update hazard: ' . $e->getMessage());
+        }
+
         return response()->json([
             'status'  => 'success',
             'message' => 'Status laporan berhasil diperbarui.',
@@ -460,6 +477,33 @@ class HazardReportController extends Controller
             'attachment_urls' => empty($attachmentUrls) ? null : $attachmentUrls,
         ]);
         $reply->load('user');
+
+        // Kirim notifikasi ke pihak terkait
+        try {
+            // 1. Notif ke reporter (jika bukan reporter yang balas)
+            if ($report->user_id !== $user->id) {
+                $this->notificationService->createNotification(
+                    $report->user,
+                    'hazard_reply',
+                    "Komentar Baru di Laporan Hazard",
+                    "{$user->full_name} membalas laporan '{$report->title}'",
+                    ['report_id' => $report->id, 'type' => 'hazard', 'log_id' => $log->id]
+                );
+            }
+            
+            // 2. Notif ke pembuat log (jika bukan pembuat log dan bukan reporter)
+            if ($log->user_id !== $user->id && $log->user_id !== $report->user_id) {
+                $this->notificationService->createNotification(
+                    $log->user,
+                    'hazard_reply',
+                    "Komentar Baru di Log Laporan",
+                    "{$user->full_name} membalas pesan Anda di laporan '{$report->title}'",
+                    ['report_id' => $report->id, 'type' => 'hazard', 'log_id' => $log->id]
+                );
+            }
+        } catch (\Exception $e) {
+            \Log::error('Gagal mengirim notifikasi balasan hazard: ' . $e->getMessage());
+        }
 
         return response()->json([
             'status' => 'success',

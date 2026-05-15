@@ -71,6 +71,17 @@ class AnnouncementController extends Controller
             'image_url'  => $imagePath,
         ]);
 
+        // Broadcast notification
+        try {
+            $this->notificationService->sendPushToAll(
+                "Pengumuman Baru" . ($announcement->is_urgent ? " (PENTING)" : ""),
+                $announcement->title,
+                ['announcement_id' => $announcement->id, 'type' => 'announcement']
+            );
+        } catch (\Exception $e) {
+            \Log::error('Gagal broadcast pengumuman: ' . $e->getMessage());
+        }
+
         return response()->json([
             'status'  => 'success',
             'message' => 'Announcement created successfully',

@@ -19,6 +19,13 @@ use Carbon\Carbon;
 
 class AuthController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(\App\Services\NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     // POST /api/register
     public function register(Request $request)
     {
@@ -211,7 +218,11 @@ class AuthController extends Controller
     // POST /api/logout
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $user = $request->user();
+        if ($user) {
+            $user->update(['fcm_token' => null]);
+            $user->currentAccessToken()->delete();
+        }
 
         return response()->json([
             'status'  => 'success',
@@ -694,6 +705,19 @@ class AuthController extends Controller
             'is_active' => true,
             'registration_status' => 'approved'
         ]);
+
+        // Kirim notifikasi push
+        try {
+            $this->notificationService->createNotification(
+                $user,
+                'registration_approved',
+                "Pendaftaran Disetujui",
+                "Selamat {$user->full_name}, pendaftaran Anda telah disetujui. Silakan login.",
+                ['type' => 'auth']
+            );
+        } catch (\Exception $e) {
+            \Log::error('Gagal mengirim notifikasi approve registration: ' . $e->getMessage());
+        }
 
         // Kirim email verifikasi saat di-approve (jika belum pernah diverifikasi)
         if (!$user->email_verified_at) {
