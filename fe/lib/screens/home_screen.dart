@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../models/report.dart';
 import '../data/news_data.dart';
@@ -63,6 +65,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   // ── Featured News & Announcements Carousel ───────────────────────────────
   List<Object> _carouselItems = [];
   bool _urgentDialogShowing = false;
+  final Set<String> _locallyReadAnnouncementIds = <String>{};
 
   // ── Only Hazard & Inspection ──────────────────────────────────────────────
   final List<String> _reportTypes = [
@@ -152,6 +155,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
 
     final urgent = announcements.where((a) => a.isUrgent).toList();
     for (final announcement in urgent) {
+      if (_locallyReadAnnouncementIds.contains(announcement.id)) continue;
       if (announcement.isRead) continue;
       final locallyRead =
           await StorageService.isAnnouncementRead(announcement.id);
@@ -171,6 +175,8 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     if (_urgentDialogShowing) return;
     _urgentDialogShowing = true;
     bool isChecked = false;
+    final isAlreadyRead =
+        announcement.isRead || _locallyReadAnnouncementIds.contains(announcement.id);
     final remainingDays = announcement.remainingDays;
     final remainingDaysText = remainingDays == null
         ? 'Berlaku: Segera'
@@ -187,6 +193,14 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     final senderText = companyName == null
         ? 'Dari: $creatorName - ${_formatDate(announcement.createdAt)}'
         : 'Dari: $creatorName - $companyName - ${_formatDate(announcement.createdAt)}';
+    final descriptionScrollController = ScrollController();
+    final screenSize = MediaQuery.of(context).size;
+    final popupWidth = (screenSize.width - 16).clamp(0.0, 320.0);
+    final popupHeight = (screenSize.height - 24).clamp(0.0, 560.0);
+    final headerImageUrl =
+        (announcement.imageUrl != null && announcement.imageUrl!.isNotEmpty)
+            ? announcement.imageUrl
+            : null;
 
     showDialog<void>(
       context: context,
@@ -197,11 +211,13 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
             color: Colors.transparent,
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.92,
+                maxWidth: popupWidth,
+                maxHeight: popupHeight,
               ),
               child: SingleChildScrollView(
                 child: Container(
-                  width: MediaQuery.of(context).size.width * 0.9,
+                  width: popupWidth,
+                  height: popupHeight,
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -215,28 +231,49 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                     ],
                   ),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: MainAxisSize.max,
                     children: [
-                        Container(
-                          width: double.infinity,
-                          height: 140,
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Color(0xFFB71C1C), Color(0xFFC62828)],
-                            ),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.campaign_rounded,
-                              color: Colors.white,
-                              size: 80,
-                            ),
-                          ),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 140,
+                        child: GestureDetector(
+                          onTap: () => _showAnnouncementImagePreview(headerImageUrl),
+                          child: headerImageUrl != null
+                              ? CachedNetworkImage(
+                                  imageUrl: headerImageUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Color(0xFFB71C1C),
+                                          Color(0xFFC62828)
+                                        ],
+                                      ),
+                                    ),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (_, __, ___) => Image.asset(
+                                    _announcementFallbackAsset,
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                              : Image.asset(
+                                  _announcementFallbackAsset,
+                                  fit: BoxFit.cover,
+                                ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.all(24),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -280,38 +317,6 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                 ],
                               ),
                               const SizedBox(height: 16),
-                              if (announcement.imageUrl != null &&
-                                  announcement.imageUrl!.isNotEmpty) ...[
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: CachedNetworkImage(
-                                    imageUrl: announcement.imageUrl!,
-                                    width: double.infinity,
-                                    height: 180,
-                                    fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(
-                                      color: Colors.grey.shade100,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    ),
-                                    errorWidget: (_, __, ___) =>
-                                        const SizedBox.shrink(),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                              ] else ...[
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Image.asset(
-                                    _announcementFallbackAsset,
-                                    width: double.infinity,
-                                    height: 180,
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                              ],
                               Text(
                                 announcement.title,
                                 style: const TextStyle(
@@ -321,52 +326,77 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              Text(
-                                announcement.body,
-                                style: TextStyle(
-                                  color: Colors.grey.shade700,
-                                  fontSize: 13,
-                                  height: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF3F3),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                      color: const Color(0xFFFFCDD2)),
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.info_outline,
-                                      size: 18,
-                                      color: Color(0xFFF44336),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        'Pengumuman ini akan muncul setiap hari selama $warningDaysText hingga kamu mengonfirmasi telah membaca.',
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFFC62828),
-                                          height: 1.4,
+                              ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxHeight: 110),
+                                child: Scrollbar(
+                                  controller: descriptionScrollController,
+                                  thumbVisibility: true,
+                                  child: SingleChildScrollView(
+                                    controller: descriptionScrollController,
+                                    child: SelectableText.rich(
+                                      TextSpan(
+                                        style: TextStyle(
+                                          color: Colors.grey.shade700,
+                                          fontSize: 13,
+                                          height: 1.5,
+                                        ),
+                                        children: _buildDescriptionSpans(
+                                          announcement.body,
                                         ),
                                       ),
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                senderText,
-                                style: const TextStyle(
-                                    fontSize: 10, color: Colors.grey),
+                              const SizedBox(height: 20),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF3F3),
+                                borderRadius: BorderRadius.circular(12),
+                                border:
+                                    Border.all(color: const Color(0xFFFFCDD2)),
                               ),
-                              const Divider(height: 32),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.info_outline,
+                                    size: 18,
+                                    color: Color(0xFFF44336),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Pengumuman ini akan muncul setiap hari selama $warningDaysText hingga kamu mengonfirmasi telah membaca.',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFFC62828),
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              senderText,
+                              style: const TextStyle(
+                                  fontSize: 10, color: Colors.grey),
+                            ),
+                            const Divider(height: 24),
+                            if (!isAlreadyRead) ...[
                               GestureDetector(
                                 onTap: () =>
                                     setModalState(() => isChecked = !isChecked),
@@ -400,13 +430,15 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                   ],
                                 ),
                               ),
-                              const SizedBox(height: 24),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: ElevatedButton(
-                                  onPressed: isChecked
-                                      ? () async {
+                              const SizedBox(height: 14),
+                            ],
+                            SizedBox(
+                              width: double.infinity,
+                              height: 46,
+                              child: ElevatedButton(
+                                onPressed: isAlreadyRead || isChecked
+                                    ? () async {
+                                        if (!isAlreadyRead) {
                                           await StorageService
                                               .markAnnouncementRead(
                                             announcement.id,
@@ -415,37 +447,42 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                             itemId: announcement.id,
                                             itemType: 'announcement',
                                           );
-                                          if (ctx.mounted) Navigator.pop(ctx);
+                                          if (mounted) {
+                                            setState(() {
+                                              _locallyReadAnnouncementIds
+                                                  .add(announcement.id);
+                                            });
+                                            _loadCarouselData();
+                                          }
                                         }
-                                      : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF1A56C4),
-                                    foregroundColor: Colors.white,
-                                    disabledBackgroundColor:
-                                        Colors.grey.shade200,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                      }
+                                    : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1A56C4),
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: Colors.grey.shade200,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (isChecked) const SizedBox(width: 8),
+                                    const Text(
+                                      'Tutup',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold),
                                     ),
-                                    elevation: 0,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (isChecked)
-                                        const Icon(Icons.check, size: 18),
-                                      if (isChecked) const SizedBox(width: 8),
-                                      const Text(
-                                        'Tutup',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 )
@@ -460,6 +497,102 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     ).whenComplete(() {
       _urgentDialogShowing = false;
     });
+  }
+
+  void _showAnnouncementImagePreview(String? imageUrl) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                child: imageUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.contain,
+                        placeholder: (_, __) => const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                        errorWidget: (_, __, ___) => Image.asset(
+                          _announcementFallbackAsset,
+                          fit: BoxFit.contain,
+                        ),
+                      )
+                    : Image.asset(
+                        _announcementFallbackAsset,
+                        fit: BoxFit.contain,
+                      ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<InlineSpan> _buildDescriptionSpans(String text) {
+    final regex = RegExp(r'((https?:\/\/|www\.)[^\s]+)', caseSensitive: false);
+    final matches = regex.allMatches(text).toList();
+    if (matches.isEmpty) {
+      return [TextSpan(text: text)];
+    }
+
+    final spans = <InlineSpan>[];
+    var lastEnd = 0;
+    for (final match in matches) {
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+      }
+
+      final rawLink = text.substring(match.start, match.end);
+      final cleanLink = rawLink.replaceAll(RegExp(r'[),.;!?]+$'), '');
+      spans.add(
+        TextSpan(
+          text: cleanLink,
+          style: const TextStyle(
+            color: Color(0xFF1565C0),
+            decoration: TextDecoration.underline,
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () {
+              _openUrlInBrowser(cleanLink);
+            },
+        ),
+      );
+
+      lastEnd = match.start + cleanLink.length;
+      if (match.end > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.end)));
+        lastEnd = match.end;
+      }
+    }
+
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+    return spans;
+  }
+
+  Future<void> _openUrlInBrowser(String rawUrl) async {
+    final normalized = rawUrl.toLowerCase().startsWith('http')
+        ? rawUrl
+        : 'https://$rawUrl';
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   String _formatDate(DateTime dt) {

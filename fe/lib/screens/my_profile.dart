@@ -99,7 +99,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   XFile? _avatarFile;
   int _selectedSubTab = 0;
   bool _isLoading = true;
-  String _loadingMessage = 'Memuat Profil...';
   ProfileData? _profileData;
   Map<String, dynamic>? _cachedUser;
   String? _loadError;
@@ -145,7 +144,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     } else if (widget.initialAction == 'edit_medical') {
       _selectedSubTab = 4;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isLoading) {
+        _showLoadingDialog('Memuat Profil...');
+      }
+    });
     _loadProfile().then((_) {
+      _dismissLoadingDialog();
       if (widget.initialAction == 'edit_biodata') {
         _showEditProfileSheet();
       } else if (widget.initialAction == 'add_license') {
@@ -332,9 +337,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       );
       if (croppedFile == null) return;
 
+      _showLoadingDialog('Mengunggah Foto...');
       setState(() {
-        _isLoading = true;
-        _loadingMessage = 'Mengunggah Foto...';
         _avatarFile = XFile(croppedFile.path);
       });
 
@@ -343,8 +347,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       );
 
       if (!mounted) return;
+      _dismissLoadingDialog();
       if (!result.success) {
-        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content:
@@ -354,6 +358,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       }
 
       await _loadProfile();
+      _dismissLoadingDialog();
       if (!mounted) return;
       setState(() => _avatarFile = null);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -361,7 +366,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
+      _dismissLoadingDialog();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Terjadi masalah saat memilih atau crop foto.'),
@@ -502,121 +507,121 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            title: const Text('My Profile',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('My Profile',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: _profileData == null && _isLoading
+          ? const SizedBox.shrink()
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildProfileHeader(),
+                  _buildSubTabBar(),
+                  const SizedBox(height: 20),
+                  _buildSubTabContent(),
+                  const SizedBox(height: 200),
+                ],
+              ),
             ),
-          ),
-          body: _profileData == null && _isLoading
-              ? const SizedBox.shrink()
-              : SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildProfileHeader(),
-                      _buildSubTabBar(),
-                      const SizedBox(height: 20),
-                      _buildSubTabContent(),
-                      const SizedBox(height: 200),
-                    ],
-                  ),
-                ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: _openFabMenu,
-            backgroundColor: const Color(0xFF1A56C4),
-            foregroundColor: Colors.white,
-            shape: const CircleBorder(),
-            elevation: 4,
-            child: const Icon(Icons.add, size: 30),
-          ),
-          floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
-          extendBody: true,
-          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-          bottomNavigationBar: FabNotchedBottomBar(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openFabMenu,
+        backgroundColor: const Color(0xFF1A56C4),
+        foregroundColor: Colors.white,
+        shape: const CircleBorder(),
+        elevation: 4,
+        child: const Icon(Icons.add, size: 30),
+      ),
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
+      extendBody: true,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: FabNotchedBottomBar(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _ProfileNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _ProfileNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            const SizedBox(width: 56),
+            _ProfileNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _ProfileNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10))
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _ProfileNavItem(
-                    icon: Icons.home,
-                    label: 'Home',
-                    index: 0,
-                    currentIndex: 4,
-                    onTap: _onTabTapped),
-                _ProfileNavItem(
-                    icon: Icons.article_outlined,
-                    label: 'News',
-                    index: 1,
-                    currentIndex: 4,
-                    onTap: _onTabTapped),
-                const SizedBox(width: 56),
-                _ProfileNavItem(
-                    icon: Icons.inbox_outlined,
-                    label: 'Inbox',
-                    index: 3,
-                    currentIndex: 4,
-                    onTap: _onTabTapped),
-                _ProfileNavItem(
-                    icon: Icons.menu,
-                    label: 'Menu',
-                    index: 4,
-                    currentIndex: 4,
-                    onTap: _onTabTapped),
+                const CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(Color(0xFF1A56C4)),
+                ),
+                const SizedBox(height: 20),
+                Text(message,
+                    style: Theme.of(ctx).textTheme.titleSmall),
               ],
             ),
           ),
         ),
-        if (_isLoading) _buildLoadingOverlay(),
-      ],
+      ),
     );
   }
 
-  Widget _buildLoadingOverlay() {
-    return Container(
-      color: Colors.black.withValues(alpha: 0.3),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10))
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(
-                strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1A56C4)),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                _loadingMessage,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _dismissLoadingDialog() {
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
   }
 
   Widget _buildProfileHeader() {
@@ -677,6 +682,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         _isLoading = true;
                         _loadError = null;
                       });
+                      _showLoadingDialog('Memuat Profil...');
                       _loadProfile();
                     },
                     child: const Text('Coba Lagi'),
@@ -1244,10 +1250,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                             }
 
                             Navigator.pop(sheetContext);
-                            setState(() {
-                              _isLoading = true;
-                              _loadingMessage = 'Menyimpan Profil...';
-                            });
+                            _showLoadingDialog('Menyimpan Profil...');
 
                             final result = await ProfileService.updateProfile(
                               fullName: nameCtrl.text.trim(),
@@ -1271,13 +1274,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                             if (!mounted) return;
                             if (result.success) {
                               await _loadProfile();
+                              _dismissLoadingDialog();
                               if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                     content: Text('Profil berhasil diperbarui')),
                               );
                             } else {
-                              setState(() => _isLoading = false);
+                              _dismissLoadingDialog();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                     content: Text(result.errorMessage ??
@@ -1674,10 +1678,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       Navigator.pop(sheetContext);
-                      setState(() {
-                        _isLoading = true;
-                        _loadingMessage = 'Menyimpan Data Medis...';
-                      });
+                      _showLoadingDialog('Menyimpan Data Medis...');
 
                       final result = await ProfileService.updateMedical(
                         id: latest?.id,
@@ -1697,8 +1698,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       if (!mounted) return;
                       if (result.success) {
                         await _loadProfile();
+                        _dismissLoadingDialog();
                       } else {
-                        setState(() => _isLoading = false);
+                        _dismissLoadingDialog();
                         ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(result.message)));
                       }
@@ -1946,10 +1948,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     }
 
                     Navigator.pop(sheetContext);
-                    setState(() {
-                      _isLoading = true;
-                      _loadingMessage = 'Menyimpan Lisensi...';
-                    });
+                    _showLoadingDialog('Menyimpan Lisensi...');
 
                     final result = await ProfileService.addLicense(
                       name: _licenseNameController.text,
@@ -1970,9 +1969,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       _licenseObtainedAt = null;
                       _licenseSelectedDate = null;
                       _licenseImage = null;
-                      await _loadProfile(); // Refresh
+                      await _loadProfile();
+                      _dismissLoadingDialog();
                     } else {
-                      setState(() => _isLoading = false);
+                      _dismissLoadingDialog();
                       ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(result.message)));
                     }
@@ -2148,10 +2148,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     }
 
                     Navigator.pop(sheetContext);
-                    setState(() {
-                      _isLoading = true;
-                      _loadingMessage = 'Menyimpan Sertifikat...';
-                    });
+                    _showLoadingDialog('Menyimpan Sertifikat...');
 
                     final result = await ProfileService.addCertification(
                       name: _certNameController.text,
@@ -2172,9 +2169,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       _certObtainedAt = null;
                       _certExpiredAt = null;
                       _certImage = null;
-                      await _loadProfile(); // Refresh
+                      await _loadProfile();
+                      _dismissLoadingDialog();
                     } else {
-                      setState(() => _isLoading = false);
+                      _dismissLoadingDialog();
                       ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(result.message)));
                     }

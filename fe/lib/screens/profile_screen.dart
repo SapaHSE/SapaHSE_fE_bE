@@ -247,120 +247,139 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (_loadError != null) _buildErrorBanner(),
               _buildProfileCard(),
               Divider(height: 1, color: Colors.grey.shade200),
-              _buildMenuItem(
-                icon: Icons.person,
-                iconBg: const Color(0xFFF3E5F5),
-                iconColor: const Color(0xFF6A1B9A),
-                title: 'Profile',
-                subtitle: 'Biodata, licenses, medical, certifications',
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const MyProfileScreen()));
-                },
-              ),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-              _buildMenuItem(
-                icon: Icons.bar_chart,
-                iconBg: const Color(0xFFFFF9C4),
-                iconColor: const Color(0xFFFBC02D),
-                title: 'Statistik',
-                subtitle: 'Laporan, akurasi, kecepatan, medali',
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const StatistikScreen()));
-                },
-              ),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-              _buildMenuItem(
-                icon: Icons.folder,
-                iconBg: const Color(0xFFE3F2FD),
-                iconColor: const Color(0xFF1E88E5),
-                title: 'Workspace',
-                subtitle: 'Switch module or dashboard view',
-                trailingText: 'HSE',
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => Scaffold(
-                                appBar: AppBar(
-                                  title: const Text(
-                                    'Workspace',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18),
-                                  ),
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black,
-                                  elevation: 0,
-                                  centerTitle: true,
-                                ),
-                                backgroundColor: Colors.white,
-                                body: _buildWorkspaceTab(),
-                                floatingActionButton: FloatingActionButton(
-                                  onPressed: _openFabMenu,
-                                  backgroundColor: const Color(0xFF1A56C4),
-                                  foregroundColor: Colors.white,
-                                  shape: const CircleBorder(),
-                                  elevation: 4,
-                                  child: const Icon(Icons.add, size: 30),
-                                ),
-                                extendBody: true,
-                                floatingActionButtonLocation:
-                                    FloatingActionButtonLocation.centerDocked,
-                                bottomNavigationBar: FabNotchedBottomBar(
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceAround,
-                                    children: [
-                                      _ProfileNavItem(
-                                          icon: Icons.home,
-                                          label: 'Home',
-                                          index: 0,
-                                          currentIndex: 4,
-                                          onTap: _onTabTapped),
-                                      _ProfileNavItem(
-                                          icon: Icons.article_outlined,
-                                          label: 'News',
-                                          index: 1,
-                                          currentIndex: 4,
-                                          onTap: _onTabTapped),
-                                      const SizedBox(width: 56),
-                                      _ProfileNavItem(
-                                          icon: Icons.inbox_outlined,
-                                          label: 'Inbox',
-                                          index: 3,
-                                          currentIndex: 4,
-                                          onTap: _onTabTapped),
-                                      _ProfileNavItem(
-                                          icon: Icons.menu,
-                                          label: 'Menu',
-                                          index: 4,
-                                          currentIndex: 4,
-                                          onTap: _onTabTapped),
-                                    ],
-                                  ),
-                                ),
-                              )));
-                },
-              ),
-              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-              _buildMenuItem(
-                icon: Icons.settings,
-                iconBg: const Color(0xFFF5F5F5),
-                iconColor: Colors.grey.shade700,
-                title: 'Settings',
-                subtitle: 'Bahasa, notifikasi, tampilan awal',
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const SettingsScreen()));
-                },
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _buildMenuRow(
+                      icon: Icons.person,
+                      iconBg: const Color(0xFFF3E5F5),
+                      iconColor: const Color(0xFF6A1B9A),
+                      title: 'Profile',
+                      subtitle: 'Biodata, licenses, medical, certifications',
+                      onTap: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const MyProfileScreen()));
+                      },
+                    ),
+                    Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+                    _buildMenuRow(
+                      icon: Icons.bar_chart,
+                      iconBg: const Color(0xFFFFF9C4),
+                      iconColor: const Color(0xFFFBC02D),
+                      title: 'Statistik',
+                      subtitle: 'Laporan, akurasi, kecepatan, medali',
+                      onTap: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const StatistikScreen()));
+                      },
+                    ),
+                    Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+                    _buildMenuRow(
+                      icon: Icons.folder,
+                      iconBg: const Color(0xFFE3F2FD),
+                      iconColor: const Color(0xFF1E88E5),
+                      title: 'Workspace',
+                      subtitle: 'Switch module or dashboard view',
+                      trailingText: 'HSE',
+                      onTap: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => Scaffold(
+                                      appBar: AppBar(
+                                        title: const Text(
+                                          'Workspace',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18),
+                                        ),
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: Colors.black,
+                                        elevation: 0,
+                                        centerTitle: true,
+                                      ),
+                                      backgroundColor: Colors.white,
+                                      body: _buildWorkspaceTab(),
+                                      floatingActionButton: FloatingActionButton(
+                                        onPressed: _openFabMenu,
+                                        backgroundColor: const Color(0xFF1A56C4),
+                                        foregroundColor: Colors.white,
+                                        shape: const CircleBorder(),
+                                        elevation: 4,
+                                        child: const Icon(Icons.add, size: 30),
+                                      ),
+                                      extendBody: true,
+                                      floatingActionButtonLocation:
+                                          FloatingActionButtonLocation.centerDocked,
+                                      bottomNavigationBar: FabNotchedBottomBar(
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceAround,
+                                          children: [
+                                            _ProfileNavItem(
+                                                icon: Icons.home,
+                                                label: 'Home',
+                                                index: 0,
+                                                currentIndex: 4,
+                                                onTap: _onTabTapped),
+                                            _ProfileNavItem(
+                                                icon: Icons.article_outlined,
+                                                label: 'News',
+                                                index: 1,
+                                                currentIndex: 4,
+                                                onTap: _onTabTapped),
+                                            const SizedBox(width: 56),
+                                            _ProfileNavItem(
+                                                icon: Icons.inbox_outlined,
+                                                label: 'Inbox',
+                                                index: 3,
+                                                currentIndex: 4,
+                                                onTap: _onTabTapped),
+                                            _ProfileNavItem(
+                                                icon: Icons.menu,
+                                                label: 'Menu',
+                                                index: 4,
+                                                currentIndex: 4,
+                                                onTap: _onTabTapped),
+                                          ],
+                                        ),
+                                      ),
+                                    )));
+                      },
+                    ),
+                    Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+                    _buildMenuRow(
+                      icon: Icons.settings,
+                      iconBg: const Color(0xFFF5F5F5),
+                      iconColor: Colors.grey.shade700,
+                      title: 'Settings',
+                      subtitle: 'Bahasa, notifikasi, tampilan awal',
+                      onTap: () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const SettingsScreen()));
+                      },
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 128),
             ],
@@ -615,6 +634,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuRow({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    String? trailingText,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                    color: iconBg, borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: iconColor),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: Colors.black87)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+              if (trailingText != null)
+                Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Text(trailingText,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFFD32F2F),
+                          fontWeight: FontWeight.w700)),
+                ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+            ],
           ),
         ),
       ),

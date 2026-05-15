@@ -68,12 +68,24 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   late int _currentIndex;
+  bool _canAddAnnouncement = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _loadUserPermissions();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  Future<void> _loadUserPermissions() async {
+    final user = await StorageService.getUser();
+    final role = user?['role']?.toString().toLowerCase();
+    final canAdd = role == 'admin' || role == 'superadmin';
+    if (!mounted) return;
+    setState(() {
+      _canAddAnnouncement = canAdd;
+    });
   }
 
   @override
@@ -173,6 +185,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           Navigator.pop(context);
           _showAddNewsSheet();
         },
+        canAddAnnouncement: _canAddAnnouncement,
       ),
     );
   }
@@ -568,6 +581,7 @@ class _FabMenuSheet extends StatelessWidget {
   final VoidCallback onCreateInspection;
   final VoidCallback onAddAnnouncement;
   final VoidCallback onAddNews;
+  final bool canAddAnnouncement;
 
   const _FabMenuSheet({
     required this.currentIndex,
@@ -576,6 +590,7 @@ class _FabMenuSheet extends StatelessWidget {
     required this.onCreateInspection,
     required this.onAddAnnouncement,
     required this.onAddNews,
+    required this.canAddAnnouncement,
   });
 
   @override
@@ -642,15 +657,17 @@ class _FabMenuSheet extends StatelessWidget {
             subtitle: 'Catat hasil inspeksi rutin area kerja',
             onTap: onCreateInspection,
           ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _MenuTile(
-            icon: Icons.campaign_rounded,
-            iconBgColor: const Color(0xFFF3E5F5),
-            iconColor: const Color(0xFF7B1FA2),
-            title: 'Tambah Pengumuman',
-            subtitle: 'Buat pengumuman urgent atau biasa',
-            onTap: onAddAnnouncement,
-          ),
+          if (canAddAnnouncement) ...[
+            Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+            _MenuTile(
+              icon: Icons.campaign_rounded,
+              iconBgColor: const Color(0xFFF3E5F5),
+              iconColor: const Color(0xFF7B1FA2),
+              title: 'Tambah Pengumuman',
+              subtitle: 'Buat pengumuman urgent atau biasa',
+              onTap: onAddAnnouncement,
+            ),
+          ],
           if (currentIndex == 1) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
             _MenuTile(
