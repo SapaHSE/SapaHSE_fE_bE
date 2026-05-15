@@ -8,6 +8,7 @@ class NewsArticle {
   final String category;
   final String author;
   final String date;
+  final DateTime? createdAt;
   final String imageUrl;
   final bool isFeatured;
 
@@ -19,6 +20,7 @@ class NewsArticle {
     required this.category,
     required this.author,
     required this.date,
+    this.createdAt,
     required this.imageUrl,
     this.isFeatured = false,
   });
@@ -32,9 +34,15 @@ class NewsArticle {
       category: json['category']?.toString() ?? '',
       author: json['author_name']?.toString() ?? '',
       date: json['date']?.toString() ?? '',
+      createdAt: _parseDate(json['created_at']),
       imageUrl: normalizeStorageUrl(json['image_url']?.toString()) ?? '',
       isFeatured: json['is_featured'] == true,
     );
+  }
+
+  static DateTime? _parseDate(dynamic raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString().replaceFirst(' ', 'T'))?.toLocal();
   }
 }
 

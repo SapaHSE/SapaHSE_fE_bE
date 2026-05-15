@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../models/profile_model.dart';
@@ -169,8 +170,14 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
                   const SizedBox(height: 24),
 
                   _buildDetailSection('MASA BERLAKU', [
-                    _buildDetailRow('Tanggal Diperoleh', _certification.obtainedAt ?? '-'),
-                    _buildDetailRow('Berlaku Sampai', _certification.expiredAt ?? '-'),
+                    _buildDetailRow('Tanggal Diperoleh',
+                        _certification.obtainedAt != null
+                            ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(_certification.obtainedAt!))
+                            : '-'),
+                    _buildDetailRow('Berlaku Sampai',
+                        _certification.expiredAt != null
+                            ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(_certification.expiredAt!))
+                            : '-'),
                   ]),
 
                   if (widget.isApprovalMode) ...[

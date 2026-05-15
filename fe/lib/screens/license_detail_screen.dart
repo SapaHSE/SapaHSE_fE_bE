@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../models/profile_model.dart';
@@ -168,8 +169,14 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                   const SizedBox(height: 24),
 
                   _buildDetailSection('MASA BERLAKU', [
-                    _buildDetailRow('Tanggal Diperoleh', _license.obtainedAt ?? '-'),
-                    _buildDetailRow('Berlaku Sampai', _license.expiredAt ?? '-'),
+                    _buildDetailRow('Tanggal Diperoleh',
+                        _license.obtainedAt != null
+                            ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(_license.obtainedAt!))
+                            : '-'),
+                    _buildDetailRow('Berlaku Sampai',
+                        _license.expiredAt != null
+                            ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(_license.expiredAt!))
+                            : '-'),
                   ]),
 
                   // ── Approval Actions ─────────────────────────────────────────────
@@ -226,7 +233,6 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
         ),
       ),
       bottomNavigationBar: FabNotchedBottomBar(
-        notchRadius: 0,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -271,7 +277,7 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
         
         child: Icon(widget.isApprovalMode ? Icons.add : Icons.edit, size: 28),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 

@@ -106,6 +106,7 @@ class InboxItem {
   // Announcement-only
   final String? body;
   final String? fromName;
+  final bool isUrgent;
   final InboxAuthor? createdBy;
 
   // Approval-only
@@ -160,6 +161,7 @@ class InboxItem {
     this.subStatus,
     this.body,
     this.fromName,
+    this.isUrgent = false,
     this.createdBy,
     this.submitterName,
     this.submitterDept,
@@ -205,6 +207,10 @@ class InboxItem {
         timeAgo: json['time_ago']?.toString(),
         body: json['body']?.toString() ?? '',
         fromName: (json['from_name'] ?? json['from'] ?? 'Admin').toString(),
+        imageUrl: normalizeStorageUrl(json['image_url']?.toString()),
+        isUrgent: json['is_urgent'] == true ||
+            json['is_urgent'] == 1 ||
+            json['is_urgent']?.toString() == '1',
         createdBy: rawCreator is Map<String, dynamic>
             ? InboxAuthor.fromJson(rawCreator)
             : null,
@@ -290,14 +296,16 @@ class InboxItem {
       title: json['title']?.toString() ?? '-',
       createdAt: createdAt,
       timeAgo: json['time_ago']?.toString(),
-      reportType: _parseReportType(json['type']?.toString() ?? json['item_type']?.toString()),
+      reportType: _parseReportType(
+          json['type']?.toString() ?? json['item_type']?.toString()),
       description: json['description']?.toString() ?? '',
       status: _parseStatus(rawStatus),
       subStatus: _parseSubStatus(rawSubStatus) ??
           (rawStatus == 'rejected' ? ReportSubStatus.rejected : null),
       location: json['location']?.toString() ?? '-',
       imageUrl: normalizeStorageUrl(json['image_url']?.toString()),
-      severity: _parseSeverity(json['severity']?.toString() ?? _severityFromInspectionResult(json['result']?.toString())),
+      severity: _parseSeverity(json['severity']?.toString() ??
+          _severityFromInspectionResult(json['result']?.toString())),
       namePja: json['name_pja']?.toString(),
       reportedDepartment: json['reported_department']?.toString(),
       hazardCategory: json['hazard_category']?.toString(),

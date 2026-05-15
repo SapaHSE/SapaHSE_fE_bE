@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
@@ -98,6 +99,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   XFile? _avatarFile;
   int _selectedSubTab = 0;
   bool _isLoading = true;
+  String _loadingMessage = 'Memuat Profil...';
   ProfileData? _profileData;
   Map<String, dynamic>? _cachedUser;
   String? _loadError;
@@ -332,6 +334,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
       setState(() {
         _isLoading = true;
+        _loadingMessage = 'Mengunggah Foto...';
         _avatarFile = XFile(croppedFile.path);
       });
 
@@ -499,75 +502,118 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            title: const Text('My Profile',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: _profileData == null && _isLoading
+              ? const SizedBox.shrink()
+              : SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildProfileHeader(),
+                      _buildSubTabBar(),
+                      const SizedBox(height: 20),
+                      _buildSubTabContent(),
+                      const SizedBox(height: 200),
+                    ],
+                  ),
+                ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _openFabMenu,
+            backgroundColor: const Color(0xFF1A56C4),
+            foregroundColor: Colors.white,
+            shape: const CircleBorder(),
+            elevation: 4,
+            child: const Icon(Icons.add, size: 30),
+          ),
+          floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
+          extendBody: true,
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          bottomNavigationBar: FabNotchedBottomBar(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _ProfileNavItem(
+                    icon: Icons.home,
+                    label: 'Home',
+                    index: 0,
+                    currentIndex: 4,
+                    onTap: _onTabTapped),
+                _ProfileNavItem(
+                    icon: Icons.article_outlined,
+                    label: 'News',
+                    index: 1,
+                    currentIndex: 4,
+                    onTap: _onTabTapped),
+                const SizedBox(width: 56),
+                _ProfileNavItem(
+                    icon: Icons.inbox_outlined,
+                    label: 'Inbox',
+                    index: 3,
+                    currentIndex: 4,
+                    onTap: _onTabTapped),
+                _ProfileNavItem(
+                    icon: Icons.menu,
+                    label: 'Menu',
+                    index: 4,
+                    currentIndex: 4,
+                    onTap: _onTabTapped),
+              ],
+            ),
+          ),
+        ),
+        if (_isLoading) _buildLoadingOverlay(),
+      ],
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('My Profile',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildProfileHeader(),
-            _buildSubTabBar(),
-            const SizedBox(height: 20),
-            _buildSubTabContent(),
-            const SizedBox(height: 200),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openFabMenu,
-        backgroundColor: const Color(0xFF1A56C4),
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
-        elevation: 4,
-        child: const Icon(Icons.add, size: 30),
-      ),
-      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
-      extendBody: true,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: FabNotchedBottomBar(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _ProfileNavItem(
-                icon: Icons.home,
-                label: 'Home',
-                index: 0,
-                currentIndex: 4,
-                onTap: _onTabTapped),
-            _ProfileNavItem(
-                icon: Icons.article_outlined,
-                label: 'News',
-                index: 1,
-                currentIndex: 4,
-                onTap: _onTabTapped),
-            const SizedBox(width: 56),
-            _ProfileNavItem(
-                icon: Icons.inbox_outlined,
-                label: 'Inbox',
-                index: 3,
-                currentIndex: 4,
-                onTap: _onTabTapped),
-            _ProfileNavItem(
-                icon: Icons.menu,
-                label: 'Menu',
-                index: 4,
-                currentIndex: 4,
-                onTap: _onTabTapped),
-          ],
+  Widget _buildLoadingOverlay() {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.3),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10))
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1A56C4)),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                _loadingMessage,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1198,7 +1244,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                             }
 
                             Navigator.pop(sheetContext);
-                            setState(() => _isLoading = true);
+                            setState(() {
+                              _isLoading = true;
+                              _loadingMessage = 'Menyimpan Profil...';
+                            });
 
                             final result = await ProfileService.updateProfile(
                               fullName: nameCtrl.text.trim(),
@@ -1625,7 +1674,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       Navigator.pop(sheetContext);
-                      setState(() => _isLoading = true);
+                      setState(() {
+                        _isLoading = true;
+                        _loadingMessage = 'Menyimpan Data Medis...';
+                      });
 
                       final result = await ProfileService.updateMedical(
                         id: latest?.id,
@@ -1893,8 +1945,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       return;
                     }
 
-                    Navigator.pop(sheetContext); // Close modal
-                    setState(() => _isLoading = true);
+                    Navigator.pop(sheetContext);
+                    setState(() {
+                      _isLoading = true;
+                      _loadingMessage = 'Menyimpan Lisensi...';
+                    });
 
                     final result = await ProfileService.addLicense(
                       name: _licenseNameController.text,
@@ -2092,8 +2147,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       return;
                     }
 
-                    Navigator.pop(sheetContext); // Close modal
-                    setState(() => _isLoading = true);
+                    Navigator.pop(sheetContext);
+                    setState(() {
+                      _isLoading = true;
+                      _loadingMessage = 'Menyimpan Sertifikat...';
+                    });
 
                     final result = await ProfileService.addCertification(
                       name: _certNameController.text,
@@ -2262,17 +2320,14 @@ class _BiodataContent extends StatelessWidget {
           _buildTitle('INFORMATION EMPLOYEE'),
           _buildCard([
             _buildRow(context, 'Tipe Afiliasi', data?.tipeAfiliasi ?? '-'),
-            _buildRow(
-              context,
-              'Perusahaan',
-              formatCompanyAffiliation(
-                tipeAfiliasi: data?.tipeAfiliasi,
-                ownerCompany: data?.company,
-                contractorCompany: data?.perusahaanKontraktor,
-                subContractorCompany: data?.subKontraktor,
-                ownerCompanyCodeLookup: ownerCompanyCodeLookup,
-              ),
-            ),
+            _buildRow(context, 'Perusahaan Owner', data?.company ?? '-'),
+            if (_displayValue(data?.tipeAfiliasi).toLowerCase() == 'kontraktor' ||
+                _displayValue(data?.tipeAfiliasi).toLowerCase() == 'sub-kontraktor' ||
+                _displayValue(data?.tipeAfiliasi).toLowerCase() == 'sub-kont.')
+              _buildRow(context, 'Perusahaan Kontraktor', data?.perusahaanKontraktor ?? '-'),
+            if (_displayValue(data?.tipeAfiliasi).toLowerCase() == 'sub-kontraktor' ||
+                _displayValue(data?.tipeAfiliasi).toLowerCase() == 'sub-kont.')
+              _buildRow(context, 'Sub-Kontraktor', data?.subKontraktor ?? '-'),
             _buildRow(context, 'Departemen', data?.department ?? '-'),
             _buildRow(context, 'Jabatan', data?.position ?? '-'),
           ]),
@@ -2996,11 +3051,23 @@ class _LicenseDetailPage extends StatelessWidget {
               children: [
                 _DetailInfoRow('Nama Lisensi', license.name),
                 _DetailInfoRow('Nomor Lisensi', license.licenseNumber),
-                _DetailInfoRow('Tanggal Diperoleh', license.obtainedAt ?? '-'),
-                _DetailInfoRow('Berlaku Sampai', license.expiredAt ?? '-'),
+                _DetailInfoRow('Tanggal Diperoleh',
+                    license.obtainedAt != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(license.obtainedAt!))
+                        : '-'),
+                _DetailInfoRow('Berlaku Sampai',
+                    license.expiredAt != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(license.expiredAt!))
+                        : '-'),
                 _DetailInfoRow('Status', license.status),
-                _DetailInfoRow('Diajukan', license.submittedAt ?? '-'),
-                _DetailInfoRow('Direview', license.reviewedAt ?? '-'),
+                _DetailInfoRow('Diajukan',
+                    license.submittedAt != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(license.submittedAt!))
+                        : '-'),
+                _DetailInfoRow('Direview',
+                    license.reviewedAt != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(license.reviewedAt!))
+                        : '-'),
               ],
             ),
             if ((license.rejectionReason ?? '').trim().isNotEmpty) ...[
@@ -3075,12 +3142,23 @@ class _CertificationDetailPage extends StatelessWidget {
               children: [
                 _DetailInfoRow('Nama Sertifikat', certification.name),
                 _DetailInfoRow('Lembaga Penerbit', certification.issuer),
-                _DetailInfoRow(
-                    'Tanggal Diperoleh', certification.obtainedAt ?? '-'),
-                _DetailInfoRow('Berlaku Sampai', certification.expiredAt ?? '-'),
+                _DetailInfoRow('Tanggal Diperoleh',
+                    certification.obtainedAt != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(certification.obtainedAt!))
+                        : '-'),
+                _DetailInfoRow('Berlaku Sampai',
+                    certification.expiredAt != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(certification.expiredAt!))
+                        : '-'),
                 _DetailInfoRow('Status', certification.status),
-                _DetailInfoRow('Diajukan', certification.submittedAt ?? '-'),
-                _DetailInfoRow('Direview', certification.reviewedAt ?? '-'),
+                _DetailInfoRow('Diajukan',
+                    certification.submittedAt != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(certification.submittedAt!))
+                        : '-'),
+                _DetailInfoRow('Direview',
+                    certification.reviewedAt != null
+                        ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(certification.reviewedAt!))
+                        : '-'),
               ],
             ),
             if ((certification.rejectionReason ?? '').trim().isNotEmpty) ...[

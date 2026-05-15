@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/approval_service.dart';
 import '../models/profile_model.dart';
 import 'license_detail_screen.dart';
@@ -234,7 +235,10 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
                           color: const Color(0xFFF5F5F5),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text(doc['created_at'].toString().split(' ')[0], 
+                        child: Text(
+                          doc['created_at'] != null
+                              ? DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(doc['created_at'].toString()))
+                              : '-',
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 10)),
                       ),
                     ],

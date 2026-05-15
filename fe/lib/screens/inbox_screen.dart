@@ -25,7 +25,8 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
   _FadePageRoute({required this.builder})
       : super(
-          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -34,7 +35,17 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
 }
 
 enum _SubFilter { unread, read }
-enum _MyPostFilter { all, draft, validating, approved, rejected, license, certificate }
+
+enum _MyPostFilter {
+  all,
+  draft,
+  validating,
+  approved,
+  rejected,
+  license,
+  certificate
+}
+
 enum _TaskStatusFilter {
   all,
   validating,
@@ -161,7 +172,8 @@ class _InboxScreenState extends State<InboxScreen>
     if (user != null) {
       setState(() {
         _currentUserId = user['id']?.toString();
-        _isSuperadmin = (user['role']?.toString().toLowerCase() == 'superadmin');
+        _isSuperadmin =
+            (user['role']?.toString().toLowerCase() == 'superadmin');
         _currentUserSnapshot = _buildCurrentUserSnapshot(user);
       });
       _loadMyReports();
@@ -272,8 +284,9 @@ class _InboxScreenState extends State<InboxScreen>
         _errorMyReports = reportResult.errorMessage;
       }
       _myLicenses = licensesResult.success ? licensesResult.licenses : [];
-      _myCertifications =
-          certificationsResult.success ? certificationsResult.certifications : [];
+      _myCertifications = certificationsResult.success
+          ? certificationsResult.certifications
+          : [];
       if (!licensesResult.success || !certificationsResult.success) {
         _errorMyReports ??=
             licensesResult.errorMessage ?? certificationsResult.errorMessage;
@@ -455,8 +468,8 @@ class _InboxScreenState extends State<InboxScreen>
       .toList();
 
   List<InboxItem> get _otherTaskReports => _filteredReports
-      .where((i) =>
-          !(i.status != ReportStatus.closed && _needsImmediateAction(i)))
+      .where(
+          (i) => !(i.status != ReportStatus.closed && _needsImmediateAction(i)))
       .toList();
 
   // Reports created by the current user, fetched from ReportService
@@ -510,24 +523,30 @@ class _InboxScreenState extends State<InboxScreen>
 
   List<InboxItem> get _activeAnnouncements =>
       _filterByReadState(_announcements);
-      
+
   List<InboxItem> get _activeMyReports {
-    final drafts = _myDrafts.map((d) => InboxItem(
-          id: d.id,
-          itemType: InboxItemType.report,
-          backendItemType: d.type == DraftType.hazard
-              ? 'hazard_report'
-              : 'inspection_report',
-          isRead: true,
-          title: '[DRAFT] ${d.title}',
-          createdAt: d.createdAt,
-          reportType: d.type == DraftType.hazard ? ReportType.hazard : ReportType.inspection,
-          description: d.data['description']?.toString() ?? d.data['kronologi']?.toString() ?? '',
-          status: ReportStatus.open, // Placeholder for draft
-          subStatus: null,
-          location: d.data['location']?.toString() ?? '-',
-          severity: _parseSeverity(d.data['severity']),
-        )).toList();
+    final drafts = _myDrafts
+        .map((d) => InboxItem(
+              id: d.id,
+              itemType: InboxItemType.report,
+              backendItemType: d.type == DraftType.hazard
+                  ? 'hazard_report'
+                  : 'inspection_report',
+              isRead: true,
+              title: '[DRAFT] ${d.title}',
+              createdAt: d.createdAt,
+              reportType: d.type == DraftType.hazard
+                  ? ReportType.hazard
+                  : ReportType.inspection,
+              description: d.data['description']?.toString() ??
+                  d.data['kronologi']?.toString() ??
+                  '',
+              status: ReportStatus.open, // Placeholder for draft
+              subStatus: null,
+              location: d.data['location']?.toString() ?? '-',
+              severity: _parseSeverity(d.data['severity']),
+            ))
+        .toList();
     final licenses = _myLicenseItems;
     final certifications = _myCertificationItems;
     final approvals = <InboxItem>[...licenses, ...certifications];
@@ -535,9 +554,10 @@ class _InboxScreenState extends State<InboxScreen>
         i.subStatus != ReportSubStatus.validating &&
         i.subStatus != ReportSubStatus.rejected &&
         i.status != ReportStatus.closed);
-    final reportRejected = _myReports.where((i) => i.status == ReportStatus.closed);
-    final approvalPending = approvals
-        .where((i) => (i.approvalStatus ?? 'pending').toLowerCase() == 'pending');
+    final reportRejected =
+        _myReports.where((i) => i.status == ReportStatus.closed);
+    final approvalPending = approvals.where(
+        (i) => (i.approvalStatus ?? 'pending').toLowerCase() == 'pending');
     final approvalApproved = approvals
         .where((i) => (i.approvalStatus ?? '').toLowerCase() == 'approved');
     final approvalRejected = approvals
@@ -562,9 +582,11 @@ class _InboxScreenState extends State<InboxScreen>
         return [...reportRejected, ...approvalRejected]
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       case _MyPostFilter.license:
-        return [...licenses]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return [...licenses]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       case _MyPostFilter.certificate:
-        return [...certifications]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return [...certifications]
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
   }
 
@@ -580,18 +602,18 @@ class _InboxScreenState extends State<InboxScreen>
     if (_mainTabController.index == 2) {
       return 'Tidak ada laporan dengan status ini.';
     }
-     if (_mainTabController.index == 1) {
-       if (_activeTaskStatusFilter == _TaskStatusFilter.all) {
-         return _activeFilter == _SubFilter.unread
-           ? 'Tidak ada tugas aktif!'
-           : 'Tidak ada tugas selesai.';
-       }
-       return 'Tidak ada tugas ${_activeTaskStatusFilter.label}.';
-     }
+    if (_mainTabController.index == 1) {
+      if (_activeTaskStatusFilter == _TaskStatusFilter.all) {
+        return _activeFilter == _SubFilter.unread
+            ? 'Tidak ada tugas aktif!'
+            : 'Tidak ada tugas selesai.';
+      }
+      return 'Tidak ada tugas ${_activeTaskStatusFilter.label}.';
+    }
     // Pengumuman
     return _activeFilter == _SubFilter.unread
-      ? 'Semua sudah dibaca!'
-      : 'Belum ada yang dibaca.';
+        ? 'Semua sudah dibaca!'
+        : 'Belum ada yang dibaca.';
   }
 
   int get _readAnnouncementCount =>
@@ -610,8 +632,7 @@ class _InboxScreenState extends State<InboxScreen>
     });
 
     // Fire-and-forget — rollback if it fails.
-    InboxService
-        .markRead(itemId: item.id, itemType: item.backendItemType)
+    InboxService.markRead(itemId: item.id, itemType: item.backendItemType)
         .then((res) {
       if (!mounted) return;
       if (!res.success) {
@@ -700,17 +721,24 @@ class _InboxScreenState extends State<InboxScreen>
     );
   }
 
-String _myPostFilterLabel(_MyPostFilter f) {
-  switch (f) {
-    case _MyPostFilter.all: return 'Semua';
-    case _MyPostFilter.draft: return 'Draft';
-    case _MyPostFilter.validating: return 'Validating';
-    case _MyPostFilter.approved: return 'Approved';
-    case _MyPostFilter.rejected: return 'Rejected';
-    case _MyPostFilter.license: return 'Lisensi';
-    case _MyPostFilter.certificate: return 'Sertifikat';
+  String _myPostFilterLabel(_MyPostFilter f) {
+    switch (f) {
+      case _MyPostFilter.all:
+        return 'Semua';
+      case _MyPostFilter.draft:
+        return 'Draft';
+      case _MyPostFilter.validating:
+        return 'Validating';
+      case _MyPostFilter.approved:
+        return 'Approved';
+      case _MyPostFilter.rejected:
+        return 'Rejected';
+      case _MyPostFilter.license:
+        return 'Lisensi';
+      case _MyPostFilter.certificate:
+        return 'Sertifikat';
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -761,8 +789,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
                           children: [
                             const Flexible(
                               child: Text('Pengumuman',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                             if (_unreadAnnouncements > 0) ...[
                               const SizedBox(width: 6),
@@ -778,8 +805,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
                           children: [
                             const Flexible(
                               child: Text('Tugas',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                             if (_unreadReports > 0) ...[
                               const SizedBox(width: 6),
@@ -795,8 +821,7 @@ String _myPostFilterLabel(_MyPostFilter f) {
                           children: [
                             const Flexible(
                               child: Text('MyPost',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                             if (_unreadMyReports > 0) ...[
                               const SizedBox(width: 6),
@@ -825,7 +850,9 @@ String _myPostFilterLabel(_MyPostFilter f) {
                           child: MinimalDropdown<_MyPostFilter>(
                             value: _activeMyPostFilter,
                             onChanged: (val) {
-                              if (val != null) setState(() => _activeMyPostFilter = val);
+                              if (val != null) {
+                                setState(() => _activeMyPostFilter = val);
+                              }
                             },
                             items: _MyPostFilter.values.map((f) {
                               final approvalItems = [
@@ -834,13 +861,16 @@ String _myPostFilterLabel(_MyPostFilter f) {
                               ];
                               int count = 0;
                               if (f == _MyPostFilter.all) {
-                                count =
-                                    _myDrafts.length + _myReports.length + approvalItems.length;
+                                count = _myDrafts.length +
+                                    _myReports.length +
+                                    approvalItems.length;
                               } else if (f == _MyPostFilter.draft) {
                                 count = _myDrafts.length;
                               } else if (f == _MyPostFilter.validating) {
                                 count = _myReports
-                                        .where((i) => i.subStatus == ReportSubStatus.validating)
+                                        .where((i) =>
+                                            i.subStatus ==
+                                            ReportSubStatus.validating)
                                         .length +
                                     approvalItems
                                         .where((i) =>
@@ -849,11 +879,14 @@ String _myPostFilterLabel(_MyPostFilter f) {
                                             'pending')
                                         .length;
                               } else if (f == _MyPostFilter.approved) {
-                                count = _myReports.where((i) =>
-                                  i.subStatus != ReportSubStatus.validating &&
-                                  i.subStatus != ReportSubStatus.rejected &&
-                                  i.status != ReportStatus.closed
-                                ).length +
+                                count = _myReports
+                                        .where((i) =>
+                                            i.subStatus !=
+                                                ReportSubStatus.validating &&
+                                            i.subStatus !=
+                                                ReportSubStatus.rejected &&
+                                            i.status != ReportStatus.closed)
+                                        .length +
                                     approvalItems
                                         .where((i) =>
                                             (i.approvalStatus ?? '')
@@ -862,7 +895,8 @@ String _myPostFilterLabel(_MyPostFilter f) {
                                         .length;
                               } else if (f == _MyPostFilter.rejected) {
                                 count = _myReports
-                                        .where((i) => i.status == ReportStatus.closed)
+                                        .where((i) =>
+                                            i.status == ReportStatus.closed)
                                         .length +
                                     approvalItems
                                         .where((i) =>
@@ -887,14 +921,16 @@ String _myPostFilterLabel(_MyPostFilter f) {
                   : _mainTabController.index == 1
                       ? Row(
                           children: [
-                            const Text('Filter', style: kMinimalDropdownLabelStyle),
+                            const Text('Filter',
+                                style: kMinimalDropdownLabelStyle),
                             const SizedBox(width: 12),
                             Expanded(
                               child: MinimalDropdown<_TaskStatusFilter>(
                                 value: _activeTaskStatusFilter,
                                 onChanged: (val) {
                                   if (val != null) {
-                                    setState(() => _activeTaskStatusFilter = val);
+                                    setState(
+                                        () => _activeTaskStatusFilter = val);
                                     _saveTaskStatusFilter(val);
                                   }
                                 },
@@ -904,7 +940,8 @@ String _myPostFilterLabel(_MyPostFilter f) {
                                     count = _personalReports.length;
                                   } else {
                                     count = _personalReports
-                                        .where((i) => i.subStatus == f.subStatus)
+                                        .where(
+                                            (i) => i.subStatus == f.subStatus)
                                         .length;
                                   }
                                   return DropdownMenuItem(
@@ -922,9 +959,11 @@ String _myPostFilterLabel(_MyPostFilter f) {
                               child: _SubFilterChip(
                                 label: 'Unread',
                                 isActive: _activeFilter == _SubFilter.unread,
-                                badge: _unreadAnnouncements > 0 ? _unreadAnnouncements : null,
-                                onTap: () =>
-                                    setState(() => _activeFilter = _SubFilter.unread),
+                                badge: _unreadAnnouncements > 0
+                                    ? _unreadAnnouncements
+                                    : null,
+                                onTap: () => setState(
+                                    () => _activeFilter = _SubFilter.unread),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -932,9 +971,11 @@ String _myPostFilterLabel(_MyPostFilter f) {
                               child: _SubFilterChip(
                                 label: 'Read',
                                 isActive: _activeFilter == _SubFilter.read,
-                                badge: _readAnnouncementCount > 0 ? _readAnnouncementCount : null,
-                                onTap: () =>
-                                    setState(() => _activeFilter = _SubFilter.read),
+                                badge: _readAnnouncementCount > 0
+                                    ? _readAnnouncementCount
+                                    : null,
+                                onTap: () => setState(
+                                    () => _activeFilter = _SubFilter.read),
                               ),
                             ),
                           ],
@@ -991,7 +1032,8 @@ String _myPostFilterLabel(_MyPostFilter f) {
                 });
               },
             ),
-            if (_isApprovalQueueExpanded) ...approvalItems.map(_buildTaskListItem),
+            if (_isApprovalQueueExpanded)
+              ...approvalItems.map(_buildTaskListItem),
           ],
           _buildTaskSectionHeader(
             title: 'Butuh Tindakan Segera',
@@ -1003,7 +1045,8 @@ String _myPostFilterLabel(_MyPostFilter f) {
               });
             },
           ),
-          if (_isUrgentSectionExpanded) ...urgentReports.map(_buildTaskListItem),
+          if (_isUrgentSectionExpanded)
+            ...urgentReports.map(_buildTaskListItem),
           _buildTaskSectionHeader(
             title: 'Tugas Lainnya',
             count: otherReports.length,
@@ -1063,7 +1106,8 @@ String _myPostFilterLabel(_MyPostFilter f) {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.inbox_outlined, size: 52, color: Colors.grey.shade300),
+                  Icon(Icons.inbox_outlined,
+                      size: 52, color: Colors.grey.shade300),
                   const SizedBox(height: 12),
                   Text(
                     _getEmptyStateMessage(),
@@ -1121,20 +1165,20 @@ String _myPostFilterLabel(_MyPostFilter f) {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                   Icon(
-                     _mainTabController.index == 1
-                         ? Icons.assignment_outlined
-                         : (_activeFilter == _SubFilter.unread
-                             ? Icons.mark_email_read_outlined
-                             : Icons.drafts_outlined),
-                     size: 52,
-                     color: Colors.grey.shade300,
-                   ),
-                   const SizedBox(height: 12),
-                   Text(
-                     _getEmptyStateMessage(),
-                     style: const TextStyle(color: Colors.grey, fontSize: 14),
-                   ),
+                  Icon(
+                    _mainTabController.index == 1
+                        ? Icons.assignment_outlined
+                        : (_activeFilter == _SubFilter.unread
+                            ? Icons.mark_email_read_outlined
+                            : Icons.drafts_outlined),
+                    size: 52,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _getEmptyStateMessage(),
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
                 ],
               ),
             ),
@@ -1202,7 +1246,8 @@ String _myPostFilterLabel(_MyPostFilter f) {
   Widget _buildTaskListItem(InboxItem item) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: item.isApproval ? _buildApprovalTaskCard(item) : _buildTaskCard(item),
+      child:
+          item.isApproval ? _buildApprovalTaskCard(item) : _buildTaskCard(item),
     );
   }
 
@@ -1306,7 +1351,9 @@ String _myPostFilterLabel(_MyPostFilter f) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            approve ? 'Pengajuan berhasil disetujui.' : 'Pengajuan berhasil ditolak.',
+            approve
+                ? 'Pengajuan berhasil disetujui.'
+                : 'Pengajuan berhasil ditolak.',
           ),
         ),
       );
@@ -1460,7 +1507,26 @@ String _myPostFilterLabel(_MyPostFilter f) {
                             height: 1.3)),
                     const SizedBox(height: 12),
                     const Divider(),
-                    const SizedBox(height: 12),
+                    if (item.imageUrl != null && item.imageUrl!.isNotEmpty) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: CachedNetworkImage(
+                          imageUrl: item.imageUrl!,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else
+                      const SizedBox(height: 12),
                     Text(item.body ?? '',
                         style: const TextStyle(
                             fontSize: 14, color: Colors.black87, height: 1.6)),
@@ -1580,7 +1646,6 @@ class _SubFilterChip extends StatelessWidget {
     );
   }
 }
-
 
 class _InboxCard extends StatelessWidget {
   final InboxItem item;
@@ -1747,17 +1812,17 @@ class _InboxCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: onDetail,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: isRead ? urgencyStyle.background : const Color(0xFFF0F7FF),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
             color: isRead
-                ? urgencyStyle.background
-                : const Color(0xFFF0F7FF),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isRead ? urgencyStyle.border : const Color(0xFF1A56C4).withValues(alpha: 0.3),
-              width: 1,
-            ),
+                ? urgencyStyle.border
+                : const Color(0xFF1A56C4).withValues(alpha: 0.3),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -1771,8 +1836,7 @@ class _InboxCard extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(
-                height: item.reportType == ReportType.hazard &&
-                        dueChip != null
+                height: item.reportType == ReportType.hazard && dueChip != null
                     ? 155
                     : 135,
                 child: Row(
@@ -1861,35 +1925,35 @@ class _InboxCard extends StatelessWidget {
                             const SizedBox(height: 8),
 
                             // Date & Location
-Row(
-                            children: [
-                              const Icon(Icons.access_time,
-                                  size: 12, color: Colors.grey),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(formatDate(item.createdAt),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 11, color: Colors.grey)),
-                              ),
-                              const SizedBox(width: 12),
-                              const Icon(Icons.location_on_outlined,
-                                  size: 12, color: Colors.grey),
-                              const SizedBox(width: 4),
-                              Flexible(
-                                child: Text(
-                                    (item.location != null &&
-                                            item.location!.trim().isNotEmpty)
-                                        ? item.location!
-                                        : '-',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontSize: 11, color: Colors.grey)),
-                              ),
-                            ],
-                          ),
+                            Row(
+                              children: [
+                                const Icon(Icons.access_time,
+                                    size: 12, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(formatDate(item.createdAt),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 11, color: Colors.grey)),
+                                ),
+                                const SizedBox(width: 12),
+                                const Icon(Icons.location_on_outlined,
+                                    size: 12, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                      (item.location != null &&
+                                              item.location!.trim().isNotEmpty)
+                                          ? item.location!
+                                          : '-',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 11, color: Colors.grey)),
+                                ),
+                              ],
+                            ),
                             if (dueChip != null) ...[
                               const SizedBox(height: 6),
                               Align(
@@ -1910,7 +1974,8 @@ Row(
                                     color: badgeColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                     border: Border.all(
-                                        color: badgeColor.withValues(alpha: 0.3)),
+                                        color:
+                                            badgeColor.withValues(alpha: 0.3)),
                                   ),
                                   child: Text(
                                     badgeLabel,

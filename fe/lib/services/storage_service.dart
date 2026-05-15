@@ -5,12 +5,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class StorageService {
   static const _keyToken = 'auth_token';
   static const _keyUser = 'auth_user';
-  static const _keyExpiry = 'auth_expiry'; 
-  static const _keyRememberMe = 'auth_remember'; 
-  static const _keyBiometricEnabled = 'biometric_enabled';  
+  static const _keyExpiry = 'auth_expiry';
+  static const _keyRememberMe = 'auth_remember';
+  static const _keyBiometricEnabled = 'biometric_enabled';
+  static const _keyReadAnnouncements = 'read_announcement_ids';
 
   static SharedPreferences? _prefs;
-  static const _secureStorage = FlutterSecureStorage();  
+  static const _secureStorage = FlutterSecureStorage();
 
   static Future<SharedPreferences> _getPrefs() async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -29,9 +30,8 @@ class StorageService {
       // Sesi selamanya — tidak ada expiry di sisi client.
       await prefs.remove(_keyExpiry);
     } else {
-      final expiry = DateTime.now()
-          .add(const Duration(minutes: 15))
-          .toIso8601String();
+      final expiry =
+          DateTime.now().add(const Duration(minutes: 15)).toIso8601String();
       await prefs.setString(_keyExpiry, expiry);
     }
   }
@@ -116,6 +116,7 @@ class StorageService {
     final remaining = expiryDate.difference(DateTime.now());
     return remaining.isNegative ? null : remaining;
   }
+
   // ── Biometric Login ───────────────────────────────────────────────────────
   static Future<void> setBiometricEnabled(bool enabled) async {
     final prefs = await _getPrefs();
@@ -130,7 +131,8 @@ class StorageService {
     return prefs.getBool(_keyBiometricEnabled) ?? false;
   }
 
-  static Future<void> saveBiometricCredentials(String loginId, String password) async {
+  static Future<void> saveBiometricCredentials(
+      String loginId, String password) async {
     await _secureStorage.write(key: 'biometric_login_id', value: loginId);
     await _secureStorage.write(key: 'biometric_password', value: password);
   }
@@ -147,5 +149,30 @@ class StorageService {
   static Future<void> clearBiometricCredentials() async {
     await _secureStorage.delete(key: 'biometric_login_id');
     await _secureStorage.delete(key: 'biometric_password');
-  }  
+  }
+
+  // ── Announcement Read Tracking ───────────────────────────────────────────
+  static Future<String> _announcementReadKey() async {
+    final user = await getUser();
+    final userId = user?['id']?.toString();
+    if (userId == null || userId.isEmpty) return _keyReadAnnouncements;
+    return '${_keyReadAnnouncements}_$userId';
+  }
+
+  static Future<void> markAnnouncementRead(String id) async {
+    final prefs = await _getPrefs();
+    final key = await _announcementReadKey();
+    final list = prefs.getStringList(key) ?? [];
+    if (!list.contains(id)) {
+      list.add(id);
+      await prefs.setStringList(key, list);
+    }
+  }
+
+  static Future<bool> isAnnouncementRead(String id) async {
+    final prefs = await _getPrefs();
+    final key = await _announcementReadKey();
+    final list = prefs.getStringList(key) ?? [];
+    return list.contains(id);
+  }
 }

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:async';
 import '../models/report.dart';
 import '../data/news_data.dart';
 import '../services/news_service.dart';
+import '../models/announcement.dart';
+import '../services/announcement_service.dart';
+import '../services/inbox_service.dart';
+import '../services/storage_service.dart';
 import 'report_detail_screen.dart';
 import 'news_detail_screen.dart';
 import '../data/report_store.dart';
@@ -15,7 +20,8 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
   _FadePageRoute({required this.builder})
       : super(
-          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -31,6 +37,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with RouteAware {
+  static const String _announcementFallbackAsset = 'assets/logo.png';
+
   final PageController _pageController = PageController();
   int _currentPage = 0;
   Timer? _carouselTimer;
@@ -50,9 +58,11 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   bool _isLoading = true;
   String? _error;
   bool _routeAwareSubscribed = false;
+  String? _currentCompanyName;
 
-  // ── Featured News Carousel ────────────────────────────────────────────────
-  List<NewsArticle> _carouselItems = [];
+  // ── Featured News & Announcements Carousel ───────────────────────────────
+  List<Object> _carouselItems = [];
+  bool _urgentDialogShowing = false;
 
   // ── Only Hazard & Inspection ──────────────────────────────────────────────
   final List<String> _reportTypes = [
@@ -64,8 +74,18 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserCompany();
     _refreshData();
     _scrollController.addListener(_onScroll);
+    AnnouncementService.refreshNotifier.addListener(_loadCarouselData);
+  }
+
+  Future<void> _loadCurrentUserCompany() async {
+    final user = await StorageService.getUser();
+    if (!mounted) return;
+    setState(() {
+      _currentCompanyName = user?['company']?.toString();
+    });
   }
 
   Future<void> _refreshData() async {
@@ -76,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     try {
       await Future.wait([
         ReportStore.instance.refreshReports(),
-        _loadCarouselNews(),
+        _loadCarouselData(),
       ]);
     } catch (e) {
       setState(() {
@@ -91,15 +111,383 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
     }
   }
 
-  Future<void> _loadCarouselNews() async {
-    final result = await NewsService.getNews();
+  Future<void> _loadCarouselData() async {
+    final newsResult = await NewsService.getNews();
+    final announcements = await AnnouncementService.getAnnouncements();
     if (!mounted) return;
-    if (result.success) {
-      setState(() {
-        _carouselItems = result.articles.where((a) => a.isFeatured).toList();
-      });
+
+    final merged = <Object>[];
+    if (newsResult.success) {
+      merged.addAll(newsResult.articles);
+    }
+    merged.addAll(announcements);
+    merged.sort((a, b) => _carouselDate(b).compareTo(_carouselDate(a)));
+
+    setState(() {
+      _currentPage = 0;
+      _carouselItems = merged.take(3).toList();
+    });
+
+    await _checkUrgentAnnouncement(announcements);
+
+    if (_carouselItems.isNotEmpty) {
       _startCarousel();
     }
+  }
+
+  DateTime _carouselDate(Object item) {
+    if (item is NewsArticle) {
+      return item.createdAt ?? DateTime(2000);
+    }
+    if (item is Announcement) {
+      return item.createdAt;
+    }
+    return DateTime(2000);
+  }
+
+  Future<void> _checkUrgentAnnouncement(
+    List<Announcement> announcements,
+  ) async {
+    if (_urgentDialogShowing) return;
+
+    final urgent = announcements.where((a) => a.isUrgent).toList();
+    for (final announcement in urgent) {
+      if (announcement.isRead) continue;
+      final locallyRead =
+          await StorageService.isAnnouncementRead(announcement.id);
+      if (locallyRead) continue;
+      if (!mounted) return;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_urgentDialogShowing) {
+          _showUrgentPopup(announcement);
+        }
+      });
+      break;
+    }
+  }
+
+  void _showUrgentPopup(Announcement announcement) {
+    if (_urgentDialogShowing) return;
+    _urgentDialogShowing = true;
+    bool isChecked = false;
+    final remainingDays = announcement.remainingDays;
+    final remainingDaysText = remainingDays == null
+        ? 'Berlaku: Segera'
+        : 'Berlaku: $remainingDays hari lagi';
+    final warningDaysText =
+        remainingDays == null ? 'beberapa hari' : '$remainingDays hari';
+    final creatorName = announcement.creatorName ?? 'Admin';
+    final companyName =
+        (announcement.creatorCompany?.trim().isNotEmpty ?? false)
+            ? announcement.creatorCompany!.trim()
+            : ((_currentCompanyName?.trim().isNotEmpty ?? false)
+                ? _currentCompanyName!.trim()
+                : null);
+    final senderText = companyName == null
+        ? 'Dari: $creatorName - ${_formatDate(announcement.createdAt)}'
+        : 'Dari: $creatorName - $companyName - ${_formatDate(announcement.createdAt)}';
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => Center(
+          child: Material(
+            color: Colors.transparent,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.92,
+              ),
+              child: SingleChildScrollView(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      )
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                        Container(
+                          width: double.infinity,
+                          height: 140,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0xFFB71C1C), Color(0xFFC62828)],
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.campaign_rounded,
+                              color: Colors.white,
+                              size: 80,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade50,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: Colors.red.shade200),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 12,
+                                          color: Colors.red.shade700,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'URGENSI TINGGI',
+                                          style: TextStyle(
+                                            color: Colors.red.shade700,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    remainingDaysText,
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              if (announcement.imageUrl != null &&
+                                  announcement.imageUrl!.isNotEmpty) ...[
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: CachedNetworkImage(
+                                    imageUrl: announcement.imageUrl!,
+                                    width: double.infinity,
+                                    height: 180,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(
+                                      color: Colors.grey.shade100,
+                                      child: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    ),
+                                    errorWidget: (_, __, ___) =>
+                                        const SizedBox.shrink(),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ] else ...[
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.asset(
+                                    _announcementFallbackAsset,
+                                    width: double.infinity,
+                                    height: 180,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              Text(
+                                announcement.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                announcement.body,
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 13,
+                                  height: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF3F3),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xFFFFCDD2)),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.info_outline,
+                                      size: 18,
+                                      color: Color(0xFFF44336),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Pengumuman ini akan muncul setiap hari selama $warningDaysText hingga kamu mengonfirmasi telah membaca.',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFFC62828),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                senderText,
+                                style: const TextStyle(
+                                    fontSize: 10, color: Colors.grey),
+                              ),
+                              const Divider(height: 32),
+                              GestureDetector(
+                                onTap: () =>
+                                    setModalState(() => isChecked = !isChecked),
+                                child: Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: Checkbox(
+                                        value: isChecked,
+                                        activeColor: const Color(0xFF1A56C4),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        onChanged: (v) => setModalState(
+                                            () => isChecked = v ?? false),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Expanded(
+                                      child: Text(
+                                        'Saya sudah membaca dan mengerti isi pengumuman ini',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: isChecked
+                                      ? () async {
+                                          await StorageService
+                                              .markAnnouncementRead(
+                                            announcement.id,
+                                          );
+                                          await InboxService.markRead(
+                                            itemId: announcement.id,
+                                            itemType: 'announcement',
+                                          );
+                                          if (ctx.mounted) Navigator.pop(ctx);
+                                        }
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1A56C4),
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor:
+                                        Colors.grey.shade200,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (isChecked)
+                                        const Icon(Icons.check, size: 18),
+                                      if (isChecked) const SizedBox(width: 8),
+                                      const Text(
+                                        'Tutup',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                )
+                    .animate()
+                    .scale(duration: 400.ms, curve: Curves.easeOutBack)
+                    .fadeIn(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() {
+      _urgentDialogShowing = false;
+    });
+  }
+
+  String _formatDate(DateTime dt) {
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
+    ];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  }
+
+  String _carouselMetaText(Object item) {
+    if (item is NewsArticle) return '${item.author}  •  ${item.date}';
+    if (item is Announcement) {
+      final time =
+          item.timeAgo.isNotEmpty ? item.timeAgo : _formatDate(item.createdAt);
+      return '${item.creatorName ?? 'Admin'}  •  $time';
+    }
+    return '';
   }
 
   void _onScroll() {
@@ -175,6 +563,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
       routeObserver.unsubscribe(this);
       _routeAwareSubscribed = false;
     }
+    AnnouncementService.refreshNotifier.removeListener(_loadCarouselData);
     _carouselTimer?.cancel();
     _pageController.dispose();
     _searchController.dispose();
@@ -401,34 +790,61 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
             itemCount: _carouselItems.length,
             itemBuilder: (_, index) {
               final item = _carouselItems[index];
+              final bool isNews = item is NewsArticle;
+              final String title;
+              final String? rawImageUrl;
+              if (item is NewsArticle) {
+                title = item.title;
+                rawImageUrl = item.imageUrl;
+              } else {
+                final announcement = item as Announcement;
+                title = announcement.title;
+                rawImageUrl = announcement.imageUrl;
+              }
+              final imageUrl = rawImageUrl != null && rawImageUrl.isNotEmpty
+                  ? rawImageUrl
+                  : null;
+              final label = isNews ? 'BERITA' : 'PENGUMUMAN';
+              final labelColor = isNews ? Colors.blue : Colors.purple;
+
               return GestureDetector(
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    _FadePageRoute(
-                      builder: (_) => NewsDetailScreen(article: item),
-                    ),
-                  );
+                  if (item is NewsArticle) {
+                    Navigator.push(
+                      context,
+                      _FadePageRoute(
+                        builder: (_) => NewsDetailScreen(article: item),
+                      ),
+                    );
+                  } else if (item is Announcement) {
+                    _showUrgentPopup(item);
+                  }
                 },
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    CachedNetworkImage(
-                      imageUrl: item.imageUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: const Color(0xFF37474F),
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                              color: Colors.white38, strokeWidth: 2),
+                    if (imageUrl != null)
+                      CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: const Color(0xFF37474F),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                                color: Colors.white38, strokeWidth: 2),
+                          ),
                         ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: const Color(0xFF37474F),
+                          child: const Icon(Icons.image,
+                              color: Colors.white24, size: 60),
+                        ),
+                      )
+                    else
+                      Image.asset(
+                        _announcementFallbackAsset,
+                        fit: BoxFit.cover,
                       ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: const Color(0xFF37474F),
-                        child: const Icon(Icons.image,
-                            color: Colors.white24, size: 60),
-                      ),
-                    ),
                     // Gradient overlay
                     Container(
                       decoration: BoxDecoration(
@@ -443,13 +859,34 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                         ),
                       ),
                     ),
+                    // Type Badge
+                    Positioned(
+                      top: 16,
+                      left: 16,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: labelColor.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                     // Title
                     Positioned(
                       left: 16,
                       right: 52,
                       bottom: 38,
                       child: Text(
-                        item.title,
+                        title,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -551,7 +988,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    '${_carouselItems[_currentPage].author}  •  ${_carouselItems[_currentPage].date}',
+                    _carouselMetaText(_carouselItems[_currentPage]),
                     style: const TextStyle(color: Colors.white70, fontSize: 11),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -818,10 +1255,10 @@ class _ReportCard extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(
-                height: report.type == ReportType.hazard &&
-                        report.dueDate != null
-                    ? 155
-                    : 135,
+                height:
+                    report.type == ReportType.hazard && report.dueDate != null
+                        ? 155
+                        : 135,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

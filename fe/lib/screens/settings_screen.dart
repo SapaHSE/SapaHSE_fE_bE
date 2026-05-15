@@ -166,9 +166,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Navigator.pop(context);
           Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateInspectionScreen()));
         },
-        onAddCarousel: () {
-          Navigator.pop(context);
-        },
         onAddNews: () {
           Navigator.pop(context);
         },
@@ -721,7 +718,6 @@ class _SettingsFabMenuSheet extends StatelessWidget {
   final VoidCallback onScanQr;
   final VoidCallback onCreateHazard;
   final VoidCallback onCreateInspection;
-  final VoidCallback onAddCarousel;
   final VoidCallback onAddNews;
   final VoidCallback onEditBiodata;
   final VoidCallback onAddLicense;
@@ -733,7 +729,6 @@ class _SettingsFabMenuSheet extends StatelessWidget {
     required this.onScanQr,
     required this.onCreateHazard,
     required this.onCreateInspection,
-    required this.onAddCarousel,
     required this.onAddNews,
     required this.onEditBiodata,
     required this.onAddLicense,
@@ -807,14 +802,6 @@ class _SettingsFabMenuSheet extends StatelessWidget {
           ),
           if (currentIndex == 0) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-            _SettingsFabMenuTile(
-              icon: Icons.add_photo_alternate_outlined,
-              iconBgColor: const Color(0xFFE8F5E9),
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Tambah Gambar Carousel',
-              subtitle: 'Tambah banner gambar di halaman utama',
-              onTap: onAddCarousel,
-            ),
           ],
           if (currentIndex == 1) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
