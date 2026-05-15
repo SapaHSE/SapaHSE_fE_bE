@@ -141,16 +141,19 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.only(bottom: 32),
-        child: AnimatedBuilder(
-          animation: _textFadeAnim,
-          builder: (_, __) => Opacity(
-            opacity: _textFadeAnim.value,
-            child: const Text(
-              'v1.0.0',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 32),
+          child: AnimatedBuilder(
+            animation: _textFadeAnim,
+            builder: (_, __) => Opacity(
+              opacity: _textFadeAnim.value,
+              child: const Text(
+                'v1.0.0',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
             ),
           ),
         ),

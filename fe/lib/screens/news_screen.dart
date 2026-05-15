@@ -6,6 +6,7 @@ import '../services/news_service.dart';
 import 'news_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/minimal_dropdown.dart';
+import '../widgets/app_safe_insets.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -191,8 +192,14 @@ class _NewsScreenState extends State<NewsScreen> {
                                       ),
                                     ),
 
-                              const SliverToBoxAdapter(
-                                  child: SizedBox(height: 80)),
+                              SliverToBoxAdapter(
+                                child: SizedBox(
+                                  height:
+                                      AppSafeInsets.bottomNavScrollPadding(
+                                    context,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),

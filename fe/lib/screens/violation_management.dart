@@ -5,6 +5,7 @@ import '../services/storage_service.dart';
 import 'package:intl/intl.dart';
 import '../main.dart';
 import 'dart:async';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 String _userInitial(dynamic value) {
@@ -91,12 +92,17 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => Container(
+      builder: (sheetContext) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          16,
+          24,
+          AppSafeInsets.sheetBottomPadding(sheetContext, base: 16),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -318,7 +324,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                     : RefreshIndicator(
                         onRefresh: () => _fetchViolations(refresh: true),
                         child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
+                          padding: AppSafeInsets.bottomNavListPadding(context),
                           itemCount: _violations.length +
                               (_currentPage < _lastPage ? 1 : 0),
                           itemBuilder: (context, index) {
@@ -894,7 +900,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom: AppSafeInsets.keyboardOrSystemBottom(context),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

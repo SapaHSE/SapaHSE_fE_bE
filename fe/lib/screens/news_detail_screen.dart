@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../data/news_data.dart';
 import '../services/news_service.dart';
 import 'package:sapahse/main.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
@@ -281,7 +282,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                         .toList(),
                   ),
 
-                  const SizedBox(height: 160),
+                  SizedBox(
+                    height: AppSafeInsets.bottomNavScrollPadding(context),
+                  ),
                 ],
               ),
             ),
@@ -372,7 +375,12 @@ class _NewsDetailFabMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 32),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),

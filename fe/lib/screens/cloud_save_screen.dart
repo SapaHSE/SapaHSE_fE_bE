@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/cloud_save_service.dart';
+import '../widgets/app_safe_insets.dart';
 import 'dart:async';
 
 class CloudSaveScreen extends StatefulWidget {
@@ -317,7 +318,12 @@ class _CloudSaveScreenState extends State<CloudSaveScreen>
       onRefresh: _loadDrafts,
       color: _blue,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          AppSafeInsets.floatingActionScrollPadding(context),
+        ),
         itemCount: _drafts.length,
         itemBuilder: (context, i) => _DraftCard(
           draft: _drafts[i],

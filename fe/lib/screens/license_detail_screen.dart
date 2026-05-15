@@ -5,6 +5,7 @@ import 'dart:io';
 import '../models/profile_model.dart';
 import '../services/profile_service.dart';
 import '../main.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 class LicenseDetailScreen extends StatefulWidget {
@@ -225,7 +226,9 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                   ],
 
                   // ── Quick Action: Edit (Moved to FAB) ──────────────────────
-                  const SizedBox(height: 100), // Spacer for bottom navigation
+                  SizedBox(
+                    height: AppSafeInsets.bottomNavScrollPadding(context),
+                  ),
                 ],
               ),
             ),
@@ -349,7 +352,7 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            bottom: AppSafeInsets.sheetBottomPadding(context),
           ),
           child: SingleChildScrollView(
             child: Column(

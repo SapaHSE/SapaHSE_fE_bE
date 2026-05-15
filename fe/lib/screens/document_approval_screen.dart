@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/approval_service.dart';
 import '../models/profile_model.dart';
+import '../widgets/app_safe_insets.dart';
 import 'license_detail_screen.dart';
 import 'certification_detail_screen.dart';
 
@@ -148,7 +149,7 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
     return RefreshIndicator(
       onRefresh: _fetchPendingDocuments,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: AppSafeInsets.pagePadding(context),
         itemCount: documents.length,
         itemBuilder: (context, index) {
           final doc = documents[index];

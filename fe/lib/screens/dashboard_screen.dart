@@ -5,6 +5,7 @@ import 'dashboard_overview_module.dart';
 import 'dashboard_report_module.dart';
 import 'dashboard_news_module.dart';
 import 'dashboard_users_module.dart';
+import '../widgets/app_safe_insets.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -123,7 +124,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           if (isDesktop) _buildNavigationMenu(isDrawer: false),
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(isDesktop ? 32 : 16),
+              padding: AppSafeInsets.pagePadding(
+                context,
+                left: isDesktop ? 32 : 16,
+                top: isDesktop ? 32 : 16,
+                right: isDesktop ? 32 : 16,
+                bottom: isDesktop ? 32 : 16,
+              ),
               child: _buildContent(),
             ),
           ),

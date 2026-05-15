@@ -10,6 +10,7 @@ import 'qr_scan_screen.dart';
 import 'my_profile.dart';
 import 'package:local_auth/local_auth.dart';
 import '../widgets/minimal_dropdown.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -206,7 +207,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 148),
+        padding: EdgeInsets.only(
+          bottom: AppSafeInsets.bottomNavScrollPadding(context),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -533,7 +536,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: AppSafeInsets.keyboardOrSystemBottom(context),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -739,7 +742,12 @@ class _SettingsFabMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 32),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -973,4 +981,3 @@ class _SettingsNavItem extends StatelessWidget {
     );
   }
 }
-

@@ -12,6 +12,7 @@ import '../services/storage_service.dart';
 import '../services/supabase_storage_service.dart';
 import '../config/supabase_config.dart';
 import '../main.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
@@ -130,7 +131,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   double get _scrollFabBottomOffset {
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final safeBottom = AppSafeInsets.systemBottom(context);
     final base = widget.isDialog
         ? _kScrollFabDialogBase + safeBottom
         : _kBottomBarHeight + _kBottomBarGap + safeBottom;
@@ -1220,7 +1221,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                     },
                   ),
 
-                  const SizedBox(height: 160),
+                  SizedBox(
+                    height: AppSafeInsets.bottomNavScrollPadding(context),
+                  ),
                 ],
               ),
             ),
@@ -2104,7 +2107,12 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          20,
+          0,
+          AppSafeInsets.sheetBottomPadding(ctx, base: 20),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3464,7 +3472,12 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          20,
+          0,
+          AppSafeInsets.sheetBottomPadding(ctx, base: 20),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3744,7 +3757,12 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    20,
+                    20,
+                    AppSafeInsets.sheetBottomPadding(context, base: 20),
+                  ),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -3873,7 +3891,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        bottom: AppSafeInsets.sheetBottomPadding(context, base: 20),
         top: 12,
         left: 20,
         right: 20,

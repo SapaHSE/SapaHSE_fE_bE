@@ -3,6 +3,7 @@ import '../services/report_service.dart';
 import '../services/storage_service.dart';
 import 'package:sapahse/main.dart';
 import '../widgets/minimal_dropdown.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 class KategoriLaporanScreen extends StatefulWidget {
@@ -418,7 +419,7 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
     return RefreshIndicator(
       onRefresh: _loadData,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 148),
+        padding: AppSafeInsets.bottomNavListPadding(context),
         children: [
           _buildInfoBanner(),
           const SizedBox(height: 16),
@@ -1107,7 +1108,12 @@ class _KategoriFabMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 32),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),

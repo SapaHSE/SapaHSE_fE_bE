@@ -4,6 +4,7 @@ import '../services/storage_service.dart';
 import '../services/company_service.dart';
 import '../services/department_service.dart';
 import '../widgets/reject_reason_dialog.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 import 'package:sapahse/main.dart';
 
@@ -505,7 +506,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
+                  padding: AppSafeInsets.bottomNavListPadding(context),
                   itemCount: users.length,
                   itemBuilder: (context, index) {
                     final user = users[index];
@@ -671,7 +672,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 64),
+      padding: AppSafeInsets.bottomNavListPadding(context),
       itemCount: _unapprovedUsers.length,
       itemBuilder: (context, index) {
         final user = _unapprovedUsers[index];
@@ -844,7 +845,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 64),
+      padding: AppSafeInsets.bottomNavListPadding(context),
       itemCount: _rejectedUsers.length,
       itemBuilder: (context, index) {
         final log = _rejectedUsers[index];
@@ -1480,7 +1481,9 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         ),
                     ],
                   ],
-                  const SizedBox(height: 88),
+                  SizedBox(
+                    height: AppSafeInsets.bottomNavScrollPadding(context),
+                  ),
                 ],
               ),
             ),
@@ -1953,7 +1956,13 @@ class _UserFormScreenState extends State<UserFormScreen> {
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: AppSafeInsets.pagePadding(
+          context,
+          left: 24,
+          top: 24,
+          right: 24,
+          bottom: 24,
+        ),
         child: Form(
           key: _formKey,
           child: Column(
@@ -2358,7 +2367,12 @@ class _UserFabMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 32),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -2468,7 +2482,12 @@ class _DetailFabMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 32),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),

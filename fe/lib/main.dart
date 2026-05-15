@@ -16,6 +16,7 @@ import 'screens/profile_screen.dart';
 import 'screens/create_hazard_screen.dart';
 import 'screens/create_inspection_screen.dart';
 import 'screens/qr_scan_screen.dart';
+import 'widgets/app_safe_insets.dart';
 import 'widgets/fab_notched_bottom_bar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -200,10 +201,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: AppSafeInsets.keyboardOrSystemBottom(ctx),
+          ),
           child: Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+            margin: const EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              AppSafeInsets.defaultSheetGap,
+            ),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -296,10 +303,16 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       backgroundColor: Colors.transparent,
       builder: (_) => StatefulBuilder(
         builder: (ctx, setModal) => Padding(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: AppSafeInsets.keyboardOrSystemBottom(ctx),
+          ),
           child: Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+            margin: const EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              AppSafeInsets.defaultSheetGap,
+            ),
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -596,7 +609,12 @@ class _FabMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 32),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),

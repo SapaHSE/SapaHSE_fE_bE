@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import '../widgets/app_safe_insets.dart';
 
 class MapPickerScreen extends StatefulWidget {
   final LatLng? initialLocation;
@@ -156,7 +157,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
           // My Location button
           Positioned(
-            bottom: 20,
+            bottom: AppSafeInsets.floatingBottom(context),
             right: 20,
             child: FloatingActionButton(
               heroTag: 'myLocation',
@@ -206,7 +207,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           // Save Location button
           if (_selectedLocation != null)
             Positioned(
-              bottom: 20,
+              bottom: AppSafeInsets.floatingBottom(context),
               left: 20,
               right: 90,
               child: SizedBox(

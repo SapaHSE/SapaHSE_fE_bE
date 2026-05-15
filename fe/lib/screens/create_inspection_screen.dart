@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../data/report_store.dart';
 import '../services/cloud_save_service.dart';
 import '../services/report_service.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/minimal_dropdown.dart';
 
 class CreateInspectionScreen extends StatefulWidget {
@@ -766,7 +767,9 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                 ),
               ),
 
-              const SizedBox(height: 80),
+              SizedBox(
+                height: AppSafeInsets.floatingActionScrollPadding(context),
+              ),
             ],
           ),
         ),

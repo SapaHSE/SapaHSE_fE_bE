@@ -4,6 +4,7 @@ import '../services/department_service.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'package:sapahse/main.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 
@@ -212,7 +213,7 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
               : RefreshIndicator(
                   onRefresh: _loadInitialData,
                   child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
+                    padding: AppSafeInsets.bottomNavListPadding(context),
                     itemCount: _departments.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
@@ -291,7 +292,12 @@ class _DeptFabMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 32),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),

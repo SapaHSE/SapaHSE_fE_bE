@@ -13,6 +13,7 @@ import '../models/report.dart';
 import '../services/cloud_save_service.dart';
 import '../services/company_service.dart';
 import '../services/report_service.dart';
+import '../widgets/app_safe_insets.dart';
 import 'map_picker_screen.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -378,7 +379,12 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    20,
+                    20,
+                    AppSafeInsets.sheetBottomPadding(context, base: 20),
+                  ),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -541,7 +547,12 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    20,
+                    20,
+                    AppSafeInsets.sheetBottomPadding(context, base: 20),
+                  ),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -719,7 +730,12 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    20,
+                    20,
+                    AppSafeInsets.sheetBottomPadding(context, base: 20),
+                  ),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -1500,7 +1516,12 @@ if (picked.isNotEmpty) {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    20,
+                    20,
+                    AppSafeInsets.sheetBottomPadding(context, base: 20),
+                  ),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -1741,7 +1762,12 @@ if (picked.isNotEmpty) {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    20,
+                    20,
+                    AppSafeInsets.sheetBottomPadding(context, base: 20),
+                  ),
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -2449,72 +2475,83 @@ if (picked.isNotEmpty) {
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
-        child: Stepper(
-        type: StepperType.horizontal,
-        currentStep: _currentStep,
-        elevation: 0,
-        controlsBuilder: (context, details) {
-          final isLastStep = _currentStep == 2;
-          return Padding(
-            padding: const EdgeInsets.only(top: 24),
-            child: Row(
-              children: [
-                if (_currentStep > 0)
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: details.onStepCancel,
-                      style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14)),
-                      child: const Text('Kembali'),
+        child: SafeArea(
+          top: false,
+          child: Stepper(
+            type: StepperType.horizontal,
+            currentStep: _currentStep,
+            elevation: 0,
+            controlsBuilder: (context, details) {
+              final isLastStep = _currentStep == 2;
+              return Padding(
+                padding: const EdgeInsets.only(top: 24),
+                child: Row(
+                  children: [
+                    if (_currentStep > 0)
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: details.onStepCancel,
+                          style: OutlinedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14)),
+                          child: const Text('Kembali'),
+                        ),
+                      ),
+                    if (_currentStep > 0) const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed:
+                            _isSubmitting ? null : details.onStepContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : Text(
+                                isLastStep
+                                    ? 'Kirim Laporan'
+                                    : 'Selanjutnya',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                      ),
                     ),
-                  ),
-                if (_currentStep > 0) const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : details.onStepContinue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : Text(isLastStep ? 'Kirim Laporan' : 'Selanjutnya',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
-        onStepContinue: _nextStep,
-        onStepCancel: _prevStep,
-        steps: [
-          Step(
-            isActive: _currentStep >= 0,
-            state: _currentStep > 0 ? StepState.complete : StepState.indexed,
-            title: const Text('Data', style: TextStyle(fontSize: 12)),
-            content: _buildStep1(),
+              );
+            },
+            onStepContinue: _nextStep,
+            onStepCancel: _prevStep,
+            steps: [
+              Step(
+                isActive: _currentStep >= 0,
+                state:
+                    _currentStep > 0 ? StepState.complete : StepState.indexed,
+                title: const Text('Data', style: TextStyle(fontSize: 12)),
+                content: _buildStep1(),
+              ),
+              Step(
+                isActive: _currentStep >= 1,
+                state:
+                    _currentStep > 1 ? StepState.complete : StepState.indexed,
+                title: const Text('Detail', style: TextStyle(fontSize: 12)),
+                content: _buildStep2(),
+              ),
+              Step(
+                isActive: _currentStep >= 2,
+                title: const Text('Review', style: TextStyle(fontSize: 12)),
+                content: _buildStep3(),
+              ),
+            ],
           ),
-          Step(
-            isActive: _currentStep >= 1,
-            state: _currentStep > 1 ? StepState.complete : StepState.indexed,
-            title: const Text('Detail', style: TextStyle(fontSize: 12)),
-            content: _buildStep2(),
-          ),
-          Step(
-            isActive: _currentStep >= 2,
-            title: const Text('Review', style: TextStyle(fontSize: 12)),
-            content: _buildStep3(),
-          ),
-        ],
-      ),
+        ),
       )
     );
   }

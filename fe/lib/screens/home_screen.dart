@@ -16,6 +16,7 @@ import 'news_detail_screen.dart';
 import '../data/report_store.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/minimal_dropdown.dart';
+import '../widgets/app_safe_insets.dart';
 import '../app_globals.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
@@ -861,8 +862,14 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                   );
                                 },
                               ),
-                              const SliverToBoxAdapter(
-                                  child: SizedBox(height: 80)),
+                              SliverToBoxAdapter(
+                                child: SizedBox(
+                                  height:
+                                      AppSafeInsets.bottomNavScrollPadding(
+                                    context,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),

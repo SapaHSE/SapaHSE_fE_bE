@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_safe_insets.dart';
 
 class NeztekAdminScreen extends StatelessWidget {
   const NeztekAdminScreen({super.key});
@@ -206,7 +207,12 @@ class NeztekAdminScreen extends StatelessWidget {
   );
 
   Widget _buildFooter(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    padding: EdgeInsets.fromLTRB(
+      20,
+      16,
+      20,
+      16 + AppSafeInsets.systemBottom(context),
+    ),
     color: Colors.white,
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

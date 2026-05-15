@@ -16,6 +16,7 @@ import 'package:sapahse/utils/approval_status_ui.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/utils/url_helper.dart';
 import 'package:sapahse/main.dart';
+import 'package:sapahse/widgets/app_safe_insets.dart';
 import 'package:sapahse/widgets/fab_notched_bottom_bar.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
@@ -238,7 +239,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          20,
+          0,
+          AppSafeInsets.sheetBottomPadding(ctx, base: 20),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -279,7 +285,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          20,
+          0,
+          AppSafeInsets.sheetBottomPadding(ctx, base: 20),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -529,7 +540,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   _buildSubTabBar(),
                   const SizedBox(height: 20),
                   _buildSubTabContent(),
-                  const SizedBox(height: 200),
+                  SizedBox(
+                    height: AppSafeInsets.bottomNavScrollPadding(context),
+                  ),
                 ],
               ),
             ),
@@ -889,7 +902,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(modalContext).viewInsets.bottom,
+            bottom: AppSafeInsets.keyboardOrSystemBottom(modalContext),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1508,7 +1521,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
+            bottom: AppSafeInsets.sheetBottomPadding(modalContext),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -1734,7 +1747,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          AppSafeInsets.sheetBottomPadding(context),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1767,7 +1785,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       ),
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.6,
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          20,
+          0,
+          AppSafeInsets.sheetBottomPadding(context, base: 20),
+        ),
         child: Column(
           children: [
             const Text('Pilih Tinggi Badan (cm)',
@@ -1809,7 +1832,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
+            bottom: AppSafeInsets.sheetBottomPadding(modalContext),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -2010,7 +2033,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
+            bottom: AppSafeInsets.sheetBottomPadding(modalContext),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -3016,7 +3039,7 @@ class _LicenseDetailPage extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: AppSafeInsets.pagePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3107,7 +3130,7 @@ class _CertificationDetailPage extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: AppSafeInsets.pagePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3197,7 +3220,7 @@ class _ViolationDetailPage extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: AppSafeInsets.pagePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3606,7 +3629,12 @@ class _ProfileFabMenuSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 32),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -3878,7 +3906,12 @@ class _DepartmentPickerSheetState extends State<_DepartmentPickerSheet> {
                   ),
           ),
           Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.fromLTRB(
+              24,
+              24,
+              24,
+              AppSafeInsets.sheetBottomPadding(context),
+            ),
             child: SizedBox(
               width: double.infinity,
               height: 52,

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 class FabNotchedBottomBar extends StatelessWidget {
+  static const double defaultHeight = 60;
+  static const double defaultNotchRadius = 34;
+
   final Widget child;
   final double height;
   final double notchRadius;
@@ -11,16 +14,27 @@ class FabNotchedBottomBar extends StatelessWidget {
   const FabNotchedBottomBar({
     super.key,
     required this.child,
-    this.height = 60,
-    this.notchRadius = 34,
+    this.height = defaultHeight,
+    this.notchRadius = defaultNotchRadius,
     this.elevation = 8,
     this.color = Colors.white,
     this.shadowColor = Colors.black26,
   });
 
+  static double bottomInset(BuildContext context) {
+    return MediaQuery.viewPaddingOf(context).bottom;
+  }
+
+  static double effectiveHeight(
+    BuildContext context, {
+    double height = defaultHeight,
+  }) {
+    return height + bottomInset(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final bottomInset = FabNotchedBottomBar.bottomInset(context);
     return SizedBox(
       height: height + bottomInset,
       child: PhysicalShape(

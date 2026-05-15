@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/app_safe_insets.dart';
 
 class StatistikScreen extends StatefulWidget {
   const StatistikScreen({super.key});
@@ -30,7 +31,10 @@ class _StatistikScreenState extends State<StatistikScreen> {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: AppSafeInsets.pagePadding(
+          context,
+          top: 0,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/profile_model.dart';
 import '../main.dart';
+import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 class ViolationDetailScreen extends StatelessWidget {
@@ -149,7 +150,9 @@ class ViolationDetailScreen extends StatelessWidget {
                       ],
                     ),
 
-                  const SizedBox(height: 100), // Spacer for bottom navigation
+                  SizedBox(
+                    height: AppSafeInsets.bottomNavScrollPadding(context),
+                  ),
                 ],
               ),
             ),

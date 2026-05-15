@@ -17,6 +17,7 @@ import '../widgets/approval_task_card.dart';
 import '../widgets/reject_reason_dialog.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/minimal_dropdown.dart';
+import '../widgets/app_safe_insets.dart';
 import '../services/storage_service.dart';
 import '../services/cloud_save_service.dart';
 import '../utils/url_helper.dart';
@@ -1018,7 +1019,9 @@ class _InboxScreenState extends State<InboxScreen>
       onRefresh: _loadReports,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
+        padding: EdgeInsets.only(
+          bottom: AppSafeInsets.bottomNavScrollPadding(context),
+        ),
         children: [
           if (_isSuperadmin && approvalItems.isNotEmpty) ...[
             _buildTaskSectionHeader(
@@ -1122,7 +1125,7 @@ class _InboxScreenState extends State<InboxScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      padding: AppSafeInsets.bottomNavListPadding(context),
       itemCount: list.length,
       itemBuilder: (context, i) {
         final item = list[i];
@@ -1188,7 +1191,7 @@ class _InboxScreenState extends State<InboxScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      padding: AppSafeInsets.bottomNavListPadding(context),
       itemCount: list.length,
       itemBuilder: (context, i) {
         final item = list[i];
@@ -1450,7 +1453,12 @@ class _InboxScreenState extends State<InboxScreen>
             color: Colors.white,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            AppSafeInsets.sheetBottomPadding(sheetCtx, base: 20),
+          ),
           child: Column(
             children: [
               Center(
