@@ -7,11 +7,49 @@ use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Google\Auth\Credentials\ServiceAccountCredentials;
+use Google\Auth\HttpHandler\HttpHandlerFactory;
 
 class NotificationService
 {
     /**
-     * Send push notification via Firebase Cloud Messaging
+     * Get Access Token for FCM HTTP v1 using Service Account
+     */
+    private function getAccessToken(): ?string
+    {
+        try {
+            $credentialsConfig = config('firebase.fcm.credentials');
+            
+            if (!$credentialsConfig) {
+                Log::error('FIREBASE_CREDENTIALS not set in .env');
+                return null;
+            }
+
+            // If it's a JSON string (for Railway), decode it; otherwise assume it's a file path
+            $jsonKey = json_decode($credentialsConfig, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                if (file_exists($credentialsConfig)) {
+                    $jsonKey = json_decode(file_get_contents($credentialsConfig), true);
+                } else {
+                    Log::error('Firebase credentials is not a valid JSON and file not found at path: ' . $credentialsConfig);
+                    return null;
+                }
+            }
+
+            $scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
+            $credentials = new ServiceAccountCredentials($scopes, $jsonKey);
+            
+            $token = $credentials->fetchAuthToken(HttpHandlerFactory::build());
+            
+            return $token['access_token'] ?? null;
+        } catch (\Exception $e) {
+            Log::error('Gagal generate FCM access token: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Send push notification via Firebase Cloud Messaging (HTTP v1)
      */
     public function sendPushNotification(User $user, string $title, string $body, array $data = []): bool
     {
@@ -20,37 +58,66 @@ class NotificationService
             return false;
         }
 
+        $accessToken = $this->getAccessToken();
+        if (!$accessToken) {
+            return false;
+        }
+
+        $projectId = config('firebase.fcm.project_id');
+        if (!$projectId) {
+            Log::error('FIREBASE_PROJECT_ID not set in .env');
+            return false;
+        }
+
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'key=' . config('firebase.fcm.api_key'),
-                'Content-Type' => 'application/json',
-            ])->post('https://fcm.googleapis.com/fcm/send', [
-                'to' => $user->fcm_token,
-                'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                    'sound' => 'default',
-                    'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                ],
-                'data' => $data,
-                'priority' => 'high',
-            ]);
+            // Ensure all data values are strings (required by FCM v1)
+            $formattedData = [];
+            foreach ($data as $key => $value) {
+                $formattedData[(string)$key] = (string)$value;
+            }
+
+            $response = Http::withToken($accessToken)
+                ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", [
+                    'message' => [
+                        'token' => $user->fcm_token,
+                        'notification' => [
+                            'title' => $title,
+                            'body' => $body,
+                        ],
+                        'data' => $formattedData,
+                        'android' => [
+                            'priority' => 'high',
+                            'notification' => [
+                                'sound' => 'default',
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ],
+                        ],
+                        'apns' => [
+                            'payload' => [
+                                'aps' => [
+                                    'sound' => 'default',
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
 
             if ($response->successful()) {
-                Log::info('Push notification terkirim', [
+                Log::info('Push notification (v1) terkirim', [
                     'user_id' => $user->id,
                     'fcm_token' => substr($user->fcm_token, 0, 20) . '...',
                 ]);
                 return true;
             } else {
-                Log::error('Gagal mengirim push notification', [
+                Log::error('Gagal mengirim push notification (v1)', [
                     'user_id' => $user->id,
+                    'status' => $response->status(),
                     'response' => $response->body(),
                 ]);
                 return false;
             }
         } catch (\Exception $e) {
-            Log::error('Error saat mengirim push notification', [
+            Log::error('Error saat mengirim push notification (v1)', [
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
