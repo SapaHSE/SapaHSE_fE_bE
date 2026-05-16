@@ -7,6 +7,8 @@ import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../services/push_notification_service.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -82,6 +84,8 @@ class _LoginScreenState extends State<LoginScreen>
         setState(() => _isLoading = false);
 
         if (result.success) {
+          await PushNotificationService.syncTokenWithBackendIfLoggedIn();
+          if (!mounted) return;
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const MainScreen()),
             (route) => false,
@@ -120,6 +124,9 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = false); // ALWAYS reset
 
     if (result.success) {
+      await PushNotificationService.syncTokenWithBackendIfLoggedIn();
+      if (!mounted) return;
+
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "662091573893",
+    "project_id": "sapahse-app",
+    "storage_bucket": "sapahse-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:662091573893:android:81383b7263fd487bf717ec",
+        "android_client_info": {
+          "package_name": "com.example.sapahse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAP-m9Sme3uuGzhSN_cqKM2MCerPpwtTRo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
+import '../services/push_notification_service.dart';
 import '../main.dart';
 import 'login_screen.dart';
 
@@ -58,6 +59,11 @@ class _SplashScreenState extends State<SplashScreen>
     final loggedIn = await StorageService.isLoggedIn();
 
     if (!mounted) return;
+
+    if (loggedIn) {
+      await PushNotificationService.syncTokenWithBackendIfLoggedIn();
+      if (!mounted) return;
+    }
 
     Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
