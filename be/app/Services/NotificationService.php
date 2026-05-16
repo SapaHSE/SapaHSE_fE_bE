@@ -13,13 +13,13 @@ use Google\Auth\HttpHandler\HttpHandlerFactory;
 class NotificationService
 {
     /**
-     * Get Access Token for FCM HTTP v1 using Service Account
+     * Parse service-account credentials from env JSON or file path.
      */
-    private function getAccessToken(): ?string
+    private function getFirebaseCredentials(): ?array
     {
         try {
             $credentialsConfig = config('firebase.fcm.credentials');
-            
+
             if (!$credentialsConfig) {
                 Log::error('FIREBASE_CREDENTIALS not set in .env');
                 return null;
@@ -36,16 +36,74 @@ class NotificationService
                 }
             }
 
+            if (!is_array($jsonKey) || empty($jsonKey)) {
+                Log::error('Firebase credentials JSON could not be parsed into an array');
+                return null;
+            }
+
+            return $jsonKey;
+        } catch (\Exception $e) {
+            Log::error('Gagal membaca Firebase credentials: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get Access Token for FCM HTTP v1 using Service Account
+     */
+    private function getAccessToken(?array $jsonKey = null): ?string
+    {
+        try {
+            $jsonKey ??= $this->getFirebaseCredentials();
+            if (!$jsonKey) {
+                return null;
+            }
+
             $scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
             $credentials = new ServiceAccountCredentials($scopes, $jsonKey);
-            
+
             $token = $credentials->fetchAuthToken(HttpHandlerFactory::build());
-            
+
             return $token['access_token'] ?? null;
         } catch (\Exception $e) {
             Log::error('Gagal generate FCM access token: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Resolve project ID for FCM endpoint.
+     *
+     * Accepts common misconfigurations such as:
+     * - projects/my-project-id
+     * - https://fcm.googleapis.com/v1/projects/my-project-id/messages:send
+     */
+    private function resolveProjectId(?array $jsonKey = null): ?string
+    {
+        $jsonKey ??= $this->getFirebaseCredentials();
+
+        $projectId = trim((string) config('firebase.fcm.project_id', ''));
+
+        if (preg_match('#fcm\.googleapis\.com/v1/projects/([^/]+)#', $projectId, $matches) === 1) {
+            $projectId = $matches[1];
+        }
+
+        if (str_starts_with($projectId, 'projects/')) {
+            $projectId = substr($projectId, strlen('projects/'));
+        }
+
+        $projectId = trim($projectId, " \t\n\r\0\x0B/");
+
+        if ($projectId === '' && !empty($jsonKey['project_id'])) {
+            $projectId = trim((string) $jsonKey['project_id']);
+        }
+
+        if ($projectId === '') {
+            Log::error('FIREBASE_PROJECT_ID not set and could not be inferred from credentials');
+            return null;
+        }
+
+        return $projectId;
     }
 
     /**
@@ -58,14 +116,18 @@ class NotificationService
             return false;
         }
 
-        $accessToken = $this->getAccessToken();
+        $jsonKey = $this->getFirebaseCredentials();
+        if (!$jsonKey) {
+            return false;
+        }
+
+        $accessToken = $this->getAccessToken($jsonKey);
         if (!$accessToken) {
             return false;
         }
 
-        $projectId = config('firebase.fcm.project_id');
+        $projectId = $this->resolveProjectId($jsonKey);
         if (!$projectId) {
-            Log::error('FIREBASE_PROJECT_ID not set in .env');
             return false;
         }
 
@@ -76,8 +138,10 @@ class NotificationService
                 $formattedData[(string)$key] = (string)$value;
             }
 
+            $endpoint = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
+
             $response = Http::withToken($accessToken)
-                ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", [
+                ->post($endpoint, [
                     'message' => [
                         'token' => $user->fcm_token,
                         'notification' => [
@@ -111,6 +175,8 @@ class NotificationService
             } else {
                 Log::error('Gagal mengirim push notification (v1)', [
                     'user_id' => $user->id,
+                    'project_id' => $projectId,
+                    'endpoint' => $endpoint,
                     'status' => $response->status(),
                     'response' => $response->body(),
                 ]);
