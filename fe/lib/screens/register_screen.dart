@@ -454,77 +454,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     _buildLabel('NOMOR HP *'),
                     const SizedBox(height: 6),
-                    IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.only(left: 14, right: 6),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              border:
-                                  Border.all(color: Colors.grey.shade300),
-                              borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(8),
-                                  bottomLeft: Radius.circular(8)),
-                            ),
-                            child: const Text('+62',
-                                style: TextStyle(
-                                    color: Colors.black87, fontSize: 16)),
-                          ),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _hpCtrl,
-                              keyboardType: TextInputType.phone,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly
-                              ],
-                              maxLength: 13,
-                              style: const TextStyle(fontSize: 16),
-                              decoration: InputDecoration(
-                                hintText: '812xxxxxxxx',
-                                hintStyle: const TextStyle(
-                                    color: Colors.grey, fontSize: 14),
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 12),
-                                border: OutlineInputBorder(
-                                    borderRadius: const BorderRadius.only(
-                                        topRight: Radius.circular(8),
-                                        bottomRight: Radius.circular(8)),
-                                    borderSide: BorderSide(
-                                        color: Colors.grey.shade300)),
-                                enabledBorder: OutlineInputBorder(
-                                    borderRadius: const BorderRadius.only(
-                                        topRight: Radius.circular(8),
-                                        bottomRight: Radius.circular(8)),
-                                    borderSide: BorderSide(
-                                        color: Colors.grey.shade300)),
-                                focusedBorder: OutlineInputBorder(
-                                    borderRadius: const BorderRadius.only(
-                                        topRight: Radius.circular(8),
-                                        bottomRight: Radius.circular(8)),
-                                    borderSide: const BorderSide(
-                                        color: Color(0xFF1A56C4))),
-                                filled: true,
-                                fillColor: Colors.white,
-                                counterText: '',
-                              ),
-                              validator: (v) {
-                                if (v == null || v.isEmpty) {
-                                  return 'Wajib diisi';
-                                }
-                                if (!RegExp(r'^8[0-9]{7,12}$')
-                                    .hasMatch(v)) {
-                                  return 'Masukkan 8-13 digit setelah +62';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildPhoneField(),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -1096,6 +1026,110 @@ class _RegisterScreenState extends State<RegisterScreen> {
             fontWeight: FontWeight.bold,
             fontSize: 12,
             color: Color(0xFF4B5563)));
+  }
+
+  Widget _buildPhoneField() {
+    final FocusNode phoneFocusNode = FocusNode();
+    bool isFocused = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return FormField<String>(
+          validator: (v) {
+            if (v == null || v.isEmpty) return 'Wajib diisi';
+            if (!RegExp(r'^8[0-9]{7,12}$').hasMatch(v)) {
+              return 'Masukkan 8-13 digit setelah +62';
+            }
+            return null;
+          },
+          builder: (FormFieldState<String> state) {
+            bool hasError = state.hasError;
+            Color borderColor = hasError
+                ? Colors.red
+                : (isFocused ? const Color(0xFF1A56C4) : Colors.grey.shade300);
+            Color prefixBg = hasError
+                ? Colors.red.shade50
+                : Colors.grey.shade100;
+            Color prefixBorder = hasError ? Colors.red : Colors.grey.shade300;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: borderColor, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: prefixBg,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(7),
+                            bottomLeft: Radius.circular(7),
+                          ),
+                          border: Border(
+                            right: BorderSide(color: prefixBorder, width: 1),
+                          ),
+                        ),
+                        child: const Text('+62',
+                            style: TextStyle(color: Colors.black87, fontSize: 16)),
+                      ),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _hpCtrl,
+                          focusNode: phoneFocusNode,
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          maxLength: 13,
+                          style: const TextStyle(fontSize: 16),
+                          decoration: InputDecoration(
+                            hintText: '812xxxxxxxx',
+                            hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                            counterText: '',
+                          ),
+                          onChanged: (v) {
+                            state.didChange(v);
+                          },
+                          onTap: () {
+                            setState(() {
+                              isFocused = true;
+                            });
+                          },
+                          onFieldSubmitted: (v) {
+                            setState(() {
+                              isFocused = false;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 4),
+                    child: Text(
+                      state.errorText!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildDropdown({
