@@ -1022,118 +1022,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 },
                               ),
                               const SizedBox(height: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Nomor Telepon',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                          fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 4),
-                                  IntrinsicHeight(
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.only(
-                                              left: 12, right: 6),
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade100,
-                                            border: Border.all(
-                                                color: Colors.grey.shade300),
-                                            borderRadius:
-                                                const BorderRadius.only(
-                                                    topLeft: Radius.circular(8),
-                                                    bottomLeft:
-                                                        Radius.circular(8)),
-                                          ),
-                                          child: const Text('+62',
-                                              style: TextStyle(
-                                                  color: Colors.black87,
-                                                  fontSize: 14)),
-                                        ),
-                                        Expanded(
-                                          child: TextFormField(
-                                            controller: phoneCtrl,
-                                            keyboardType: TextInputType.phone,
-                                            inputFormatters: [
-                                              FilteringTextInputFormatter
-                                                  .digitsOnly
-                                            ],
-                                            maxLength: 13,
-                                            style:
-                                                const TextStyle(fontSize: 14),
-                                            autovalidateMode: AutovalidateMode
-                                                .onUserInteraction,
-                                            decoration: InputDecoration(
-                                              hintText: '812xxxxxxxx',
-                                              hintStyle: const TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 13),
-                                              contentPadding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 10),
-                                              border: OutlineInputBorder(
-                                                  borderRadius:
-                                                      const BorderRadius.only(
-                                                          topRight:
-                                                              Radius.circular(
-                                                                  8),
-                                                          bottomRight:
-                                                              Radius.circular(
-                                                                  8)),
-                                                  borderSide: BorderSide(
-                                                      color: Colors
-                                                          .grey.shade300)),
-                                              enabledBorder: OutlineInputBorder(
-                                                  borderRadius:
-                                                      const BorderRadius.only(
-                                                    topRight:
-                                                        Radius.circular(8),
-                                                    bottomRight:
-                                                        Radius.circular(8),
-                                                  ),
-                                                  borderSide: BorderSide(
-                                                      color: Colors
-                                                          .grey.shade300)),
-                                              focusedBorder: OutlineInputBorder(
-                                                  borderRadius:
-                                                      const BorderRadius.only(
-                                                          topRight:
-                                                              Radius.circular(
-                                                                  8),
-                                                          bottomRight:
-                                                              Radius.circular(
-                                                                  8)),
-                                                  borderSide: const BorderSide(
-                                                      color:
-                                                          Color(0xFF1A56C4))),
-                                              filled: true,
-                                              fillColor: Colors.white,
-                                              counterText: '',
-                                            ),
-                                            validator: (v) {
-                                              final value = (v ?? '').trim();
-                                              if (value.isEmpty) {
-                                                return 'Nomor telepon wajib diisi';
-                                              }
-                                              if (!RegExp(r'^8[0-9]{7,12}$')
-                                                  .hasMatch(value)) {
-                                                return 'Masukkan 8-13 digit setelah +62';
-                                              }
-                                              return null;
-                                            },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              _buildPhoneField(phoneCtrl),
                               const SizedBox(height: 16),
                               _buildSheetField(
                                 'Email Kantor (Opsional)',
@@ -1150,29 +1039,29 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 },
                               ),
                               const SizedBox(height: 16),
-                              GestureDetector(
+                              _buildSheetField(
+                                'Departemen',
+                                deptCtrl,
+                                enabled: _userRole == 'admin' ||
+                                    _userRole == 'superadmin',
+                                readOnly: _userRole == 'admin' ||
+                                    _userRole == 'superadmin',
                                 onTap: _userRole == 'admin' ||
                                         _userRole == 'superadmin'
                                     ? () => _showDepartmentPicker(
                                         modalContext, deptCtrl, setModalState)
                                     : null,
-                                child: _buildSheetField(
-                                  'Departemen',
-                                  deptCtrl,
-                                  enabled: _userRole == 'admin' ||
-                                      _userRole == 'superadmin',
-                                  maxLength: 25,
-                                  suffixIcon: _userRole == 'admin' ||
-                                          _userRole == 'superadmin'
-                                      ? Icons.arrow_drop_down
-                                      : null,
-                                  validator: (v) {
-                                    if (v == null || v.trim().isEmpty) {
-                                      return 'Departemen wajib diisi';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                                maxLength: 25,
+                                suffixIcon: _userRole == 'admin' ||
+                                        _userRole == 'superadmin'
+                                    ? Icons.arrow_drop_down
+                                    : null,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Departemen wajib diisi';
+                                  }
+                                  return null;
+                                },
                               ),
                               const SizedBox(height: 16),
                               _buildSheetField(
@@ -1236,6 +1125,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                   _kontraktorList,
                                   (v) => setModalState(() =>
                                       localSelectedPerusahaanKontraktor = v),
+                                  required: true,
                                 ),
                               ],
                               if (localTipeAfiliasi == 'Sub-Kont.') ...[
@@ -1246,6 +1136,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                   _subkontraktorList,
                                   (v) => setModalState(
                                       () => localSelectedSubKontraktor = v),
+                                  required: true,
                                 ),
                               ],
                             ],
@@ -1327,11 +1218,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   Widget _buildSheetField(String label, TextEditingController controller,
       {bool enabled = true,
+      bool readOnly = false,
       TextInputType? keyboardType,
       int maxLines = 1,
       int? maxLength,
       IconData? suffixIcon,
-      String? Function(String?)? validator}) {
+      String? Function(String?)? validator,
+      bool liveValidate = false,
+      VoidCallback? onTap}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1344,12 +1238,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         TextFormField(
           controller: controller,
           enabled: enabled,
+          readOnly: readOnly,
+          onTap: onTap,
           keyboardType: keyboardType,
           maxLines: maxLines,
           maxLength: maxLength,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           validator: validator,
           style: const TextStyle(fontSize: 14),
+          onChanged: liveValidate ? (v) {
+            Form.of(context).validate();
+          } : null,
           decoration: InputDecoration(
             counterText: '',
             filled: true,
@@ -1369,6 +1268,121 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPhoneField(TextEditingController controller) {
+    final FocusNode phoneFocusNode = FocusNode();
+    bool isFocused = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return FormField<String>(
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: (v) {
+            final value = (v ?? '').trim();
+            if (value.isEmpty) {
+              return 'Nomor telepon wajib diisi';
+            }
+            if (!RegExp(r'^8[0-9]{7,12}$').hasMatch(value)) {
+              return 'Masukkan 8-13 digit setelah +62';
+            }
+            return null;
+          },
+          builder: (FormFieldState<String> state) {
+            bool hasError = state.hasError;
+            Color borderColor = hasError
+                ? Colors.red
+                : (isFocused ? const Color(0xFF1A56C4) : Colors.grey.shade300);
+            Color prefixBg = hasError
+                ? Colors.red.shade50
+                : Colors.grey.shade100;
+            Color prefixBorder = hasError ? Colors.red : Colors.grey.shade300;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Nomor Telepon',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: borderColor, width: 1),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: prefixBg,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(7),
+                            bottomLeft: Radius.circular(7),
+                          ),
+                          border: Border(
+                            right: BorderSide(color: prefixBorder, width: 1),
+                          ),
+                        ),
+                        child: const Text('+62',
+                            style: TextStyle(color: Colors.black87, fontSize: 14)),
+                      ),
+                      Expanded(
+                        child: TextFormField(
+                          controller: controller,
+                          focusNode: phoneFocusNode,
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          maxLength: 13,
+                          style: const TextStyle(fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: '812xxxxxxxx',
+                            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            errorBorder: InputBorder.none,
+                            focusedErrorBorder: InputBorder.none,
+                            counterText: '',
+                          ),
+                          onChanged: (v) {
+                            state.didChange(v);
+                            state.validate();
+                          },
+                          onTap: () {
+                            setState(() {
+                              isFocused = true;
+                            });
+                          },
+                          onFieldSubmitted: (v) {
+                            setState(() {
+                              isFocused = false;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 4),
+                    child: Text(
+                      state.errorText!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

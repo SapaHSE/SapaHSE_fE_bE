@@ -14,6 +14,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   int _currentStep = 1;
+  final ScrollController _stepScrollController = ScrollController();
 
   // Step 1
   final _formKey1 = GlobalKey<FormState>();
@@ -85,6 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    _stepScrollController.dispose();
     _namaCtrl.dispose();
     _empIdCtrl.dispose();
     _hpCtrl.dispose();
@@ -102,14 +104,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
         setState(() {
           _currentStep = 2;
         });
+        _scrollToTopAfterStepChange();
       }
     } else if (_currentStep == 2) {
       if (_formKey2.currentState!.validate()) {
         setState(() {
           _currentStep = 3;
         });
+        _scrollToTopAfterStepChange();
       }
     }
+  }
+
+  void _scrollToTopAfterStepChange() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_stepScrollController.hasClients) return;
+      _stepScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _prevStep() {
@@ -235,6 +250,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     // Form Content
                     Expanded(
                       child: SingleChildScrollView(
+                        controller: _stepScrollController,
                         padding: const EdgeInsets.all(16),
                         child: _buildCurrentStepContent(),
                       ),
@@ -580,7 +596,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     items: _kontraktorList,
                     hint: '-- Pilih --',
                     onChanged: (v) => setState(() => _perusahaanKontraktor = v),
-                    isRequired: false,
+                    isRequired: true,
                   ),
                 ],
                 if (_tipeAfiliasi == 'Sub-Kont.') ...[
@@ -592,7 +608,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     items: _subkontraktorList,
                     hint: '-- Pilih --',
                     onChanged: (v) => setState(() => _subKontraktor = v),
-                    isRequired: false,
+                    isRequired: true,
                   ),
                 ],
               ],
@@ -671,11 +687,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: TextStyle(color: Color(0xFF1E40AF), fontSize: 12),
                       children: [
                         TextSpan(
-                            text: 'disetujui Superadmin',
+                            text: 'disetujui Admin',
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         TextSpan(
                             text:
-                                ' sebelum dapat digunakan. Data opsional yang belum diisi mendapat...'),
+                                ' sebelum dapat digunakan. Data opsional yang belum diisi bisa dilengkapi setelah akun aktif'),
                       ],
                     ),
                   ),
@@ -840,17 +856,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Expanded(
                 child: Text.rich(
                   TextSpan(
-                    text: 'Setelah mendaftar, akun perlu ',
+                    text: 'Setelah mendaftar, akun perlu disetujui Admin. Estimasi: dalam 1 jam kerja.',
                     style:
                         const TextStyle(color: Color(0xFF92400E), fontSize: 12),
-                    children: [
-                      TextSpan(
-                          text: 'disetujui Supervisor\n',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      TextSpan(
-                          text:
-                              'departemen ${_departemen ?? "HSE"}. Estimasi: dalam 1 jam kerja.'),
-                    ],
                   ),
                 ),
               ),
@@ -980,7 +988,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     List<TextInputFormatter>? inputFormatters,
     int? maxLength,
     String? Function(String?)? validator,
+    bool liveValidate = false,
   }) {
+    final String? Function(String?) effectiveValidator = validator ??
+        (isRequired ? (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null : (v) => null);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1013,8 +1025,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             filled: true,
             fillColor: Colors.white,
           ),
-          validator: validator ??
-              (isRequired ? (v) => v!.isEmpty ? 'Wajib diisi' : null : null),
+          validator: effectiveValidator,
+          onChanged: liveValidate ? (v) {
+            Form.of(context).validate();
+          } : null,
         ),
       ],
     );
@@ -1035,6 +1049,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return StatefulBuilder(
       builder: (context, setState) {
         return FormField<String>(
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           validator: (v) {
             if (v == null || v.isEmpty) return 'Wajib diisi';
             if (!RegExp(r'^8[0-9]{7,12}$').hasMatch(v)) {
@@ -1100,6 +1115,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           onChanged: (v) {
                             state.didChange(v);
+                            state.validate();
                           },
                           onTap: () {
                             setState(() {
