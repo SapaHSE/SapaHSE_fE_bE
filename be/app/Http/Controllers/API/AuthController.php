@@ -30,7 +30,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'employee_id'    => 'required|string|min:10|max:16|unique:users,employee_id',
+            'employee_id'    => 'required|string|min:5|max:20|unique:users,employee_id',
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email:rfc,dns|max:150|unique:users',
             'work_email'     => 'nullable|email:rfc,dns|max:150|unique:users',
@@ -46,8 +46,8 @@ class AuthController extends Controller
             'simper'         => 'nullable|string|max:50',
         ], [
             'employee_id.unique'         => 'NIK sudah terdaftar. Gunakan NIK lain.',
-            'employee_id.min'            => 'NIK minimal 10 digit.',
-            'employee_id.max'            => 'NIK maksimal 16 digit.',
+            'employee_id.min'            => 'NIK minimal 5 digit.',
+            'employee_id.max'            => 'NIK maksimal 20 digit.',
             'personal_email.email'       => 'Format email tidak valid. Pastikan email Anda benar.',
             'personal_email.unique'      => 'Email ini sudah terdaftar. Gunakan email lain atau login.',
             'work_email.email'           => 'Format email kerja tidak valid atau domain tidak ditemukan.',
@@ -299,7 +299,7 @@ class AuthController extends Controller
     public function adminStore(Request $request)
     {
         $request->validate([
-            'employee_id'    => 'required|string|unique:users,employee_id',
+            'employee_id'    => 'required|string|min:5|max:20|unique:users,employee_id',
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email|unique:users,personal_email',
             'work_email'     => 'nullable|email|unique:users,work_email',
@@ -350,7 +350,7 @@ class AuthController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'employee_id'    => 'required|string|unique:users,employee_id,' . $user->id,
+            'employee_id'    => 'required|string|min:5|max:20|unique:users,employee_id,' . $user->id,
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email|unique:users,personal_email,' . $user->id,
             'work_email'     => 'nullable|email|unique:users,work_email,' . $user->id,
