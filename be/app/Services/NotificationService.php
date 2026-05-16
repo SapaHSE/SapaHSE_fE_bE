@@ -25,13 +25,28 @@ class NotificationService
                 return null;
             }
 
-            // If it's a JSON string (for Railway), decode it; otherwise assume it's a file path
+            $credentialsConfig = trim((string) $credentialsConfig);
+
+            // If it's a JSON string (for Railway), decode it.
             $jsonKey = json_decode($credentialsConfig, true);
+
+            // Support base64-encoded JSON credentials to avoid quoting issues in env vars.
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $decodedBase64 = base64_decode($credentialsConfig, true);
+                if ($decodedBase64 !== false) {
+                    $jsonKey = json_decode($decodedBase64, true);
+                }
+            }
+
             if (json_last_error() !== JSON_ERROR_NONE) {
                 if (file_exists($credentialsConfig)) {
                     $jsonKey = json_decode(file_get_contents($credentialsConfig), true);
                 } else {
-                    Log::error('Firebase credentials is not a valid JSON and file not found at path: ' . $credentialsConfig);
+                    Log::error('Firebase credentials is not valid JSON/base64 JSON and file path was not found', [
+                        'value_length' => strlen($credentialsConfig),
+                        'starts_with_brace' => str_starts_with($credentialsConfig, '{'),
+                        'contains_private_key_marker' => str_contains($credentialsConfig, 'BEGIN PRIVATE KEY'),
+                    ]);
                     return null;
                 }
             }
