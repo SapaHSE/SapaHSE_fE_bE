@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../data/report_store.dart';
 import 'cloud_save_service.dart';
@@ -19,7 +18,6 @@ class BackgroundSyncService {
   BackgroundSyncService._();
   static final BackgroundSyncService instance = BackgroundSyncService._();
 
-  StreamSubscription<List<ConnectivityResult>>? _sub;
   bool _started = false;
 
   final ValueNotifier<bool> isOnline = ValueNotifier<bool>(false);
@@ -38,8 +36,7 @@ class BackgroundSyncService {
     isOnline.value = await CloudSaveService.isOnline();
     await refreshDraftCount();
 
-    _sub =
-        CloudSaveService.instance.connectivityStream.listen((_) async {
+    CloudSaveService.instance.connectivityStream.listen((_) async {
       final online = await CloudSaveService.isOnline();
       final wasOffline = !isOnline.value;
       isOnline.value = online;

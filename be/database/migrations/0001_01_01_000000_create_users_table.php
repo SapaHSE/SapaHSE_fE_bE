@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('email_verification_token')->nullable();
             $table->string('phone_number', 20)->nullable();
             $table->string('position', 100)->nullable();              // Job title / jabatan
+            $table->string('jabatan', 100)->nullable();
             $table->string('department', 100)->nullable();            // Division / divisi
             $table->string('company', 100)->nullable();               // Company / perusahaan
             $table->string('tipe_afiliasi', 50)->nullable();

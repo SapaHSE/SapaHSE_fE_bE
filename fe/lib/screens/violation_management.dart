@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../services/violation_service.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
+import '../services/supabase_storage_service.dart';
+import '../config/supabase_config.dart';
 import 'package:intl/intl.dart';
 import '../main.dart';
 import 'dart:async';
@@ -759,9 +763,11 @@ class ViolationFormSheet extends StatefulWidget {
 class _ViolationFormSheetState extends State<ViolationFormSheet> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _expiredDateController = TextEditingController();
   final _sanctionController = TextEditingController();
+  XFile? _violationImage;
   Timer? _debounce;
   String _status = 'Aktif';
 
@@ -775,16 +781,23 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     super.initState();
     if (widget.item != null) {
       _titleController.text = widget.item!.title;
+      _descriptionController.text = widget.item!.description ?? '';
       _locationController.text = widget.item!.location ?? '';
       _expiredDateController.text = widget.item!.expiredAt ?? '';
       _sanctionController.text = widget.item!.sanction ?? '';
       _status = widget.item!.status;
       _selectedUser = widget.item!.user;
+      _violationImage = null;
     }
   }
 
   @override
   void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _locationController.dispose();
+    _expiredDateController.dispose();
+    _sanctionController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -832,14 +845,35 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     }
 
     setState(() => _isSaving = true);
+
+    String? uploadedUrl;
+    if (_violationImage != null) {
+      uploadedUrl = await SupabaseStorageService.uploadImage(
+        imagePath: _violationImage!.path,
+        folder: SupabaseConfig.violationsFolder,
+      );
+      if (uploadedUrl == null) {
+        if (!mounted) return;
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal mengunggah foto ke Supabase')),
+        );
+        return;
+      }
+    } else {
+      uploadedUrl = widget.item?.fileUrl;
+    }
+
     final data = {
       'title': _titleController.text,
+      'description': _descriptionController.text,
       'location': _locationController.text,
       'expired_at': _expiredDateController.text.isEmpty
           ? null
           : _expiredDateController.text,
       'status': _status,
       'sanction': _sanctionController.text,
+      'file_url': uploadedUrl,
     };
 
     final result = widget.item == null
@@ -919,6 +953,11 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                     _buildField('Judul Pelanggaran', _titleController,
                         hint: 'Contoh: Tidak memakai helm'),
                     const SizedBox(height: 16),
+                    _buildField('Deskripsi Pelanggaran', _descriptionController,
+                        hint: 'Tuliskan deskripsi kronologi pelanggaran...',
+                        maxLines: 3,
+                        isRequired: false),
+                    const SizedBox(height: 16),
                     _buildField('Lokasi', _locationController,
                         hint: 'Contoh: Pit A / Area Workshop',
                         isRequired: false),
@@ -938,6 +977,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                     const SizedBox(height: 16),
                     _buildField('Sanksi / Tindakan', _sanctionController,
                         hint: 'Contoh: SP1 / Teguran Lisan', isRequired: false),
+                    const SizedBox(height: 16),
+                    _buildImagePicker(),
                     const SizedBox(height: 32),
                     _buildFooterButtons(),
                   ],
@@ -1003,7 +1044,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       Text(_selectedUser!['employee_id'] ?? '',
                           style: const TextStyle(
-                              fontSize: 12, color: Colors.grey)),
+                               fontSize: 12, color: Colors.grey)),
                     ],
                   ),
                 ),
@@ -1069,8 +1110,61 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     );
   }
 
+  Widget _buildImagePicker() {
+    final hasRemoteUrl = widget.item?.fileUrl != null && widget.item!.fileUrl!.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Foto Pelanggaran / Lampiran',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: () async {
+            final picker = ImagePicker();
+            final picked = await picker.pickImage(
+                source: ImageSource.gallery, imageQuality: 70);
+            if (picked != null) {
+              setState(() => _violationImage = picked);
+            }
+          },
+          child: Container(
+            height: 140,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: _violationImage != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(File(_violationImage!.path), fit: BoxFit.cover),
+                  )
+                : (hasRemoteUrl
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(widget.item!.fileUrl!, fit: BoxFit.cover),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_a_photo_outlined,
+                              color: Colors.grey.shade400, size: 32),
+                          const SizedBox(height: 8),
+                          Text('Ambil atau Pilih Foto Pelanggaran',
+                              style: TextStyle(
+                                  color: Colors.grey.shade500, fontSize: 13)),
+                        ],
+                      )),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildField(String label, TextEditingController controller,
-      {required String hint, IconData? icon, bool isRequired = true}) {
+      {required String hint, IconData? icon, bool isRequired = true, int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1079,6 +1173,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          maxLines: maxLines,
           validator: isRequired
               ? (v) => v == null || v.isEmpty ? 'Wajib diisi' : null
               : null,

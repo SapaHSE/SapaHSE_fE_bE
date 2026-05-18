@@ -15,11 +15,13 @@ class UserViolation extends Model
     protected $fillable = [
         'user_id',
         'title',
+        'description',
         'location',
         'date_of_violation',
         'expired_at',
         'status',
         'sanction',
+        'file_url',
     ];
 
     protected function casts(): array

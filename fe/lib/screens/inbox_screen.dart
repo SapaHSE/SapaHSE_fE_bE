@@ -1257,7 +1257,7 @@ class _InboxScreenState extends State<InboxScreen>
   Widget _buildApprovalTaskCard(InboxItem item) => ApprovalTaskCard(
         item: item,
         isProcessing: _approvalActionLoading[item.id] == true,
-        showActionButtons: true,
+        showActionButtons: false,
         onTap: () {
           _markItemRead(item);
           _showApprovalDetail(context, item);
@@ -1476,6 +1476,25 @@ class _InboxScreenState extends State<InboxScreen>
                 child: ListView(
                   controller: sc,
                   children: [
+                    if (item.imageUrl != null && item.imageUrl!.isNotEmpty) ...[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: CachedNetworkImage(
+                          imageUrl: item.imageUrl!,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: Colors.grey.shade100,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     Row(
                       children: [
                         Container(
@@ -1515,26 +1534,6 @@ class _InboxScreenState extends State<InboxScreen>
                             height: 1.3)),
                     const SizedBox(height: 12),
                     const Divider(),
-                    if (item.imageUrl != null && item.imageUrl!.isNotEmpty) ...[
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: CachedNetworkImage(
-                          imageUrl: item.imageUrl!,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: Colors.grey.shade100,
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          ),
-                          errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ] else
-                      const SizedBox(height: 12),
                     Text(item.body ?? '',
                         style: const TextStyle(
                             fontSize: 14, color: Colors.black87, height: 1.6)),

@@ -53,7 +53,7 @@ class PushNotificationService {
     // 2. Setup Local Notifications
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    
+
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -61,13 +61,14 @@ class PushNotificationService {
       requestSoundPermission: true,
     );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsDarwin,
     );
 
     await _localNotificationsPlugin.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         if (response.payload != null) {
           final data = jsonDecode(response.payload!);
@@ -88,10 +89,10 @@ class PushNotificationService {
 
       if (notification != null && !kIsWeb) {
         _localNotificationsPlugin.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
+          id: notification.hashCode,
+          title: notification.title,
+          body: notification.body,
+          notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
               _channel.id,
               _channel.name,
@@ -191,11 +192,13 @@ class PushNotificationService {
     }
   }
 
-  static Future<void> _handleNotificationClick(Map<String, dynamic> data) async {
+  static Future<void> _handleNotificationClick(
+      Map<String, dynamic> data) async {
     if (kDebugMode) print('Notification clicked with data: $data');
-    
+
     final type = data['type']?.toString();
-    final id = (data['report_id'] ?? data['announcement_id'] ?? data['news_id'])?.toString();
+    final id = (data['report_id'] ?? data['announcement_id'] ?? data['news_id'])
+        ?.toString();
 
     if (type == null || id == null) return;
 
@@ -206,41 +209,55 @@ class PushNotificationService {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+      builder: (_) =>
+          const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
 
     try {
       if (type.contains('hazard') || type.contains('inspection')) {
-        final reportType = type.contains('hazard') ? ReportType.hazard : ReportType.inspection;
+        final reportType =
+            type.contains('hazard') ? ReportType.hazard : ReportType.inspection;
         final result = await ReportService.getReportDetails(id, reportType);
-        
+
+        // Guard against async gap
+        if (!context.mounted) return;
+
         // Remove loading
         if (Navigator.canPop(context)) Navigator.pop(context);
-        
+
         if (result.success && result.report != null) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => ReportDetailScreen(report: result.report!)),
+            MaterialPageRoute(
+                builder: (_) => ReportDetailScreen(report: result.report!)),
           );
         }
       } else if (type == 'news') {
         final result = await NewsService.getNewsDetail(id);
-        
+
+        // Guard against async gap
+        if (!context.mounted) return;
+
         // Remove loading
         if (Navigator.canPop(context)) Navigator.pop(context);
-        
+
         if (result.success && result.article != null) {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => NewsDetailScreen(article: result.article!)),
+            MaterialPageRoute(
+                builder: (_) => NewsDetailScreen(article: result.article!)),
           );
         }
       } else {
         // Remove loading
-        if (Navigator.canPop(context)) Navigator.pop(context);
+        if (context.mounted && Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
-      if (Navigator.canPop(context)) Navigator.pop(context);
+      if (context.mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
       if (kDebugMode) print('Navigation error: $e');
     }
   }

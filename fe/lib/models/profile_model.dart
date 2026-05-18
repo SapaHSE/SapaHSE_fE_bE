@@ -11,6 +11,7 @@ class ProfileData {
   final String? workEmail;
   final String? phoneNumber;
   final String? position;
+  final String? jabatan;
   final String? department;
   final String? company;
   final String? tipeAfiliasi;
@@ -33,6 +34,7 @@ class ProfileData {
     this.workEmail,
     this.phoneNumber,
     this.position,
+    this.jabatan,
     this.department,
     this.company,
     this.tipeAfiliasi,
@@ -57,6 +59,7 @@ class ProfileData {
       workEmail: json['work_email']?.toString(),
       phoneNumber: json['phone_number']?.toString(),
       position: json['position']?.toString(),
+      jabatan: json['jabatan']?.toString(),
       department: json['department']?.toString(),
       company: json['company']?.toString(),
       tipeAfiliasi: json['tipe_afiliasi']?.toString(),
@@ -303,31 +306,37 @@ class MedicalChecklistItem {
 class UserViolation {
   final String id;
   final String title;
+  final String? description;
   final String? location;
   final String? dateOfViolation;
   final String? expiredAt;
   final String status;
   final String? sanction;
+  final String? fileUrl;
 
   UserViolation({
     required this.id,
     required this.title,
+    this.description,
     this.location,
     this.dateOfViolation,
     this.expiredAt,
     required this.status,
     this.sanction,
+    this.fileUrl,
   });
 
   factory UserViolation.fromJson(Map<String, dynamic> json) {
     return UserViolation(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
+      description: json['description']?.toString(),
       location: json['location']?.toString(),
       dateOfViolation: json['date_of_violation']?.toString(),
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'Aktif',
       sanction: json['sanction']?.toString(),
+      fileUrl: json['file_url']?.toString(),
     );
   }
 }

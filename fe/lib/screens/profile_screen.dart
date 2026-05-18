@@ -38,6 +38,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _loadError;
   Map<String, String> _ownerCodeByName = const {};
 
+  String _capitalize(String text) {
+    if (text.isEmpty) return text;
+    return text.split(' ').map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
+  }
+
   String get _effectiveRole {
     return (parseNullableDisplayName(_profileData?.role) ??
             parseNullableDisplayName(_cachedUser?['role']) ??
@@ -265,20 +273,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   children: [
                     _buildMenuRow(
-                      icon: Icons.person,
-                      iconBg: const Color(0xFFF3E5F5),
-                      iconColor: const Color(0xFF6A1B9A),
-                      title: 'Profile',
-                      subtitle: 'Biodata, licenses, medical, certifications',
-                      onTap: () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const MyProfileScreen()));
-                      },
-                    ),
-                    Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-                    _buildMenuRow(
                       icon: Icons.bar_chart,
                       iconBg: const Color(0xFFFFF9C4),
                       iconColor: const Color(0xFFFBC02D),
@@ -469,96 +463,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .join()
         .toUpperCase();
 
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 34,
-            backgroundColor: const Color(0xFF5C38FF),
-            backgroundImage: (profilePhoto != null && profilePhoto.isNotEmpty)
-                ? NetworkImage(profilePhoto)
-                : null,
-            child: (profilePhoto == null || profilePhoto.isEmpty)
-                ? Text(initials,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24))
-                : null,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17,
-                        color: Colors.black87)),
-                const SizedBox(height: 4),
-                Text('$position — $company',
-                    style:
-                        TextStyle(fontSize: 13, color: Colors.grey.shade500)),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: const Color(0xFFF3E5F5),
-                          borderRadius: BorderRadius.circular(12)),
-                      child: Text(
-                          (role == null || role.isEmpty)
-                              ? '-'
-                              : role.toUpperCase(),
-                          style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF6A1B9A),
-                              fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: effectiveIsActive
-                              ? const Color(0xFFE8F5E9)
-                              : const Color(0xFFFFEBEE),
-                          borderRadius: BorderRadius.circular(12)),
-                      child: Text(
-                          effectiveIsActive
-                              ? 'Karyawan : Aktif'
-                              : 'Karyawan : Nonaktif',
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: effectiveIsActive
-                                  ? const Color(0xFF2E7D32)
-                                  : const Color(0xFFD32F2F),
-                              fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-              ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MyProfileScreen()),
+        );
+      },
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 34,
+              backgroundColor: const Color(0xFF5C38FF),
+              backgroundImage: (profilePhoto != null && profilePhoto.isNotEmpty)
+                  ? NetworkImage(profilePhoto)
+                  : null,
+              child: (profilePhoto == null || profilePhoto.isEmpty)
+                  ? Text(initials,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 24))
+                  : null,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color: Colors.black87)),
+                  const SizedBox(height: 4),
+                  Text('$position — $company',
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFF3E5F5),
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Text(
+                            (role == null || role.isEmpty)
+                                ? '-'
+                                : _capitalize(role),
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF6A1B9A),
+                                fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: effectiveIsActive
+                                ? const Color(0xFFE8F5E9)
+                                : const Color(0xFFFFEBEE),
+                            borderRadius: BorderRadius.circular(12)),
+                        child: Text(
+                            effectiveIsActive
+                                ? 'Karyawan Aktif'
+                                : 'Karyawan Nonaktif',
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: effectiveIsActive
+                                    ? const Color(0xFF2E7D32)
+                                    : const Color(0xFFD32F2F),
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

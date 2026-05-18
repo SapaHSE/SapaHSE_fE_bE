@@ -1,7 +1,8 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -10,7 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE read_status MODIFY COLUMN item_type VARCHAR(50) NOT NULL");
+        Schema::table('read_status', function (Blueprint $table) {
+            $table->string('item_type', 50)->change();
+        });
     }
 
     /**
@@ -18,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE read_status MODIFY COLUMN item_type ENUM('report', 'announcement') NOT NULL");
+        Schema::table('read_status', function (Blueprint $table) {
+            $table->string('item_type', 255)->change();
+        });
     }
 };

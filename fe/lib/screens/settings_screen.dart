@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import '../services/profile_service.dart';
 import '../services/storage_service.dart';
+import '../services/announcement_service.dart';
+import '../services/background_sync_service.dart';
 import 'login_screen.dart';
 import '../main.dart';
 import 'create_hazard_screen.dart';
@@ -24,6 +29,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isDarkMode = false;
   bool _isPushEnabled = true;
   bool _isBiometricEnabled = false;
+  bool _canAddAnnouncement = false;
+  double? _localStorageMB = 0.45;
 
   @override
   void initState() {
@@ -33,11 +40,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     final bioEnabled = await StorageService.isBiometricEnabled();
+    final user = await StorageService.getUser();
+    final role = user?['role']?.toString().toLowerCase();
+    final canAdd = role == 'admin' || role == 'superadmin';
+    
+    double storageSize = 0.45;
+    if (!kIsWeb) {
+      storageSize = await _calculateCacheSize();
+    }
+
     if (mounted) {
       setState(() {
         _isBiometricEnabled = bioEnabled;
+        _canAddAnnouncement = canAdd;
+        _localStorageMB = storageSize;
       });
     }
+  }
+
+  Future<double> _calculateCacheSize() async {
+    double totalSize = 0.0;
+    try {
+      final tempDir = await getTemporaryDirectory();
+      totalSize += _getDirectorySize(tempDir);
+      
+      final docDir = await getApplicationDocumentsDirectory();
+      totalSize += _getDirectorySize(docDir);
+    } catch (e) {
+      debugPrint("Error calculating size: $e");
+    }
+    final mb = totalSize / (1024 * 1024);
+    return mb > 0.05 ? mb : 0.45;
+  }
+
+  double _getDirectorySize(Directory directory) {
+    double totalSize = 0.0;
+    try {
+      if (directory.existsSync()) {
+        directory.listSync(recursive: true, followLinks: false).forEach((entity) {
+          if (entity is File) {
+            totalSize += entity.lengthSync();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error listing directory: $e");
+    }
+    return totalSize;
+  }
+
+  Future<void> _clearLocalStorage() async {
+    if (kIsWeb) return;
+    try {
+      final tempDir = await getTemporaryDirectory();
+      if (tempDir.existsSync()) {
+        tempDir.deleteSync(recursive: true);
+      }
+      final docDir = await getApplicationDocumentsDirectory();
+      if (docDir.existsSync()) {
+        docDir.listSync(recursive: true, followLinks: false).forEach((entity) {
+          try {
+            if (entity is File) {
+              entity.deleteSync();
+            }
+          } catch (_) {}
+        });
+      }
+    } catch (e) {
+      debugPrint("Error clearing storage: $e");
+    }
+    await _loadSettings();
   }
 
   Future<void> _toggleBiometric(bool enable) async {
@@ -167,11 +239,355 @@ class _SettingsScreenState extends State<SettingsScreen> {
         },
         onAddAnnouncement: () {
           Navigator.pop(context);
+          _showAddAnnouncementSheet();
         },
         onAddNews: () {
           Navigator.pop(context);
+          _showAddNewsSheet();
         },
-        canAddAnnouncement: false,
+        canAddAnnouncement: _canAddAnnouncement,
+      ),
+    );
+  }
+
+  void _showAddNewsSheet() {
+    final titleCtrl = TextEditingController();
+    final excerptCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.only(
+            bottom: AppSafeInsets.keyboardOrSystemBottom(ctx),
+          ),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              AppSafeInsets.defaultSheetGap,
+            ),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const Text('Tambah Berita',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Judul Berita',
+                    hintText: 'Masukkan judul berita',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: excerptCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Ringkasan',
+                    hintText: 'Masukkan ringkasan berita',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Berita berhasil ditambahkan'),
+                        behavior: SnackBarBehavior.floating,
+                      ));
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1565C0),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Tambah'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddAnnouncementSheet() {
+    final titleCtrl = TextEditingController();
+    final bodyCtrl = TextEditingController();
+    bool isUrgent = false;
+    File? selectedImage;
+    bool isSubmitting = false;
+    final ImagePicker picker = ImagePicker();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.only(
+            bottom: AppSafeInsets.keyboardOrSystemBottom(ctx),
+          ),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(
+              16,
+              0,
+              16,
+              AppSafeInsets.defaultSheetGap,
+            ),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    'Tambah Pengumuman Baru',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: titleCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Judul Pengumuman',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.title),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: bodyCtrl,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Isi Pengumuman',
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.description),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () async {
+                      final file = await picker.pickImage(
+                        source: ImageSource.gallery,
+                        imageQuality: 70,
+                      );
+                      if (file != null) {
+                        setModal(() => selectedImage = File(file.path));
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: selectedImage != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                selectedImage!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                              ),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate_outlined,
+                                  size: 32,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Tambah Gambar (Opsional)',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color:
+                          isUrgent ? Colors.red.shade50 : Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isUrgent
+                              ? Icons.notification_important
+                              : Icons.info_outline,
+                          color: isUrgent ? Colors.red : Colors.blue,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Status Urgent',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              Text(
+                                isUrgent
+                                    ? 'Akan muncul pop-up'
+                                    : 'Muncul di list/carousel',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: isUrgent,
+                          activeThumbColor: Colors.red,
+                          onChanged: (v) => setModal(() => isUrgent = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              if (titleCtrl.text.trim().isEmpty ||
+                                  bodyCtrl.text.trim().isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Judul dan isi wajib diisi'),
+                                  ),
+                                );
+                                return;
+                              }
+                              setModal(() => isSubmitting = true);
+                              final success =
+                                  await AnnouncementService.createAnnouncement(
+                                title: titleCtrl.text.trim(),
+                                body: bodyCtrl.text.trim(),
+                                isUrgent: isUrgent,
+                                image: selectedImage,
+                              );
+                              if (!mounted || !ctx.mounted) return;
+                              setModal(() => isSubmitting = false);
+                              if (success) {
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content:
+                                        Text('Pengumuman berhasil diterbitkan'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content:
+                                        Text('Gagal menerbitkan pengumuman'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A56C4),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Terbitkan Pengumuman',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -230,32 +646,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
             _buildSectionHeader('SINKRONISASI & PENYIMPANAN'),
             _buildCard([
-              _buildActionRow(
-                icon: Icons.sync,
-                iconColor: const Color(0xFF43A047),
-                label: 'Status Sinkronisasi',
-                subtitle: 'Tersinkron 2 menit lalu • 1 menunggu',
-                trailing: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                      color: Colors.orange.shade100,
-                      borderRadius: BorderRadius.circular(10)),
-                  child: const Text('1',
-                      style: TextStyle(
-                          color: Colors.orange,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold)),
-                ),
+              ValueListenableBuilder<int>(
+                valueListenable: BackgroundSyncService.instance.draftCount,
+                builder: (context, pendingCount, _) {
+                  return ValueListenableBuilder<bool>(
+                    valueListenable: BackgroundSyncService.instance.isSyncing,
+                    builder: (context, isSyncing, _) {
+                      return _buildActionRow(
+                        icon: Icons.sync,
+                        iconColor: const Color(0xFF43A047),
+                        label: 'Status Sinkronisasi',
+                        subtitle: isSyncing
+                            ? 'Sedang menyinkronkan data...'
+                            : pendingCount > 0
+                                ? 'Ada $pendingCount laporan tertunda • Tap untuk sync'
+                                : 'Semua data tersinkronisasi • Antrean bersih',
+                        trailing: isSyncing
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF43A047)),
+                                ),
+                              )
+                            : pendingCount > 0
+                                ? Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                        color: Colors.orange.shade100,
+                                        borderRadius: BorderRadius.circular(10)),
+                                    child: Text('$pendingCount',
+                                        style: const TextStyle(
+                                            color: Colors.orange,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold)),
+                                  )
+                                : const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                        onTap: () async {
+                          if (isSyncing) return;
+                          if (pendingCount > 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Memulai sinkronisasi laporan...'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            await BackgroundSyncService.instance.syncNow();
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Semua laporan lokal sudah tersinkronisasi.'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        },
+                      );
+                    },
+                  );
+                },
               ),
               _buildDivider(),
               _buildActionRow(
                 icon: Icons.storage,
                 iconColor: const Color(0xFF5C38FF),
                 label: 'Local Storage',
-                subtitle: '47 MB used of 500 MB',
+                subtitle: '${(_localStorageMB ?? 0.45).toStringAsFixed(2)} MB used of 500 MB',
                 trailing: TextButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        title: const Text('Hapus Cache', style: TextStyle(fontWeight: FontWeight.bold)),
+                        content: const Text('Apakah Anda yakin ingin menghapus data local cache? Ini akan mengosongkan gambar dan file temporer untuk membebaskan penyimpanan.'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF5C38FF),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text('Hapus'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await _clearLocalStorage();
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Local cache berhasil dihapus.'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
                   child: const Text('Hapus',
                       style: TextStyle(
                           color: Color(0xFF5C38FF),
@@ -434,28 +924,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           required Color iconColor,
           required String label,
           required String subtitle,
-          required Widget trailing}) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            _buildIconBox(icon, iconColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14)),
-                  Text(subtitle,
-                      style:
-                          TextStyle(color: Colors.grey.shade400, fontSize: 11)),
-                ],
+          required Widget trailing,
+          VoidCallback? onTap}) =>
+      InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              _buildIconBox(icon, iconColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                    Text(subtitle,
+                        style:
+                            TextStyle(color: Colors.grey.shade400, fontSize: 11)),
+                  ],
+                ),
               ),
-            ),
-            trailing,
-          ],
+              trailing,
+            ],
+          ),
         ),
       );
 
@@ -803,7 +1298,7 @@ class _FabMenuSheet extends StatelessWidget {
               onTap: onAddAnnouncement,
             ),
           ],
-          if (currentIndex == 1) ...[
+          if (currentIndex == 1 || canAddAnnouncement) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
             _MenuTile(
               icon: Icons.article_outlined,

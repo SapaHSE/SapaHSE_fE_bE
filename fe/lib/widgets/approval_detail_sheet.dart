@@ -507,7 +507,34 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                             child: ElevatedButton(
                               onPressed: _submitting
                                   ? null
-                                  : () => _runAction(widget.onApprove!),
+                                  : () async {
+                                      final confirm = await showDialog<bool>(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                          title: const Text('Setujui Pengajuan', style: TextStyle(fontWeight: FontWeight.bold)),
+                                          content: const Text('Apakah Anda yakin ingin menyetujui pengajuan dokumen ini?'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx, false),
+                                              child: const Text('Batal'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () => Navigator.pop(ctx, true),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(0xFF2F80ED),
+                                                foregroundColor: Colors.white,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                              ),
+                                              child: const Text('Setujui'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirm == true) {
+                                        _runAction(widget.onApprove!);
+                                      }
+                                    },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF2F80ED),
                                 foregroundColor: Colors.white,

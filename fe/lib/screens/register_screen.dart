@@ -34,6 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _subKontraktor;
   String? _departemen;
   final _jabatanCtrl = TextEditingController();
+  final _posisiCtrl = TextEditingController();
 
   final _emailKantorCtrl = TextEditingController();
 
@@ -101,6 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _jabatanCtrl.dispose();
+    _posisiCtrl.dispose();
 
     _emailKantorCtrl.dispose();
     super.dispose();
@@ -156,7 +158,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         workEmail: _emailKantorCtrl.text,
         password: _passCtrl.text,
         phoneNumber: '+62${_hpCtrl.text}',
-        position: _jabatanCtrl.text,
+        position: _posisiCtrl.text,
+        jabatan: _jabatanCtrl.text,
         department: _departemen ?? '',
         company: _perusahaan ?? '',
         tipeAfiliasi: _tipeAfiliasi,
@@ -645,9 +648,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
-                    label: 'JABATAN / POSISI',
-                    hint: 'Contoh: Safety Officer, Operator...',
+                    label: 'JABATAN',
+                    hint: 'Contoh: Staff, Supervisor, Manager...',
                     controller: _jabatanCtrl,
+                    isRequired: false,
+                    maxLength: 25),
+                const SizedBox(height: 16),
+                _buildTextField(
+                    label: 'POSISI',
+                    hint: 'Contoh: Safety Officer, Operator...',
+                    controller: _posisiCtrl,
                     isRequired: false,
                     maxLength: 25),
                 const SizedBox(height: 16),
@@ -800,6 +810,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const Divider(),
               _buildReviewRow('Jabatan',
                   _jabatanCtrl.text.isEmpty ? '-' : _jabatanCtrl.text),
+              const Divider(),
+              _buildReviewRow('Posisi',
+                  _posisiCtrl.text.isEmpty ? '-' : _posisiCtrl.text),
               const Divider(),
               _buildReviewRow(
                   'Email Kantor',

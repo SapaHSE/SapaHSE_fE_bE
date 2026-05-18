@@ -14,11 +14,19 @@ return new class extends Migration
             $table->date('expired_at')->nullable()->after('obtained_at');
         });
 
-        DB::statement("
-            UPDATE user_certifications
-            SET obtained_at = STR_TO_DATE(CONCAT(year, '-01-01'), '%Y-%m-%d')
-            WHERE year IS NOT NULL
-        ");
+        if (DB::getDriverName() === 'sqlite') {
+            DB::table('user_certifications')
+                ->whereNotNull('year')
+                ->update([
+                    'obtained_at' => DB::raw("year || '-01-01'")
+                ]);
+        } else {
+            DB::statement("
+                UPDATE user_certifications
+                SET obtained_at = STR_TO_DATE(CONCAT(year, '-01-01'), '%Y-%m-%d')
+                WHERE year IS NOT NULL
+            ");
+        }
 
         Schema::table('user_certifications', function (Blueprint $table) {
             $table->dropColumn('year');
@@ -31,11 +39,19 @@ return new class extends Migration
             $table->integer('year')->nullable()->after('issuer');
         });
 
-        DB::statement("
-            UPDATE user_certifications
-            SET year = YEAR(obtained_at)
-            WHERE obtained_at IS NOT NULL
-        ");
+        if (DB::getDriverName() === 'sqlite') {
+            DB::table('user_certifications')
+                ->whereNotNull('obtained_at')
+                ->update([
+                    'year' => DB::raw("strftime('%Y', obtained_at)")
+                ]);
+        } else {
+            DB::statement("
+                UPDATE user_certifications
+                SET year = YEAR(obtained_at)
+                WHERE obtained_at IS NOT NULL
+            ");
+        }
 
         Schema::table('user_certifications', function (Blueprint $table) {
             $table->dropColumn(['obtained_at', 'expired_at']);

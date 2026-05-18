@@ -65,7 +65,7 @@ class _RejectReasonDialogState extends State<_RejectReasonDialog> {
       title: Text(
         widget.title,
         style: const TextStyle(
-          color: Colors.red,
+          color: Color(0xFFD32F2F),
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -95,7 +95,12 @@ class _RejectReasonDialogState extends State<_RejectReasonDialog> {
           child: const Text('Batal'),
         ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFD32F2F),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
           onPressed: _submit,
           child: Text(
             widget.confirmLabel,

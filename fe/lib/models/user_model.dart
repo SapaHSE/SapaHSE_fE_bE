@@ -12,6 +12,7 @@ class UserModel {
   final String? workEmail;
   final String? phoneNumber;
   final String? position;
+  final String? jabatan;
   final String? department;
   final String? company;
   final String? profilePhoto;
@@ -28,6 +29,7 @@ class UserModel {
     this.workEmail,
     this.phoneNumber,
     this.position,
+    this.jabatan,
     this.department,
     this.company,
     this.profilePhoto,
@@ -46,6 +48,7 @@ class UserModel {
       workEmail: json['work_email']?.toString(),
       phoneNumber: json['phone_number']?.toString(),
       position: json['position']?.toString(),
+      jabatan: json['jabatan']?.toString(),
       department: json['department']?.toString(),
       company: json['company']?.toString(),
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
@@ -64,6 +67,7 @@ class UserModel {
         'work_email': workEmail,
         'phone_number': phoneNumber,
         'position': position,
+        'jabatan': jabatan,
         'department': department,
         'company': company,
         'profile_photo': profilePhoto,

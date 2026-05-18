@@ -16,6 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $work_email
  * @property string|null $phone_number
  * @property string|null $position
+ * @property string|null $jabatan
  * @property string|null $department
  * @property string|null $company
  * @property string|null $address
@@ -51,6 +52,7 @@ class User extends Authenticatable
         'email_verification_token',
         'phone_number',
         'position',
+        'jabatan',
         'department',
         'company',
         'address',

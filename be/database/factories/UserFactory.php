@@ -31,6 +31,7 @@ class UserFactory extends Factory
             'work_email'        => fake()->unique()->companyEmail(),
             'phone_number'      => fake()->phoneNumber(),
             'position'          => fake()->jobTitle(),
+            'jabatan'           => fake()->jobTitle(),
             'department'        => fake()->randomElement(['IT', 'HSE', 'Operational', 'Maintenance']),
             'company'           => 'PT Bukit Baiduri Energi',
             'password_hash'     => static::$password ??= Hash::make('password'),

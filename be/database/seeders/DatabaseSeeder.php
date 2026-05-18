@@ -43,6 +43,7 @@ class DatabaseSeeder extends Seeder
             'work_email'     => 'a.fauzan@bbe.co.id',
             'phone_number'   => '+62811000001',
             'position'       => 'System Administrator',
+            'jabatan'        => 'System Administrator',
             'department'     => 'IT',
             'company'        => 'PT Bukit Baiduri Energi',
             'password_hash'  => Hash::make('password'),
@@ -59,6 +60,7 @@ class DatabaseSeeder extends Seeder
             'work_email'     => 'b.santoso@bbe.co.id',
             'phone_number'   => '+62811000002',
             'position'       => 'HSE Manager',
+            'jabatan'        => 'HSE Manager',
             'department'     => 'K3 / HSE',
             'company'        => 'PT Bukit Baiduri Energi',
             'password_hash'  => Hash::make('password'),
@@ -75,6 +77,7 @@ class DatabaseSeeder extends Seeder
             'work_email'     => 's.dewi@bbe.co.id',
             'phone_number'   => '+62811000003',
             'position'       => 'Mine Safety Inspector',
+            'jabatan'        => 'Mine Safety Inspector',
             'department'     => 'K3 / HSE',
             'company'        => 'PT Bukit Baiduri Energi',
             'password_hash'  => Hash::make('password'),
@@ -91,6 +94,7 @@ class DatabaseSeeder extends Seeder
             'work_email'     => null,
             'phone_number'   => '+62811000099',
             'position'       => 'IT Intern',
+            'jabatan'        => 'IT Intern',
             'department'     => 'IT',
             'company'        => 'PT Bukit Baiduri Energi',
             'password_hash'  => Hash::make('123'),
@@ -107,6 +111,7 @@ class DatabaseSeeder extends Seeder
             'work_email'     => 'm.faiz@bbe.co.id',
             'phone_number'   => '+62811000004',
             'position'       => 'Heavy Equipment Operator',
+            'jabatan'        => 'Heavy Equipment Operator',
             'department'     => 'Operational',
             'company'        => 'PT Bukit Baiduri Energi',
             'password_hash'  => Hash::make('password'),
@@ -125,6 +130,7 @@ class DatabaseSeeder extends Seeder
             'work_email'     => 'n.lintang@bbe.co.id',
             'phone_number'   => '+62811000005',
             'position'       => 'Workshop Technician',
+            'jabatan'        => 'Workshop Technician',
             'department'     => 'Operational',
             'company'        => 'PT Bukit Baiduri Energi',
             'password_hash'  => Hash::make('password'),
@@ -140,6 +146,7 @@ class DatabaseSeeder extends Seeder
             'work_email'     => 'r.hartono@bbe.co.id',
             'phone_number'   => '+62811000006',
             'position'       => 'Electrical Maintenance',
+            'jabatan'        => 'Electrical Maintenance',
             'department'     => 'Maintenance',
             'company'        => 'PT Bukit Baiduri Energi',
             'password_hash'  => Hash::make('password'),
@@ -155,6 +162,7 @@ class DatabaseSeeder extends Seeder
             'work_email'     => 'p.handayani@bbe.co.id',
             'phone_number'   => '+62811000007',
             'position'       => 'Environmental Officer',
+            'jabatan'        => 'Environmental Officer',
             'department'     => 'Environmental',
             'company'        => 'PT Bukit Baiduri Energi',
             'password_hash'  => Hash::make('password'),
@@ -232,7 +240,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $faiz->id,
             'name'    => 'Pelatihan Operator Alat Berat Tingkat Dasar',
             'issuer'  => 'Kemnaker RI',
-            'year'    => 2021,
+            'obtained_at' => '2021-01-01',
             'status'  => 'active',
             'is_verified' => true,
         ]);
@@ -240,7 +248,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $faiz->id,
             'name'    => 'Basic Safety Training (BST)',
             'issuer'  => 'BNSP',
-            'year'    => 2022,
+            'obtained_at' => '2022-01-01',
             'status'  => 'active',
             'is_verified' => true,
         ]);
@@ -248,7 +256,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $lintang->id,
             'name'    => 'Welding Inspector Level 1',
             'issuer'  => 'BNSP',
-            'year'    => 2023,
+            'obtained_at' => '2023-01-01',
             'status'  => 'active',
             'is_verified' => false,
         ]);
@@ -256,7 +264,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $rudi->id,
             'name'    => 'Hazardous Area Installation (HAI)',
             'issuer'  => 'PLN Pusdiklat',
-            'year'    => 2021,
+            'obtained_at' => '2021-01-01',
             'status'  => 'active',
             'is_verified' => true,
         ]);
@@ -264,7 +272,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $rudi->id,
             'name'    => 'Pelatihan Keselamatan Listrik',
             'issuer'  => 'Kemnaker RI',
-            'year'    => 2019,
+            'obtained_at' => '2019-01-01',
             'status'  => 'expired',
             'is_verified' => true,
         ]);
@@ -272,7 +280,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $admin->id,
             'name'    => 'OHSE Management System (ISO 45001)',
             'issuer'  => 'SGS Indonesia',
-            'year'    => 2022,
+            'obtained_at' => '2022-01-01',
             'status'  => 'active',
             'is_verified' => true,
         ]);
@@ -280,7 +288,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $admin2->id,
             'name'    => 'Incident Investigation & Root Cause Analysis',
             'issuer'  => 'IOSH',
-            'year'    => 2023,
+            'obtained_at' => '2023-01-01',
             'status'  => 'active',
             'is_verified' => true,
         ]);
@@ -288,7 +296,7 @@ class DatabaseSeeder extends Seeder
             'user_id' => $putri->id,
             'name'    => 'Environmental Compliance Auditor',
             'issuer'  => 'KLHK',
-            'year'    => 2022,
+            'obtained_at' => '2022-01-01',
             'status'  => 'active',
             'is_verified' => true,
         ]);
@@ -371,18 +379,22 @@ class DatabaseSeeder extends Seeder
         UserViolation::create([
             'user_id'           => $faiz->id,
             'title'             => 'Kecepatan Berlebih — DT-007',
+            'description'       => 'Mengendarai Dump Truck DT-007 dengan kecepatan 75 km/jam di area hauling road KM 5 yang memiliki batas kecepatan maksimum 50 km/jam.',
             'location'          => 'Hauling Road KM 5',
             'date_of_violation' => now()->subDays(10)->toDateString(),
             'status'            => 'Aktif',
             'sanction'          => 'SIMPER tersuspend s/d ' . now()->addDays(20)->format('d M Y') . ' (30 hari)',
+            'file_url'          => 'https://images.unsplash.com/photo-1590483736622-39da8af75bba?q=80&w=600',
         ]);
         UserViolation::create([
             'user_id'           => $lintang->id,
             'title'             => 'Tidak Menggunakan Safety Glasses',
+            'description'       => 'Tertangkap tangan tidak mengenakan kacamata keselamatan (safety glasses) saat melakukan aktivitas pengelasan di area workshop.',
             'location'          => 'Workshop Area',
             'date_of_violation' => now()->subMonths(2)->toDateString(),
             'status'            => 'Selesai',
             'sanction'          => 'Teguran Lisan & Pencatatan',
+            'file_url'          => 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=600',
         ]);
 
         // ══════════════════════════════════════════════════════════════════

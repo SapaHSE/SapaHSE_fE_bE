@@ -39,6 +39,7 @@ class ProfileController extends Controller
             'work_email'    => 'nullable|email|max:150|unique:users,work_email,' . $user->id,
             'phone_number'  => 'nullable|string|max:20',
             'position'      => 'nullable|string|max:100',
+            'jabatan'       => 'nullable|string|max:100',
             'department'    => 'nullable|string|max:100',
             'company'       => 'nullable|string|max:100',
             'tipe_afiliasi' => 'nullable|string|max:50',
@@ -54,6 +55,7 @@ class ProfileController extends Controller
         if ($request->filled('work_email'))   $user->work_email   = $request->work_email;
         if ($request->filled('phone_number')) $user->phone_number = $request->phone_number;
         if ($request->filled('position'))     $user->position     = $request->position;
+        if ($request->filled('jabatan'))      $user->jabatan      = $request->jabatan;
         if ($request->filled('department'))   $user->department   = $request->department;
         if ($request->filled('company'))      $user->company      = $request->company;
         if ($request->has('tipe_afiliasi')) $user->tipe_afiliasi = $request->tipe_afiliasi;
@@ -463,6 +465,7 @@ class ProfileController extends Controller
             'work_email'     => $user->work_email,
             'phone_number'   => $user->phone_number,
             'position'       => $user->position,
+            'jabatan'        => $user->jabatan,
             'department'     => $user->department,
             'company'        => $user->company,
             'address'        => $user->address,
@@ -541,11 +544,13 @@ class ProfileController extends Controller
             'violations'     => $user->relationLoaded('violations') ? $user->violations->map(fn($v) => [
                 'id'                => $v->id,
                 'title'             => $v->title,
+                'description'       => $v->description,
                 'location'          => $v->location,
                 'date_of_violation' => $v->date_of_violation?->format('Y-m-d'),
                 'expired_at'        => $v->expired_at?->format('Y-m-d'),
                 'status'            => $v->status,
                 'sanction'          => $v->sanction,
+                'file_url'          => $v->file_url,
             ]) : [],
         ];
     }

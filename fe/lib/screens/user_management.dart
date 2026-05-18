@@ -524,7 +524,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               .toUpperCase()
                         : '?';
                     final dept = user['department'] ?? 'No Dept';
-                    final jabatan = user['job_title'] ?? 'Staff';
+                    final jabatanVal = user['jabatan'] ?? user['position'] ?? user['job_title'] ?? 'Staff';
+                    final posisiVal = user['position'] ?? user['job_title'] ?? 'Staff';
+                    final displayJob = jabatanVal == posisiVal ? jabatanVal : '$jabatanVal / $posisiVal';
 
                     Color avatarColor = Colors.blue;
                     if (role == 'superadmin') avatarColor = Colors.purple;
@@ -575,7 +577,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '$jabatan • $dept',
+                                    '$displayJob • $dept',
                                     style: TextStyle(
                                       color: Colors.grey.shade500,
                                       fontSize: 12,
@@ -617,7 +619,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      role.toUpperCase(),
+                                      role.isEmpty ? "" : "${role[0].toUpperCase()}${role.substring(1).toLowerCase()}",
                                       style: TextStyle(
                                         color: avatarColor,
                                         fontSize: 11,
@@ -1043,7 +1045,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         'personal_email': widget.user['personal_email'] ?? widget.user['email'],
         'phone_number': widget.user['phone_number'],
         'department': widget.user['department'],
-        'position': widget.user['position'] ?? widget.user['job_title'],
+        'jabatan': widget.user['jabatan'] ?? widget.user['position'] ?? widget.user['job_title'] ?? '',
+        'position': widget.user['position'] ?? widget.user['job_title'] ?? '',
         'company': widget.user['company'],
         'tipe_afiliasi': widget.user['tipe_afiliasi'],
         'role': _selectedRole,
@@ -1177,7 +1180,9 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
               .toUpperCase()
         : '?';
     final dept = widget.user['department'] ?? 'No Dept';
-    final jabatan = widget.user['job_title'] ?? 'Staff';
+    final jabatanVal = widget.user['jabatan'] ?? widget.user['position'] ?? widget.user['job_title'] ?? 'Staff';
+    final posisiVal = widget.user['position'] ?? widget.user['job_title'] ?? 'Staff';
+    final displayJob = jabatanVal == posisiVal ? jabatanVal : '$jabatanVal / $posisiVal';
     final role = (widget.user['role'] ?? 'user').toString().toLowerCase();
     final isLogEntry =
         widget.user['registration_status'] == 'rejected' ||
@@ -1251,7 +1256,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '$jabatan • $dept',
+                              '$displayJob • $dept',
                               style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 13,
@@ -1263,7 +1268,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         Row(
                           children: [
                             _buildStatusBadge(
-                              role.toUpperCase(),
+                              role.isEmpty ? "" : "${role[0].toUpperCase()}${role.substring(1).toLowerCase()}",
                               Colors.orange,
                             ),
                             const SizedBox(width: 8),
@@ -1725,6 +1730,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
   late TextEditingController _workEmailCtrl;
   late TextEditingController _hpCtrl;
   late TextEditingController _jabatanCtrl;
+  late TextEditingController _posisiCtrl;
 
   late TextEditingController _passwordCtrl;
 
@@ -1838,6 +1844,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
       text: widget.userToEdit?['phone_number'] ?? '',
     );
     _jabatanCtrl = TextEditingController(
+      text: widget.userToEdit?['jabatan'] ?? '',
+    );
+    _posisiCtrl = TextEditingController(
       text:
           widget.userToEdit?['position'] ??
           widget.userToEdit?['job_title'] ??
@@ -1883,7 +1892,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
       'work_email': _workEmailCtrl.text.trim(),
       'phone_number': _hpCtrl.text.trim(),
       'department': _selectedDept ?? '',
-      'position': _jabatanCtrl.text.trim(),
+      'jabatan': _jabatanCtrl.text.trim(),
+      'position': _posisiCtrl.text.trim(),
       'company': _selectedPerusahaan ?? '',
       'tipe_afiliasi': _tipeAfiliasi == 'Sub-Kont.'
           ? 'Sub-Kontraktor'
@@ -2032,7 +2042,8 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 (v) => setState(() => _selectedDept = v),
                 required: true,
               ),
-              _buildField('Jabatan / Posisi', _jabatanCtrl, required: true),
+              _buildField('Jabatan', _jabatanCtrl, required: true),
+              _buildField('Posisi', _posisiCtrl, required: true),
 
               const SizedBox(height: 16),
               const Text(

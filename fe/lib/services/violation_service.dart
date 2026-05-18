@@ -80,21 +80,25 @@ class ViolationListResult {
 class ViolationItem {
   final String id;
   final String title;
+  final String? description;
   final String? location;
   final String dateOfViolation;
   final String? expiredAt;
   final String status;
   final String? sanction;
+  final String? fileUrl;
   final Map<String, dynamic> user;
 
   ViolationItem({
     required this.id,
     required this.title,
+    this.description,
     this.location,
     required this.dateOfViolation,
     this.expiredAt,
     required this.status,
     this.sanction,
+    this.fileUrl,
     required this.user,
   });
 
@@ -102,11 +106,13 @@ class ViolationItem {
     return ViolationItem(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
+      description: json['description']?.toString(),
       location: json['location']?.toString(),
       dateOfViolation: json['date_of_violation']?.toString() ?? '',
       expiredAt: json['expired_at']?.toString(),
       status: json['status']?.toString() ?? 'Aktif',
       sanction: json['sanction']?.toString(),
+      fileUrl: json['file_url']?.toString(),
       user: Map<String, dynamic>.from(json['user'] as Map? ?? {}),
     );
   }

@@ -47,6 +47,7 @@ class AuthService {
     required String password,
     String? phoneNumber,
     String? position,
+    String? jabatan,
     String? department,
     String? company,
     String? tipeAfiliasi,
@@ -65,6 +66,7 @@ class AuthService {
         'password': password,
         if (phoneNumber != null) 'phone_number': phoneNumber,
         if (position != null) 'position': position,
+        if (jabatan != null) 'jabatan': jabatan,
         if (department != null) 'department': department,
         if (company != null) 'company': company,
         if (tipeAfiliasi != null && tipeAfiliasi.isNotEmpty)

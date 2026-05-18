@@ -84,6 +84,7 @@ class ProfileService {
     String? phoneNumber,
     String? address,
     String? position,
+    String? jabatan,
     String? department,
     String? company,
     String? tipeAfiliasi,
@@ -98,6 +99,7 @@ class ProfileService {
     if (phoneNumber != null) body['phone_number'] = phoneNumber;
     if (address != null) body['address'] = address;
     if (position != null) body['position'] = position;
+    if (jabatan != null) body['jabatan'] = jabatan;
     if (department != null) body['department'] = department;
     if (company != null) body['company'] = company;
     if (tipeAfiliasi != null) body['tipe_afiliasi'] = tipeAfiliasi;
@@ -332,6 +334,28 @@ class ProfileService {
       );
     }
     return SimpleResult.success('Sertifikasi berhasil diperbarui.');
+  }
+
+  // ── Delete License ──────────────────────────────────────────────────────────
+  static Future<SimpleResult> deleteLicense(String id) async {
+    final response = await ApiService.delete('/profile/license/$id');
+    if (!response.success) {
+      return SimpleResult.error(
+        response.errorMessage ?? 'Gagal menghapus lisensi.',
+      );
+    }
+    return SimpleResult.success('Lisensi berhasil dihapus.');
+  }
+
+  // ── Delete Certification ───────────────────────────────────────────────────
+  static Future<SimpleResult> deleteCertification(String id) async {
+    final response = await ApiService.delete('/profile/certification/$id');
+    if (!response.success) {
+      return SimpleResult.error(
+        response.errorMessage ?? 'Gagal menghapus sertifikasi.',
+      );
+    }
+    return SimpleResult.success('Sertifikasi berhasil dihapus.');
   }
 
   // ── Change password ───────────────────────────────────────────────────────

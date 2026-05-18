@@ -141,10 +141,86 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withValues(alpha: 0.7)
+                          Colors.black.withValues(alpha: 0.85)
                         ],
-                        stops: const [0.4, 1.0],
+                        stops: const [0.3, 1.0],
                       ),
+                    ),
+                  ),
+                  // Overlaid Category Chip, Title, Author & Date Row
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Category chip
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: catColor.withValues(alpha: 0.95),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            article.category,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Title
+                        Text(
+                          article.title,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            height: 1.35,
+                            shadows: [
+                              Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1.5))
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        // Author & date row
+                        Row(
+                          children: [
+                            const Icon(Icons.person_outline,
+                                size: 13, color: Colors.white70),
+                            const SizedBox(width: 4),
+                            Text(
+                              article.author,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                                width: 3,
+                                height: 3,
+                                decoration: const BoxDecoration(
+                                    color: Colors.white38,
+                                    shape: BoxShape.circle)),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.calendar_today_outlined,
+                                size: 12, color: Colors.white70),
+                            const SizedBox(width: 4),
+                            Text(
+                              article.date,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.white70),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -159,67 +235,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Category chip
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: catColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border:
-                          Border.all(color: catColor.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      article.category,
-                      style: TextStyle(
-                          color: catColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Title
-                  Text(
-                    article.title,
-                    style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        height: 1.35),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Author & date row
-                  Row(
-                    children: [
-                      const CircleAvatar(
-                        radius: 14,
-                        backgroundColor: Color(0xFFE8F5E9),
-                        child: Icon(Icons.person,
-                            size: 16, color: Color(0xFF2E7D32)),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(article.author,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 8),
-                      Container(
-                          width: 4,
-                          height: 4,
-                          decoration: BoxDecoration(
-                              color: Colors.grey.shade400,
-                              shape: BoxShape.circle)),
-                      const SizedBox(width: 8),
-                      Text(article.date,
-                          style: TextStyle(
-                              fontSize: 13, color: Colors.grey.shade600)),
-                    ],
-                  ),
-
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Divider(),
-                  ),
 
                   // Body content
                   if (_isLoading)

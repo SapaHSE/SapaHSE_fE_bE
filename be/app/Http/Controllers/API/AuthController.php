@@ -14,12 +14,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class AuthController extends Controller
 {
-    protected $notificationService;
+    protected \App\Services\NotificationService $notificationService;
 
     public function __construct(\App\Services\NotificationService $notificationService)
     {
@@ -37,6 +38,7 @@ class AuthController extends Controller
             'password'       => 'required|string|min:6',
             'phone_number'   => 'required|string|max:20',
             'position'       => 'required|string|max:100',
+            'jabatan'        => 'required|string|max:100',
             'department'     => 'required|string|max:100',
             'company'        => 'required|string|max:150',
             'address'        => 'nullable|string|max:500',
@@ -66,6 +68,7 @@ class AuthController extends Controller
             'password_hash'             => Hash::make($request->password),
             'phone_number'              => $request->phone_number,
             'position'                  => $request->position,
+            'jabatan'                   => $request->jabatan,
             'department'                => $request->department,
             'company'                   => $request->company,
             'address'                   => $request->address,
@@ -92,7 +95,7 @@ class AuthController extends Controller
 
     // GET /api/email/verify/{id}/{token}
     // Dibuka melalui browser dari link email
-    public function verifyEmail($id, $token)
+    public function verifyEmail(int $id, string $token)
     {
         $user = User::find($id);
 
@@ -244,7 +247,7 @@ class AuthController extends Controller
         }))
         ->where('is_active', true)
         ->orderBy('full_name')
-        ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'company', 'role', 'profile_photo'])
+        ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'jabatan', 'company', 'role', 'profile_photo'])
         ->get()
         ->map(fn($u) => [
             'id'          => $u->id,
@@ -252,6 +255,7 @@ class AuthController extends Controller
             'employee_id' => $u->employee_id,
             'department'  => $u->department,
             'position'    => $u->position,
+            'jabatan'     => $u->jabatan,
             'company'     => $u->company,
             'role'        => $u->role,
             'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
@@ -307,6 +311,7 @@ class AuthController extends Controller
             'work_email'     => 'nullable|email|unique:users,work_email',
             'phone_number'   => 'required|string|max:20',
             'position'       => 'required|string|max:100',
+            'jabatan'        => 'required|string|max:100',
             'department'     => 'required|string|max:100',
             'company'        => 'required|string|max:100',
             'address'        => 'nullable|string|max:500',
@@ -326,6 +331,7 @@ class AuthController extends Controller
             'work_email'     => $request->work_email,
             'phone_number'   => $request->phone_number,
             'position'       => $request->position,
+            'jabatan'        => $request->jabatan,
             'department'     => $request->department,
             'company'        => $request->company,
             'address'        => $request->address,
@@ -347,7 +353,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/users/{id}
-    public function adminUpdate(Request $request, $id)
+    public function adminUpdate(Request $request, int $id)
     {
         $user = User::findOrFail($id);
 
@@ -358,6 +364,7 @@ class AuthController extends Controller
             'work_email'     => 'nullable|email|unique:users,work_email,' . $user->id,
             'phone_number'   => 'required|string|max:20',
             'position'       => 'required|string|max:100',
+            'jabatan'        => 'required|string|max:100',
             'department'     => 'required|string|max:100',
             'company'        => 'required|string|max:100',
             'address'        => 'nullable|string|max:500',
@@ -385,11 +392,11 @@ class AuthController extends Controller
     }
 
     // DELETE /api/admin/users/{id}
-    public function adminDestroy($id)
+    public function adminDestroy(int $id)
     {
         $user = User::findOrFail($id);
         
-        if ($user->id === \Illuminate\Support\Facades\Auth::id()) {
+        if ($user->id === Auth::id()) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Anda tidak bisa menghapus akun Anda sendiri.',
@@ -444,20 +451,22 @@ class AuthController extends Controller
     }
 
     // POST /api/admin/users/{id}/violations
-    public function adminStoreViolation(Request $request, $id)
+    public function adminStoreViolation(Request $request, int $id)
     {
         $user = User::findOrFail($id);
 
         $request->validate([
             'title'             => 'required|string|max:150',
+            'description'       => 'nullable|string',
             'location'          => 'nullable|string|max:150',
             'date_of_violation' => 'nullable|date',
             'expired_at'        => 'nullable|date',
             'status'            => 'nullable|string|max:50',
             'sanction'          => 'nullable|string|max:200',
+            'file_url'          => 'nullable|string|max:255',
         ]);
 
-        $data = $request->only('title', 'location', 'date_of_violation', 'expired_at', 'status', 'sanction');
+        $data = $request->only('title', 'description', 'location', 'date_of_violation', 'expired_at', 'status', 'sanction', 'file_url');
         if (empty($data['date_of_violation'])) {
             $data['date_of_violation'] = now()->toDateString();
         }
@@ -472,21 +481,23 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/violations/{violationId}
-    public function adminUpdateViolation(Request $request, $violationId)
+    public function adminUpdateViolation(Request $request, int $violationId)
     {
         $violation = UserViolation::findOrFail($violationId);
 
         $request->validate([
             'title'             => 'required|string|max:150',
+            'description'       => 'nullable|string',
             'location'          => 'nullable|string|max:150',
             'date_of_violation' => 'nullable|date',
             'expired_at'        => 'nullable|date',
             'status'            => 'nullable|string|max:50',
             'sanction'          => 'nullable|string|max:200',
+            'file_url'          => 'nullable|string|max:255',
         ]);
 
         $violation->update($request->only(
-            'title', 'location', 'date_of_violation', 'expired_at', 'status', 'sanction'
+            'title', 'description', 'location', 'date_of_violation', 'expired_at', 'status', 'sanction', 'file_url'
         ));
 
         return response()->json([
@@ -497,7 +508,7 @@ class AuthController extends Controller
     }
 
     // DELETE /api/admin/violations/{violationId}
-    public function adminDestroyViolation($violationId)
+    public function adminDestroyViolation(int $violationId)
     {
         $violation = UserViolation::findOrFail($violationId);
         $violation->delete();
@@ -509,7 +520,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/licenses/{id}/verify
-    public function adminVerifyLicense(Request $request, $id)
+    public function adminVerifyLicense(Request $request, int $id)
     {
         if ($request->boolean('is_verified', true)) {
             return $this->adminApproveLicense($id);
@@ -543,7 +554,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/certifications/{id}/verify
-    public function adminVerifyCertification(Request $request, $id)
+    public function adminVerifyCertification(Request $request, int $id)
     {
         if ($request->boolean('is_verified', true)) {
             return $this->adminApproveCertification($id);
@@ -577,7 +588,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/licenses/{id}/approve
-    public function adminApproveLicense($id)
+    public function adminApproveLicense(int $id)
     {
         $license = UserLicense::with('user')->findOrFail($id);
 
@@ -604,7 +615,7 @@ class AuthController extends Controller
     }
 
     // POST /api/admin/licenses/{id}/reject
-    public function adminRejectLicense(Request $request, $id)
+    public function adminRejectLicense(Request $request, int $id)
     {
         $request->validate([
             'reason' => 'required|string|max:2000',
@@ -635,7 +646,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/certifications/{id}/approve
-    public function adminApproveCertification($id)
+    public function adminApproveCertification(int $id)
     {
         $certification = UserCertification::with('user')->findOrFail($id);
 
@@ -662,7 +673,7 @@ class AuthController extends Controller
     }
 
     // POST /api/admin/certifications/{id}/reject
-    public function adminRejectCertification(Request $request, $id)
+    public function adminRejectCertification(Request $request, int $id)
     {
         $request->validate([
             'reason' => 'required|string|max:2000',
@@ -692,7 +703,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function adminApprove($id)
+    public function adminApprove(int $id)
     {
         $user = User::findOrFail($id);
         
@@ -718,7 +729,7 @@ class AuthController extends Controller
                 ['type' => 'auth']
             );
         } catch (\Exception $e) {
-            \Log::error('Gagal mengirim notifikasi approve registration: ' . $e->getMessage());
+            Log::error('Gagal mengirim notifikasi approve registration: ' . $e->getMessage());
         }
 
         // Kirim email verifikasi saat di-approve (jika belum pernah diverifikasi)
@@ -730,7 +741,7 @@ class AuthController extends Controller
             }
             
             $verificationUrl = url("/api/email/verify/{$user->id}/{$token}");
-            Mail::to($user->personal_email)->send(new \App\Mail\VerifyEmailMail($verificationUrl, $user->full_name));
+            Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
         }
 
         return response()->json([
@@ -741,7 +752,7 @@ class AuthController extends Controller
     }
 
     // POST /api/admin/users/{id}/reject
-    public function adminReject(Request $request, $id)
+    public function adminReject(Request $request, int $id)
     {
         $user = User::findOrFail($id);
 
@@ -801,6 +812,7 @@ class AuthController extends Controller
             'email_verified' => ! is_null($user->email_verified_at),
             'phone_number'   => $user->phone_number,
             'position'       => $user->position,
+            'jabatan'        => $user->jabatan,
             'department'     => $user->department,
             'company'        => $user->company,
             'address'        => $user->address,

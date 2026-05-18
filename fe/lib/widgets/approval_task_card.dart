@@ -174,7 +174,7 @@ class ApprovalTaskCard extends StatelessWidget {
 
   Widget _buildLeftPanel() {
     return Container(
-      width: 110,
+      width: 120,
       color: Colors.grey.shade50,
       child: Column(
         children: [
@@ -216,8 +216,8 @@ class ApprovalTaskCard extends StatelessWidget {
     final metaInfo = _metaInfo;
     final hasMetaInfo = metaInfo != null && metaInfo.trim().isNotEmpty;
     final cardContentHeight = showActions
-        ? (hasMetaInfo ? 106.0 : 100.0)
-        : (hasMetaInfo ? 104.0 : 98.0);
+        ? (hasMetaInfo ? 142.0 : 136.0)
+        : (hasMetaInfo ? 138.0 : 130.0);
 
     return GestureDetector(
       onTap: onTap,
@@ -247,29 +247,28 @@ class ApprovalTaskCard extends StatelessWidget {
                     _buildLeftPanel(),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               item.title,
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                                height: 1.2,
-                              ),
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                  height: 1.25),
                             ),
                             if (hasMetaInfo) ...[
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 4),
                               Text(
                                 metaInfo,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   color: Colors.black54,
                                   height: 1.3,
                                 ),
@@ -280,63 +279,63 @@ class ApprovalTaskCard extends StatelessWidget {
                               children: [
                                 const Icon(
                                   Icons.access_time,
-                                  size: 11,
+                                  size: 13,
                                   color: Colors.grey,
                                 ),
-                                const SizedBox(width: 3),
+                                const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
                                     _formatDate(submittedAt),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       color: Colors.grey,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: 4),
                             Row(
                               children: [
                                 const Icon(
                                   Icons.person_outline,
-                                  size: 11,
+                                  size: 13,
                                   color: Colors.grey,
                                 ),
-                                const SizedBox(width: 3),
+                                const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
                                     submitterLine,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       color: Colors.grey,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 5),
+                            const SizedBox(height: 6),
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 2,
+                                  horizontal: 10,
+                                  vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
                                   color: status.bg,
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(color: status.border),
                                 ),
                                 child: Text(
                                   status.label,
                                   style: TextStyle(
                                     color: status.fg,
-                                    fontSize: 8.5,
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

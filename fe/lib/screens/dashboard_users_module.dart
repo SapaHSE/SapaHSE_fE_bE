@@ -89,6 +89,7 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
     final empIdCtrl = TextEditingController(text: user?.employeeId);
     final phoneCtrl = TextEditingController(text: user?.phoneNumber);
     final posCtrl = TextEditingController(text: user?.position);
+    final jabCtrl = TextEditingController(text: user?.jabatan);
     final passwordCtrl = TextEditingController();
     String? selectedCompany = user?.company;
     if (selectedCompany != null && selectedCompany.isNotEmpty) {
@@ -190,32 +191,34 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                   Row(children: [
                     Expanded(
                         child: _formField(
-                            posCtrl, 'Jabatan', Icons.work_history_outlined)),
+                            jabCtrl, 'Jabatan', Icons.work_history_outlined)),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Container(
-                        decoration: kMinimalFieldContainerDecoration,
-                        child: DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          initialValue: selectedDept,
-                          decoration: minimalFieldDecoration(
-                            hintText: 'Departemen',
-                            prefixIcon: Icons.groups_outlined,
-                          ),
-                          icon: kMinimalDropdownChevron,
-                          borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-                          style: kMinimalDropdownTextStyle,
-                          items: departments
-                              .map((e) => DropdownMenuItem(
-                                  value: e,
-                                  child:
-                                      Text(e, overflow: TextOverflow.ellipsis)))
-                              .toList(),
-                          onChanged: (v) => setModalState(() => selectedDept = v),
-                        ),
-                      ),
-                    ),
+                        child: _formField(
+                            posCtrl, 'Posisi', Icons.work_history_outlined)),
                   ]),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: kMinimalFieldContainerDecoration,
+                    child: DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: selectedDept,
+                      decoration: minimalFieldDecoration(
+                        hintText: 'Departemen',
+                        prefixIcon: Icons.groups_outlined,
+                      ),
+                      icon: kMinimalDropdownChevron,
+                      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                      style: kMinimalDropdownTextStyle,
+                      items: departments
+                          .map((e) => DropdownMenuItem(
+                              value: e,
+                              child:
+                                  Text(e, overflow: TextOverflow.ellipsis)))
+                          .toList(),
+                      onChanged: (v) => setModalState(() => selectedDept = v),
+                    ),
+                  ),
                   if (user == null) ...[
                     _formField(passwordCtrl, 'Password', Icons.lock_outline,
                         obscure: true),
@@ -269,6 +272,7 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                         'work_email': workEmailCtrl.text,
                         'phone_number': phoneCtrl.text,
                         'position': posCtrl.text,
+                        'jabatan': jabCtrl.text,
                         'company': selectedCompany,
                         'department': selectedDept,
                         'role': currentRole,
