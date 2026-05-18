@@ -190,12 +190,23 @@ class NotificationService
                 ]);
                 return true;
             } else {
+                $responseBody = $response->json();
+                $errorCode = $responseBody['error']['details'][0]['errorCode'] ?? null;
+
+                // Jika token sudah tidak terdaftar (UNREGISTERED), hapus dari database
+                if ($response->status() === 404 && $errorCode === 'UNREGISTERED') {
+                    Log::warning('FCM token tidak valid (UNREGISTERED), menghapus token dari user.', [
+                        'user_id' => $user->id
+                    ]);
+                    $user->update(['fcm_token' => null]);
+                }
+
                 Log::error('Gagal mengirim push notification (v1)', [
                     'user_id' => $user->id,
                     'project_id' => $projectId,
                     'endpoint' => $endpoint,
                     'status' => $response->status(),
-                    'response' => $response->body(),
+                    'response' => $responseBody,
                 ]);
                 return false;
             }
