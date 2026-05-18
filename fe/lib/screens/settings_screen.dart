@@ -7,7 +7,6 @@ import '../main.dart';
 import 'create_hazard_screen.dart';
 import 'create_inspection_screen.dart';
 import 'qr_scan_screen.dart';
-import 'my_profile.dart';
 import 'package:local_auth/local_auth.dart';
 import '../widgets/minimal_dropdown.dart';
 import '../widgets/app_safe_insets.dart';
@@ -25,7 +24,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isDarkMode = false;
   bool _isPushEnabled = true;
   bool _isBiometricEnabled = false;
-  static const _blue = Color(0xFF1A56C4);
 
   @override
   void initState() {
@@ -153,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _SettingsFabMenuSheet(
+      builder: (_) => _FabMenuSheet(
         currentIndex: 4,
         onScanQr: () {
           Navigator.pop(context);
@@ -167,25 +165,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Navigator.pop(context);
           Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateInspectionScreen()));
         },
+        onAddAnnouncement: () {
+          Navigator.pop(context);
+        },
         onAddNews: () {
           Navigator.pop(context);
         },
-        onEditBiodata: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen(initialAction: 'edit_biodata')));
-        },
-        onAddLicense: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen(initialAction: 'add_license')));
-        },
-        onAddCertification: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen(initialAction: 'add_certification')));
-        },
-        onEditMedical: () {
-          Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen(initialAction: 'edit_medical')));
-        },
+        canAddAnnouncement: false,
       ),
     );
   }
@@ -298,9 +284,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
+      floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
       floatingActionButton: FloatingActionButton(
+        heroTag: 'main_fab',
         onPressed: _openFabMenu,
-        backgroundColor: _blue,
+        backgroundColor: const Color(0xFF1A56C4),
         foregroundColor: Colors.white,
         shape: const CircleBorder(),
         elevation: 4,
@@ -312,11 +300,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _SettingsNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
-            _SettingsNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+            _NavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
+            _NavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
             const SizedBox(width: 56),
-            _SettingsNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
-            _SettingsNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+            _NavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
+            _NavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
           ],
         ),
       ),
@@ -716,27 +704,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-class _SettingsFabMenuSheet extends StatelessWidget {
+class _FabMenuSheet extends StatelessWidget {
   final int currentIndex;
   final VoidCallback onScanQr;
   final VoidCallback onCreateHazard;
   final VoidCallback onCreateInspection;
+  final VoidCallback onAddAnnouncement;
   final VoidCallback onAddNews;
-  final VoidCallback onEditBiodata;
-  final VoidCallback onAddLicense;
-  final VoidCallback onAddCertification;
-  final VoidCallback onEditMedical;
+  final bool canAddAnnouncement;
 
-  const _SettingsFabMenuSheet({
+  const _FabMenuSheet({
     required this.currentIndex,
     required this.onScanQr,
     required this.onCreateHazard,
     required this.onCreateInspection,
+    required this.onAddAnnouncement,
     required this.onAddNews,
-    required this.onEditBiodata,
-    required this.onAddLicense,
-    required this.onAddCertification,
-    required this.onEditMedical,
+    required this.canAddAnnouncement,
   });
 
   @override
@@ -782,7 +766,7 @@ class _SettingsFabMenuSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _SettingsFabMenuTile(
+          _MenuTile(
             icon: Icons.qr_code_scanner,
             iconBgColor: const Color(0xFFEFF4FF),
             iconColor: const Color(0xFF1A56C4),
@@ -791,7 +775,7 @@ class _SettingsFabMenuSheet extends StatelessWidget {
             onTap: onScanQr,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _SettingsFabMenuTile(
+          _MenuTile(
             icon: Icons.warning_amber_rounded,
             iconBgColor: const Color(0xFFFFEBEE),
             iconColor: const Color(0xFFF44336),
@@ -800,7 +784,7 @@ class _SettingsFabMenuSheet extends StatelessWidget {
             onTap: onCreateHazard,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _SettingsFabMenuTile(
+          _MenuTile(
             icon: Icons.search,
             iconBgColor: const Color(0xFFE3F2FD),
             iconColor: const Color(0xFF1565C0),
@@ -808,12 +792,20 @@ class _SettingsFabMenuSheet extends StatelessWidget {
             subtitle: 'Catat hasil inspeksi rutin area kerja',
             onTap: onCreateInspection,
           ),
-          if (currentIndex == 0) ...[
+          if (canAddAnnouncement) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+            _MenuTile(
+              icon: Icons.campaign_rounded,
+              iconBgColor: const Color(0xFFF3E5F5),
+              iconColor: const Color(0xFF7B1FA2),
+              title: 'Tambah Pengumuman',
+              subtitle: 'Buat pengumuman urgent atau biasa',
+              onTap: onAddAnnouncement,
+            ),
           ],
           if (currentIndex == 1) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-            _SettingsFabMenuTile(
+            _MenuTile(
               icon: Icons.article_outlined,
               iconBgColor: const Color(0xFFFFF3E0),
               iconColor: const Color(0xFFE65100),
@@ -822,42 +814,6 @@ class _SettingsFabMenuSheet extends StatelessWidget {
               onTap: onAddNews,
             ),
           ],
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _SettingsFabMenuTile(
-            icon: Icons.person_outline,
-            iconBgColor: const Color(0xFFF3E5F5),
-            iconColor: const Color(0xFF8E24AA),
-            title: 'Edit Biodata',
-            subtitle: 'Perbarui nomor telepon & email',
-            onTap: onEditBiodata,
-          ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _SettingsFabMenuTile(
-            icon: Icons.badge_outlined,
-            iconBgColor: const Color(0xFFE3F2FD),
-            iconColor: const Color(0xFF1E88E5),
-            title: 'Tambah Lisensi',
-            subtitle: 'Tambahkan SIM/SIO',
-            onTap: onAddLicense,
-          ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _SettingsFabMenuTile(
-            icon: Icons.workspace_premium_outlined,
-            iconBgColor: const Color(0xFFFFF3E0),
-            iconColor: const Color(0xFFEF6C00),
-            title: 'Tambah Sertifikat',
-            subtitle: 'Tambahkan sertifikasi keahlian',
-            onTap: onAddCertification,
-          ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _SettingsFabMenuTile(
-            icon: Icons.medical_services_outlined,
-            iconBgColor: const Color(0xFFFFEBEE),
-            iconColor: const Color(0xFFE53935),
-            title: 'Edit Data Medis',
-            subtitle: 'Perbarui info kesehatan & alergi',
-            onTap: onEditMedical,
-          ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -882,7 +838,7 @@ class _SettingsFabMenuSheet extends StatelessWidget {
   }
 }
 
-class _SettingsFabMenuTile extends StatelessWidget {
+class _MenuTile extends StatelessWidget {
   final IconData icon;
   final Color iconBgColor;
   final Color iconColor;
@@ -890,7 +846,7 @@ class _SettingsFabMenuTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _SettingsFabMenuTile({
+  const _MenuTile({
     required this.icon,
     required this.iconBgColor,
     required this.iconColor,
@@ -939,14 +895,14 @@ class _SettingsFabMenuTile extends StatelessWidget {
       );
 }
 
-class _SettingsNavItem extends StatelessWidget {
+class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final int index;
   final int currentIndex;
   final Function(int) onTap;
 
-  const _SettingsNavItem({
+  const _NavItem({
     required this.icon,
     required this.label,
     required this.index,
@@ -965,7 +921,9 @@ class _SettingsNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            Icon(icon,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                size: 24),
             const SizedBox(height: 2),
             Text(
               label,

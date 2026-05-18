@@ -877,6 +877,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final deptCtrl = TextEditingController(text: _profileData?.department);
     final jobCtrl = TextEditingController(text: _profileData?.position);
     final addressCtrl = TextEditingController(text: _profileData?.address);
+    final phoneFocusNode = FocusNode();
     final formKey = GlobalKey<FormState>();
     XFile? localImageFile;
     final existingProfilePhoto =
@@ -918,7 +919,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(sheetContext),
+                      onPressed: () {
+                        phoneFocusNode.dispose();
+                        Navigator.pop(sheetContext);
+                      },
                     ),
                     const Expanded(
                       child: Text(
@@ -1022,7 +1026,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 },
                               ),
                               const SizedBox(height: 16),
-                              _buildPhoneField(phoneCtrl),
+                              _buildPhoneField(phoneCtrl, phoneFocusNode),
                               const SizedBox(height: 16),
                               _buildSheetField(
                                 'Email Kantor (Opsional)',
@@ -1153,6 +1157,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               return;
                             }
 
+                            phoneFocusNode.dispose();
                             Navigator.pop(sheetContext);
                             _showLoadingDialog('Menyimpan Profil...');
 
@@ -1271,13 +1276,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
-  Widget _buildPhoneField(TextEditingController controller) {
-    final FocusNode phoneFocusNode = FocusNode();
-    bool isFocused = false;
-
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return FormField<String>(
+  Widget _buildPhoneField(TextEditingController controller, FocusNode focusNode) {
+    return FormField<String>(
+          initialValue: controller.text,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           validator: (v) {
             final value = (v ?? '').trim();
@@ -1285,7 +1286,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               return 'Nomor telepon wajib diisi';
             }
             if (!RegExp(r'^8[0-9]{7,12}$').hasMatch(value)) {
-              return 'Masukkan 8-13 digit setelah +62';
+              return 'Mulai dengan angka 8 (8-13 digit)';
             }
             return null;
           },
@@ -1293,20 +1294,29 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             bool hasError = state.hasError;
             Color borderColor = hasError
                 ? Colors.red
-                : (isFocused ? const Color(0xFF1A56C4) : Colors.grey.shade300);
+                : (focusNode.hasFocus ? const Color(0xFF1A56C4) : Colors.grey.shade300);
             Color prefixBg = hasError
                 ? Colors.red.shade50
                 : Colors.grey.shade100;
-            Color prefixBorder = hasError ? Colors.red : Colors.grey.shade300;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Nomor Telepon',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    Text('Nomor Telepon',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 4),
+                    Text('(Mulai dengan angka 8)',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
+                            fontStyle: FontStyle.italic)),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Container(
                   decoration: BoxDecoration(
@@ -1314,60 +1324,54 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: borderColor, width: 1),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: prefixBg,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(7),
-                            bottomLeft: Radius.circular(7),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: prefixBg,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(7),
+                              bottomLeft: Radius.circular(7),
+                            ),
+                            border: Border(
+                              right: BorderSide(color: borderColor, width: 1),
+                            ),
                           ),
-                          border: Border(
-                            right: BorderSide(color: prefixBorder, width: 1),
+                          child: const Text('+62',
+                              style: TextStyle(color: Colors.black87, fontSize: 14)),
+                        ),
+                        Expanded(
+                          child: TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            maxLength: 13,
+                            style: const TextStyle(fontSize: 14),
+                            decoration: const InputDecoration(
+                              hintText: '812xxxxxxxx',
+                              hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 10),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                              counterText: '',
+                            ),
+                            onChanged: (v) {
+                              state.didChange(v);
+                              state.validate();
+                            },
                           ),
                         ),
-                        child: const Text('+62',
-                            style: TextStyle(color: Colors.black87, fontSize: 14)),
-                      ),
-                      Expanded(
-                        child: TextFormField(
-                          controller: controller,
-                          focusNode: phoneFocusNode,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          maxLength: 13,
-                          style: const TextStyle(fontSize: 14),
-                          decoration: InputDecoration(
-                            hintText: '812xxxxxxxx',
-                            hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 10),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            errorBorder: InputBorder.none,
-                            focusedErrorBorder: InputBorder.none,
-                            counterText: '',
-                          ),
-                          onChanged: (v) {
-                            state.didChange(v);
-                            state.validate();
-                          },
-                          onTap: () {
-                            setState(() {
-                              isFocused = true;
-                            });
-                          },
-                          onFieldSubmitted: (v) {
-                            setState(() {
-                              isFocused = false;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 if (hasError)
@@ -1382,8 +1386,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             );
           },
         );
-      },
-    );
   }
 
   void _showDepartmentPicker(BuildContext context,

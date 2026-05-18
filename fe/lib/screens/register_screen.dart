@@ -21,6 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _namaCtrl = TextEditingController();
   final _empIdCtrl = TextEditingController();
   final _hpCtrl = TextEditingController();
+  final _hpFocusNode = FocusNode();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscurePass = true;
@@ -46,8 +47,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
+    _hpFocusNode.addListener(_onFocusChange);
     _fetchCompanies();
     _fetchDepartments();
+  }
+
+  void _onFocusChange() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _fetchDepartments() async {
@@ -86,10 +92,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    _hpFocusNode.removeListener(_onFocusChange);
     _stepScrollController.dispose();
     _namaCtrl.dispose();
     _empIdCtrl.dispose();
     _hpCtrl.dispose();
+    _hpFocusNode.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
     _jabatanCtrl.dispose();
@@ -465,14 +473,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       return null;
                     }),
                 const SizedBox(height: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildLabel('NOMOR HP *'),
-                    const SizedBox(height: 6),
-                    _buildPhoneField(),
-                  ],
-                ),
+                _buildPhoneField(),
                 const SizedBox(height: 16),
                 _buildTextField(
                     label: 'EMAIL PRIBADI *',
@@ -1043,17 +1044,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildPhoneField() {
-    final FocusNode phoneFocusNode = FocusNode();
-    bool isFocused = false;
-
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return FormField<String>(
+    return FormField<String>(
+          initialValue: _hpCtrl.text,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           validator: (v) {
-            if (v == null || v.isEmpty) return 'Wajib diisi';
-            if (!RegExp(r'^8[0-9]{7,12}$').hasMatch(v)) {
-              return 'Masukkan 8-13 digit setelah +62';
+            final value = (v ?? '').trim();
+            if (value.isEmpty) return 'Wajib diisi';
+            if (!RegExp(r'^8[0-9]{7,12}$').hasMatch(value)) {
+              return 'Mulai dengan angka 8 (8-13 digit)';
             }
             return null;
           },
@@ -1061,75 +1059,84 @@ class _RegisterScreenState extends State<RegisterScreen> {
             bool hasError = state.hasError;
             Color borderColor = hasError
                 ? Colors.red
-                : (isFocused ? const Color(0xFF1A56C4) : Colors.grey.shade300);
+                : (_hpFocusNode.hasFocus ? const Color(0xFF1A56C4) : Colors.grey.shade300);
             Color prefixBg = hasError
                 ? Colors.red.shade50
                 : Colors.grey.shade100;
-            Color prefixBorder = hasError ? Colors.red : Colors.grey.shade300;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    const Text('NOMOR HP *',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: Color(0xFF4B5563))),
+                    const SizedBox(width: 4),
+                    Text('(Mulai dengan angka 8)',
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
+                            fontStyle: FontStyle.italic)),
+                  ],
+                ),
+                const SizedBox(height: 6),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: borderColor, width: 1),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: prefixBg,
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(7),
-                            bottomLeft: Radius.circular(7),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: prefixBg,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(7),
+                              bottomLeft: Radius.circular(7),
+                            ),
+                            border: Border(
+                              right: BorderSide(color: borderColor, width: 1),
+                            ),
                           ),
-                          border: Border(
-                            right: BorderSide(color: prefixBorder, width: 1),
+                          child: const Text('+62',
+                              style: TextStyle(color: Colors.black87, fontSize: 16)),
+                        ),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _hpCtrl,
+                            focusNode: _hpFocusNode,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            maxLength: 13,
+                            style: const TextStyle(fontSize: 16),
+                            decoration: const InputDecoration(
+                              hintText: '812xxxxxxxx',
+                              hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                              focusedErrorBorder: InputBorder.none,
+                              counterText: '',
+                            ),
+                            onChanged: (v) {
+                              state.didChange(v);
+                              state.validate();
+                            },
                           ),
                         ),
-                        child: const Text('+62',
-                            style: TextStyle(color: Colors.black87, fontSize: 16)),
-                      ),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _hpCtrl,
-                          focusNode: phoneFocusNode,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          maxLength: 13,
-                          style: const TextStyle(fontSize: 16),
-                          decoration: InputDecoration(
-                            hintText: '812xxxxxxxx',
-                            hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 12),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            errorBorder: InputBorder.none,
-                            focusedErrorBorder: InputBorder.none,
-                            counterText: '',
-                          ),
-                          onChanged: (v) {
-                            state.didChange(v);
-                            state.validate();
-                          },
-                          onTap: () {
-                            setState(() {
-                              isFocused = true;
-                            });
-                          },
-                          onFieldSubmitted: (v) {
-                            setState(() {
-                              isFocused = false;
-                            });
-                          },
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 if (hasError)
@@ -1144,8 +1151,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             );
           },
         );
-      },
-    );
   }
 
   Widget _buildDropdown({
