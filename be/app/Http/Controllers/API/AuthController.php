@@ -95,7 +95,7 @@ class AuthController extends Controller
 
     // GET /api/email/verify/{id}/{token}
     // Dibuka melalui browser dari link email
-    public function verifyEmail(int $id, string $token)
+    public function verifyEmail(string $id, string $token)
     {
         $user = User::find($id);
 
@@ -353,7 +353,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/users/{id}
-    public function adminUpdate(Request $request, int $id)
+    public function adminUpdate(Request $request, string $id)
     {
         $user = User::findOrFail($id);
 
@@ -392,7 +392,7 @@ class AuthController extends Controller
     }
 
     // DELETE /api/admin/users/{id}
-    public function adminDestroy(int $id)
+    public function adminDestroy(string $id)
     {
         $user = User::findOrFail($id);
         
@@ -451,7 +451,7 @@ class AuthController extends Controller
     }
 
     // POST /api/admin/users/{id}/violations
-    public function adminStoreViolation(Request $request, int $id)
+    public function adminStoreViolation(Request $request, string $id)
     {
         $user = User::findOrFail($id);
 
@@ -481,7 +481,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/violations/{violationId}
-    public function adminUpdateViolation(Request $request, int $violationId)
+    public function adminUpdateViolation(Request $request, string $violationId)
     {
         $violation = UserViolation::findOrFail($violationId);
 
@@ -508,7 +508,7 @@ class AuthController extends Controller
     }
 
     // DELETE /api/admin/violations/{violationId}
-    public function adminDestroyViolation(int $violationId)
+    public function adminDestroyViolation(string $violationId)
     {
         $violation = UserViolation::findOrFail($violationId);
         $violation->delete();
@@ -520,7 +520,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/licenses/{id}/verify
-    public function adminVerifyLicense(Request $request, int $id)
+    public function adminVerifyLicense(Request $request, string $id)
     {
         if ($request->boolean('is_verified', true)) {
             return $this->adminApproveLicense($id);
@@ -554,7 +554,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/certifications/{id}/verify
-    public function adminVerifyCertification(Request $request, int $id)
+    public function adminVerifyCertification(Request $request, string $id)
     {
         if ($request->boolean('is_verified', true)) {
             return $this->adminApproveCertification($id);
@@ -588,7 +588,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/licenses/{id}/approve
-    public function adminApproveLicense(int $id)
+    public function adminApproveLicense(string $id)
     {
         $license = UserLicense::with('user')->findOrFail($id);
 
@@ -615,7 +615,7 @@ class AuthController extends Controller
     }
 
     // POST /api/admin/licenses/{id}/reject
-    public function adminRejectLicense(Request $request, int $id)
+    public function adminRejectLicense(Request $request, string $id)
     {
         $request->validate([
             'reason' => 'required|string|max:2000',
@@ -646,7 +646,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/certifications/{id}/approve
-    public function adminApproveCertification(int $id)
+    public function adminApproveCertification(string $id)
     {
         $certification = UserCertification::with('user')->findOrFail($id);
 
@@ -673,7 +673,7 @@ class AuthController extends Controller
     }
 
     // POST /api/admin/certifications/{id}/reject
-    public function adminRejectCertification(Request $request, int $id)
+    public function adminRejectCertification(Request $request, string $id)
     {
         $request->validate([
             'reason' => 'required|string|max:2000',
@@ -703,7 +703,7 @@ class AuthController extends Controller
         ]);
     }
 
-    public function adminApprove(int $id)
+    public function adminApprove(string $id)
     {
         $user = User::findOrFail($id);
         
@@ -752,7 +752,7 @@ class AuthController extends Controller
     }
 
     // POST /api/admin/users/{id}/reject
-    public function adminReject(Request $request, int $id)
+    public function adminReject(Request $request, string $id)
     {
         $user = User::findOrFail($id);
 
