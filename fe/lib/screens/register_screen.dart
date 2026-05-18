@@ -145,12 +145,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   void _prevStep() {
     if (_currentStep > 1) {
-      setState(() {
-        _currentStep--;
-      });
+      _goToPreviousStep();
     } else {
       Navigator.pop(context);
     }
+  }
+
+  void _goToPreviousStep() {
+    setState(() {
+      _currentStep--;
+    });
+    _scrollToTopAfterStepChange();
   }
 
   Future<void> _submit() async {
@@ -376,15 +381,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ? const Icon(Icons.person, color: Colors.white54, size: 40)
                     : null,
               ),
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF3D5AFE),
-                  shape: BoxShape.circle,
-                ),
-                child:
-                    const Icon(Icons.camera_alt, color: Colors.white, size: 16),
-              ),
             ],
           ),
         ),
@@ -446,43 +442,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF4F6F9),
-                ),
-                child: Column(
-                  children: [
-                    // Step Indicator
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 16, horizontal: 24),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+    return PopScope(
+      canPop: _currentStep == 1,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentStep > 1) {
+          _goToPreviousStep();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F6F9),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF4F6F9),
+                  ),
+                  child: Column(
+                    children: [
+                      // Step Indicator
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 24),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                        ),
+                        child: _buildStepIndicator(),
                       ),
-                      child: _buildStepIndicator(),
-                    ),
 
-                    // Form Content
-                    Expanded(
-                      child: SingleChildScrollView(
-                        controller: _stepScrollController,
-                        padding: const EdgeInsets.all(16),
-                        child: _buildCurrentStepContent(),
+                      // Form Content
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: _stepScrollController,
+                          padding: const EdgeInsets.all(16),
+                          child: _buildCurrentStepContent(),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
