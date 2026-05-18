@@ -169,7 +169,8 @@ class NotificationService
                             'notification' => [
                                 'sound' => 'default',
                                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
-                                'icon' => 'ic_launcher',
+                                'icon' => 'ic_notification',
+                                'channel_id' => 'high_importance_channel',
                             ],
                         ],
                         'apns' => [
