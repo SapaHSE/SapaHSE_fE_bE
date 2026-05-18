@@ -1,6 +1,8 @@
+import '../config/supabase_config.dart';
+import '../models/user_model.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
-import '../models/user_model.dart';
+import 'supabase_storage_service.dart';
 
 class AuthService {
   // ── Login ─────────────────────────────────────────────────────────────────
@@ -53,13 +55,26 @@ class AuthService {
     String? tipeAfiliasi,
     String? perusahaanKontraktor,
     String? subKontraktor,
+    String? imagePath,
   }) async {
+    String? uploadedImageUrl;
+    if (imagePath != null && imagePath.isNotEmpty) {
+      uploadedImageUrl = await SupabaseStorageService.uploadImage(
+        imagePath: imagePath,
+        folder: SupabaseConfig.avatarsFolder,
+      );
+      if (uploadedImageUrl == null || uploadedImageUrl.isEmpty) {
+        return AuthResult.error(
+          'Gagal mengunggah foto profil. Silakan coba lagi.',
+        );
+      }
+    }
+
     final response = await ApiService.post(
       '/register',
       {
-        'employee_id': (employeeId != null && employeeId.isNotEmpty)
-            ? employeeId
-            : nik,
+        'employee_id':
+            (employeeId != null && employeeId.isNotEmpty) ? employeeId : nik,
         'full_name': fullName,
         'personal_email': personalEmail,
         if (workEmail != null && workEmail.isNotEmpty) 'work_email': workEmail,
@@ -75,11 +90,15 @@ class AuthService {
           'perusahaan_kontraktor': perusahaanKontraktor,
         if (subKontraktor != null && subKontraktor.isNotEmpty)
           'sub_kontraktor': subKontraktor,
+        if (uploadedImageUrl != null) 'profile_photo_url': uploadedImageUrl,
       },
       auth: false,
     );
 
     if (!response.success) {
+      if (uploadedImageUrl != null) {
+        await SupabaseStorageService.deleteByUrl(uploadedImageUrl);
+      }
       return AuthResult.error(response.errorMessage ?? 'Registrasi gagal.');
     }
 

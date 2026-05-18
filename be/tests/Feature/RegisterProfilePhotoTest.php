@@ -70,6 +70,7 @@ class RegisterProfilePhotoTest extends TestCase
             'password' => 'secret123',
             'phone_number' => '+628123456789',
             'position' => 'Safety Officer',
+            'jabatan' => 'Staff',
             'department' => 'HSE',
             'company' => 'PT Bukit Baiduri Energi',
             'tipe_afiliasi' => 'Owner',

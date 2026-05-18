@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/company_service.dart';
 import '../services/department_service.dart';
+import '../widgets/app_safe_insets.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -25,6 +29,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscurePass = true;
+  XFile? _avatarFile;
+  Uint8List? _avatarBytes;
 
   // Step 2
   final _formKey2 = GlobalKey<FormState>();
@@ -165,6 +171,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         tipeAfiliasi: _tipeAfiliasi,
         perusahaanKontraktor: _perusahaanKontraktor,
         subKontraktor: _subKontraktor,
+        imagePath: _avatarFile?.path,
       );
 
       if (!mounted) return;
@@ -229,6 +236,211 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _pickImage() async {
+    if (kIsWeb) {
+      await _pickImageFromSource(ImageSource.gallery);
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          20,
+          0,
+          AppSafeInsets.sheetBottomPadding(ctx, base: 20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Pilih Sumber Foto',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF1A56C4)),
+              title: const Text('Kamera'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _pickImageFromSource(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
+              title: const Text('Galeri'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _pickImageFromSource(ImageSource.gallery);
+              },
+            ),
+            if (_avatarFile != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Hapus Foto',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _clearAvatar();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImageFromSource(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, imageQuality: 95);
+      if (picked == null) return;
+
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: picked.path,
+        compressQuality: 90,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Foto Profil',
+            toolbarColor: const Color(0xFF1A56C4),
+            toolbarWidgetColor: Colors.white,
+            activeControlsWidgetColor: const Color(0xFF1A56C4),
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            hideBottomControls: true,
+          ),
+          IOSUiSettings(
+            title: 'Crop Foto Profil',
+            aspectRatioLockEnabled: true,
+          ),
+        ],
+      );
+      if (croppedFile == null) return;
+
+      final avatarFile = XFile(croppedFile.path);
+      final avatarBytes = await avatarFile.readAsBytes();
+
+      if (!mounted) return;
+      setState(() {
+        _avatarFile = avatarFile;
+        _avatarBytes = avatarBytes;
+      });
+    } catch (e) {
+      debugPrint('Register photo picker error: $e');
+      if (!mounted) return;
+      _showError('Gagal memilih foto profil. Silakan coba lagi.');
+    }
+  }
+
+  void _clearAvatar() {
+    setState(() {
+      _avatarFile = null;
+      _avatarBytes = null;
+    });
+  }
+
+  ImageProvider? _getAvatarImage() {
+    if (_avatarBytes == null) return null;
+    return MemoryImage(_avatarBytes!);
+  }
+
+  Widget _buildAvatarPicker() {
+    final avatarImage = _getAvatarImage();
+    final hasAvatar = avatarImage != null;
+
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: _pickImage,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: const Color(0xFF6366F1),
+                backgroundImage: avatarImage,
+                child: !hasAvatar
+                    ? const Icon(Icons.person, color: Colors.white54, size: 40)
+                    : null,
+              ),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF3D5AFE),
+                  shape: BoxShape.circle,
+                ),
+                child:
+                    const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: _pickImage,
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF3D5AFE),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          ),
+          child: Text(
+            hasAvatar ? 'Ganti Foto' : 'Tambah Foto (opsional)',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        if (hasAvatar)
+          TextButton(
+            onPressed: _clearAvatar,
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('Hapus Foto'),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildReviewAvatarSection() {
+    final avatarImage = _getAvatarImage();
+    final hasAvatar = avatarImage != null;
+
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 34,
+          backgroundColor: const Color(0xFF6366F1),
+          backgroundImage: avatarImage,
+          child: !hasAvatar
+              ? const Icon(Icons.person, color: Colors.white54, size: 30)
+              : null,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          hasAvatar
+              ? 'Foto profil siap diunggah'
+              : 'Belum menambahkan foto profil',
+          style: TextStyle(
+            color: hasAvatar ? const Color(0xFF1A56C4) : Colors.grey,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
@@ -414,33 +626,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         children: [
           // Avatar
           const SizedBox(height: 8),
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF6366F1),
-                  shape: BoxShape.circle,
-                ),
-                child:
-                    const Icon(Icons.person, color: Colors.white54, size: 40),
-              ),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF3D5AFE),
-                  shape: BoxShape.circle,
-                ),
-                child:
-                    const Icon(Icons.camera_alt, color: Colors.white, size: 14),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('Tambah Foto (opsional)',
-              style: TextStyle(color: Color(0xFF3D5AFE), fontSize: 13)),
+          _buildAvatarPicker(),
           const SizedBox(height: 24),
 
           // Form Card
@@ -648,17 +834,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
-                    label: 'JABATAN',
+                    label: 'JABATAN *',
                     hint: 'Contoh: Staff, Supervisor, Manager...',
                     controller: _jabatanCtrl,
-                    isRequired: false,
                     maxLength: 25),
                 const SizedBox(height: 16),
                 _buildTextField(
-                    label: 'POSISI',
+                    label: 'POSISI *',
                     hint: 'Contoh: Safety Officer, Operator...',
                     controller: _posisiCtrl,
-                    isRequired: false,
                     maxLength: 25),
                 const SizedBox(height: 16),
                 const SizedBox(height: 16),
@@ -750,6 +934,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           child: Column(
             children: [
+              _buildReviewAvatarSection(),
+              const SizedBox(height: 16),
+              const Divider(),
               _buildReviewRow('Nama', _namaCtrl.text),
               const Divider(),
               _buildReviewRow('Employee ID', _empIdCtrl.text),
@@ -811,8 +998,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _buildReviewRow('Jabatan',
                   _jabatanCtrl.text.isEmpty ? '-' : _jabatanCtrl.text),
               const Divider(),
-              _buildReviewRow('Posisi',
-                  _posisiCtrl.text.isEmpty ? '-' : _posisiCtrl.text),
+              _buildReviewRow(
+                  'Posisi', _posisiCtrl.text.isEmpty ? '-' : _posisiCtrl.text),
               const Divider(),
               _buildReviewRow(
                   'Email Kantor',
@@ -870,7 +1057,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Expanded(
                 child: Text.rich(
                   TextSpan(
-                    text: 'Setelah mendaftar, akun perlu disetujui Admin. Estimasi: dalam 1 jam kerja.',
+                    text:
+                        'Setelah mendaftar, akun perlu disetujui Admin. Estimasi: dalam 1 jam kerja.',
                     style:
                         const TextStyle(color: Color(0xFF92400E), fontSize: 12),
                   ),
@@ -1005,7 +1193,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     bool liveValidate = false,
   }) {
     final String? Function(String?) effectiveValidator = validator ??
-        (isRequired ? (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null : (v) => null);
+        (isRequired
+            ? (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null
+            : (v) => null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1040,9 +1230,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             fillColor: Colors.white,
           ),
           validator: effectiveValidator,
-          onChanged: liveValidate ? (v) {
-            Form.of(context).validate();
-          } : null,
+          onChanged: liveValidate
+              ? (v) {
+                  Form.of(context).validate();
+                }
+              : null,
         ),
       ],
     );
@@ -1058,112 +1250,116 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildPhoneField() {
     return FormField<String>(
-          initialValue: _hpCtrl.text,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          validator: (v) {
-            final value = (v ?? '').trim();
-            if (value.isEmpty) return 'Wajib diisi';
-            if (!RegExp(r'^8[0-9]{7,12}$').hasMatch(value)) {
-              return 'Mulai dengan angka 8 (8-13 digit)';
-            }
-            return null;
-          },
-          builder: (FormFieldState<String> state) {
-            bool hasError = state.hasError;
-            Color borderColor = hasError
-                ? Colors.red
-                : (_hpFocusNode.hasFocus ? const Color(0xFF1A56C4) : Colors.grey.shade300);
-            Color prefixBg = hasError
-                ? Colors.red.shade50
-                : Colors.grey.shade100;
+      initialValue: _hpCtrl.text,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      validator: (v) {
+        final value = (v ?? '').trim();
+        if (value.isEmpty) return 'Wajib diisi';
+        if (!RegExp(r'^8[0-9]{7,12}$').hasMatch(value)) {
+          return 'Mulai dengan angka 8 (8-13 digit)';
+        }
+        return null;
+      },
+      builder: (FormFieldState<String> state) {
+        bool hasError = state.hasError;
+        Color borderColor = hasError
+            ? Colors.red
+            : (_hpFocusNode.hasFocus
+                ? const Color(0xFF1A56C4)
+                : Colors.grey.shade300);
+        Color prefixBg = hasError ? Colors.red.shade50 : Colors.grey.shade100;
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
+                const Text('NOMOR HP *',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: Color(0xFF4B5563))),
+                const SizedBox(width: 4),
+                Text('(Mulai dengan angka 8)',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                        fontStyle: FontStyle.italic)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: borderColor, width: 1),
+              ),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('NOMOR HP *',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                            color: Color(0xFF4B5563))),
-                    const SizedBox(width: 4),
-                    Text('(Mulai dengan angka 8)',
-                        style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey.shade500,
-                            fontStyle: FontStyle.italic)),
+                    Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: prefixBg,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(7),
+                          bottomLeft: Radius.circular(7),
+                        ),
+                        border: Border(
+                          right: BorderSide(color: borderColor, width: 1),
+                        ),
+                      ),
+                      child: const Text('+62',
+                          style:
+                              TextStyle(color: Colors.black87, fontSize: 16)),
+                    ),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _hpCtrl,
+                        focusNode: _hpFocusNode,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        maxLength: 13,
+                        style: const TextStyle(fontSize: 16),
+                        decoration: const InputDecoration(
+                          hintText: '812xxxxxxxx',
+                          hintStyle:
+                              TextStyle(color: Colors.grey, fontSize: 14),
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          errorBorder: InputBorder.none,
+                          focusedErrorBorder: InputBorder.none,
+                          counterText: '',
+                        ),
+                        onChanged: (v) {
+                          state.didChange(v);
+                          state.validate();
+                        },
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: borderColor, width: 1),
-                  ),
-                  child: IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Container(
-                          alignment: Alignment.center,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          decoration: BoxDecoration(
-                            color: prefixBg,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(7),
-                              bottomLeft: Radius.circular(7),
-                            ),
-                            border: Border(
-                              right: BorderSide(color: borderColor, width: 1),
-                            ),
-                          ),
-                          child: const Text('+62',
-                              style: TextStyle(color: Colors.black87, fontSize: 16)),
-                        ),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _hpCtrl,
-                            focusNode: _hpFocusNode,
-                            keyboardType: TextInputType.phone,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            maxLength: 13,
-                            style: const TextStyle(fontSize: 16),
-                            decoration: const InputDecoration(
-                              hintText: '812xxxxxxxx',
-                              hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              errorBorder: InputBorder.none,
-                              focusedErrorBorder: InputBorder.none,
-                              counterText: '',
-                            ),
-                            onChanged: (v) {
-                              state.didChange(v);
-                              state.validate();
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              ),
+            ),
+            if (hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 4),
+                child: Text(
+                  state.errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
                 ),
-                if (hasError)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, left: 4),
-                    child: Text(
-                      state.errorText!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                    ),
-                  ),
-              ],
-            );
-          },
+              ),
+          ],
         );
+      },
+    );
   }
 
   Widget _buildDropdown({
