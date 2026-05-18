@@ -227,11 +227,20 @@ class NotificationService
             'status' => 'pending',
         ]);
 
-        // Coba kirim push notification
-        if ($this->sendPushNotification($user, $title, $body, $data)) {
-            $notification->update([
-                'status' => 'sent_push',
-                'pushed_at' => now(),
+        try {
+            // Coba kirim push notification jika ada token
+            if ($user->fcm_token) {
+                if ($this->sendPushNotification($user, $title, $body, $data)) {
+                    $notification->update([
+                        'status' => 'sent_push',
+                        'pushed_at' => now(),
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Gagal mengirim push notification individu', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage()
             ]);
         }
 
@@ -319,25 +328,37 @@ class NotificationService
      */
     public function sendPushToAll(string $title, string $body, array $data = []): int
     {
-        $users = User::where('is_active', true)
-            ->whereNotNull('fcm_token')
-            ->get();
+        $users = User::where('is_active', true)->get();
 
         $count = 0;
         foreach ($users as $user) {
-            // Create record in database
-            Notification::create([
-                'user_id' => $user->id,
-                'type'    => $data['type'] ?? 'broadcast',
-                'title'   => $title,
-                'body'    => $body,
-                'data'    => $data,
-                'status'  => 'pending',
-            ]);
+            try {
+                // Always create record in database first
+                $notification = Notification::create([
+                    'user_id' => $user->id,
+                    'type'    => $data['type'] ?? 'broadcast',
+                    'title'   => $title,
+                    'body'    => $body,
+                    'data'    => $data,
+                    'status'  => 'pending',
+                ]);
 
-            // Send push
-            if ($this->sendPushNotification($user, $title, $body, $data)) {
-                $count++;
+                // Only attempt push if user has token
+                if ($user->fcm_token) {
+                    if ($this->sendPushNotification($user, $title, $body, $data)) {
+                        $notification->update([
+                            'status' => 'sent_push',
+                            'pushed_at' => now(),
+                        ]);
+                        $count++;
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('Gagal memproses broadcast untuk user', [
+                    'user_id' => $user->id,
+                    'error'   => $e->getMessage()
+                ]);
+                continue; // Lanjut ke user berikutnya
             }
         }
 
