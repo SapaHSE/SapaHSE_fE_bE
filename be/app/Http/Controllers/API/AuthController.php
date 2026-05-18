@@ -44,6 +44,7 @@ class AuthController extends Controller
             'perusahaan_kontraktor' => 'nullable|string|max:150',
             'sub_kontraktor' => 'nullable|string|max:150',
             'simper'         => 'nullable|string|max:50',
+            'profile_photo_url' => 'nullable|url|max:2048',
         ], [
             'employee_id.unique'         => 'NIK sudah terdaftar. Gunakan NIK lain.',
             'employee_id.min'            => 'NIK minimal 5 digit.',
@@ -72,6 +73,7 @@ class AuthController extends Controller
             'perusahaan_kontraktor'     => $request->perusahaan_kontraktor,
             'sub_kontraktor'            => $request->sub_kontraktor,
             'simper'                    => $request->simper,
+            'profile_photo'             => $request->profile_photo_url,
             'role'                      => 'user',
             'is_active'                 => false, // Require admin approval
             'email_verification_token'  => $verificationToken,
