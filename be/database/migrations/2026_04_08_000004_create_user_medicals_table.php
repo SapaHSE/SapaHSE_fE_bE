@@ -26,6 +26,9 @@ return new class extends Migration
             $table->string('weight', 20)->nullable();          // e.g. "65 kg"
             $table->string('blood_pressure', 20)->nullable();  // e.g. "120/80 mmHg"
             $table->string('allergies')->nullable();
+            $table->string('last_medication', 255)->nullable();
+            $table->string('current_medication', 255)->nullable();
+            $table->string('current_illness', 500)->nullable();
 
             // ── Hasil pemeriksaan ────────────────────────────────────
             $table->string('result', 100)->nullable();         // "Fit to Work" | "Fit with Limitation" | "Not Fit to Work"

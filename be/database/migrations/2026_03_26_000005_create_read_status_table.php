@@ -12,8 +12,8 @@ return new class extends Migration
             $table->uuid('id')->primary()->default(\Illuminate\Support\Facades\DB::raw('(UUID())'));
             $table->uuid('user_id');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->uuid('item_id');                             // ID of report or announcement
-            $table->enum('item_type', ['report', 'announcement']);
+            $table->uuid('item_id');                             // ID of related item (report, announcement, approval, etc.)
+            $table->string('item_type', 50);
             $table->timestamp('read_at')->useCurrent();
 
             // Prevent duplicate — 1 user can only read 1 item once

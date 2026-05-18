@@ -17,11 +17,13 @@ return new class extends Migration {
             $table->string('sub_status', 50)->nullable();
             $table->string('location', 200);
             $table->text('image_url')->nullable();
+            $table->json('image_urls')->nullable();
             $table->string('company', 150)->nullable();
             
             // Inspection-specific
             $table->string('area', 100)->nullable();
             $table->string('name_inspector', 150)->nullable();
+            $table->string('reported_department', 100)->nullable();
             $table->text('notes')->nullable();
             $table->enum('result', ['compliant', 'non_compliant', 'needs_follow_up'])->nullable();
 

@@ -13,13 +13,21 @@ return new class extends Migration
             $table->uuid('user_id');
             $table->string('name', 100);
             $table->string('issuer', 100);
-            $table->integer('year');
+            $table->date('obtained_at')->nullable();
+            $table->date('expired_at')->nullable();
             $table->enum('status', ['active', 'expired'])->default('active');
             $table->string('file_path')->nullable();            
             $table->boolean('is_verified')->default(false);
+            $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->text('rejection_reason')->nullable();
+            $table->uuid('reviewed_by')->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+            $table->timestamp('submitted_at')->nullable();
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->foreign('reviewed_by')->references('id')->on('users')->nullOnDelete();
+            $table->index('approval_status');
         });
     }
 

@@ -14,6 +14,8 @@ return new class extends Migration
             $table->foreign('created_by')->references('id')->on('users')->onDelete('cascade');
             $table->string('title', 200);
             $table->text('body');
+            $table->boolean('is_urgent')->default(false);
+            $table->text('image_url')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

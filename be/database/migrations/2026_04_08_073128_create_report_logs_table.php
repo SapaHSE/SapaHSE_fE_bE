@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->string('sub_status', 50)->nullable();
             $table->text('message')->nullable();              // deskripsi update/pesan
             $table->text('image_url')->nullable();            // bukti foto
+            $table->json('image_urls')->nullable();
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');

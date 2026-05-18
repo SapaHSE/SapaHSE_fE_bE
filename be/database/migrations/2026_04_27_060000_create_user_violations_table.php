@@ -12,11 +12,13 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('user_id');
             $table->string('title', 150);
+            $table->text('description')->nullable();
             $table->string('location', 150)->nullable();
             $table->date('date_of_violation')->useCurrent();
             $table->date('expired_at')->nullable();
             $table->string('status', 50)->default('Aktif'); // Aktif, Selesai, etc.
             $table->string('sanction', 200)->nullable();
+            $table->string('file_url', 255)->nullable();
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();

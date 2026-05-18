@@ -17,6 +17,7 @@ return new class extends Migration {
             $table->string('sub_status', 50)->nullable();
             $table->string('location', 200);
             $table->text('image_url')->nullable();
+            $table->json('image_urls')->nullable();
             
             // Hazard-specific
             $table->enum('severity', ['low', 'medium', 'high'])->nullable();
@@ -25,7 +26,7 @@ return new class extends Migration {
             $table->string('area', 200)->nullable();
             $table->string('reported_department', 100)->nullable();
             $table->string('pic_department', 100)->nullable();
-            $table->string('pelaku_pelanggaran', 150)->nullable();
+            $table->string('pelaku_pelanggaran', 500)->nullable();
             $table->string('pelapor_location', 100)->nullable();
             $table->string('kejadian_location', 100)->nullable();
             $table->dateTime('due_date')->nullable();
