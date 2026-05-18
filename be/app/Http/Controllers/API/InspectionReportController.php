@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\API\Concerns\BackfillsReportLogs;
+use App\Http\Controllers\API\Concerns\ResolvesReportNotificationRecipients;
 use App\Http\Controllers\Controller;
 use App\Models\ChecklistItem;
 use App\Models\InspectionReport;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 class InspectionReportController extends Controller
 {
     use BackfillsReportLogs;
+    use ResolvesReportNotificationRecipients;
 
     protected $notificationService;
 
@@ -335,38 +337,32 @@ class InspectionReportController extends Controller
                 'image_urls'     => !empty($imageUrls) ? json_encode($imageUrls) : null,
             ]);
 
-            // Kirim notifikasi ke pihak terkait
+            // Kirim notifikasi ke semua pihak terkait
             $statusText = $normalizedSubStatus ?: $normalizedStatus;
             $notifTitle = "Update Laporan Inspeksi";
             $notifBody = "Status laporan '{$report->title}' diperbarui menjadi: " . strtoupper($statusText);
 
-            // 1. Kirim ke pembuat laporan
             try {
-                $reporter = $report->user;
-                if ($reporter && $reporter->id !== Auth::id()) {
+                $recipients = $this->resolveReportNotificationRecipients(
+                    $report,
+                    InspectionReport::class,
+                    $request->tagged_user_id,
+                    Auth::id(),
+                    ['name_inspector'],
+                    ['reported_department']
+                );
+
+                foreach ($recipients as $recipient) {
                     $this->notificationService->createNotification(
-                        $reporter, 'inspection_update', $notifTitle, $notifBody,
+                        $recipient,
+                        'inspection_update',
+                        $notifTitle,
+                        $notifBody,
                         ['report_id' => $report->id, 'type' => 'inspection']
                     );
                 }
             } catch (\Exception $e) {
-                \Log::error('Gagal mengirim notifikasi update inspeksi ke reporter: ' . $e->getMessage());
-            }
-
-            // 2. Kirim ke user yang di-tag (jika ada)
-            try {
-                if ($request->tagged_user_id && $request->tagged_user_id !== Auth::id()) {
-                    $taggedUser = User::find($request->tagged_user_id);
-                    if ($taggedUser) {
-                        $this->notificationService->createNotification(
-                            $taggedUser, 'inspection_update', "Anda di-tag: $notifTitle",
-                            "{$user->full_name} men-tag Anda: $notifBody",
-                            ['report_id' => $report->id, 'type' => 'inspection']
-                        );
-                    }
-                }
-            } catch (\Exception $e) {
-                \Log::error('Gagal mengirim notifikasi update inspeksi ke tagged user: ' . $e->getMessage());
+                \Log::error('Gagal mengirim notifikasi update inspeksi ke pihak terkait: ' . $e->getMessage());
             }
 
             return response()->json([

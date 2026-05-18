@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\ResolvesReportNotificationRecipients;
 use App\Http\Controllers\Controller;
 use App\Models\HazardCategory;
 use App\Models\HazardReport;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Auth;
 
 class HazardReportController extends Controller
 {
+    use ResolvesReportNotificationRecipients;
+
     protected $notificationService;
 
     public function __construct(NotificationService $notificationService)
@@ -312,38 +315,32 @@ class HazardReportController extends Controller
             'image_urls'     => !empty($imageUrls) ? json_encode($imageUrls) : null,
         ]);
 
-        // Kirim notifikasi ke pihak terkait
+        // Kirim notifikasi ke semua pihak terkait
         $statusText = $normalizedSubStatus ?: $normalizedStatus;
         $notifTitle = "Update Laporan Hazard";
         $notifBody = "Status laporan '{$report->title}' diperbarui menjadi: " . strtoupper($statusText);
 
-        // 1. Kirim ke pembuat laporan
         try {
-            $reporter = $report->user;
-            if ($reporter && $reporter->id !== Auth::id()) {
+            $recipients = $this->resolveReportNotificationRecipients(
+                $report,
+                HazardReport::class,
+                $request->tagged_user_id,
+                Auth::id(),
+                ['pic_department', 'pelaku_pelanggaran'],
+                ['reported_department']
+            );
+
+            foreach ($recipients as $recipient) {
                 $this->notificationService->createNotification(
-                    $reporter, 'hazard_update', $notifTitle, $notifBody,
+                    $recipient,
+                    'hazard_update',
+                    $notifTitle,
+                    $notifBody,
                     ['report_id' => $report->id, 'type' => 'hazard']
                 );
             }
         } catch (\Exception $e) {
-            \Log::error('Gagal mengirim notifikasi update hazard ke reporter: ' . $e->getMessage());
-        }
-
-        // 2. Kirim ke user yang di-tag (jika ada)
-        try {
-            if ($request->tagged_user_id && $request->tagged_user_id !== Auth::id()) {
-                $taggedUser = User::find($request->tagged_user_id);
-                if ($taggedUser) {
-                    $this->notificationService->createNotification(
-                        $taggedUser, 'hazard_update', "Anda di-tag: $notifTitle",
-                        "{$user->full_name} men-tag Anda: $notifBody",
-                        ['report_id' => $report->id, 'type' => 'hazard']
-                    );
-                }
-            }
-        } catch (\Exception $e) {
-            \Log::error('Gagal mengirim notifikasi update hazard ke tagged user: ' . $e->getMessage());
+            \Log::error('Gagal mengirim notifikasi update hazard ke pihak terkait: ' . $e->getMessage());
         }
 
         return response()->json([

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\HazardCategory;
 use App\Models\HazardReport;
 use App\Models\InspectionReport;
+use App\Models\Notification;
 use App\Models\ReportLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -150,5 +151,162 @@ class ReportStatusAndHazardCategoryTest extends TestCase
             $hazardItem['hazard_category_names'] ?? []
         );
     }
-}
 
+    public function test_hazard_status_update_notifies_all_stakeholders_except_actor_once(): void
+    {
+        $actor = User::factory()->create([
+            'role' => 'admin',
+            'full_name' => 'Admin User',
+            'department' => 'Admin',
+        ]);
+        $reporter = User::factory()->create([
+            'full_name' => 'Reporter User',
+            'department' => 'Reporter',
+        ]);
+        $historicalTagged = User::factory()->create([
+            'full_name' => 'Historical Tagged',
+            'department' => 'Tagged',
+        ]);
+        $newTagged = User::factory()->create([
+            'full_name' => 'New Tagged',
+            'department' => 'New',
+        ]);
+        $picUser = User::factory()->create([
+            'full_name' => 'PJA Person',
+            'department' => 'PJA',
+        ]);
+        $departmentUser = User::factory()->create([
+            'full_name' => 'Department Person',
+            'department' => 'HSE',
+        ]);
+
+        $report = HazardReport::create([
+            'user_id' => $reporter->id,
+            'title' => 'Unsafe work platform',
+            'description' => 'Missing guardrail.',
+            'status' => 'open',
+            'sub_status' => 'validating',
+            'location' => 'Area A',
+            'severity' => 'high',
+            'pic_department' => $historicalTagged->full_name . ', ' . $picUser->full_name,
+            'reported_department' => 'HSE',
+            'is_public' => true,
+        ]);
+
+        ReportLog::create([
+            'reportable_id' => $report->id,
+            'reportable_type' => HazardReport::class,
+            'user_id' => $reporter->id,
+            'tagged_user_id' => $historicalTagged->id,
+            'status' => 'open',
+            'sub_status' => 'validating',
+            'message' => 'Initial tag',
+        ]);
+
+        Sanctum::actingAs($actor);
+
+        $this->postJson('/api/hazard-reports/' . $report->id . '/status', [
+            'status' => 'in_progress',
+            'sub_status' => 'assigned',
+            'message' => 'Assigned for follow-up',
+            'tagged_user_id' => $newTagged->id,
+        ])->assertOk();
+
+        $recipientIds = Notification::where('type', 'hazard_update')
+            ->pluck('user_id')
+            ->all();
+
+        $this->assertEqualsCanonicalizing([
+            $reporter->id,
+            $historicalTagged->id,
+            $newTagged->id,
+            $picUser->id,
+            $departmentUser->id,
+        ], $recipientIds);
+        $this->assertDatabaseMissing('notifications', [
+            'type' => 'hazard_update',
+            'user_id' => $actor->id,
+        ]);
+        $this->assertSame(1, Notification::where('type', 'hazard_update')
+            ->where('user_id', $historicalTagged->id)
+            ->count());
+    }
+
+    public function test_inspection_status_update_notifies_all_stakeholders_except_actor_once(): void
+    {
+        $actor = User::factory()->create([
+            'role' => 'superadmin',
+            'full_name' => 'Inspection Admin',
+            'department' => 'Admin',
+        ]);
+        $reporter = User::factory()->create([
+            'full_name' => 'Inspection Reporter',
+            'department' => 'Reporter',
+        ]);
+        $historicalTagged = User::factory()->create([
+            'full_name' => 'Inspection Historical Tagged',
+            'department' => 'Tagged',
+        ]);
+        $newTagged = User::factory()->create([
+            'full_name' => 'Inspection New Tagged',
+            'department' => 'New',
+        ]);
+        $inspectorUser = User::factory()->create([
+            'full_name' => 'Field Inspector',
+            'department' => 'Inspector',
+        ]);
+        $departmentUser = User::factory()->create([
+            'full_name' => 'Maintenance Person',
+            'department' => 'Maintenance',
+        ]);
+
+        $report = InspectionReport::create([
+            'user_id' => $reporter->id,
+            'title' => 'Daily inspection',
+            'description' => 'Inspection follow-up required.',
+            'status' => 'open',
+            'sub_status' => 'validating',
+            'location' => 'Workshop',
+            'name_inspector' => $actor->full_name . ', ' . $inspectorUser->full_name,
+            'reported_department' => 'Maintenance',
+        ]);
+
+        ReportLog::create([
+            'reportable_id' => $report->id,
+            'reportable_type' => InspectionReport::class,
+            'user_id' => $reporter->id,
+            'tagged_user_id' => $historicalTagged->id,
+            'status' => 'open',
+            'sub_status' => 'validating',
+            'message' => 'Initial tag',
+        ]);
+
+        Sanctum::actingAs($actor);
+
+        $this->postJson('/api/inspection-reports/' . $report->id . '/status', [
+            'status' => 'in_progress',
+            'sub_status' => 'assigned',
+            'message' => 'Assigned for inspection',
+            'tagged_user_id' => $newTagged->id,
+        ])->assertOk();
+
+        $recipientIds = Notification::where('type', 'inspection_update')
+            ->pluck('user_id')
+            ->all();
+
+        $this->assertEqualsCanonicalizing([
+            $reporter->id,
+            $historicalTagged->id,
+            $newTagged->id,
+            $inspectorUser->id,
+            $departmentUser->id,
+        ], $recipientIds);
+        $this->assertDatabaseMissing('notifications', [
+            'type' => 'inspection_update',
+            'user_id' => $actor->id,
+        ]);
+        $this->assertSame(1, Notification::where('type', 'inspection_update')
+            ->where('user_id', $historicalTagged->id)
+            ->count());
+    }
+}
