@@ -335,21 +335,38 @@ class InspectionReportController extends Controller
                 'image_urls'     => !empty($imageUrls) ? json_encode($imageUrls) : null,
             ]);
 
-            // Kirim notifikasi ke pembuat laporan
+            // Kirim notifikasi ke pihak terkait
+            $statusText = $normalizedSubStatus ?: $normalizedStatus;
+            $notifTitle = "Update Laporan Inspeksi";
+            $notifBody = "Status laporan '{$report->title}' diperbarui menjadi: " . strtoupper($statusText);
+
+            // 1. Kirim ke pembuat laporan
             try {
                 $reporter = $report->user;
                 if ($reporter && $reporter->id !== Auth::id()) {
-                    $statusText = $normalizedSubStatus ?: $normalizedStatus;
                     $this->notificationService->createNotification(
-                        $reporter,
-                        'inspection_update',
-                        "Update Laporan Inspeksi",
-                        "Status laporan '{$report->title}' Anda diubah menjadi: " . strtoupper($statusText),
+                        $reporter, 'inspection_update', $notifTitle, $notifBody,
                         ['report_id' => $report->id, 'type' => 'inspection']
                     );
                 }
             } catch (\Exception $e) {
-                \Log::error('Gagal mengirim notifikasi update inspeksi: ' . $e->getMessage());
+                \Log::error('Gagal mengirim notifikasi update inspeksi ke reporter: ' . $e->getMessage());
+            }
+
+            // 2. Kirim ke user yang di-tag (jika ada)
+            try {
+                if ($request->tagged_user_id && $request->tagged_user_id !== Auth::id()) {
+                    $taggedUser = User::find($request->tagged_user_id);
+                    if ($taggedUser) {
+                        $this->notificationService->createNotification(
+                            $taggedUser, 'inspection_update', "Anda di-tag: $notifTitle",
+                            "{$user->full_name} men-tag Anda: $notifBody",
+                            ['report_id' => $report->id, 'type' => 'inspection']
+                        );
+                    }
+                }
+            } catch (\Exception $e) {
+                \Log::error('Gagal mengirim notifikasi update inspeksi ke tagged user: ' . $e->getMessage());
             }
 
             return response()->json([
