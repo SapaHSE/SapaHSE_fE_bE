@@ -36,8 +36,7 @@ class ApiService {
           .timeout(const Duration(seconds: 30));
       return await _handleResponse(response);
     } on SocketException {
-      return ApiResponse.error(
-          'No internet connection. Check if Laravel server is running.');
+      return ApiResponse.error('No internet connection');
     } on HttpException {
       return ApiResponse.error('Server error. Please try again.');
     } catch (e) {
@@ -61,8 +60,7 @@ class ApiService {
           .timeout(const Duration(seconds: 30));
       return await _handleResponse(response);
     } on SocketException {
-      return ApiResponse.error(
-          'No internet connection. Check if Laravel server is running.');
+      return ApiResponse.error('No internet connection');
     } on HttpException {
       return ApiResponse.error('Server error. Please try again.');
     } catch (e) {
@@ -141,12 +139,14 @@ class ApiService {
     bool auth = true,
   }) async {
     try {
-      final request = http.MultipartRequest(method, Uri.parse('$baseUrl$endpoint'));
+      final request =
+          http.MultipartRequest(method, Uri.parse('$baseUrl$endpoint'));
       request.headers.addAll(await _headers(auth: auth));
       request.fields.addAll(fields);
       request.files.addAll(files);
 
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+      final streamedResponse =
+          await request.send().timeout(const Duration(seconds: 60));
       final response = await http.Response.fromStream(streamedResponse);
       return await _handleResponse(response);
     } on SocketException {
