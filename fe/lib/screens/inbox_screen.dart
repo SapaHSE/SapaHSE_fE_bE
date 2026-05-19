@@ -174,7 +174,8 @@ class _InboxScreenState extends State<InboxScreen>
       setState(() {
         _currentUserId = user['id']?.toString();
         _isSuperadmin =
-            (user['role']?.toString().toLowerCase() == 'superadmin');
+            (user['role']?.toString().toLowerCase() == 'superadmin') ||
+            (user['role']?.toString().toLowerCase() == 'admin');
         _currentUserSnapshot = _buildCurrentUserSnapshot(user);
       });
       _loadMyReports();
@@ -412,7 +413,8 @@ class _InboxScreenState extends State<InboxScreen>
       ? _reports
           .where((i) =>
               i.isApproval &&
-              (i.approvalStatus?.toLowerCase() ?? 'pending') == 'pending')
+              ['pending', 'pending_changes'].contains(
+                  i.approvalStatus?.toLowerCase() ?? 'pending'))
           .toList()
       : const [];
 

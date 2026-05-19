@@ -269,6 +269,7 @@ class InboxController extends Controller
     {
         $user = Auth::user();
         $userId = $user->id;
+        $isAdminOrSA = in_array($user->role, ['admin', 'superadmin'], true);
 
         // Mark all hazards
         foreach (HazardReport::pluck('id') as $id) {
