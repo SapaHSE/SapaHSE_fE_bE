@@ -704,6 +704,12 @@ class AuthController extends Controller
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
         ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Sertifikasi berhasil ditolak.',
+            'data'    => $certification->fresh(),
+        ]);
     }
 
     public function adminApprove(string $id)
