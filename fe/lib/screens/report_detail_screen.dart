@@ -191,23 +191,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     _refreshData();
   }
 
-  // Superadmin = platform-level, full bypass.
-  // Admin = role-level update authority ONLY if also tagged (dept or name).
-  // This mirrors the backend authorization in HazardReportController/InspectionReportController.
+  // Hazard admin policy is role-level; inspection still keeps the existing
+  // tagged-admin policy used by InspectionReportController.
   bool get _isSuperadmin => _currentUser?.isSuperadmin ?? false;
-  bool get _isAdmin => (_currentUser?.isAdmin ?? false) && _isTaggedUser;
-  // Non-tagged admins may validate a hazard report from 'validating' to 'approved'.
-  bool get _canAdminValidateHazard =>
-      (_currentUser?.isAdmin ?? false) &&
-      !_isTaggedUser &&
-      _report.type == ReportType.hazard &&
-      _report.subStatus == ReportSubStatus.validating;
-  // Non-tagged admins may assign a hazard report that has been approved.
-  bool get _canAdminAssignApproved =>
-      (_currentUser?.isAdmin ?? false) &&
-      !_isTaggedUser &&
-      _report.type == ReportType.hazard &&
-      _report.subStatus == ReportSubStatus.approved;
+  bool get _isAdmin {
+    final user = _currentUser;
+    if (user == null || !user.isAdmin) return false;
+    if (_report.type == ReportType.hazard) return true;
+    return _isTaggedUser;
+  }
   bool get _isTaggedUser {
     if (_currentUser == null) return false;
     final fullName = _currentUser!.fullName.toLowerCase();
@@ -252,12 +244,12 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     return sub != ReportSubStatus.validating;
   }
 
-  bool get _canUpdate =>
-      _isSuperadmin ||
-      _isAdmin ||
-      _canAdminValidateHazard ||
-      _canAdminAssignApproved ||
-      (!_isReportedUser && _isTaggedUser && _isApprovedOrLater);
+  bool get _canUpdate {
+    if (_isReportedUser) return false;
+    return _isSuperadmin ||
+        _isAdmin ||
+        (_isTaggedUser && _isApprovedOrLater);
+  }
   // FAB selalu tampil di detail laporan; saat user tidak berwenang, ia greyed-out
   // dan tidak bisa dipencet (lihat _canTapUpdateFab).
   bool get _canTapUpdateFab =>
@@ -1297,8 +1289,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         report: _report,
         isAdmin: _isAdmin || _isSuperadmin,
         isSuperadmin: _isSuperadmin,
-        canValidateAsAdmin: _canAdminValidateHazard,
-        canAssignApproved: _canAdminAssignApproved,
         onShowSnackBar: _showTrackedSnackBar,
         onUpdate: (updatedReport) {
           setState(() {
@@ -4044,8 +4034,6 @@ class _UpdateStatusSheet extends StatefulWidget {
   final Report report;
   final bool isAdmin;
   final bool isSuperadmin;
-  final bool canValidateAsAdmin;
-  final bool canAssignApproved;
   final ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? Function(
       SnackBar snackBar) onShowSnackBar;
   final Function(Report) onUpdate;
@@ -4054,8 +4042,6 @@ class _UpdateStatusSheet extends StatefulWidget {
     required this.report,
     required this.isAdmin,
     required this.isSuperadmin,
-    required this.canValidateAsAdmin,
-    required this.canAssignApproved,
     required this.onShowSnackBar,
     required this.onUpdate,
   });
@@ -4123,14 +4109,6 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   /// Superadmin bypasses everything.
   bool _isTransitionAllowed(ReportSubStatus target) {
     if (widget.isSuperadmin) return true;
-    // Non-tagged admin validating: only allowed to approve
-    if (widget.canValidateAsAdmin) {
-      return target == ReportSubStatus.approved;
-    }
-    // Non-tagged admin assigning from approved: only allowed to assign
-    if (widget.canAssignApproved) {
-      return target == ReportSubStatus.assigned;
-    }
     if (target == ReportSubStatus.rejected ||
         target == ReportSubStatus.deferred) {
       return true;
@@ -4151,10 +4129,6 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   }
 
   bool _canSelectMainStatus(ReportStatus status) {
-    // Non-tagged admin validating/assigning: only open status
-    if (widget.canValidateAsAdmin || widget.canAssignApproved) {
-      return status == ReportStatus.open;
-    }
     // Existing role gate.
     if (!widget.isAdmin &&
         status != ReportStatus.open &&
@@ -4167,7 +4141,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
 
   List<ReportSubStatus> _allowedSubStatusesFor(ReportStatus status) {
     final all = ReportSubStatusInfo.forStatus(status);
-    final roleGated = widget.isAdmin || widget.canValidateAsAdmin || widget.canAssignApproved
+    final roleGated = widget.isAdmin
         ? all
         : (status == ReportStatus.open
             ? all.where((s) => s == ReportSubStatus.assigned).toList()
