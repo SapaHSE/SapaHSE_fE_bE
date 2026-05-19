@@ -12,6 +12,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('user_id');
             $table->string('name', 100);
+            $table->string('certification_number', 100)->nullable();
             $table->string('issuer', 100);
             $table->date('obtained_at')->nullable();
             $table->date('expired_at')->nullable();

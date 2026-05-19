@@ -12,11 +12,12 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('user_id');
             $table->string('name', 100);
+            $table->string('issuer', 100);
             $table->string('license_number', 50);
             $table->date('obtained_at')->nullable();
             $table->date('expired_at')->nullable();
             $table->enum('status', ['active', 'expired', 'suspended'])->default('active');
-            $table->string('file_path')->nullable();            
+            $table->string('file_path')->nullable();
             $table->boolean('is_verified')->default(false);
             $table->enum('approval_status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->text('rejection_reason')->nullable();

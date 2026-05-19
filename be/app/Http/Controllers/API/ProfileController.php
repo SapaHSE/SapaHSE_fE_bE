@@ -262,6 +262,7 @@ class ProfileController extends Controller
 
         $request->validate([
             'name'        => 'required|string|max:150',
+            'certification_number' => 'nullable|string|max:100',
             'issuer'      => 'required|string|max:150',
             'obtained_at' => 'nullable|date',
             'expired_at'  => 'nullable|date',
@@ -273,7 +274,7 @@ class ProfileController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        $data = $request->only('name', 'issuer', 'obtained_at', 'expired_at', 'status');
+        $data = $request->only('name', 'certification_number', 'issuer', 'obtained_at', 'expired_at', 'status');
         $data['approval_status'] = 'pending';
         $data['is_verified'] = false;
         $data['rejection_reason'] = null;
@@ -313,6 +314,7 @@ class ProfileController extends Controller
 
         $request->validate([
             'name'        => 'required|string|max:150',
+            'certification_number' => 'nullable|string|max:100',
             'issuer'      => 'required|string|max:150',
             'obtained_at' => 'nullable|date',
             'expired_at'  => 'nullable|date',
@@ -324,7 +326,7 @@ class ProfileController extends Controller
         $cert = $user->certifications()->findOrFail($id);
 
         $cert->update($request->only(
-            'name', 'issuer', 'obtained_at', 'expired_at', 'status'
+            'name', 'certification_number', 'issuer', 'obtained_at', 'expired_at', 'status'
         ));
 
         return \response()->json([
@@ -503,6 +505,7 @@ class ProfileController extends Controller
             'certifications' => $user->relationLoaded('certifications') ? $user->certifications->map(fn($c) => [
                 'id'          => $c->id,
                 'name'        => $c->name,
+                'certification_number' => $c->certification_number,
                 'issuer'      => $c->issuer,
                 'obtained_at' => $c->obtained_at?->format('Y-m-d'),
                 'expired_at'  => $c->expired_at?->format('Y-m-d'),

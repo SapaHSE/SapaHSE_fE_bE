@@ -216,8 +216,8 @@ class ApprovalTaskCard extends StatelessWidget {
     final metaInfo = _metaInfo;
     final hasMetaInfo = metaInfo != null && metaInfo.trim().isNotEmpty;
     final cardContentHeight = showActions
-        ? (hasMetaInfo ? 142.0 : 136.0)
-        : (hasMetaInfo ? 138.0 : 130.0);
+        ? (hasMetaInfo ? 154.0 : 144.0)
+        : (hasMetaInfo ? 146.0 : 138.0);
 
     return GestureDetector(
       onTap: onTap,

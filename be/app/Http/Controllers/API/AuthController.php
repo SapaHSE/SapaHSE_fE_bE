@@ -247,18 +247,27 @@ class AuthController extends Controller
         }))
         ->where('is_active', true)
         ->orderBy('full_name')
-        ->select(['id', 'full_name', 'employee_id', 'department', 'position', 'jabatan', 'company', 'role', 'profile_photo'])
+        ->select([
+            'id', 'full_name', 'employee_id', 'department', 'position', 
+            'jabatan', 'company', 'role', 'profile_photo', 'phone_number', 
+            'personal_email', 'work_email', 'tipe_afiliasi'
+        ])
         ->get()
         ->map(fn($u) => [
-            'id'          => $u->id,
-            'full_name'   => $u->full_name,
-            'employee_id' => $u->employee_id,
-            'department'  => $u->department,
-            'position'    => $u->position,
-            'jabatan'     => $u->jabatan,
-            'company'     => $u->company,
-            'role'        => $u->role,
-            'photo_url'   => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
+            'id'             => $u->id,
+            'full_name'      => $u->full_name,
+            'employee_id'    => $u->employee_id,
+            'department'     => $u->department,
+            'position'       => $u->position,
+            'jabatan'        => $u->jabatan,
+            'company'        => $u->company,
+            'tipe_afiliasi'  => $u->tipe_afiliasi,
+            'phone_number'   => $u->phone_number,
+            'personal_email' => $u->personal_email,
+            'work_email'     => $u->work_email,
+            'email'          => $u->personal_email ?? $u->work_email,
+            'role'           => $u->role,
+            'photo_url'      => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
         ]);
 
         return response()->json([
