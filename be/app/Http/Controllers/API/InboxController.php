@@ -46,7 +46,7 @@ class InboxController extends Controller
         $readApprovalLicenseIds = collect();
         $readApprovalCertificationIds = collect();
 
-        if ($isSuper) {
+        if ($isAdminOrSA) {
             $readApprovalRegistrationIds = ReadStatus::where('user_id', $userId)
                 ->where('item_type', 'approval_registration')
                 ->pluck('item_id');
@@ -97,7 +97,7 @@ class InboxController extends Controller
         $pendingRegistrationUnread = 0;
         $pendingLicenseUnread = 0;
         $pendingCertificationUnread = 0;
-        if ($isSuper) {
+        if ($isAdminOrSA) {
             $pendingRegistrationUnread = User::where('registration_status', 'pending')
                 ->whereNotIn('id', $readApprovalRegistrationIds)
                 ->count();
@@ -188,7 +188,7 @@ class InboxController extends Controller
             });
 
             $approvalItems = collect();
-            if ($isSuper) {
+            if ($isAdminOrSA) {
                 $approvalItems = $this->pendingRegistrationItems($readApprovalRegistrationIds)
                     ->concat($this->pendingLicenseItems($readApprovalLicenseIds))
                     ->concat($this->pendingCertificationItems($readApprovalCertificationIds));
@@ -297,7 +297,7 @@ class InboxController extends Controller
             ], ['read_at' => now()]);
         }
 
-        if ($user->role === 'superadmin') {
+        if ($isAdminOrSA) {
             foreach (User::where('registration_status', 'pending')->pluck('id') as $id) {
                 ReadStatus::firstOrCreate([
                     'user_id'   => $userId,
