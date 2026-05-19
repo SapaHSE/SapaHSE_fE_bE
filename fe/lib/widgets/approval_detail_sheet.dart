@@ -623,7 +623,9 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                   const SizedBox(height: 12),
                                   _DetailRow(
                                     icon: Icons.pin_outlined,
-                                    label: _isLicense ? 'Nomor Lisensi' : 'Nomor Sertifikat',
+                                    label: _isLicense
+                                        ? 'Nomor Lisensi'
+                                        : 'Nomor Sertifikat',
                                     value: _displayValue(item.itemNumber),
                                   ),
                                 ],
