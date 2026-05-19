@@ -17,5 +17,4 @@ class SupabaseConfig {
   static const String certificationsFolder = 'certifications';
   static const String newsFolder = 'news';
   static const String carouselFolder = 'carousel';
-  static const String violationsFolder = 'violations';
 }
