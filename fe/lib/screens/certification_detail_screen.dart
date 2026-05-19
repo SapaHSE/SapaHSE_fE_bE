@@ -186,7 +186,9 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
   }
 
   Widget _buildProfileActions() {
-    final rejected = _certification.approvalStatus.toLowerCase() == 'rejected';
+    final approvalStatus = _certification.approvalStatus.toLowerCase();
+    final rejected = approvalStatus == 'rejected';
+    final pendingChanges = approvalStatus == 'pending_changes';
 
     if (rejected && widget.onProfileEdit != null) {
       return SizedBox(
@@ -207,6 +209,54 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
           ),
         ),
       );
+    }
+
+    if (pendingChanges) {
+      // Show edit (cancel-old-and-resubmit) and delete buttons
+      if (widget.onProfileEdit != null || widget.onProfileDelete != null) {
+        return Row(
+          children: [
+            if (widget.onProfileDelete != null)
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => widget.onProfileDelete!(_certification),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text(
+                    'Hapus',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+            if (widget.onProfileDelete != null && widget.onProfileEdit != null)
+              const SizedBox(width: 12),
+            if (widget.onProfileEdit != null)
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => widget.onProfileEdit!(_certification),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1A56C4),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: const Icon(Icons.edit),
+                  label: const Text(
+                    'Edit',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+              ),
+          ],
+        );
+      }
     }
 
     if (!_certification.isActive) {

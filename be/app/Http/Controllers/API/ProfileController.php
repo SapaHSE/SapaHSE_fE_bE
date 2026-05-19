@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
+    protected \App\Services\NotificationService $notificationService;
+
+    public function __construct(\App\Services\NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     // GET /api/profile
     public function getProfile()
     {
@@ -239,17 +246,38 @@ class ProfileController extends Controller
             $updateData['file_path'] = $request->file_url;
         }
 
-        // Re-application flow: moving from rejected back to pending for re-review.
+        // Re-approval flow based on current approval_status
         if ($license->approval_status === 'rejected') {
+            // Rejected → pending for re-review (existing behavior)
             $updateData['approval_status'] = 'pending';
             $updateData['is_verified'] = false;
             $updateData['rejection_reason'] = null;
             $updateData['reviewed_by'] = null;
             $updateData['reviewed_at'] = null;
             $updateData['submitted_at'] = now();
+        } elseif (in_array($license->approval_status, ['approved', 'expired'])) {
+            // Approved or expired → pending_changes for re-approval
+            $updateData['approval_status'] = 'pending_changes';
+            $updateData['is_verified'] = false;
+            $updateData['rejection_reason'] = null;
+            $updateData['reviewed_by'] = null;
+            $updateData['reviewed_at'] = null;
+            $updateData['submitted_at'] = now();
+        } elseif ($license->approval_status === 'pending') {
+            // Already pending (not yet reviewed) — just update submitted_at
+            $updateData['submitted_at'] = now();
         }
 
         $license->update($updateData);
+
+        // Notify admins when a previously approved document needs re-approval
+        if (($updateData['approval_status'] ?? null) === 'pending_changes') {
+            $this->notifyAdminsAboutPendingChanges(
+                $user->full_name,
+                $updateData['name'] ?? $license->name,
+                'license'
+            );
+        }
 
         return \response()->json([
             'status'  => 'success',
@@ -369,17 +397,38 @@ class ProfileController extends Controller
             $updateData['file_path'] = $request->file_url;
         }
 
-        // Re-application flow: moving from rejected back to pending for re-review.
+        // Re-approval flow based on current approval_status
         if ($cert->approval_status === 'rejected') {
+            // Rejected → pending for re-review (existing behavior)
             $updateData['approval_status'] = 'pending';
             $updateData['is_verified'] = false;
             $updateData['rejection_reason'] = null;
             $updateData['reviewed_by'] = null;
             $updateData['reviewed_at'] = null;
             $updateData['submitted_at'] = now();
+        } elseif (in_array($cert->approval_status, ['approved', 'expired'])) {
+            // Approved or expired → pending_changes for re-approval
+            $updateData['approval_status'] = 'pending_changes';
+            $updateData['is_verified'] = false;
+            $updateData['rejection_reason'] = null;
+            $updateData['reviewed_by'] = null;
+            $updateData['reviewed_at'] = null;
+            $updateData['submitted_at'] = now();
+        } elseif ($cert->approval_status === 'pending') {
+            // Already pending (not yet reviewed) — just update submitted_at
+            $updateData['submitted_at'] = now();
         }
 
         $cert->update($updateData);
+
+        // Notify admins when a previously approved document needs re-approval
+        if (($updateData['approval_status'] ?? null) === 'pending_changes') {
+            $this->notifyAdminsAboutPendingChanges(
+                $user->full_name,
+                $updateData['name'] ?? $cert->name,
+                'certification'
+            );
+        }
 
         return \response()->json([
             'status'  => 'success',
@@ -507,6 +556,32 @@ class ProfileController extends Controller
             'status'  => 'success',
             'message' => 'Medical record deleted successfully.',
         ]);
+    }
+
+    private function notifyAdminsAboutPendingChanges(string $userName, string $docName, string $type): void
+    {
+        $admins = \App\Models\User::whereIn('role', ['admin', 'superadmin'])
+            ->where('is_active', true)
+            ->get();
+
+        $typeLabel = $type === 'license' ? 'Lisensi' : 'Sertifikat';
+        $message = "{$userName} mengajukan perubahan pada {$typeLabel} {$docName}";
+
+        foreach ($admins as $admin) {
+            try {
+                $this->notificationService->createNotification(
+                    $admin,
+                    $type === 'license' ? 'license_pending_changes' : 'certification_pending_changes',
+                    "Perubahan {$typeLabel}",
+                    $message,
+                    ['type' => 'approval']
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error(
+                    'Gagal mengirim notifikasi pending_changes: ' . $e->getMessage()
+                );
+            }
+        }
     }
 
     private function formatUser(\App\Models\User $user): array

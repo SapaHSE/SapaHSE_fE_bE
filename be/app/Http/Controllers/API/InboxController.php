@@ -101,10 +101,10 @@ class InboxController extends Controller
             $pendingRegistrationUnread = User::where('registration_status', 'pending')
                 ->whereNotIn('id', $readApprovalRegistrationIds)
                 ->count();
-            $pendingLicenseUnread = UserLicense::where('approval_status', 'pending')
+            $pendingLicenseUnread = UserLicense::whereIn('approval_status', ['pending', 'pending_changes'])
                 ->whereNotIn('id', $readApprovalLicenseIds)
                 ->count();
-            $pendingCertificationUnread = UserCertification::where('approval_status', 'pending')
+            $pendingCertificationUnread = UserCertification::whereIn('approval_status', ['pending', 'pending_changes'])
                 ->whereNotIn('id', $readApprovalCertificationIds)
                 ->count();
         }
@@ -306,7 +306,7 @@ class InboxController extends Controller
                 ], ['read_at' => now()]);
             }
 
-            foreach (UserLicense::where('approval_status', 'pending')->pluck('id') as $id) {
+            foreach (UserLicense::whereIn('approval_status', ['pending', 'pending_changes'])->pluck('id') as $id) {
                 ReadStatus::firstOrCreate([
                     'user_id'   => $userId,
                     'item_id'   => $id,
@@ -314,7 +314,7 @@ class InboxController extends Controller
                 ], ['read_at' => now()]);
             }
 
-            foreach (UserCertification::where('approval_status', 'pending')->pluck('id') as $id) {
+            foreach (UserCertification::whereIn('approval_status', ['pending', 'pending_changes'])->pluck('id') as $id) {
                 ReadStatus::firstOrCreate([
                     'user_id'   => $userId,
                     'item_id'   => $id,
@@ -342,7 +342,7 @@ class InboxController extends Controller
     private function pendingLicenseItems(\Illuminate\Support\Collection $readIds)
     {
         return UserLicense::with('user')
-            ->where('approval_status', 'pending')
+            ->whereIn('approval_status', ['pending', 'pending_changes'])
             ->latest('submitted_at')
             ->latest('created_at')
             ->get()
@@ -354,7 +354,7 @@ class InboxController extends Controller
     private function pendingCertificationItems(\Illuminate\Support\Collection $readIds)
     {
         return UserCertification::with('user')
-            ->where('approval_status', 'pending')
+            ->whereIn('approval_status', ['pending', 'pending_changes'])
             ->latest('submitted_at')
             ->latest('created_at')
             ->get()

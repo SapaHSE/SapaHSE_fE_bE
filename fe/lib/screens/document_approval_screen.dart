@@ -293,8 +293,16 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(doc['name'] ?? '-', 
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _blue)),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(doc['name'] ?? '-', 
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _blue)),
+                                ),
+                                const SizedBox(width: 8),
+                                _buildApprovalStatusChip(doc['approval_status']?.toString() ?? ''),
+                              ],
+                            ),
                             const SizedBox(height: 4),
                             _buildInfoRow(Icons.numbers, doc['license_number'] ?? doc['certification_number'] ?? '-'),
                             _buildInfoRow(Icons.business, doc['issuer'] ?? '-'),
@@ -343,6 +351,34 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
           ),
         );
       },
+      ),
+    );
+  }
+
+  Widget _buildApprovalStatusChip(String status) {
+    final isPendingChanges = status.toLowerCase() == 'pending_changes';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isPendingChanges
+            ? const Color(0xFFFFF8E1)
+            : const Color(0xFFE3F2FD),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isPendingChanges
+              ? const Color(0xFFFFE082)
+              : const Color(0xFFBBDEFB),
+        ),
+      ),
+      child: Text(
+        isPendingChanges ? 'Perubahan' : 'Baru',
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: isPendingChanges
+              ? const Color(0xFFE65100)
+              : const Color(0xFF2196F3),
+        ),
       ),
     );
   }

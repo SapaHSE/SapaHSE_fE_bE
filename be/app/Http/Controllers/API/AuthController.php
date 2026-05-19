@@ -540,10 +540,10 @@ class AuthController extends Controller
         if ($reason === '') {
             $reason = 'Ditolak melalui endpoint verifikasi lisensi.';
         }
-        if ($license->approval_status !== 'pending') {
+        if (!in_array($license->approval_status, ['pending', 'pending_changes'])) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Hanya lisensi dengan status pending yang dapat ditolak.',
+                'message' => 'Hanya lisensi dengan status pending atau menunggu perubahan yang dapat ditolak.',
             ], 422);
         }
 
@@ -574,10 +574,10 @@ class AuthController extends Controller
         if ($reason === '') {
             $reason = 'Ditolak melalui endpoint verifikasi sertifikasi.';
         }
-        if ($cert->approval_status !== 'pending') {
+        if (!in_array($cert->approval_status, ['pending', 'pending_changes'])) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Hanya sertifikasi dengan status pending yang dapat ditolak.',
+                'message' => 'Hanya sertifikasi dengan status pending atau menunggu perubahan yang dapat ditolak.',
             ], 422);
         }
 
@@ -601,10 +601,10 @@ class AuthController extends Controller
     {
         $license = UserLicense::with('user')->findOrFail($id);
 
-        if ($license->approval_status !== 'pending') {
+        if (!in_array($license->approval_status, ['pending', 'pending_changes'])) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Hanya lisensi dengan status pending yang dapat disetujui.',
+                'message' => 'Hanya lisensi dengan status pending atau menunggu perubahan yang dapat disetujui.',
             ], 422);
         }
 
@@ -632,10 +632,10 @@ class AuthController extends Controller
 
         $license = UserLicense::with('user')->findOrFail($id);
 
-        if ($license->approval_status !== 'pending') {
+        if (!in_array($license->approval_status, ['pending', 'pending_changes'])) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Hanya lisensi dengan status pending yang dapat ditolak.',
+                'message' => 'Hanya lisensi dengan status pending atau menunggu perubahan yang dapat ditolak.',
             ], 422);
         }
 
@@ -659,10 +659,10 @@ class AuthController extends Controller
     {
         $certification = UserCertification::with('user')->findOrFail($id);
 
-        if ($certification->approval_status !== 'pending') {
+        if (!in_array($certification->approval_status, ['pending', 'pending_changes'])) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Hanya sertifikasi dengan status pending yang dapat disetujui.',
+                'message' => 'Hanya sertifikasi dengan status pending atau menunggu perubahan yang dapat disetujui.',
             ], 422);
         }
 
@@ -690,10 +690,10 @@ class AuthController extends Controller
 
         $certification = UserCertification::with('user')->findOrFail($id);
 
-        if ($certification->approval_status !== 'pending') {
+        if (!in_array($certification->approval_status, ['pending', 'pending_changes'])) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Hanya sertifikasi dengan status pending yang dapat ditolak.',
+                'message' => 'Hanya sertifikasi dengan status pending atau menunggu perubahan yang dapat ditolak.',
             ], 422);
         }
 
@@ -703,12 +703,6 @@ class AuthController extends Controller
             'rejection_reason' => trim((string) $request->input('reason')),
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
-        ]);
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Sertifikasi berhasil ditolak.',
-            'data'    => $certification->fresh(),
         ]);
     }
 

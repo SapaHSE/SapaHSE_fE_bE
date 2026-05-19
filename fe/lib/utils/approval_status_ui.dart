@@ -9,7 +9,7 @@ typedef ApprovalStatusStyle = ({
 
 String normalizeApprovalStatus(String? rawStatus) {
   final status = (rawStatus ?? 'pending').trim().toLowerCase();
-  if (status == 'approved' || status == 'rejected') return status;
+  if (status == 'approved' || status == 'rejected' || status == 'pending_changes') return status;
   return 'pending';
 }
 
@@ -29,6 +29,13 @@ ApprovalStatusStyle approvalStatusStyle(String? rawStatus) {
         bg: const Color(0xFFFFEBEE),
         fg: const Color(0xFFC62828),
         border: const Color(0xFFFFCDD2),
+      );
+    case 'pending_changes':
+      return (
+        label: 'Menunggu Persetujuan Perubahan',
+        bg: const Color(0xFFFFF8E1),
+        fg: const Color(0xFFE65100),
+        border: const Color(0xFFFFE082),
       );
     default: // pending / validating
       return (

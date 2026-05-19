@@ -4006,6 +4006,48 @@ class _LicenseDetailPage extends StatelessWidget {
       ];
     }
 
+    if (license.approvalStatus.toLowerCase() == 'pending_changes') {
+      return [
+        _ProfileDetailAction(
+          icon: Icons.edit,
+          iconBgColor: const Color(0xFFFFF8E1),
+          iconColor: const Color(0xFFE65100),
+          title: 'Edit Lisensi',
+          subtitle: 'Pengajuan perubahan sedang ditinjau admin',
+          onTap: () => onEdit(license),
+        ),
+        _ProfileDetailAction(
+          icon: Icons.delete_outline,
+          iconBgColor: const Color(0xFFFFEBEE),
+          iconColor: const Color(0xFFD32F2F),
+          title: 'Hapus Lisensi',
+          subtitle: 'Batalkan pengajuan dan hapus lisensi',
+          onTap: () => onDelete(license),
+        ),
+      ];
+    }
+
+    if (license.approvalStatus.toLowerCase() == 'pending_changes') {
+      return [
+        _ProfileDetailAction(
+          icon: Icons.edit,
+          iconBgColor: const Color(0xFFFFF8E1),
+          iconColor: const Color(0xFFE65100),
+          title: 'Edit Lisensi',
+          subtitle: 'Pengajuan perubahan sedang ditinjau admin',
+          onTap: () => onEdit(license),
+        ),
+        _ProfileDetailAction(
+          icon: Icons.delete_outline,
+          iconBgColor: const Color(0xFFFFEBEE),
+          iconColor: const Color(0xFFD32F2F),
+          title: 'Hapus Lisensi',
+          subtitle: 'Batalkan pengajuan dan hapus lisensi',
+          onTap: () => onDelete(license),
+        ),
+      ];
+    }
+
     if (!license.isActive) {
       return [
         _ProfileDetailAction(
@@ -4292,6 +4334,27 @@ class _CertificationDetailPage extends StatelessWidget {
           title: 'Edit & Pengajuan Ulang',
           subtitle: 'Perbaiki data sertifikat lalu ajukan ulang',
           onTap: () => onEdit(certification),
+        ),
+      ];
+    }
+
+    if (certification.approvalStatus.toLowerCase() == 'pending_changes') {
+      return [
+        _ProfileDetailAction(
+          icon: Icons.edit,
+          iconBgColor: const Color(0xFFFFF8E1),
+          iconColor: const Color(0xFFE65100),
+          title: 'Edit Sertifikat',
+          subtitle: 'Pengajuan perubahan sedang ditinjau admin',
+          onTap: () => onEdit(certification),
+        ),
+        _ProfileDetailAction(
+          icon: Icons.delete_outline,
+          iconBgColor: const Color(0xFFFFEBEE),
+          iconColor: const Color(0xFFD32F2F),
+          title: 'Hapus Sertifikat',
+          subtitle: 'Batalkan pengajuan dan hapus sertifikat',
+          onTap: () => onDelete(certification),
         ),
       ];
     }
