@@ -244,8 +244,7 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                   bottom: 12,
                   left: 16,
                   child: Row(children: [
-                    _badge(approvalStatus.label, approvalStatus.fg,
-                        bg: approvalStatus.bg),
+                    _badge(approvalStatus.label, approvalStatus.fg),
                     const SizedBox(width: 8),
                     _badge(_typeLabel, _typeColor),
                   ]),

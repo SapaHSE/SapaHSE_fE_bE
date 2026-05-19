@@ -7,6 +7,7 @@ import '../services/profile_service.dart';
 import '../services/storage_service.dart';
 import '../services/announcement_service.dart';
 import '../services/background_sync_service.dart';
+import '../services/push_notification_service.dart';
 import 'login_screen.dart';
 import '../main.dart';
 import 'create_hazard_screen.dart';
@@ -40,6 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     final bioEnabled = await StorageService.isBiometricEnabled();
+    final pushEnabled = await StorageService.isNotificationEnabled();
     final user = await StorageService.getUser();
     final role = user?['role']?.toString().toLowerCase();
     final canAdd = role == 'admin' || role == 'superadmin';
@@ -52,6 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       setState(() {
         _isBiometricEnabled = bioEnabled;
+        _isPushEnabled = pushEnabled;
         _canAddAnnouncement = canAdd;
         _localStorageMB = storageSize;
       });
@@ -641,7 +644,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 label: 'Notifikasi Push',
                 subtitle: 'Laporan, pengumuman, tugas',
                 value: _isPushEnabled,
-                onChanged: (v) => setState(() => _isPushEnabled = v),
+                onChanged: (v) async {
+                  setState(() => _isPushEnabled = v);
+                  await PushNotificationService.setEnabled(v);
+                },
               ),
             ]),
             _buildSectionHeader('SINKRONISASI & PENYIMPANAN'),

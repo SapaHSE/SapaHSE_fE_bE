@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -19,6 +18,7 @@ import 'package:sapahse/utils/url_helper.dart';
 import 'package:sapahse/main.dart';
 import 'package:sapahse/widgets/app_safe_insets.dart';
 import 'package:sapahse/widgets/fab_notched_bottom_bar.dart';
+import 'package:sapahse/widgets/report_style_detail_widgets.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -105,6 +105,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   List<String> _subkontraktorList = [];
   bool _isFetchingCompanies = false;
   String? _userRole;
+  final FocusNode _editProfilePhoneFocusNode = FocusNode();
 
   // Persistent State for License Form
   final TextEditingController _licenseNameController = TextEditingController();
@@ -132,6 +133,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     _certNameController.dispose();
     _certNumberController.dispose();
     _certIssuerController.dispose();
+    _editProfilePhoneFocusNode.dispose();
     super.dispose();
   }
 
@@ -962,7 +964,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     final jobCtrl = TextEditingController(text: _profileData?.jabatan);
     final posCtrl = TextEditingController(text: _profileData?.position);
     final addressCtrl = TextEditingController(text: _profileData?.address);
-    final phoneFocusNode = FocusNode();
     final formKey = GlobalKey<FormState>();
     XFile? localImageFile;
     final existingProfilePhoto =
@@ -1005,7 +1006,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () {
-                        phoneFocusNode.dispose();
+                        FocusScope.of(modalContext).unfocus();
                         Navigator.pop(sheetContext);
                       },
                     ),
@@ -1111,7 +1112,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 },
                               ),
                               const SizedBox(height: 16),
-                              _buildPhoneField(phoneCtrl, phoneFocusNode),
+                              _buildPhoneField(
+                                  phoneCtrl, _editProfilePhoneFocusNode),
                               const SizedBox(height: 16),
                               _buildSheetField(
                                 'Email Kantor (Opsional)',
@@ -1255,7 +1257,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               return;
                             }
 
-                            phoneFocusNode.dispose();
+                            FocusScope.of(modalContext).unfocus();
                             Navigator.pop(sheetContext);
                             _showLoadingDialog('Menyimpan Profil...');
 
@@ -3411,7 +3413,6 @@ class _ViolationDetailSheet extends StatelessWidget {
 
   static const _activeColor = Color(0xFFD32F2F);
   static const _inactiveColor = Color(0xFF757575);
-  static const _typeLabel = 'PELANGGARAN';
 
   bool get _isActive => violation.status.toLowerCase() == 'aktif';
 
@@ -3448,247 +3449,14 @@ class _ViolationDetailSheet extends StatelessWidget {
     return '${local.day} ${months[local.month - 1]} ${local.year}';
   }
 
-  Future<void> _showAttachmentPreview(
-      BuildContext context, String imageUrl) async {
-    await precacheImage(CachedNetworkImageProvider(imageUrl), context);
-    if (!context.mounted) return;
-
-    final controller = TransformationController();
-    var doubleTapPosition = Offset.zero;
-    const doubleTapZoomScale = 2.5;
-
-    void handleDoubleTap() {
-      final currentScale = controller.value.getMaxScaleOnAxis();
-      if (currentScale > 1.0) {
-        controller.value = Matrix4.identity();
-      } else {
-        const s = doubleTapZoomScale;
-        final x = -doubleTapPosition.dx * (s - 1);
-        final y = -doubleTapPosition.dy * (s - 1);
-        controller.value = Matrix4(
-          s,
-          0,
-          0,
-          0,
-          0,
-          s,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-          x,
-          y,
-          0,
-          1,
-        );
-      }
-    }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            iconTheme: const IconThemeData(color: Colors.white),
-            elevation: 0,
-            title: const Text(
-              '1/1',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          extendBodyBehindAppBar: true,
-          body: Center(
-            child: GestureDetector(
-              onDoubleTapDown: (details) =>
-                  doubleTapPosition = details.localPosition,
-              onDoubleTap: handleDoubleTap,
-              child: InteractiveViewer(
-                minScale: 1.0,
-                maxScale: 4.0,
-                transformationController: controller,
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.contain,
-                  placeholder: (_, __) => const CircularProgressIndicator(
-                    color: Colors.white,
-                  ),
-                  errorWidget: (_, __, ___) => const Icon(
-                    Icons.image,
-                    color: Colors.white54,
-                    size: 80,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    controller.dispose();
-  }
-
-  Widget _badge(String label, Color color, {Color? bg}) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: bg ?? color,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: bg != null ? color : Colors.white,
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-
-  Widget _card({required Widget child}) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: child,
-      );
-
-  Widget _sectionHeader(IconData icon, String title) => Row(
-        children: [
-          Icon(icon, color: const Color(0xFF1A56C4), size: 20),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-          ),
-        ],
-      );
-
-  Widget _detailRow({
-    required IconData icon,
-    required String label,
-    required String value,
-    Color? valueColor,
-  }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: Colors.grey.shade500),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade500,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: valueColor ?? Colors.black87,
-                  fontWeight:
-                      valueColor != null ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _heroArea(BuildContext context, String fileUrl) {
-    Widget fallback() => Container(
-          color: _accent.withValues(alpha: 0.08),
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.warning_amber_rounded,
-            color: _accent.withValues(alpha: 0.72),
-            size: 64,
-          ),
-        );
-
-    final hasImage = fileUrl.isNotEmpty;
-    final heroContent = hasImage
-        ? GestureDetector(
-            onTap: () => _showAttachmentPreview(context, fileUrl),
-            child: CachedNetworkImage(
-              imageUrl: fileUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => fallback(),
-              errorWidget: (_, __, ___) => fallback(),
-            ),
-          )
-        : fallback();
-
-    return SizedBox(
-      width: double.infinity,
-      height: 200,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          heroContent,
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 70,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.65),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 12,
-            left: 16,
-            child: Row(
-              children: [
-                _badge(violation.status, _accent, bg: _statusBg),
-                const SizedBox(width: 8),
-                _badge(_typeLabel, _accent),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final fileUrl = normalizeStorageUrl(violation.fileUrl)?.trim() ?? '';
     final sheetHeight = MediaQuery.of(context).size.height * 0.85;
+    final expiry =
+        DateTime.tryParse((violation.expiredAt ?? '').replaceFirst(' ', 'T'))
+            ?.toLocal();
+    final isExpired = expiry != null && expiry.isBefore(DateTime.now());
 
     return SizedBox(
       height: sheetHeight,
@@ -3719,175 +3487,132 @@ class _ViolationDetailSheet extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(20),
                     ),
-                    child: _heroArea(context, fileUrl),
+                    child: ReportStyleDetailHero(
+                      imageUrl: fileUrl,
+                      accentColor: _accent,
+                      fallbackIcon: Icons.warning_amber_rounded,
+                      height: 200,
+                      badges: [
+                        ReportStyleDetailBadge(
+                          label: violation.status,
+                          color: _accent,
+                          backgroundColor: _statusBg,
+                        ),
+                        ReportStyleDetailBadge(
+                          label: 'PELANGGARAN',
+                          color: _accent,
+                        ),
+                      ],
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _card(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  color: _accent.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.warning_amber_rounded,
-                                  color: _accent,
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 6,
-                                      children: [
-                                        _badge(
-                                          violation.status,
-                                          _accent,
-                                          bg: _statusBg,
-                                        ),
-                                        _badge(_typeLabel, _accent),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      violation.title,
-                                      style: const TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w700,
-                                        height: 1.2,
-                                      ),
-                                    ),
-                                    if (_displayValue(violation.description) !=
-                                        '-') ...[
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        violation.description!.trim(),
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.black54,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _card(
+                        ReportStyleDetailCard(
+                          margin: EdgeInsets.zero,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _sectionHeader(
-                                Icons.assignment_outlined,
-                                'Detail Pelanggaran',
+                              Text(
+                                violation.title,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                              const SizedBox(height: 14),
-                              _detailRow(
-                                icon: Icons.warning_amber_rounded,
-                                label: 'Pelanggaran',
-                                value: _displayValue(violation.title),
+                              const SizedBox(height: 4),
+                              Text(
+                                'PELANGGARAN',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _accent,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                              const SizedBox(height: 12),
-                              _detailRow(
-                                icon: Icons.calendar_today_outlined,
-                                label: 'Tanggal Pelanggaran',
-                                value:
-                                    _formatDateText(violation.dateOfViolation),
-                              ),
-                              const SizedBox(height: 12),
-                              _detailRow(
-                                icon: Icons.verified_outlined,
-                                label: 'Status',
-                                value: _displayValue(violation.status),
-                                valueColor: _accent,
+                              const Divider(height: 24),
+                              ReportStyleDetailRow(
+                                icon: Icons.description_outlined,
+                                label: 'Deskripsi',
+                                value: _displayValue(violation.description),
                               ),
                               const SizedBox(height: 12),
-                              _detailRow(
+                              ReportStyleDetailRow(
                                 icon: Icons.location_on_outlined,
                                 label: 'Lokasi',
                                 value: _displayValue(violation.location),
                               ),
                               const SizedBox(height: 12),
-                              _detailRow(
+                              ReportStyleDetailRow(
+                                icon: Icons.event_outlined,
+                                label: 'Tanggal Pelanggaran',
+                                value:
+                                    _formatDateText(violation.dateOfViolation),
+                              ),
+                              const SizedBox(height: 12),
+                              ReportStyleDetailRow(
                                 icon: Icons.event_busy_outlined,
                                 label: 'Berlaku Sampai',
                                 value: _formatDateText(violation.expiredAt),
+                                valueColor: isExpired ? _accent : null,
                               ),
                               const SizedBox(height: 12),
-                              _detailRow(
-                                icon: Icons.gavel_outlined,
-                                label: 'Sanksi',
-                                value: _displayValue(violation.sanction),
+                              ReportStyleDetailRow(
+                                icon: Icons.info_outline,
+                                label: 'Status',
+                                value: _displayValue(violation.status),
+                                valueColor: _accent,
                               ),
                             ],
                           ),
                         ),
-                        if (fileUrl.isNotEmpty) ...[
+                        if ((violation.sanction ?? '').trim().isNotEmpty) ...[
                           const SizedBox(height: 12),
-                          InkWell(
-                            onTap: () =>
-                                _showAttachmentPreview(context, fileUrl),
-                            borderRadius: BorderRadius.circular(14),
-                            child: _card(
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 42,
-                                    height: 42,
-                                    decoration: BoxDecoration(
-                                      color: _accent.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.image_outlined,
-                                      color: _accent,
+                          ReportStyleDetailCard(
+                            margin: EdgeInsets.zero,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const ReportStyleSectionHeader(
+                                  icon: Icons.gavel_rounded,
+                                  title: 'Sanksi',
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFEBEE),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: const Color(0xFFFFCDD2),
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Lampiran pelanggaran',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 14,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.error_outline,
+                                        color: _accent,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          violation.sanction!.trim(),
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFFB71C1C),
+                                            height: 1.35,
                                           ),
                                         ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Tersedia',
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.grey.shade400,
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -3951,205 +3676,6 @@ String _formatDetailDate(String? raw, {bool includeTime = false}) {
       .format(parsed.toLocal());
 }
 
-Future<void> _showProfileAttachmentPreview(
-    BuildContext context, String imageUrl) async {
-  await precacheImage(CachedNetworkImageProvider(imageUrl), context);
-  if (!context.mounted) return;
-
-  final controller = TransformationController();
-  var doubleTapPosition = Offset.zero;
-  const doubleTapZoomScale = 2.5;
-
-  void handleDoubleTap() {
-    final currentScale = controller.value.getMaxScaleOnAxis();
-    if (currentScale > 1.0) {
-      controller.value = Matrix4.identity();
-      return;
-    }
-
-    const scale = doubleTapZoomScale;
-    controller.value = Matrix4(
-      scale,
-      0,
-      0,
-      0,
-      0,
-      scale,
-      0,
-      0,
-      0,
-      0,
-      1,
-      0,
-      -doubleTapPosition.dx * (scale - 1),
-      -doubleTapPosition.dy * (scale - 1),
-      0,
-      1,
-    );
-  }
-
-  await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          iconTheme: const IconThemeData(color: Colors.white),
-          elevation: 0,
-          title: const Text(
-            '1/1',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        extendBodyBehindAppBar: true,
-        body: Center(
-          child: GestureDetector(
-            onDoubleTapDown: (details) =>
-                doubleTapPosition = details.localPosition,
-            onDoubleTap: handleDoubleTap,
-            child: InteractiveViewer(
-              minScale: 1.0,
-              maxScale: 4.0,
-              transformationController: controller,
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.contain,
-                placeholder: (_, __) => const CircularProgressIndicator(
-                  color: Colors.white,
-                ),
-                errorWidget: (_, __, ___) => const Icon(
-                  Icons.image,
-                  color: Colors.white54,
-                  size: 80,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-
-  controller.dispose();
-}
-
-class _DetailBadge extends StatelessWidget {
-  final String label;
-  final Color color;
-  final Color? background;
-
-  const _DetailBadge({
-    required this.label,
-    required this.color,
-    this.background,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = background ?? color;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: background == null ? Colors.white : color,
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileDetailHero extends StatelessWidget {
-  final String imageUrl;
-  final Color accentColor;
-  final IconData fallbackIcon;
-  final List<Widget> badges;
-
-  const _ProfileDetailHero({
-    required this.imageUrl,
-    required this.accentColor,
-    required this.fallbackIcon,
-    required this.badges,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Widget fallback() => Container(
-          color: accentColor.withValues(alpha: 0.08),
-          alignment: Alignment.center,
-          child: Icon(
-            fallbackIcon,
-            color: accentColor.withValues(alpha: 0.72),
-            size: 64,
-          ),
-        );
-
-    final hasImage = imageUrl.isNotEmpty;
-    return SizedBox(
-      width: double.infinity,
-      height: 220,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (hasImage)
-            GestureDetector(
-              onTap: () => _showProfileAttachmentPreview(context, imageUrl),
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => fallback(),
-                errorWidget: (_, __, ___) => fallback(),
-              ),
-            )
-          else
-            fallback(),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0),
-                      Colors.black.withValues(alpha: 0.62),
-                    ],
-                    stops: const [0.55, 1],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: IgnorePointer(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: badges,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ApplicantDetailCard extends StatelessWidget {
   final ProfileData? profileData;
   final Map<String, dynamic>? cachedUser;
@@ -4161,81 +3687,71 @@ class _ApplicantDetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _DetailCard(
-      children: [
-        const _DetailSectionTitle(
-          icon: Icons.person_outline,
-          title: 'Data Pemohon',
-        ),
-        _DetailInfoRow(
-          'Pemohon',
-          _firstDetailValue([
-            profileData?.fullName,
-            cachedUser?['full_name'],
-            cachedUser?['name'],
-          ]),
-        ),
-        _DetailInfoRow(
-          'Departemen',
-          _firstDetailValue(
-              [profileData?.department, cachedUser?['department']]),
-        ),
-        _DetailInfoRow(
-          'Perusahaan',
-          _firstDetailValue([profileData?.company, cachedUser?['company']]),
-        ),
-        _DetailInfoRow(
-          'Email',
-          _firstDetailValue([
-            profileData?.personalEmail,
-            profileData?.workEmail,
-            cachedUser?['personal_email'],
-            cachedUser?['work_email'],
-          ]),
-        ),
-        _DetailInfoRow(
-          'NIP',
-          _firstDetailValue(
-              [profileData?.employeeId, cachedUser?['employee_id']]),
-        ),
-        _DetailInfoRow(
-          'Jabatan',
-          _firstDetailValue([
-            profileData?.position,
-            profileData?.jabatan,
-            cachedUser?['position'],
-          ]),
-        ),
-        _DetailInfoRow(
-          'Telepon',
-          _firstDetailValue(
-              [profileData?.phoneNumber, cachedUser?['phone_number']]),
-        ),
-      ],
-    );
-  }
-}
-
-class _DetailSectionTitle extends StatelessWidget {
-  final IconData icon;
-  final String title;
-
-  const _DetailSectionTitle({
-    required this.icon,
-    required this.title,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+    return ReportStyleDetailCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xFF1A56C4), size: 20),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          const ReportStyleSectionHeader(
+            icon: Icons.person_outline,
+            title: 'Informasi Pemohon',
+          ),
+          const SizedBox(height: 12),
+          ReportStyleDetailRow(
+            icon: Icons.person_outline,
+            label: 'Pemohon',
+            value: _firstDetailValue([
+              profileData?.fullName,
+              cachedUser?['full_name'],
+              cachedUser?['name'],
+            ]),
+          ),
+          const SizedBox(height: 12),
+          ReportStyleDetailRow(
+            icon: Icons.apartment_outlined,
+            label: 'Departemen',
+            value:
+                _firstDetailValue([profileData?.department, cachedUser?['department']]),
+          ),
+          const SizedBox(height: 12),
+          ReportStyleDetailRow(
+            icon: Icons.business_outlined,
+            label: 'Perusahaan',
+            value: _firstDetailValue([profileData?.company, cachedUser?['company']]),
+          ),
+          const SizedBox(height: 12),
+          ReportStyleDetailRow(
+            icon: Icons.email_outlined,
+            label: 'Email',
+            value: _firstDetailValue([
+              profileData?.personalEmail,
+              profileData?.workEmail,
+              cachedUser?['personal_email'],
+              cachedUser?['work_email'],
+            ]),
+          ),
+          const SizedBox(height: 12),
+          ReportStyleDetailRow(
+            icon: Icons.badge_outlined,
+            label: 'NIP',
+            value:
+                _firstDetailValue([profileData?.employeeId, cachedUser?['employee_id']]),
+          ),
+          const SizedBox(height: 12),
+          ReportStyleDetailRow(
+            icon: Icons.work_outline,
+            label: 'Jabatan',
+            value: _firstDetailValue([
+              profileData?.position,
+              profileData?.jabatan,
+              cachedUser?['position'],
+            ]),
+          ),
+          const SizedBox(height: 12),
+          ReportStyleDetailRow(
+            icon: Icons.phone_outlined,
+            label: 'Telepon',
+            value:
+                _firstDetailValue([profileData?.phoneNumber, cachedUser?['phone_number']]),
           ),
         ],
       ),
@@ -4314,12 +3830,7 @@ class _ProfileDetailRouteScaffold extends StatelessWidget {
         shape: const CircleBorder(),
         elevation: hasActions ? 4 : 0,
         tooltip: hasActions ? actionSheetTitle : 'Tidak ada aksi tersedia',
-        child: Icon(
-          hasActions && actions.length > 1
-              ? Icons.more_horiz
-              : Icons.edit_outlined,
-          size: 26,
-        ),
+        child: const Icon(Icons.edit_outlined, size: 26),
       ),
       bottomNavigationBar: FabNotchedBottomBar(
         child: Row(
@@ -4532,10 +4043,10 @@ class _LicenseDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final approvalStyle = approvalStatusStyle(license.approvalStatus);
     const typeColor = Color(0xFFEF6C00);
-    final activeColor =
-        license.isActive ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F);
-    final activeBg =
-        license.isActive ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
+    final expiry =
+        DateTime.tryParse((license.expiredAt ?? '').replaceFirst(' ', 'T'))
+            ?.toLocal();
+    final isExpired = expiry != null && expiry.isBefore(DateTime.now());
     final imageUrl = normalizeStorageUrl(license.fileUrl)?.trim() ?? '';
 
     return _ProfileDetailRouteScaffold(
@@ -4548,22 +4059,21 @@ class _LicenseDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ProfileDetailHero(
+            ReportStyleDetailHero(
               imageUrl: imageUrl,
               accentColor: typeColor,
               fallbackIcon: Icons.badge_outlined,
               badges: [
-                _DetailBadge(
+                ReportStyleDetailBadge(
                   label: approvalStyle.label,
                   color: approvalStyle.fg,
-                  background: approvalStyle.bg,
                 ),
-                const _DetailBadge(label: 'LISENSI', color: typeColor),
+                const ReportStyleDetailBadge(label: 'LISENSI', color: typeColor),
                 if (!license.isActive)
-                  _DetailBadge(
+                  const ReportStyleDetailBadge(
                     label: 'Expired',
-                    color: activeColor,
-                    background: activeBg,
+                    color: Color(0xFFD32F2F),
+                    backgroundColor: Color(0xFFFFEBEE),
                   ),
               ],
             ),
@@ -4572,61 +4082,175 @@ class _LicenseDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _DetailHeader(
-                    icon: Icons.badge_outlined,
-                    iconColor: typeColor,
-                    iconBgColor: const Color(0xFFFFF3E0),
-                    title: license.name,
-                    subtitle: 'No. ${license.licenseNumber}',
+                  ReportStyleDetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          license.name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'LISENSI',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: typeColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Divider(height: 24),
+                        ReportStyleDetailRow(
+                          icon: Icons.numbers,
+                          label: 'Nomor Lisensi',
+                          value: _detailDisplayValue(license.licenseNumber),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.business_outlined,
+                          label: 'Lembaga Penerbit',
+                          value: _detailDisplayValue(license.issuer),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.info_outline,
+                          label: 'Status Approval',
+                          value: approvalStyle.label,
+                          valueColor: approvalStyle.fg,
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.flag_outlined,
+                          label: 'Status Dokumen',
+                          value: license.isActive ? 'Aktif' : 'Expired',
+                          valueColor: license.isActive
+                              ? const Color(0xFF2E7D32)
+                              : const Color(0xFFD32F2F),
+                        ),
+                        if ((license.submittedAt ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.access_time,
+                            label: 'Tanggal Pengajuan',
+                            value: _formatDetailDate(
+                              license.submittedAt,
+                              includeTime: true,
+                            ),
+                          ),
+                        ],
+                        if ((license.reviewedAt ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.history,
+                            label: 'Tanggal Review',
+                            value: _formatDetailDate(
+                              license.reviewedAt,
+                              includeTime: true,
+                            ),
+                          ),
+                        ],
+                        if ((license.rejectionReason ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEBEE),
+                              borderRadius: BorderRadius.circular(10),
+                              border:
+                                  Border.all(color: const Color(0xFFFFCDD2)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: Color(0xFFC62828),
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Alasan Penolakan',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: Color(0xFFC62828),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        license.rejectionReason!.trim(),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFFC62828),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  ReportStyleDetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const ReportStyleSectionHeader(
+                          icon: Icons.badge_outlined,
+                          title: 'Detail Lisensi',
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.label_outline,
+                          label: 'Nama',
+                          value: _detailDisplayValue(license.name),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.numbers,
+                          label: 'Nomor Lisensi',
+                          value: _detailDisplayValue(license.licenseNumber),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.business_outlined,
+                          label: 'Lembaga Penerbit',
+                          value: _detailDisplayValue(license.issuer),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.event_outlined,
+                          label: 'Tanggal Diperoleh',
+                          value: _formatDetailDate(license.obtainedAt),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.event_busy_outlined,
+                          label: 'Berlaku Sampai',
+                          value: _formatDetailDate(license.expiredAt),
+                          valueColor:
+                              isExpired ? const Color(0xFFF44336) : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   _ApplicantDetailCard(
                     profileData: profileData,
                     cachedUser: cachedUser,
                   ),
-                  const SizedBox(height: 16),
-                  _DetailCard(
-                    children: [
-                      const _DetailSectionTitle(
-                        icon: Icons.assignment_outlined,
-                        title: 'Detail Pengajuan',
-                      ),
-                      const _DetailInfoRow('Jenis', 'LISENSI'),
-                      _DetailInfoRow(
-                        'Status',
-                        approvalStyle.label,
-                      ),
-                      _DetailInfoRow('Nama Lisensi', license.name),
-                      _DetailInfoRow('Nomor Lisensi', license.licenseNumber),
-                      _DetailInfoRow(
-                        'Lembaga Penerbit',
-                        _detailDisplayValue(license.issuer),
-                      ),
-                      _DetailInfoRow(
-                        'Tanggal Terbit',
-                        _formatDetailDate(license.obtainedAt),
-                      ),
-                      _DetailInfoRow(
-                        'Tanggal Kadaluarsa',
-                        _formatDetailDate(license.expiredAt),
-                      ),
-                      _DetailInfoRow(
-                        'Diajukan',
-                        _formatDetailDate(license.submittedAt,
-                            includeTime: true),
-                      ),
-                      _DetailInfoRow(
-                        'Direview',
-                        _formatDetailDate(license.reviewedAt,
-                            includeTime: true),
-                      ),
-                    ],
-                  ),
-                  if ((license.rejectionReason ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _RejectionReasonCard(
-                        reason: license.rejectionReason!.trim()),
-                  ],
                   SizedBox(
                     height: AppSafeInsets.bottomNavScrollPadding(
                       context,
@@ -4709,12 +4333,10 @@ class _CertificationDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final approvalStyle = approvalStatusStyle(certification.approvalStatus);
     const typeColor = Color(0xFF6A1B9A);
-    final activeColor = certification.isActive
-        ? const Color(0xFF2E7D32)
-        : const Color(0xFFEF6C00);
-    final activeBg = certification.isActive
-        ? const Color(0xFFE8F5E9)
-        : const Color(0xFFFFF3E0);
+    final expiry =
+        DateTime.tryParse((certification.expiredAt ?? '').replaceFirst(' ', 'T'))
+            ?.toLocal();
+    final isExpired = expiry != null && expiry.isBefore(DateTime.now());
     final imageUrl = normalizeStorageUrl(certification.fileUrl)?.trim() ?? '';
 
     return _ProfileDetailRouteScaffold(
@@ -4727,22 +4349,24 @@ class _CertificationDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ProfileDetailHero(
+            ReportStyleDetailHero(
               imageUrl: imageUrl,
               accentColor: typeColor,
               fallbackIcon: Icons.workspace_premium_outlined,
               badges: [
-                _DetailBadge(
+                ReportStyleDetailBadge(
                   label: approvalStyle.label,
                   color: approvalStyle.fg,
-                  background: approvalStyle.bg,
                 ),
-                const _DetailBadge(label: 'SERTIFIKAT', color: typeColor),
+                const ReportStyleDetailBadge(
+                  label: 'SERTIFIKAT',
+                  color: typeColor,
+                ),
                 if (!certification.isActive)
-                  _DetailBadge(
+                  const ReportStyleDetailBadge(
                     label: 'Renew',
-                    color: activeColor,
-                    background: activeBg,
+                    color: Color(0xFFEF6C00),
+                    backgroundColor: Color(0xFFFFF3E0),
                   ),
               ],
             ),
@@ -4751,60 +4375,181 @@ class _CertificationDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _DetailHeader(
-                    icon: Icons.workspace_premium_outlined,
-                    iconColor: typeColor,
-                    iconBgColor: const Color(0xFFF3E5F5),
-                    title: certification.name,
-                    subtitle: certification.issuer,
+                  ReportStyleDetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          certification.name,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'SERTIFIKAT',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: typeColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Divider(height: 24),
+                        if ((certification.certificationNumber ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
+                          ReportStyleDetailRow(
+                            icon: Icons.numbers,
+                            label: 'Nomor Sertifikat',
+                            value:
+                                _detailDisplayValue(certification.certificationNumber),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        ReportStyleDetailRow(
+                          icon: Icons.business_outlined,
+                          label: 'Lembaga Penerbit',
+                          value: _detailDisplayValue(certification.issuer),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.info_outline,
+                          label: 'Status Approval',
+                          value: approvalStyle.label,
+                          valueColor: approvalStyle.fg,
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.flag_outlined,
+                          label: 'Status Dokumen',
+                          value: certification.isActive ? 'Aktif' : 'Expired',
+                          valueColor: certification.isActive
+                              ? const Color(0xFF2E7D32)
+                              : const Color(0xFFEF6C00),
+                        ),
+                        if ((certification.submittedAt ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.access_time,
+                            label: 'Tanggal Pengajuan',
+                            value: _formatDetailDate(
+                              certification.submittedAt,
+                              includeTime: true,
+                            ),
+                          ),
+                        ],
+                        if ((certification.reviewedAt ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.history,
+                            label: 'Tanggal Review',
+                            value: _formatDetailDate(
+                              certification.reviewedAt,
+                              includeTime: true,
+                            ),
+                          ),
+                        ],
+                        if ((certification.rejectionReason ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEBEE),
+                              borderRadius: BorderRadius.circular(10),
+                              border:
+                                  Border.all(color: const Color(0xFFFFCDD2)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: Color(0xFFC62828),
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Alasan Penolakan',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: Color(0xFFC62828),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        certification.rejectionReason!.trim(),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFFC62828),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  ReportStyleDetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const ReportStyleSectionHeader(
+                          icon: Icons.workspace_premium_outlined,
+                          title: 'Detail Sertifikat',
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.label_outline,
+                          label: 'Nama',
+                          value: _detailDisplayValue(certification.name),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.numbers,
+                          label: 'Nomor Sertifikat',
+                          value:
+                              _detailDisplayValue(certification.certificationNumber),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.business_outlined,
+                          label: 'Lembaga Penerbit',
+                          value: _detailDisplayValue(certification.issuer),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.event_outlined,
+                          label: 'Tanggal Diperoleh',
+                          value: _formatDetailDate(certification.obtainedAt),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.event_busy_outlined,
+                          label: 'Berlaku Sampai',
+                          value: _formatDetailDate(certification.expiredAt),
+                          valueColor:
+                              isExpired ? const Color(0xFFF44336) : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   _ApplicantDetailCard(
                     profileData: profileData,
                     cachedUser: cachedUser,
                   ),
-                  const SizedBox(height: 16),
-                  _DetailCard(
-                    children: [
-                      const _DetailSectionTitle(
-                        icon: Icons.assignment_outlined,
-                        title: 'Detail Pengajuan',
-                      ),
-                      const _DetailInfoRow('Jenis', 'SERTIFIKAT'),
-                      _DetailInfoRow('Status', approvalStyle.label),
-                      _DetailInfoRow('Nama Sertifikat', certification.name),
-                      _DetailInfoRow(
-                        'Nomor Sertifikat',
-                        _detailDisplayValue(certification.certificationNumber),
-                      ),
-                      _DetailInfoRow('Lembaga Penerbit', certification.issuer),
-                      _DetailInfoRow(
-                        'Tanggal Terbit',
-                        _formatDetailDate(certification.obtainedAt),
-                      ),
-                      _DetailInfoRow(
-                        'Tanggal Kadaluarsa',
-                        _formatDetailDate(certification.expiredAt),
-                      ),
-                      _DetailInfoRow(
-                        'Diajukan',
-                        _formatDetailDate(certification.submittedAt,
-                            includeTime: true),
-                      ),
-                      _DetailInfoRow(
-                        'Direview',
-                        _formatDetailDate(certification.reviewedAt,
-                            includeTime: true),
-                      ),
-                    ],
-                  ),
-                  if ((certification.rejectionReason ?? '')
-                      .trim()
-                      .isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _RejectionReasonCard(
-                        reason: certification.rejectionReason!.trim()),
-                  ],
                   SizedBox(
                     height: AppSafeInsets.bottomNavScrollPadding(
                       context,
@@ -4830,6 +4575,10 @@ class _ViolationDetailPage extends StatelessWidget {
     final isAktif = violation.status.toLowerCase() == 'aktif';
     final color = isAktif ? Colors.red.shade700 : Colors.grey.shade700;
     final bgColor = isAktif ? Colors.red.shade50 : Colors.grey.shade100;
+    final expiry =
+        DateTime.tryParse((violation.expiredAt ?? '').replaceFirst(' ', 'T'))
+            ?.toLocal();
+    final isExpired = expiry != null && expiry.isBefore(DateTime.now());
     final imageUrl = normalizeStorageUrl(violation.fileUrl)?.trim() ?? '';
 
     return _ProfileDetailRouteScaffold(
@@ -4842,17 +4591,17 @@ class _ViolationDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ProfileDetailHero(
+            ReportStyleDetailHero(
               imageUrl: imageUrl,
               accentColor: color,
               fallbackIcon: Icons.warning_amber_rounded,
               badges: [
-                _DetailBadge(
+                ReportStyleDetailBadge(
                   label: violation.status,
                   color: color,
-                  background: bgColor,
+                  backgroundColor: bgColor,
                 ),
-                _DetailBadge(label: 'PELANGGARAN', color: color),
+                ReportStyleDetailBadge(label: 'PELANGGARAN', color: color),
               ],
             ),
             Padding(
@@ -4860,40 +4609,107 @@ class _ViolationDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _DetailHeader(
-                    icon: Icons.warning_amber_rounded,
-                    iconColor: color,
-                    iconBgColor: bgColor,
-                    title: violation.title,
-                    subtitle: violation.location ?? '-',
+                  ReportStyleDetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          violation.title,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'PELANGGARAN',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: color,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Divider(height: 24),
+                        ReportStyleDetailRow(
+                          icon: Icons.description_outlined,
+                          label: 'Deskripsi',
+                          value: _detailDisplayValue(violation.description),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.location_on_outlined,
+                          label: 'Lokasi',
+                          value: _detailDisplayValue(violation.location),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.event_outlined,
+                          label: 'Tanggal Pelanggaran',
+                          value: _formatDetailDate(violation.dateOfViolation),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.event_busy_outlined,
+                          label: 'Berlaku Sampai',
+                          value: _formatDetailDate(violation.expiredAt),
+                          valueColor: isExpired ? color : null,
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.info_outline,
+                          label: 'Status',
+                          value: _detailDisplayValue(violation.status),
+                          valueColor: color,
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  _DetailCard(
-                    children: [
-                      const _DetailSectionTitle(
-                        icon: Icons.assignment_outlined,
-                        title: 'Detail Pelanggaran',
+                  if ((violation.sanction ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    ReportStyleDetailCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const ReportStyleSectionHeader(
+                            icon: Icons.gavel_rounded,
+                            title: 'Sanksi',
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEBEE),
+                              borderRadius: BorderRadius.circular(10),
+                              border:
+                                  Border.all(color: const Color(0xFFFFCDD2)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  color: color,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    violation.sanction!.trim(),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFFB71C1C),
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      _DetailInfoRow('Pelanggaran', violation.title),
-                      _DetailInfoRow(
-                          'Deskripsi',
-                          (violation.description != null &&
-                                  violation.description!.isNotEmpty)
-                              ? violation.description!
-                              : '-'),
-                      _DetailInfoRow(
-                        'Tanggal',
-                        _formatDetailDate(violation.dateOfViolation),
-                      ),
-                      _DetailInfoRow('Status', violation.status),
-                      _DetailInfoRow('Lokasi', violation.location ?? '-'),
-                      _DetailInfoRow(
-                        'Berlaku Sampai',
-                        _formatDetailDate(violation.expiredAt),
-                      ),
-                      _DetailInfoRow('Sanksi', violation.sanction ?? '-'),
-                    ],
-                  ),
+                    ),
+                  ],
                   SizedBox(
                     height: AppSafeInsets.bottomNavScrollPadding(
                       context,
@@ -4905,132 +4721,6 @@ class _ViolationDetailPage extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _DetailHeader extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBgColor;
-  final String title;
-  final String subtitle;
-
-  const _DetailHeader({
-    required this.icon,
-    required this.iconColor,
-    required this.iconBgColor,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: iconColor, size: 28),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 17)),
-                const SizedBox(height: 4),
-                Text(subtitle,
-                    style:
-                        TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailCard extends StatelessWidget {
-  final List<Widget> children;
-  const _DetailCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: children
-            .asMap()
-            .entries
-            .map((entry) => Column(
-                  children: [
-                    entry.value,
-                    if (entry.key < children.length - 1)
-                      Divider(
-                        height: 1,
-                        color: Colors.grey.shade100,
-                        indent: 16,
-                        endIndent: 16,
-                      ),
-                  ],
-                ))
-            .toList(),
-      ),
-    );
-  }
-}
-
-class _DetailInfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetailInfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(label,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                height: 1.3,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -5063,37 +4753,6 @@ class _StatusPill extends StatelessWidget {
           fontWeight: FontWeight.bold,
           fontSize: 12,
         ),
-      ),
-    );
-  }
-}
-
-class _RejectionReasonCard extends StatelessWidget {
-  final String reason;
-  const _RejectionReasonCard({required this.reason});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFEBEE),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFCDD2)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline, color: Color(0xFFD32F2F), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              reason,
-              style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 13),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -5529,3 +5188,4 @@ class _DepartmentPickerSheetState extends State<_DepartmentPickerSheet> {
     );
   }
 }
+

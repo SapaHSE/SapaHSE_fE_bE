@@ -159,7 +159,57 @@ class PushNotificationService {
       return;
     }
 
+    // Only register if user has not explicitly disabled notifications
+    final isEnabled = await StorageService.isNotificationEnabled();
+    if (!isEnabled) {
+      if (kDebugMode) {
+        print('Skip FCM sync: notifikasi push dimatikan oleh user');
+      }
+      return;
+    }
+
     await getToken();
+  }
+
+  /// Enable or disable push notifications.
+  /// When enabled:  registers FCM token with backend.
+  /// When disabled: removes FCM token from backend & deletes local token.
+  static Future<void> setEnabled(bool enabled) async {
+    await StorageService.setNotificationEnabled(enabled);
+
+    if (enabled) {
+      // Register FCM token with backend
+      await getToken();
+    } else {
+      // Unregister from backend
+      await _unregisterFromBackend();
+    }
+  }
+
+  static Future<void> _unregisterFromBackend() async {
+    if (kIsWeb) return;
+    try {
+      final userToken = await StorageService.getToken();
+      if (userToken == null) return;
+
+      final response = await ApiService.post('/notifications/unregister-fcm', {});
+      if (response.success) {
+        if (kDebugMode) {
+          print('FCM token unregistered successfully');
+        }
+      } else {
+        if (kDebugMode) {
+          print('Failed to unregister FCM token: ${response.errorMessage}');
+        }
+      }
+
+      // Also delete the local FCM token
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error unregistering FCM token: $e');
+      }
+    }
   }
 
   static Future<void> _registerTokenWithBackend(String token) async {

@@ -9,6 +9,7 @@ class StorageService {
   static const _keyRememberMe = 'auth_remember';
   static const _keyBiometricEnabled = 'biometric_enabled';
   static const _keyReadAnnouncements = 'read_announcement_ids';
+  static const _keyNotificationEnabled = 'notification_enabled';
 
   static SharedPreferences? _prefs;
   static const _secureStorage = FlutterSecureStorage();
@@ -174,5 +175,16 @@ class StorageService {
     final key = await _announcementReadKey();
     final list = prefs.getStringList(key) ?? [];
     return list.contains(id);
+  }
+
+  // ── Push Notification ─────────────────────────────────────────────────────
+  static Future<void> setNotificationEnabled(bool enabled) async {
+    final prefs = await _getPrefs();
+    await prefs.setBool(_keyNotificationEnabled, enabled);
+  }
+
+  static Future<bool> isNotificationEnabled() async {
+    final prefs = await _getPrefs();
+    return prefs.getBool(_keyNotificationEnabled) ?? true;
   }
 }

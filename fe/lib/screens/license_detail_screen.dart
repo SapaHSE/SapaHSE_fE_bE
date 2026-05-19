@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -8,6 +7,7 @@ import '../models/profile_model.dart';
 import '../services/profile_service.dart';
 import '../utils/approval_status_ui.dart';
 import '../widgets/app_safe_insets.dart';
+import '../widgets/report_style_detail_widgets.dart';
 
 class LicenseDetailScreen extends StatefulWidget {
   final UserLicense license;
@@ -80,7 +80,6 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
       widget.submitterCompany,
       widget.submitterEmail,
       widget.submitterPhone,
-      widget.submitterPhotoUrl,
     ];
     return fields.any((f) => (f ?? '').trim().isNotEmpty);
   }
@@ -88,15 +87,6 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
   String _displayValue(String? value) {
     final v = value?.trim();
     return (v != null && v.isNotEmpty) ? v : '-';
-  }
-
-  String _initials(String? name) {
-    final raw = (name ?? '').trim();
-    if (raw.isEmpty) return 'U';
-    final parts = raw.split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
-    if (parts.isEmpty) return 'U';
-    if (parts.length == 1) return parts.first[0].toUpperCase();
-    return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
   }
 
   DateTime? _parseDate(String? raw) {
@@ -120,98 +110,6 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
     final dt = _parseDate(raw);
     if (dt == null) return _displayValue(raw);
     return _formatDate(dt, withTime: withTime);
-  }
-
-  ImageProvider? _resolveSubmitterPhoto() {
-    final url = (widget.submitterPhotoUrl ?? '').trim();
-    if (url.isEmpty) return null;
-    return CachedNetworkImageProvider(url);
-  }
-
-  Future<void> _showImagePreview(String imageUrl) async {
-    await precacheImage(CachedNetworkImageProvider(imageUrl), context);
-    if (!mounted) return;
-
-    final controller = TransformationController();
-    var doubleTapPosition = Offset.zero;
-    const doubleTapZoomScale = 2.5;
-
-    void handleDoubleTap() {
-      final currentScale = controller.value.getMaxScaleOnAxis();
-      if (currentScale > 1.0) {
-        controller.value = Matrix4.identity();
-        return;
-      }
-
-      const scale = doubleTapZoomScale;
-      controller.value = Matrix4(
-        scale,
-        0,
-        0,
-        0,
-        0,
-        scale,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        -doubleTapPosition.dx * (scale - 1),
-        -doubleTapPosition.dy * (scale - 1),
-        0,
-        1,
-      );
-    }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            iconTheme: const IconThemeData(color: Colors.white),
-            elevation: 0,
-            title: const Text(
-              '1/1',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          extendBodyBehindAppBar: true,
-          body: Center(
-            child: GestureDetector(
-              onDoubleTapDown: (details) =>
-                  doubleTapPosition = details.localPosition,
-              onDoubleTap: handleDoubleTap,
-              child: InteractiveViewer(
-                minScale: 1.0,
-                maxScale: 4.0,
-                transformationController: controller,
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.contain,
-                  placeholder: (_, __) => const CircularProgressIndicator(
-                    color: Colors.white,
-                  ),
-                  errorWidget: (_, __, ___) => const Icon(
-                    Icons.image,
-                    color: Colors.white54,
-                    size: 80,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    controller.dispose();
   }
 
   Future<void> _handleApprove() async {
@@ -269,73 +167,20 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
   }
 
   Widget _buildHeroArea() {
-    final fileUrl = (_license.fileUrl ?? '').trim();
-    final hasImage = fileUrl.isNotEmpty;
-
-    final fallback = Container(
-      color: _blue.withValues(alpha: 0.08),
-      alignment: Alignment.center,
-      child: Icon(
-        Icons.badge_outlined,
-        color: _blue.withValues(alpha: 0.65),
-        size: 68,
-      ),
-    );
-
-    return SizedBox(
-      width: double.infinity,
-      height: 220,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (hasImage)
-            GestureDetector(
-              onTap: () => _showImagePreview(fileUrl),
-              child: CachedNetworkImage(
-                imageUrl: fileUrl,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => fallback,
-                errorWidget: (_, __, ___) => fallback,
-              ),
-            )
-          else
-            fallback,
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: Container(
-                height: 70,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.65),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 12,
-            left: 16,
-            child: IgnorePointer(
-              child: Row(
-                children: [
-                  _badge(_approvalStyle.label, _approvalStyle.fg,
-                      bg: _approvalStyle.bg),
-                  const SizedBox(width: 8),
-                  _badge('LISENSI', const Color(0xFFEF6C00)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+    return ReportStyleDetailHero(
+      imageUrl: (_license.fileUrl ?? '').trim(),
+      accentColor: _blue,
+      fallbackIcon: Icons.badge_outlined,
+      badges: [
+        ReportStyleDetailBadge(
+          label: _approvalStyle.label,
+          color: _approvalStyle.fg,
+        ),
+        const ReportStyleDetailBadge(
+          label: 'LISENSI',
+          color: Color(0xFFEF6C00),
+        ),
+      ],
     );
   }
 
@@ -564,6 +409,10 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
   Widget build(BuildContext context) {
     final expiry = _parseDate(_license.expiredAt);
     final isExpired = expiry != null && expiry.isBefore(DateTime.now());
+    final submitterRole = [
+      (widget.submitterPosition ?? '').trim(),
+      (widget.submitterDept ?? '').trim(),
+    ].where((v) => v.isNotEmpty).join(' • ');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F0),
@@ -589,73 +438,48 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeroArea(),
-            _card(
+            ReportStyleDetailCard(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E0),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.badge_outlined,
-                          color: Color(0xFFEF6C00),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _license.name,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'LISENSI',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFFEF6C00),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                  Text(
+                    _license.name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'LISENSI',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFFEF6C00),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   const Divider(height: 24),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.numbers,
                     label: 'Nomor Lisensi',
                     value: _displayValue(_license.licenseNumber),
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.business_outlined,
                     label: 'Lembaga Penerbit',
                     value: _displayValue(_license.issuer),
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.info_outline,
                     label: 'Status Approval',
                     value: _approvalStyle.label,
                     valueColor: _approvalStyle.fg,
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.verified_outlined,
                     label: 'Status Verifikasi',
                     value: _license.isVerified
@@ -666,7 +490,7 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                         : const Color(0xFFEF6C00),
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.flag_outlined,
                     label: 'Status Dokumen',
                     value: _license.isActive ? 'Aktif' : 'Expired',
@@ -676,7 +500,7 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                   ),
                   if ((_license.submittedAt ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    _DetailRow(
+                    ReportStyleDetailRow(
                       icon: Icons.access_time,
                       label: 'Tanggal Pengajuan',
                       value: _formatDateText(_license.submittedAt),
@@ -684,7 +508,7 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                   ],
                   if ((_license.reviewedAt ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    _DetailRow(
+                    ReportStyleDetailRow(
                       icon: Icons.history,
                       label: 'Tanggal Review',
                       value: _formatDateText(_license.reviewedAt),
@@ -738,41 +562,41 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                 ],
               ),
             ),
-            _card(
+            ReportStyleDetailCard(
               margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _SectionHeader(
+                  const ReportStyleSectionHeader(
                     icon: Icons.badge_outlined,
                     title: 'Detail Lisensi',
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.label_outline,
                     label: 'Nama',
                     value: _displayValue(_license.name),
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.numbers,
                     label: 'Nomor Lisensi',
                     value: _displayValue(_license.licenseNumber),
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.business_outlined,
                     label: 'Lembaga Penerbit',
                     value: _displayValue(_license.issuer),
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.event_outlined,
                     label: 'Tanggal Diperoleh',
                     value: _formatDateText(_license.obtainedAt, withTime: false),
                   ),
                   const SizedBox(height: 12),
-                  _DetailRow(
+                  ReportStyleDetailRow(
                     icon: Icons.event_busy_outlined,
                     label: 'Berlaku Sampai',
                     value: _formatDateText(_license.expiredAt, withTime: false),
@@ -782,90 +606,61 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
               ),
             ),
             if (_hasSubmitterInfo)
-              _card(
+              ReportStyleDetailCard(
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _SectionHeader(
+                    const ReportStyleSectionHeader(
                       icon: Icons.person_outline,
                       title: 'Informasi Pemohon',
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: _blue.withValues(alpha: 0.15),
-                          backgroundImage: _resolveSubmitterPhoto(),
-                          child: _resolveSubmitterPhoto() == null
-                              ? Text(
-                                  _initials(widget.submitterName),
-                                  style: const TextStyle(
-                                    color: _blue,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _displayValue(widget.submitterName),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              if ((widget.submitterPosition ?? '').trim().isNotEmpty ||
-                                  (widget.submitterDept ?? '').trim().isNotEmpty)
-                                Text(
-                                  '${_displayValue(widget.submitterPosition)} • ${_displayValue(widget.submitterDept)}',
-                                  style: const TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    ReportStyleDetailRow(
+                      icon: Icons.person_outline,
+                      label: 'Pemohon',
+                      value: _displayValue(widget.submitterName),
                     ),
-                    const SizedBox(height: 16),
+                    if (submitterRole.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      ReportStyleDetailRow(
+                        icon: Icons.work_outline,
+                        label: 'Jabatan / Departemen',
+                        value: submitterRole,
+                      ),
+                    ],
                     if ((widget.submitterEmployeeId ?? '').trim().isNotEmpty) ...[
-                      _DetailRow(
+                      const SizedBox(height: 12),
+                      ReportStyleDetailRow(
                         icon: Icons.badge_outlined,
                         label: 'Employee ID',
                         value: _displayValue(widget.submitterEmployeeId),
                       ),
-                      const SizedBox(height: 12),
                     ],
                     if ((widget.submitterEmail ?? '').trim().isNotEmpty) ...[
-                      _DetailRow(
+                      const SizedBox(height: 12),
+                      ReportStyleDetailRow(
                         icon: Icons.email_outlined,
                         label: 'Email',
                         value: _displayValue(widget.submitterEmail),
                       ),
-                      const SizedBox(height: 12),
                     ],
                     if ((widget.submitterPhone ?? '').trim().isNotEmpty) ...[
-                      _DetailRow(
+                      const SizedBox(height: 12),
+                      ReportStyleDetailRow(
                         icon: Icons.phone_outlined,
                         label: 'Telepon',
                         value: _displayValue(widget.submitterPhone),
                       ),
-                      const SizedBox(height: 12),
                     ],
-                    if ((widget.submitterCompany ?? '').trim().isNotEmpty)
-                      _DetailRow(
+                    if ((widget.submitterCompany ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      ReportStyleDetailRow(
                         icon: Icons.business_outlined,
                         label: 'Perusahaan',
                         value: _displayValue(widget.submitterCompany),
                       ),
+                    ],
                   ],
                 ),
               ),
@@ -884,44 +679,6 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
             border: Border(top: BorderSide(color: Colors.grey.shade200)),
           ),
           child: _buildActionBar(),
-        ),
-      ),
-    );
-  }
-
-  Widget _card({required Widget child, required EdgeInsets margin}) {
-    return Container(
-      margin: margin,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
-  Widget _badge(String label, Color color, {Color? bg}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg ?? color,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: bg != null ? color : Colors.white,
-          fontSize: 9,
-          fontWeight: FontWeight.bold,
         ),
       ),
     );
@@ -1198,73 +955,4 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final String title;
 
-  const _SectionHeader({required this.icon, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: const Color(0xFF1A56C4), size: 20),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-      ],
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: Colors.grey.shade500),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade500,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: valueColor ?? Colors.black87,
-                  fontWeight:
-                      valueColor != null ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
