@@ -16,9 +16,6 @@ import 'package:sapahse/utils/approval_status_ui.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/utils/url_helper.dart';
 import 'package:sapahse/main.dart';
-import 'package:sapahse/screens/certification_detail_screen.dart';
-import 'package:sapahse/screens/license_detail_screen.dart';
-import 'package:sapahse/screens/violation_detail_screen.dart';
 import 'package:sapahse/widgets/app_safe_insets.dart';
 import 'package:sapahse/widgets/fab_notched_bottom_bar.dart';
 

@@ -680,12 +680,7 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                     width: 42,
                                     height: 42,
                                     decoration: BoxDecoration(
-<<<<<<< HEAD
                                       color: _typeColor.withValues(alpha: 0.1),
-=======
-                                      color:
-                                          _typeColor.withValues(alpha: 0.1),
->>>>>>> f345537327493554ed33be717a9a4bc6f16dbf8c
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
