@@ -254,32 +254,31 @@ class HazardReportController extends Controller
         $report = HazardReport::findOrFail($id);
         $user = Auth::user();
 
-        // Superadmin = platform-level, full bypass regardless of tagging.
-        // Admin = role-level update authority ONLY if also tagged (dept or name).
-        // PJA = name tagged in pic_department OR user's department tagged in reported_department.
-        $isPja = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
-             || (!empty($user->department) && $report->reported_department
-                 && stripos($report->reported_department, $user->department) !== false);
+        // Suspect/reported users are never allowed to update the hazard,
+        // even when they also have admin or superadmin roles.
         $isReportedUser = $this->csvContainsToken($report->pelaku_pelanggaran, $user->full_name);
-        $isSuperadmin = $user->role === 'superadmin';
-        $isAdmin = $user->role === 'admin' && $isPja;
-        $isApprovedOrLater = $report->sub_status === null
-            ? in_array($report->status, ['in_progress', 'closed'], true)
-            : $report->sub_status !== 'validating';
-        $canPjaUpdate = $isPja && $isApprovedOrLater;
-        // Non-tagged admins may validate a hazard report from 'validating' to 'approved'.
-        $canValidateAsAdmin = !$isAdmin && !$isSuperadmin && $user->role === 'admin' && $report->sub_status === 'validating';
-        // Non-tagged admins may assign a hazard report that has been approved.
-        $canAssignFromApproved = !$isAdmin && !$isSuperadmin && $user->role === 'admin' && $report->sub_status === 'approved';
-
-        if (!$isSuperadmin && !$isAdmin && !$canPjaUpdate && !$canValidateAsAdmin && !$canAssignFromApproved) {
-            return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
-        }
-        if (!$isSuperadmin && !$isAdmin && $isReportedUser) {
+        if ($isReportedUser) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Akses ditolak. User terlapor tidak dapat memperbarui status laporan.',
             ], 403);
+        }
+
+        // Superadmin = platform-level, full bypass regardless of tagging.
+        // Admin = role-level update authority for all hazard reports.
+        // PJA = name tagged in pic_department OR user's department tagged in reported_department.
+        $isPja = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
+             || (!empty($user->department) && $report->reported_department
+                 && stripos($report->reported_department, $user->department) !== false);
+        $isSuperadmin = $user->role === 'superadmin';
+        $isAdmin = $user->role === 'admin';
+        $isApprovedOrLater = $report->sub_status === null
+            ? in_array($report->status, ['in_progress', 'closed'], true)
+            : $report->sub_status !== 'validating';
+        $canPjaUpdate = $isPja && $isApprovedOrLater;
+
+        if (!$isSuperadmin && !$isAdmin && !$canPjaUpdate) {
+            return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
         }
 
         // Normalize multi-image URLs (Supabase URLs uploaded by client).
@@ -315,8 +314,8 @@ class HazardReportController extends Controller
             $normalizedSubStatus = 'rejected';
         }
 
-        // Additional restrictions for non-admins (tagged admins and superadmin keep full powers)
-        if (!$isAdmin && !$isSuperadmin && !$canValidateAsAdmin && !$canAssignFromApproved) {
+        // Additional restrictions for non-admins (admins and superadmin keep full powers).
+        if (!$isAdmin && !$isSuperadmin) {
             // Cannot select 'validating' or 'approved'
             if (in_array($normalizedSubStatus, ['validating', 'approved'])) {
                 return response()->json(['status' => 'error', 'message' => 'Izin ditolak untuk status ini.'], 403);
@@ -332,16 +331,6 @@ class HazardReportController extends Controller
             && empty($imageUrl)
             && empty($imageUrls)) {
             return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
-        }
-
-        // canValidateAsAdmin: only allowed to move to approved
-        if ($canValidateAsAdmin && $normalizedSubStatus !== 'approved') {
-            return response()->json(['status' => 'error', 'message' => 'Izin ditolak. Admin hanya dapat menyetujui laporan pada tahap ini.'], 403);
-        }
-
-        // canAssignFromApproved: only allowed to move to assigned
-        if ($canAssignFromApproved && $normalizedSubStatus !== 'assigned') {
-            return response()->json(['status' => 'error', 'message' => 'Izin ditolak. Admin hanya dapat menugaskan laporan yang sudah disetujui.'], 403);
         }
 
         // Linear timeline guard: reject backward moves and illegal skips for non-superadmin.

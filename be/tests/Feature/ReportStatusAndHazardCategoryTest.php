@@ -232,6 +232,152 @@ class ReportStatusAndHazardCategoryTest extends TestCase
             ->count());
     }
 
+    public function test_hazard_suspect_cannot_update_even_when_tagged_admin_or_superadmin(): void
+    {
+        foreach (['user', 'admin', 'superadmin'] as $role) {
+            $actor = User::factory()->create([
+                'role' => $role,
+                'full_name' => 'Suspect ' . $role,
+                'department' => 'Operations',
+            ]);
+            $report = $this->createHazardWithInitialLog([
+                'status' => 'open',
+                'sub_status' => 'approved',
+                'pic_department' => $actor->full_name,
+                'reported_department' => 'Operations',
+                'pelaku_pelanggaran' => $actor->full_name,
+            ]);
+
+            Sanctum::actingAs($actor);
+
+            $this->postJson('/api/hazard-reports/' . $report->id . '/status', [
+                'status' => 'open',
+                'sub_status' => 'assigned',
+                'message' => 'Attempted update as suspect',
+            ])->assertForbidden();
+
+            $this->assertDatabaseHas('hazard_reports', [
+                'id' => $report->id,
+                'status' => 'open',
+                'sub_status' => 'approved',
+            ]);
+        }
+    }
+
+    public function test_hazard_admin_policy_does_not_require_tagging(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'full_name' => 'Global Hazard Admin',
+            'department' => 'Admin',
+        ]);
+        $report = $this->createHazardWithInitialLog([
+            'status' => 'open',
+            'sub_status' => 'validating',
+            'pic_department' => 'Other PJA',
+            'reported_department' => 'Operations',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/hazard-reports/' . $report->id . '/status', [
+            'status' => 'in_progress',
+            'sub_status' => 'assigned',
+            'message' => 'Assigned by global admin',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('hazard_reports', [
+            'id' => $report->id,
+            'status' => 'in_progress',
+            'sub_status' => 'assigned',
+        ]);
+    }
+
+    public function test_hazard_admin_still_cannot_move_backward_or_update_closed_report(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'full_name' => 'Linear Hazard Admin',
+        ]);
+        Sanctum::actingAs($admin);
+
+        $approvedReport = $this->createHazardWithInitialLog([
+            'status' => 'open',
+            'sub_status' => 'approved',
+        ]);
+
+        $this->postJson('/api/hazard-reports/' . $approvedReport->id . '/status', [
+            'status' => 'open',
+            'sub_status' => 'validating',
+            'message' => 'Move backward',
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('hazard_reports', [
+            'id' => $approvedReport->id,
+            'status' => 'open',
+            'sub_status' => 'approved',
+        ]);
+
+        $closedReport = $this->createHazardWithInitialLog([
+            'status' => 'closed',
+            'sub_status' => 'resolved',
+        ]);
+
+        $this->postJson('/api/hazard-reports/' . $closedReport->id . '/status', [
+            'status' => 'in_progress',
+            'sub_status' => 'reviewing',
+            'message' => 'Reopen closed report',
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseHas('hazard_reports', [
+            'id' => $closedReport->id,
+            'status' => 'closed',
+            'sub_status' => 'resolved',
+        ]);
+    }
+
+    public function test_hazard_pja_non_admin_restrictions_still_apply(): void
+    {
+        $pja = User::factory()->create([
+            'role' => 'user',
+            'full_name' => 'PJA Non Admin',
+            'department' => 'Operations',
+        ]);
+        Sanctum::actingAs($pja);
+
+        $validatingReport = $this->createHazardWithInitialLog([
+            'status' => 'open',
+            'sub_status' => 'validating',
+            'pic_department' => $pja->full_name,
+            'reported_department' => 'Operations',
+        ]);
+
+        $this->postJson('/api/hazard-reports/' . $validatingReport->id . '/status', [
+            'status' => 'open',
+            'sub_status' => 'approved',
+            'message' => 'Approve as PJA',
+        ])->assertForbidden();
+
+        $approvedReport = $this->createHazardWithInitialLog([
+            'status' => 'open',
+            'sub_status' => 'approved',
+            'pic_department' => $pja->full_name,
+            'reported_department' => 'Operations',
+        ]);
+
+        $this->postJson('/api/hazard-reports/' . $approvedReport->id . '/status', [
+            'status' => 'open',
+            'sub_status' => 'assigned',
+            'message' => 'Assign as PJA',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('hazard_reports', [
+            'id' => $approvedReport->id,
+            'status' => 'open',
+            'sub_status' => 'assigned',
+        ]);
+    }
+
     public function test_inspection_status_update_notifies_all_stakeholders_except_actor_once(): void
     {
         $actor = User::factory()->create([
@@ -308,5 +454,35 @@ class ReportStatusAndHazardCategoryTest extends TestCase
         $this->assertSame(1, Notification::where('type', 'inspection_update')
             ->where('user_id', $historicalTagged->id)
             ->count());
+    }
+
+    private function createHazardWithInitialLog(array $attributes = []): HazardReport
+    {
+        $reporter = User::factory()->create([
+            'full_name' => 'Hazard Reporter ' . uniqid(),
+            'department' => 'Reporter',
+        ]);
+
+        $report = HazardReport::create(array_merge([
+            'user_id' => $reporter->id,
+            'title' => 'Policy test hazard',
+            'description' => 'Policy test hazard description.',
+            'status' => 'open',
+            'sub_status' => 'validating',
+            'location' => 'Policy Area',
+            'severity' => 'medium',
+            'is_public' => true,
+        ], $attributes));
+
+        ReportLog::create([
+            'reportable_id' => $report->id,
+            'reportable_type' => HazardReport::class,
+            'user_id' => $reporter->id,
+            'status' => $report->status,
+            'sub_status' => $report->sub_status,
+            'message' => 'Initial status',
+        ]);
+
+        return $report;
     }
 }
