@@ -418,6 +418,7 @@ class InboxController extends Controller
                 'id'             => $license->id,
                 'name'           => $license->name,
                 'license_number' => $license->license_number,
+                'issuer'         => $license->issuer,
                 'obtained_at'    => $license->obtained_at ? \Carbon\Carbon::parse($license->obtained_at)->format('Y-m-d') : null,
                 'expired_at'     => $license->expired_at ? \Carbon\Carbon::parse($license->expired_at)->format('Y-m-d') : null,
                 'status'         => $license->status,
