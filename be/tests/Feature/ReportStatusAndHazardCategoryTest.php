@@ -188,7 +188,7 @@ class ReportStatusAndHazardCategoryTest extends TestCase
             'sub_status' => 'validating',
             'location' => 'Area A',
             'severity' => 'high',
-            'pic_department' => $historicalTagged->full_name . ', ' . $picUser->full_name,
+            'pic_department' => $actor->full_name . ', ' . $historicalTagged->full_name . ', ' . $picUser->full_name,
             'reported_department' => 'HSE',
             'is_public' => true,
         ]);

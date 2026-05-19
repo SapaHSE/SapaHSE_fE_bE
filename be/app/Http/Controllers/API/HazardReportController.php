@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\API\Concerns\BackfillsReportLogs;
 use App\Http\Controllers\API\Concerns\ResolvesReportNotificationRecipients;
 use App\Http\Controllers\Controller;
 use App\Models\HazardCategory;
@@ -13,9 +14,11 @@ use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class HazardReportController extends Controller
 {
+    use BackfillsReportLogs;
     use ResolvesReportNotificationRecipients;
 
     protected $notificationService;
@@ -251,18 +254,28 @@ class HazardReportController extends Controller
         $report = HazardReport::findOrFail($id);
         $user = Auth::user();
 
-        // Check if user is Admin, Superadmin, the original Reporter, or tagged PJA
-        // PJA = name tagged in pic_department OR user's department tagged in reported_department
+        // Superadmin = platform-level, full bypass regardless of tagging.
+        // Admin = role-level update authority ONLY if also tagged (dept or name).
+        // PJA = name tagged in pic_department OR user's department tagged in reported_department.
         $isPja = ($report->pic_department && stripos($report->pic_department, $user->full_name) !== false)
-             || $this->csvContainsToken($report->reported_department, $user->department);
+             || (!empty($user->department) && $report->reported_department
+                 && stripos($report->reported_department, $user->department) !== false);
         $isReportedUser = $this->csvContainsToken($report->pelaku_pelanggaran, $user->full_name);
-        $isAdmin = in_array($user->role, ['admin', 'superadmin']);
-        $isReporter = $report->user_id === $user->id;
+        $isSuperadmin = $user->role === 'superadmin';
+        $isAdmin = $user->role === 'admin' && $isPja;
+        $isApprovedOrLater = $report->sub_status === null
+            ? in_array($report->status, ['in_progress', 'closed'], true)
+            : $report->sub_status !== 'validating';
+        $canPjaUpdate = $isPja && $isApprovedOrLater;
+        // Non-tagged admins may validate a hazard report from 'validating' to 'approved'.
+        $canValidateAsAdmin = !$isAdmin && !$isSuperadmin && $user->role === 'admin' && $report->sub_status === 'validating';
+        // Non-tagged admins may assign a hazard report that has been approved.
+        $canAssignFromApproved = !$isAdmin && !$isSuperadmin && $user->role === 'admin' && $report->sub_status === 'approved';
 
-        if (!$isAdmin && !$isReporter && !$isPja) {
+        if (!$isSuperadmin && !$isAdmin && !$canPjaUpdate && !$canValidateAsAdmin && !$canAssignFromApproved) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
         }
-        if (!$isAdmin && $isReportedUser) {
+        if (!$isSuperadmin && !$isAdmin && $isReportedUser) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Akses ditolak. User terlapor tidak dapat memperbarui status laporan.',
@@ -302,8 +315,8 @@ class HazardReportController extends Controller
             $normalizedSubStatus = 'rejected';
         }
 
-        // Additional restrictions for non-admins
-        if (!$isAdmin) {
+        // Additional restrictions for non-admins (tagged admins and superadmin keep full powers)
+        if (!$isAdmin && !$isSuperadmin && !$canValidateAsAdmin && !$canAssignFromApproved) {
             // Cannot select 'validating' or 'approved'
             if (in_array($normalizedSubStatus, ['validating', 'approved'])) {
                 return response()->json(['status' => 'error', 'message' => 'Izin ditolak untuk status ini.'], 403);
@@ -321,6 +334,32 @@ class HazardReportController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Lampiran wajib.'], 422);
         }
 
+        // canValidateAsAdmin: only allowed to move to approved
+        if ($canValidateAsAdmin && $normalizedSubStatus !== 'approved') {
+            return response()->json(['status' => 'error', 'message' => 'Izin ditolak. Admin hanya dapat menyetujui laporan pada tahap ini.'], 403);
+        }
+
+        // canAssignFromApproved: only allowed to move to assigned
+        if ($canAssignFromApproved && $normalizedSubStatus !== 'assigned') {
+            return response()->json(['status' => 'error', 'message' => 'Izin ditolak. Admin hanya dapat menugaskan laporan yang sudah disetujui.'], 403);
+        }
+
+        // Linear timeline guard: reject backward moves and illegal skips for non-superadmin.
+        if (!$isSuperadmin) {
+            $progressionError = $this->assertLinearProgression(
+                $report,
+                $normalizedStatus,
+                $normalizedSubStatus,
+                $isAdmin
+            );
+            if ($progressionError !== null) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => $progressionError,
+                ], 422);
+            }
+        }
+
         $updateData = [
             'status'     => $normalizedStatus,
             'sub_status' => $normalizedSubStatus,
@@ -329,51 +368,55 @@ class HazardReportController extends Controller
         if ($request->has('pic_department'))      $updateData['pic_department'] = $request->pic_department;
         if ($request->has('reported_department')) $updateData['reported_department'] = $request->reported_department;
 
-        $report->update($updateData);
+        return DB::transaction(function () use ($report, $updateData, $normalizedStatus, $normalizedSubStatus, $request, $imageUrl, $imageUrls) {
+            $this->backfillSkippedSubStatusLogs($report, $normalizedSubStatus, $request->tagged_user_id);
 
-        $report->logs()->create([
-            'user_id'        => Auth::id(),
-            'tagged_user_id' => $request->tagged_user_id,
-            'status'         => $normalizedStatus,
-            'sub_status'     => $normalizedSubStatus,
-            'message'        => $request->message ?? "Status diubah",
-            'image_url'      => $imageUrl,
-            'image_urls'     => !empty($imageUrls) ? json_encode($imageUrls) : null,
-        ]);
+            $report->update($updateData);
 
-        // Kirim notifikasi ke semua pihak terkait
-        $statusText = $normalizedSubStatus ?: $normalizedStatus;
-        $notifTitle = "Update Laporan Hazard";
-        $notifBody = "Status laporan '{$report->title}' diperbarui menjadi: " . strtoupper($statusText);
+            $report->logs()->create([
+                'user_id'        => Auth::id(),
+                'tagged_user_id' => $request->tagged_user_id,
+                'status'         => $normalizedStatus,
+                'sub_status'     => $normalizedSubStatus,
+                'message'        => $request->message ?? "Status diubah",
+                'image_url'      => $imageUrl,
+                'image_urls'     => !empty($imageUrls) ? json_encode($imageUrls) : null,
+            ]);
 
-        try {
-            $recipients = $this->resolveReportNotificationRecipients(
-                $report,
-                HazardReport::class,
-                $request->tagged_user_id,
-                Auth::id(),
-                ['pic_department', 'pelaku_pelanggaran'],
-                ['reported_department']
-            );
+            // Kirim notifikasi ke semua pihak terkait
+            $statusText = $normalizedSubStatus ?: $normalizedStatus;
+            $notifTitle = "Update Laporan Hazard";
+            $notifBody = "Status laporan '{$report->title}' diperbarui menjadi: " . strtoupper($statusText);
 
-            foreach ($recipients as $recipient) {
-                $this->notificationService->createNotification(
-                    $recipient,
-                    'hazard_update',
-                    $notifTitle,
-                    $notifBody,
-                    ['report_id' => $report->id, 'type' => 'hazard']
+            try {
+                $recipients = $this->resolveReportNotificationRecipients(
+                    $report,
+                    HazardReport::class,
+                    $request->tagged_user_id,
+                    Auth::id(),
+                    ['pic_department', 'pelaku_pelanggaran'],
+                    ['reported_department']
                 );
-            }
-        } catch (\Exception $e) {
-            \Log::error('Gagal mengirim notifikasi update hazard ke pihak terkait: ' . $e->getMessage());
-        }
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Status laporan berhasil diperbarui.',
-            'data'    => $this->formatReport($report->fresh('user'), Auth::id()),
-        ]);
+                foreach ($recipients as $recipient) {
+                    $this->notificationService->createNotification(
+                        $recipient,
+                        'hazard_update',
+                        $notifTitle,
+                        $notifBody,
+                        ['report_id' => $report->id, 'type' => 'hazard']
+                    );
+                }
+            } catch (\Exception $e) {
+                \Log::error('Gagal mengirim notifikasi update hazard ke pihak terkait: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Status laporan berhasil diperbarui.',
+                'data'    => $this->formatReport($report->fresh('user'), Auth::id()),
+            ]);
+        });
     }
 
     public function logs(string $id)
