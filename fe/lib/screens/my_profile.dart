@@ -741,10 +741,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   onTap: _pickImage,
                   child: Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                        color: Color(0xFF1A56C4), shape: BoxShape.circle),
-                    child: const Icon(Icons.camera_alt,
-                        color: Colors.white, size: 18),
                   ),
                 ),
               ),
