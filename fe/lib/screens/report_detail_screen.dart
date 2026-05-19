@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show File, Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -38,6 +39,13 @@ class _ClampedCurve extends Curve {
   double transform(double t) => curve.transform(t.clamp(0.0, 1.0));
 }
 
+class _ProfileLookup {
+  final String name;
+  final String? userId;
+
+  const _ProfileLookup({required this.name, this.userId});
+}
+
 class ReportDetailScreen extends StatefulWidget {
   final Report report;
   final bool isDialog;
@@ -59,6 +67,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   bool _isScrolledToBottom = false;
   bool _showTimeline = false;
   int _activeSnackBars = 0;
+  final Map<String, Map<String, dynamic>> _profileCache = {};
+  final Map<String, Future<Map<String, dynamic>?>> _profileFetches = {};
 
   final ScrollController _scrollController = ScrollController();
   late final AnimationController _updateStatusFabController;
@@ -83,6 +93,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     _refreshTimelineInBackground();
     _prefetchAllTimelineReplies();
     _loadUserAndRefresh();
+    _preloadReportUserProfiles();
     _updateStatusFabController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
@@ -167,6 +178,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   Future<void> _loadUserAndRefresh() async {
     final userData = await StorageService.getUser();
     if (userData != null && mounted) {
+      _rememberUserProfile(userData);
       setState(() => _currentUser = UserModel.fromJson(userData));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_canUpdate) return;
@@ -227,6 +239,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
               ReportStore.instance.loadTimeline(_report.id, force: true);
         });
         _prefetchAllTimelineReplies();
+        _preloadReportUserProfiles();
       }
     } catch (e) {
       debugPrint('Error refreshing report: $e');
@@ -494,34 +507,202 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     });
   }
 
-  void _showUserProfileByName(BuildContext context, String nameStr) {
-    final rawParts = nameStr.split(',');
+  List<String> _extractProfileNames(String? nameStr) {
+    if (nameStr == null || nameStr.trim().isEmpty) return const [];
+
     final cleanNames = <String>[];
-    for (var part in rawParts) {
-      final name = part.trim();
-      if (name.isNotEmpty) {
-        final lower = name.toLowerCase();
-        if (lower == 'departemen hse' ||
-            lower == 'hse' ||
-            lower == 'departemen' ||
-            lower == 'pic') {
-          continue;
-        }
-        final parenIdx = name.indexOf('(');
-        var filteredName = name;
-        if (parenIdx != -1) {
-          filteredName = name.substring(0, parenIdx).trim();
-        }
-        if (filteredName.isNotEmpty) {
-          cleanNames.add(filteredName);
-        }
+    final seen = <String>{};
+    for (final part in nameStr.split(',')) {
+      final name = _cleanProfileName(part);
+      if (name.isEmpty || _isIgnoredProfileName(name)) continue;
+
+      final key = _profileNameCacheKey(name);
+      if (seen.add(key)) {
+        cleanNames.add(name);
       }
     }
+    return cleanNames;
+  }
+
+  String _cleanProfileName(String value) {
+    var name = value.trim();
+    final parenIdx = name.indexOf('(');
+    if (parenIdx != -1) {
+      name = name.substring(0, parenIdx).trim();
+    }
+    return name.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  bool _isIgnoredProfileName(String name) {
+    final lower = name.toLowerCase();
+    return lower == 'departemen hse' ||
+        lower == 'hse' ||
+        lower == 'departemen' ||
+        lower == 'pic' ||
+        lower.startsWith('departemen ');
+  }
+
+  String _profileNameCacheKey(String name) =>
+      'name:${_cleanProfileName(name).toLowerCase()}';
+
+  String _profileIdCacheKey(String id) => 'id:${id.trim()}';
+
+  String _profileRequestKey(String name, {String? userId}) {
+    if (userId != null && userId.trim().isNotEmpty) {
+      return _profileIdCacheKey(userId);
+    }
+    return _profileNameCacheKey(name);
+  }
+
+  void _rememberUserProfile(Map<String, dynamic> user) {
+    final data = Map<String, dynamic>.from(user);
+    final id = data['id']?.toString();
+    final fullName = data['full_name']?.toString();
+
+    if (id != null && id.trim().isNotEmpty) {
+      _profileCache[_profileIdCacheKey(id)] = data;
+    }
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      _profileCache[_profileNameCacheKey(fullName)] = data;
+    }
+  }
+
+  Map<String, dynamic>? _cachedUserProfile(String name, {String? userId}) {
+    if (userId != null && userId.trim().isNotEmpty) {
+      final byId = _profileCache[_profileIdCacheKey(userId)];
+      if (byId != null) return byId;
+    }
+    return _profileCache[_profileNameCacheKey(name)];
+  }
+
+  List<_ProfileLookup> _profileLookupsForReport(Report report) {
+    final lookups = <_ProfileLookup>[];
+    final seen = <String>{};
+
+    void add(String? rawNames, {String? userId}) {
+      final names = _extractProfileNames(rawNames);
+      for (final name in names) {
+        final key = _profileRequestKey(
+          name,
+          userId: names.length == 1 ? userId : null,
+        );
+        if (!seen.add(key)) continue;
+        lookups.add(_ProfileLookup(
+          name: name,
+          userId: names.length == 1 ? userId : null,
+        ));
+      }
+    }
+
+    add(report.reportedBy, userId: report.reporterId);
+    add(report.pelakuPelanggaran);
+    add(report.picDepartment);
+    add(report.nameInspector);
+    return lookups;
+  }
+
+  void _preloadReportUserProfiles() {
+    for (final lookup in _profileLookupsForReport(_report)) {
+      if (_cachedUserProfile(lookup.name, userId: lookup.userId) != null) {
+        continue;
+      }
+      unawaited(_loadUserProfile(lookup.name, userId: lookup.userId));
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadUserProfile(String name,
+      {String? userId}) {
+    final cleanName = _cleanProfileName(name);
+    if (cleanName.isEmpty) return Future.value(null);
+
+    final cached = _cachedUserProfile(cleanName, userId: userId);
+    if (cached != null) return Future.value(cached);
+
+    final requestKey = _profileRequestKey(cleanName, userId: userId);
+    final existing = _profileFetches[requestKey];
+    if (existing != null) return existing;
+
+    final future = _fetchUserProfile(cleanName, userId: userId);
+    _profileFetches[requestKey] = future;
+    unawaited(future.whenComplete(() => _profileFetches.remove(requestKey)));
+    return future;
+  }
+
+  Future<Map<String, dynamic>?> _fetchUserProfile(String name,
+      {String? userId}) async {
+    try {
+      final response = await AuthService.listUsers(search: name);
+      if (!response.success || response.data == null) return null;
+
+      final users = _profileListFromResponse(response.data['data']);
+      if (users.isEmpty) return null;
+
+      for (final user in users) {
+        _rememberUserProfile(user);
+      }
+
+      Map<String, dynamic>? selected;
+      if (userId != null && userId.trim().isNotEmpty) {
+        for (final user in users) {
+          if (user['id']?.toString() == userId.trim()) {
+            selected = user;
+            break;
+          }
+        }
+      }
+
+      selected ??= _cachedUserProfile(name);
+      if (selected == null) {
+        for (final user in users) {
+          if (_profileNameCacheKey(user['full_name']?.toString() ?? '') ==
+              _profileNameCacheKey(name)) {
+            selected = user;
+            break;
+          }
+        }
+      }
+      selected ??= users.first;
+
+      _rememberUserProfile(selected);
+      return selected;
+    } catch (e) {
+      debugPrint('Error loading user profile for $name: $e');
+      return null;
+    }
+  }
+
+  List<Map<String, dynamic>> _profileListFromResponse(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    if (raw is Map) {
+      final nested = raw['data'];
+      if (nested is List) {
+        return _profileListFromResponse(nested);
+      }
+      return raw.values
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return const [];
+  }
+
+  void _showUserProfileByName(BuildContext context, String nameStr,
+      {String? userId}) {
+    final cleanNames = _extractProfileNames(nameStr);
 
     if (cleanNames.isEmpty) return;
 
     if (cleanNames.length == 1) {
-      _fetchAndShowUserProfile(context, cleanNames[0]);
+      _fetchAndShowUserProfile(
+        context,
+        cleanNames[0],
+        userId: userId,
+      );
     } else {
       showModalBottomSheet(
         context: context,
@@ -577,91 +758,184 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     }
   }
 
-  void _fetchAndShowUserProfile(BuildContext context, String name) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      useRootNavigator: true,
-      builder: (ctx) {
-        return Center(
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: CircularProgressIndicator(
-                    color: Color(0xFF1A56C4),
-                    strokeWidth: 3,
-                  ),
-                ),
-                SizedBox(height: 16),
-                Text(
-                  "Memuat Profil...",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                    decoration: TextDecoration.none,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  void _fetchAndShowUserProfile(BuildContext context, String name,
+      {String? userId}) {
+    final cleanName = _cleanProfileName(name);
+    if (cleanName.isEmpty) return;
 
-    try {
-      final response = await AuthService.listUsers(search: name);
-
-      // Ensure we pop the loading dialog safely
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      if (response.success && response.data != null) {
-        final usersList = response.data['data'] as List<dynamic>?;
-        if (usersList != null && usersList.isNotEmpty) {
-          final userData = usersList.firstWhere(
-            (u) =>
-                u['full_name']?.toString().toLowerCase().trim() ==
-                name.toLowerCase().trim(),
-            orElse: () => usersList.first,
-          );
-
-          if (context.mounted) {
-            _showUserProfileBottomSheet(context, userData);
-          }
-          return;
-        }
-      }
-
-      if (context.mounted) {
-        _showTrackedSnackBar(
-          const SnackBar(content: Text('Profil pengguna tidak ditemukan.')),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-        _showTrackedSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Terjadi kesalahan koneksi. Server mungkin sedang offline.')),
-        );
-      }
+    final cached = _cachedUserProfile(cleanName, userId: userId);
+    if (cached != null) {
+      _showUserProfileBottomSheet(context, cached);
+      return;
     }
+
+    final future = _loadUserProfile(cleanName, userId: userId);
+    _showUserProfileLoadingBottomSheet(context, cleanName, future);
+  }
+
+  void _showUserProfileLoadingBottomSheet(
+    BuildContext context,
+    String name,
+    Future<Map<String, dynamic>?> future,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => FutureBuilder<Map<String, dynamic>?>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return _buildProfileLoadingSheet(ctx, name);
+          }
+
+          final user = snapshot.data;
+          if (snapshot.hasError || user == null) {
+            return _buildProfileErrorSheet(ctx, name);
+          }
+
+          return _buildUserProfileSheetContent(ctx, user);
+        },
+      ),
+    );
   }
 
   void _showUserProfileBottomSheet(
       BuildContext context, Map<String, dynamic> user) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _buildUserProfileSheetContent(ctx, user),
+    );
+  }
+
+  Widget _buildProfileLoadingSheet(BuildContext ctx, String name) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        12,
+        24,
+        AppSafeInsets.sheetBottomPadding(ctx, base: 24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const SizedBox(
+            width: 44,
+            height: 44,
+            child: CircularProgressIndicator(
+              color: Color(0xFF1A56C4),
+              strokeWidth: 3,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Memuat detail profil...',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileErrorSheet(BuildContext ctx, String name) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        12,
+        24,
+        AppSafeInsets.sheetBottomPadding(ctx, base: 24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.red.shade50,
+            child: Icon(Icons.person_off_outlined,
+                color: Colors.red.shade700, size: 28),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Profil pengguna tidak ditemukan atau koneksi sedang bermasalah.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1A56C4),
+                side: const BorderSide(color: Color(0xFF1A56C4)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Tutup',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserProfileSheetContent(
+    BuildContext ctx,
+    Map<String, dynamic> user,
+  ) {
     final fullName = user['full_name']?.toString() ?? '-';
     final employeeId = user['employee_id']?.toString() ?? '-';
     final department = user['department']?.toString() ?? '-';
@@ -669,9 +943,14 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     final posisi = user['position']?.toString() ?? '-';
     final company = user['company']?.toString() ?? '-';
     final role = user['role']?.toString() ?? 'user';
-    final photoUrl = user['photo_url']?.toString();
+    final photoUrl = (user['photo_url'] ??
+            user['profile_photo_url'] ??
+            user['profile_photo'])
+        ?.toString();
     final phone = user['phone_number']?.toString() ?? '-';
-    final email = user['email']?.toString() ?? '-';
+    final email = (user['email'] ?? user['personal_email'] ?? user['work_email'])
+            ?.toString() ??
+        '-';
     final tipeAfiliasi = user['tipe_afiliasi']?.toString() ?? '-';
 
     final nameParts = fullName.split(' ');
@@ -695,59 +974,49 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       roleLabel = 'HSE Admin';
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        24,
+        12,
+        24,
+        AppSafeInsets.sheetBottomPadding(ctx, base: 24),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF1A56C4).withValues(alpha: 0.1),
+              border: Border.all(
+                color: const Color(0xFF1A56C4).withValues(alpha: 0.2),
+                width: 3,
               ),
             ),
-            const SizedBox(height: 24),
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF1A56C4).withValues(alpha: 0.1),
-                border: Border.all(
-                  color: const Color(0xFF1A56C4).withValues(alpha: 0.2),
-                  width: 3,
-                ),
-              ),
-              child: ClipOval(
-                child: photoUrl != null && photoUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: photoUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        errorWidget: (context, url, error) => Center(
-                          child: Text(
-                            initials,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A56C4),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Center(
+            child: ClipOval(
+              child: photoUrl != null && photoUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: photoUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      errorWidget: (context, url, error) => Center(
                         child: Text(
                           initials,
                           style: const TextStyle(
@@ -757,111 +1026,121 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                           ),
                         ),
                       ),
-              ),
+                    )
+                  : Center(
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A56C4),
+                        ),
+                      ),
+                    ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              fullName,
-              style: const TextStyle(
-                fontSize: 18,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            fullName,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: roleBgColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              roleLabel,
+              style: TextStyle(
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: roleTextColor,
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: roleBgColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                roleLabel,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: roleTextColor,
+          ),
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9F9F9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                _buildProfileField(
+                    Icons.badge_outlined, "NIK / NIP", employeeId),
+                const Divider(height: 20),
+                _buildProfileField(
+                  Icons.phone_outlined,
+                  "Nomor Telepon",
+                  phone,
+                  onTap: (phone != '-' && phone.isNotEmpty)
+                      ? () => _handlePhoneTap(ctx, phone)
+                      : null,
                 ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF9F9F9),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                children: [
-                  _buildProfileField(
-                      Icons.badge_outlined, "NIK / NIP", employeeId),
-                  const Divider(height: 20),
-                  _buildProfileField(
-                    Icons.phone_outlined,
-                    "Nomor Telepon",
-                    phone,
-                    onTap: (phone != '-' && phone.isNotEmpty)
-                        ? () => _handlePhoneTap(context, phone)
-                        : null,
-                  ),
-                  const Divider(height: 20),
-                  _buildProfileField(
-                    Icons.email_outlined,
-                    "Email",
-                    email,
-                    onTap: (email != '-' && email.isNotEmpty)
-                        ? () => _handleEmailTap(email)
-                        : null,
-                  ),
-                  const Divider(height: 20),
-                  _buildProfileField(
-                      Icons.business_outlined, "Perusahaan", company),
-                  const Divider(height: 20),
-                  _buildProfileField(
-                      Icons.handshake_outlined, "Tipe Afiliasi", tipeAfiliasi),
-                  const Divider(height: 20),
-                  _buildProfileField(
-                      Icons.domain_outlined, "Departemen", department),
-                  const Divider(height: 20),
-                  _buildProfileField(
-                    Icons.work_outline,
-                    "Jabatan",
-                    jabatan,
-                  ),
-                  const Divider(height: 20),
-                  _buildProfileField(
-                    Icons.assignment_ind_outlined,
-                    "Posisi",
-                    posisi,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A56C4),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
+                const Divider(height: 20),
+                _buildProfileField(
+                  Icons.email_outlined,
+                  "Email",
+                  email,
+                  onTap: (email != '-' && email.isNotEmpty)
+                      ? () => _handleEmailTap(email)
+                      : null,
                 ),
-                child: const Text(
-                  "Tutup",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                const Divider(height: 20),
+                _buildProfileField(
+                    Icons.business_outlined, "Perusahaan", company),
+                const Divider(height: 20),
+                _buildProfileField(
+                    Icons.handshake_outlined, "Tipe Afiliasi", tipeAfiliasi),
+                const Divider(height: 20),
+                _buildProfileField(
+                    Icons.domain_outlined, "Departemen", department),
+                const Divider(height: 20),
+                _buildProfileField(
+                  Icons.work_outline,
+                  "Jabatan",
+                  jabatan,
                 ),
+                const Divider(height: 20),
+                _buildProfileField(
+                  Icons.assignment_ind_outlined,
+                  "Posisi",
+                  posisi,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A56C4),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                "Tutup",
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1386,7 +1665,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                             label: 'Pelapor',
                             value: _report.reportedBy,
                             onTap: () => _showUserProfileByName(
-                                context, _report.reportedBy)),
+                                  context,
+                                  _report.reportedBy,
+                                  userId: _report.reporterId,
+                                )),
                         const SizedBox(height: 12),
                         _DetailRow(
                             icon: Icons.access_time,
@@ -1529,7 +1811,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                             _DetailRow(
                                 icon: Icons.person_search_outlined,
                                 label: 'Inspektur',
-                                value: _report.nameInspector!),
+                                value: _report.nameInspector!,
+                                onTap: () => _showUserProfileByName(
+                                    context, _report.nameInspector!)),
                             const SizedBox(height: 12),
                           ],
                           if (_report.area != null &&

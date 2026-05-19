@@ -347,6 +347,7 @@ class _InboxScreenState extends State<InboxScreen>
       submitterPhotoUrl: submitter['profile_photo'],
       itemName: license.name,
       itemNumber: license.licenseNumber,
+      itemIssuer: license.issuer,
       itemFileUrl: license.fileUrl,
       itemObtainedAt: _parseDateTextOrNull(license.obtainedAt),
       itemExpiredAt: _parseDateTextOrNull(license.expiredAt),
