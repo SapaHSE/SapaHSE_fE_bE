@@ -115,5 +115,19 @@ class NotificationController extends Controller
             'message' => 'FCM token berhasil didaftarkan',
         ]);
     }
+
+    /**
+     * POST /api/notifications/unregister-fcm — hapus FCM token (nonaktifkan push)
+     */
+    public function unregisterFcmToken(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $user->update(['fcm_token' => null]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'FCM token berhasil dihapus, notifikasi push dinonaktifkan',
+        ]);
+    }
 }
 

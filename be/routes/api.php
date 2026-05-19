@@ -200,6 +200,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // POST   /api/notifications/activity        → update last activity
     // GET    /api/notifications/unread/count    → get unread count
     Route::post('/notifications/register-fcm',       [NotificationController::class, 'registerFcmToken']);
+    Route::post('/notifications/unregister-fcm',     [NotificationController::class, 'unregisterFcmToken']);
     Route::get('/notifications',                     [NotificationController::class, 'getNotifications']);
     Route::get('/notifications/unread/count',        [NotificationController::class, 'getUnreadCount']);
     Route::post('/notifications/read-all',           [NotificationController::class, 'markAllAsRead']);
