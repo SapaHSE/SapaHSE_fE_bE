@@ -637,6 +637,18 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   _DetailRow(
+                    icon: Icons.numbers,
+                    label: 'Nomor Lisensi',
+                    value: _displayValue(_license.licenseNumber),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    icon: Icons.business_outlined,
+                    label: 'Lembaga Penerbit',
+                    value: _displayValue(_license.issuer),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
                     icon: Icons.event_outlined,
                     label: 'Tanggal Diperoleh',
                     value: _formatDateText(_license.obtainedAt, withTime: false),

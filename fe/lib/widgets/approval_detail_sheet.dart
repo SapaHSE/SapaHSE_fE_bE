@@ -619,11 +619,11 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                       : 'Nama Sertifikat',
                                   value: _displayValue(item.itemName),
                                 ),
-                                if (_isLicense) ...[
+                                if (_isLicense || isCertification) ...[
                                   const SizedBox(height: 12),
                                   _DetailRow(
                                     icon: Icons.pin_outlined,
-                                    label: 'Nomor Lisensi',
+                                    label: _isLicense ? 'Nomor Lisensi' : 'Nomor Sertifikat',
                                     value: _displayValue(item.itemNumber),
                                   ),
                                 ],

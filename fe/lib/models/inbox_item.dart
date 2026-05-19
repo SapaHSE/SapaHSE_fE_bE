@@ -252,7 +252,7 @@ class InboxItem {
         submitterPhone: submitter['phone_number']?.toString(),
         submitterPhotoUrl: submitterPhotoUrl,
         itemName: approvalItem['name']?.toString(),
-        itemNumber: approvalItem['license_number']?.toString(),
+        itemNumber: (approvalItem['license_number'] ?? approvalItem['certification_number'])?.toString(),
         itemIssuer: approvalItem['issuer']?.toString(),
         itemFileUrl: type == InboxItemType.approvalRegistration
             ? submitterPhotoUrl

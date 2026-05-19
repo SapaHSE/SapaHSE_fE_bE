@@ -329,7 +329,7 @@ class InboxController extends Controller
         ]);
     }
 
-    private function pendingRegistrationItems($readIds)
+    private function pendingRegistrationItems(\Illuminate\Support\Collection $readIds)
     {
         return User::where('registration_status', 'pending')
             ->latest('created_at')
@@ -339,7 +339,7 @@ class InboxController extends Controller
             });
     }
 
-    private function pendingLicenseItems($readIds)
+    private function pendingLicenseItems(\Illuminate\Support\Collection $readIds)
     {
         return UserLicense::with('user')
             ->where('approval_status', 'pending')
@@ -351,7 +351,7 @@ class InboxController extends Controller
             });
     }
 
-    private function pendingCertificationItems($readIds)
+    private function pendingCertificationItems(\Illuminate\Support\Collection $readIds)
     {
         return UserCertification::with('user')
             ->where('approval_status', 'pending')
@@ -418,8 +418,8 @@ class InboxController extends Controller
                 'id'             => $license->id,
                 'name'           => $license->name,
                 'license_number' => $license->license_number,
-                'obtained_at'    => $license->obtained_at?->format('Y-m-d'),
-                'expired_at'     => $license->expired_at?->format('Y-m-d'),
+                'obtained_at'    => $license->obtained_at ? \Carbon\Carbon::parse($license->obtained_at)->format('Y-m-d') : null,
+                'expired_at'     => $license->expired_at ? \Carbon\Carbon::parse($license->expired_at)->format('Y-m-d') : null,
                 'status'         => $license->status,
                 'file_url'       => $this->resolveFileUrl($license->file_path),
             ],
@@ -454,11 +454,12 @@ class InboxController extends Controller
                 'profile_photo'  => $this->resolveFileUrl($submitter->profile_photo),
             ] : null,
             'item'            => [
-                'id'          => $certification->id,
-                'name'        => $certification->name,
-                'issuer'      => $certification->issuer,
-                'obtained_at' => $certification->obtained_at?->format('Y-m-d'),
-                'expired_at'  => $certification->expired_at?->format('Y-m-d'),
+                'id'                   => $certification->id,
+                'name'                 => $certification->name,
+                'certification_number' => $certification->certification_number,
+                'issuer'               => $certification->issuer,
+                'obtained_at'          => $certification->obtained_at ? \Carbon\Carbon::parse($certification->obtained_at)->format('Y-m-d') : null,
+                'expired_at'  => $certification->expired_at ? \Carbon\Carbon::parse($certification->expired_at)->format('Y-m-d') : null,
                 'status'      => $certification->status,
                 'file_url'    => $this->resolveFileUrl($certification->file_path),
             ],

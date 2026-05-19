@@ -640,6 +640,18 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
                   ),
                   const SizedBox(height: 12),
                   _DetailRow(
+                    icon: Icons.numbers,
+                    label: 'Nomor Sertifikat',
+                    value: _displayValue(_certification.certificationNumber),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    icon: Icons.business_outlined,
+                    label: 'Lembaga Penerbit',
+                    value: _displayValue(_certification.issuer),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
                     icon: Icons.event_outlined,
                     label: 'Tanggal Diperoleh',
                     value: _formatDateText(_certification.obtainedAt, withTime: false),

@@ -1935,10 +1935,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             top: 24,
             bottom: AppSafeInsets.sheetBottomPadding(modalContext),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Row(
                 children: [
                   Text(
@@ -2143,6 +2144,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -2186,10 +2188,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             top: 24,
             bottom: AppSafeInsets.sheetBottomPadding(modalContext),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Row(
                 children: [
                   Text(
@@ -2392,6 +2395,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
@@ -3785,17 +3789,19 @@ class _CertificationDetailPage extends StatelessWidget {
                   _DetailCard(
                     children: [
                       _DetailInfoRow('Nama Sertifikat', certification.name),
+                      _DetailInfoRow('Nomor Sertifikat',
+                          certification.certificationNumber ?? '-'),
                       _DetailInfoRow('Lembaga Penerbit', certification.issuer),
                       _DetailInfoRow(
                           'Tanggal Diperoleh',
                           certification.obtainedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm').format(
+                              ? DateFormat('dd MMM yyyy').format(
                                   DateTime.parse(certification.obtainedAt!))
                               : '-'),
                       _DetailInfoRow(
                           'Berlaku Sampai',
                           certification.expiredAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm').format(
+                              ? DateFormat('dd MMM yyyy').format(
                                   DateTime.parse(certification.expiredAt!))
                               : '-'),
                       _DetailInfoRow('Status', certification.status),
