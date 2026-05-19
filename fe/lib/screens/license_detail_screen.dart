@@ -128,6 +128,92 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
     return CachedNetworkImageProvider(url);
   }
 
+  Future<void> _showImagePreview(String imageUrl) async {
+    await precacheImage(CachedNetworkImageProvider(imageUrl), context);
+    if (!mounted) return;
+
+    final controller = TransformationController();
+    var doubleTapPosition = Offset.zero;
+    const doubleTapZoomScale = 2.5;
+
+    void handleDoubleTap() {
+      final currentScale = controller.value.getMaxScaleOnAxis();
+      if (currentScale > 1.0) {
+        controller.value = Matrix4.identity();
+        return;
+      }
+
+      const scale = doubleTapZoomScale;
+      controller.value = Matrix4(
+        scale,
+        0,
+        0,
+        0,
+        0,
+        scale,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -doubleTapPosition.dx * (scale - 1),
+        -doubleTapPosition.dy * (scale - 1),
+        0,
+        1,
+      );
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            iconTheme: const IconThemeData(color: Colors.white),
+            elevation: 0,
+            title: const Text(
+              '1/1',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          extendBodyBehindAppBar: true,
+          body: Center(
+            child: GestureDetector(
+              onDoubleTapDown: (details) =>
+                  doubleTapPosition = details.localPosition,
+              onDoubleTap: handleDoubleTap,
+              child: InteractiveViewer(
+                minScale: 1.0,
+                maxScale: 4.0,
+                transformationController: controller,
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const CircularProgressIndicator(
+                    color: Colors.white,
+                  ),
+                  errorWidget: (_, __, ___) => const Icon(
+                    Icons.image,
+                    color: Colors.white54,
+                    size: 80,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    controller.dispose();
+  }
+
   Future<void> _handleApprove() async {
     if (_isSubmitting || widget.onApprove == null) return;
     final confirmed = await showDialog<bool>(
@@ -203,11 +289,14 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
         fit: StackFit.expand,
         children: [
           if (hasImage)
-            CachedNetworkImage(
-              imageUrl: fileUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => fallback,
-              errorWidget: (_, __, ___) => fallback,
+            GestureDetector(
+              onTap: () => _showImagePreview(fileUrl),
+              child: CachedNetworkImage(
+                imageUrl: fileUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => fallback,
+                errorWidget: (_, __, ___) => fallback,
+              ),
             )
           else
             fallback,
@@ -215,16 +304,18 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              height: 70,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.65),
-                    Colors.transparent,
-                  ],
+            child: IgnorePointer(
+              child: Container(
+                height: 70,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.65),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -232,13 +323,15 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
           Positioned(
             bottom: 12,
             left: 16,
-            child: Row(
-              children: [
-                _badge(_approvalStyle.label, _approvalStyle.fg,
-                    bg: _approvalStyle.bg),
-                const SizedBox(width: 8),
-                _badge('LISENSI', const Color(0xFFEF6C00)),
-              ],
+            child: IgnorePointer(
+              child: Row(
+                children: [
+                  _badge(_approvalStyle.label, _approvalStyle.fg,
+                      bg: _approvalStyle.bg),
+                  const SizedBox(width: 8),
+                  _badge('LISENSI', const Color(0xFFEF6C00)),
+                ],
+              ),
             ),
           ),
         ],
@@ -501,21 +594,46 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _license.name,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'LISENSI',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFFEF6C00),
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.badge_outlined,
+                          color: Color(0xFFEF6C00),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _license.name,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'LISENSI',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFFEF6C00),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const Divider(height: 24),
                   _DetailRow(

@@ -43,7 +43,93 @@ class ViolationDetailScreen extends StatelessWidget {
     return _formatDate(dt, withTime: withTime);
   }
 
-  Widget _buildHeroArea() {
+  Future<void> _showImagePreview(BuildContext context, String imageUrl) async {
+    await precacheImage(CachedNetworkImageProvider(imageUrl), context);
+    if (!context.mounted) return;
+
+    final controller = TransformationController();
+    var doubleTapPosition = Offset.zero;
+    const doubleTapZoomScale = 2.5;
+
+    void handleDoubleTap() {
+      final currentScale = controller.value.getMaxScaleOnAxis();
+      if (currentScale > 1.0) {
+        controller.value = Matrix4.identity();
+        return;
+      }
+
+      const scale = doubleTapZoomScale;
+      controller.value = Matrix4(
+        scale,
+        0,
+        0,
+        0,
+        0,
+        scale,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        -doubleTapPosition.dx * (scale - 1),
+        -doubleTapPosition.dy * (scale - 1),
+        0,
+        1,
+      );
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            iconTheme: const IconThemeData(color: Colors.white),
+            elevation: 0,
+            title: const Text(
+              '1/1',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          extendBodyBehindAppBar: true,
+          body: Center(
+            child: GestureDetector(
+              onDoubleTapDown: (details) =>
+                  doubleTapPosition = details.localPosition,
+              onDoubleTap: handleDoubleTap,
+              child: InteractiveViewer(
+                minScale: 1.0,
+                maxScale: 4.0,
+                transformationController: controller,
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const CircularProgressIndicator(
+                    color: Colors.white,
+                  ),
+                  errorWidget: (_, __, ___) => const Icon(
+                    Icons.image,
+                    color: Colors.white54,
+                    size: 80,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    controller.dispose();
+  }
+
+  Widget _buildHeroArea(BuildContext context) {
     final fileUrl = (violation.fileUrl ?? '').trim();
     final hasImage = fileUrl.isNotEmpty;
 
@@ -64,11 +150,14 @@ class ViolationDetailScreen extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (hasImage)
-            CachedNetworkImage(
-              imageUrl: fileUrl,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => fallback,
-              errorWidget: (_, __, ___) => fallback,
+            GestureDetector(
+              onTap: () => _showImagePreview(context, fileUrl),
+              child: CachedNetworkImage(
+                imageUrl: fileUrl,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => fallback,
+                errorWidget: (_, __, ___) => fallback,
+              ),
             )
           else
             fallback,
@@ -76,16 +165,18 @@ class ViolationDetailScreen extends StatelessWidget {
             bottom: 0,
             left: 0,
             right: 0,
-            child: Container(
-              height: 70,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.65),
-                    Colors.transparent,
-                  ],
+            child: IgnorePointer(
+              child: Container(
+                height: 70,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.65),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -93,18 +184,20 @@ class ViolationDetailScreen extends StatelessWidget {
           Positioned(
             bottom: 12,
             left: 16,
-            child: Row(
-              children: [
-                _badge(
-                  violation.status,
-                  _isActive ? _danger : const Color(0xFF616161),
-                  bg: _isActive
-                      ? const Color(0xFFFFEBEE)
-                      : const Color(0xFFF5F5F5),
-                ),
-                const SizedBox(width: 8),
-                _badge('PELANGGARAN', _danger),
-              ],
+            child: IgnorePointer(
+              child: Row(
+                children: [
+                  _badge(
+                    violation.status,
+                    _isActive ? _danger : const Color(0xFF616161),
+                    bg: _isActive
+                        ? const Color(0xFFFFEBEE)
+                        : const Color(0xFFF5F5F5),
+                  ),
+                  const SizedBox(width: 8),
+                  _badge('PELANGGARAN', _danger),
+                ],
+              ),
             ),
           ),
         ],
@@ -140,27 +233,52 @@ class ViolationDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeroArea(),
+            _buildHeroArea(context),
             _card(
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    violation.title,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'PELANGGARAN',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: _danger,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEBEE),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: _danger,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              violation.title,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'PELANGGARAN',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: _danger,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const Divider(height: 24),
                   _DetailRow(

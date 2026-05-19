@@ -4116,16 +4116,18 @@ class _ProfileDetailHero extends StatelessWidget {
           else
             fallback(),
           Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0),
-                    Colors.black.withValues(alpha: 0.62),
-                  ],
-                  stops: const [0.55, 1],
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0),
+                      Colors.black.withValues(alpha: 0.62),
+                    ],
+                    stops: const [0.55, 1],
+                  ),
                 ),
               ),
             ),
@@ -4134,10 +4136,12 @@ class _ProfileDetailHero extends StatelessWidget {
             left: 16,
             right: 16,
             bottom: 16,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: badges,
+            child: IgnorePointer(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: badges,
+              ),
             ),
           ),
         ],
@@ -4234,79 +4238,6 @@ class _DetailSectionTitle extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AttachmentPreviewCard extends StatelessWidget {
-  final String title;
-  final String imageUrl;
-  final Color accentColor;
-
-  const _AttachmentPreviewCard({
-    required this.title,
-    required this.imageUrl,
-    required this.accentColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageUrl.isEmpty) return const SizedBox.shrink();
-
-    return InkWell(
-      onTap: () => _showProfileAttachmentPreview(context, imageUrl),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.image_outlined, color: accentColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Tersedia',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400),
-          ],
-        ),
       ),
     );
   }
@@ -4696,14 +4627,6 @@ class _LicenseDetailPage extends StatelessWidget {
                     _RejectionReasonCard(
                         reason: license.rejectionReason!.trim()),
                   ],
-                  if (imageUrl.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _AttachmentPreviewCard(
-                      title: 'Lampiran lisensi',
-                      imageUrl: imageUrl,
-                      accentColor: typeColor,
-                    ),
-                  ],
                   SizedBox(
                     height: AppSafeInsets.bottomNavScrollPadding(
                       context,
@@ -4882,14 +4805,6 @@ class _CertificationDetailPage extends StatelessWidget {
                     _RejectionReasonCard(
                         reason: certification.rejectionReason!.trim()),
                   ],
-                  if (imageUrl.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _AttachmentPreviewCard(
-                      title: 'Lampiran sertifikat',
-                      imageUrl: imageUrl,
-                      accentColor: typeColor,
-                    ),
-                  ],
                   SizedBox(
                     height: AppSafeInsets.bottomNavScrollPadding(
                       context,
@@ -4979,14 +4894,6 @@ class _ViolationDetailPage extends StatelessWidget {
                       _DetailInfoRow('Sanksi', violation.sanction ?? '-'),
                     ],
                   ),
-                  if (imageUrl.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _AttachmentPreviewCard(
-                      title: 'Lampiran pelanggaran',
-                      imageUrl: imageUrl,
-                      accentColor: color,
-                    ),
-                  ],
                   SizedBox(
                     height: AppSafeInsets.bottomNavScrollPadding(
                       context,
