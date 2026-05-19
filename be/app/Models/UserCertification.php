@@ -12,6 +12,7 @@ class UserCertification extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'certification_number',
         'issuer',
         'obtained_at',
         'expired_at',

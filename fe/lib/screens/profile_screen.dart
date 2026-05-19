@@ -312,9 +312,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                       backgroundColor: Colors.white,
                                       body: _buildWorkspaceTab(),
-                                      floatingActionButton: FloatingActionButton(
+                                      floatingActionButton:
+                                          FloatingActionButton(
                                         onPressed: _openFabMenu,
-                                        backgroundColor: const Color(0xFF1A56C4),
+                                        backgroundColor:
+                                            const Color(0xFF1A56C4),
                                         foregroundColor: Colors.white,
                                         shape: const CircleBorder(),
                                         elevation: 4,
@@ -322,7 +324,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                       extendBody: true,
                                       floatingActionButtonLocation:
-                                          FloatingActionButtonLocation.centerDocked,
+                                          FloatingActionButtonLocation
+                                              .centerDocked,
                                       bottomNavigationBar: FabNotchedBottomBar(
                                         child: Row(
                                           mainAxisAlignment:
@@ -376,8 +379,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
               ),
+              _buildAboutFooter(),
               SizedBox(
-                height: AppSafeInsets.bottomNavScrollPadding(context),
+                height: FabNotchedBottomBar.effectiveHeight(context) + 20,
               ),
             ],
           ),
@@ -440,13 +444,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         parseNullableDisplayName(_cachedUser?['position']) ??
         '-';
     final company = formatCompanyAffiliation(
-      tipeAfiliasi:
-          _profileData?.tipeAfiliasi ?? _cachedUser?['tipe_afiliasi']?.toString(),
-      ownerCompany: _profileData?.company ?? _cachedUser?['company']?.toString(),
+      tipeAfiliasi: _profileData?.tipeAfiliasi ??
+          _cachedUser?['tipe_afiliasi']?.toString(),
+      ownerCompany:
+          _profileData?.company ?? _cachedUser?['company']?.toString(),
       contractorCompany: _profileData?.perusahaanKontraktor ??
           _cachedUser?['perusahaan_kontraktor']?.toString(),
-      subContractorCompany:
-          _profileData?.subKontraktor ?? _cachedUser?['sub_kontraktor']?.toString(),
+      subContractorCompany: _profileData?.subKontraktor ??
+          _cachedUser?['sub_kontraktor']?.toString(),
       ownerCompanyCodeLookup: _ownerCodeByName,
     );
     final role = parseNullableDisplayName(_profileData?.role) ??
@@ -637,7 +642,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Color(0xFFD32F2F),
                             fontWeight: FontWeight.w700)),
                   ),
-                Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+                Icon(Icons.chevron_right,
+                    color: Colors.grey.shade400, size: 20),
               ],
             ),
           ),
@@ -889,6 +895,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAboutFooter() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                "assets/logo.png",
+                height: 34,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.health_and_safety,
+                  color: Color(0xFF1A56C4),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "SapaHSE",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      "Tim Pengembang:",
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      "Noor Lintang Bhaskara : Front End\nMuhammad Fa'iz : Middleware\nReyfaldho Alfarazel : Back End",
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Text(
+                "v1.0.0",
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "© 2026 SapaHSE. All Rights Reserved.",
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

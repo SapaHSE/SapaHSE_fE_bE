@@ -11,6 +11,7 @@ import '../models/user_model.dart';
 import '../services/storage_service.dart';
 import '../services/supabase_storage_service.dart';
 import '../config/supabase_config.dart';
+import '../services/auth_service.dart';
 import '../main.dart';
 import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
@@ -36,8 +37,6 @@ class _ClampedCurve extends Curve {
   @override
   double transform(double t) => curve.transform(t.clamp(0.0, 1.0));
 }
-
-
 
 class ReportDetailScreen extends StatefulWidget {
   final Report report;
@@ -495,6 +494,482 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     });
   }
 
+  void _showUserProfileByName(BuildContext context, String nameStr) {
+    final rawParts = nameStr.split(',');
+    final cleanNames = <String>[];
+    for (var part in rawParts) {
+      final name = part.trim();
+      if (name.isNotEmpty) {
+        final lower = name.toLowerCase();
+        if (lower == 'departemen hse' ||
+            lower == 'hse' ||
+            lower == 'departemen' ||
+            lower == 'pic') {
+          continue;
+        }
+        final parenIdx = name.indexOf('(');
+        var filteredName = name;
+        if (parenIdx != -1) {
+          filteredName = name.substring(0, parenIdx).trim();
+        }
+        if (filteredName.isNotEmpty) {
+          cleanNames.add(filteredName);
+        }
+      }
+    }
+
+    if (cleanNames.isEmpty) return;
+
+    if (cleanNames.length == 1) {
+      _fetchAndShowUserProfile(context, cleanNames[0]);
+    } else {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Pilih Profil Pengguna",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: cleanNames.length,
+                itemBuilder: (context, index) {
+                  final name = cleanNames[index];
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFF0F4FC),
+                      child: Icon(Icons.person, color: Color(0xFF1A56C4)),
+                    ),
+                    title: Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _fetchAndShowUserProfile(context, name);
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  void _fetchAndShowUserProfile(BuildContext context, String name) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (ctx) {
+        return Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF1A56C4),
+                    strokeWidth: 3,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  "Memuat Profil...",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    try {
+      final response = await AuthService.listUsers(search: name);
+
+      // Ensure we pop the loading dialog safely
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      if (response.success && response.data != null) {
+        final usersList = response.data['data'] as List<dynamic>?;
+        if (usersList != null && usersList.isNotEmpty) {
+          final userData = usersList.firstWhere(
+            (u) =>
+                u['full_name']?.toString().toLowerCase().trim() ==
+                name.toLowerCase().trim(),
+            orElse: () => usersList.first,
+          );
+
+          if (context.mounted) {
+            _showUserProfileBottomSheet(context, userData);
+          }
+          return;
+        }
+      }
+
+      if (context.mounted) {
+        _showTrackedSnackBar(
+          const SnackBar(content: Text('Profil pengguna tidak ditemukan.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+        _showTrackedSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Terjadi kesalahan koneksi. Server mungkin sedang offline.')),
+        );
+      }
+    }
+  }
+
+  void _showUserProfileBottomSheet(
+      BuildContext context, Map<String, dynamic> user) {
+    final fullName = user['full_name']?.toString() ?? '-';
+    final employeeId = user['employee_id']?.toString() ?? '-';
+    final department = user['department']?.toString() ?? '-';
+    final jabatan = user['jabatan']?.toString() ?? '-';
+    final posisi = user['position']?.toString() ?? '-';
+    final company = user['company']?.toString() ?? '-';
+    final role = user['role']?.toString() ?? 'user';
+    final photoUrl = user['photo_url']?.toString();
+    final phone = user['phone_number']?.toString() ?? '-';
+    final email = user['email']?.toString() ?? '-';
+    final tipeAfiliasi = user['tipe_afiliasi']?.toString() ?? '-';
+
+    final nameParts = fullName.split(' ');
+    final initials = nameParts.length > 1
+        ? '${nameParts[0][0]}${nameParts[1][0]}'.toUpperCase()
+        : nameParts.isNotEmpty && nameParts[0].isNotEmpty
+            ? nameParts[0][0].toUpperCase()
+            : '?';
+
+    Color roleBgColor = const Color(0xFFF0F4FC);
+    Color roleTextColor = const Color(0xFF1A56C4);
+    String roleLabel = 'Worker';
+
+    if (role.toLowerCase() == 'superadmin') {
+      roleBgColor = const Color(0xFFFFEBEE);
+      roleTextColor = const Color(0xFFD32F2F);
+      roleLabel = 'Superadmin';
+    } else if (role.toLowerCase() == 'admin') {
+      roleBgColor = const Color(0xFFE8F5E9);
+      roleTextColor = const Color(0xFF2E7D32);
+      roleLabel = 'HSE Admin';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1A56C4).withValues(alpha: 0.1),
+                border: Border.all(
+                  color: const Color(0xFF1A56C4).withValues(alpha: 0.2),
+                  width: 3,
+                ),
+              ),
+              child: ClipOval(
+                child: photoUrl != null && photoUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: photoUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        errorWidget: (context, url, error) => Center(
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A56C4),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          initials,
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A56C4),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              fullName,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: roleBgColor,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                roleLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: roleTextColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9F9F9),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  _buildProfileField(
+                      Icons.badge_outlined, "NIK / NIP", employeeId),
+                  const Divider(height: 20),
+                  _buildProfileField(
+                    Icons.phone_outlined,
+                    "Nomor Telepon",
+                    phone,
+                    onTap: (phone != '-' && phone.isNotEmpty)
+                        ? () => _handlePhoneTap(context, phone)
+                        : null,
+                  ),
+                  const Divider(height: 20),
+                  _buildProfileField(
+                    Icons.email_outlined,
+                    "Email",
+                    email,
+                    onTap: (email != '-' && email.isNotEmpty)
+                        ? () => _handleEmailTap(email)
+                        : null,
+                  ),
+                  const Divider(height: 20),
+                  _buildProfileField(
+                      Icons.business_outlined, "Perusahaan", company),
+                  const Divider(height: 20),
+                  _buildProfileField(
+                      Icons.handshake_outlined, "Tipe Afiliasi", tipeAfiliasi),
+                  const Divider(height: 20),
+                  _buildProfileField(
+                      Icons.domain_outlined, "Departemen", department),
+                  const Divider(height: 20),
+                  _buildProfileField(
+                    Icons.work_outline,
+                    "Jabatan",
+                    jabatan,
+                  ),
+                  const Divider(height: 20),
+                  _buildProfileField(
+                    Icons.assignment_ind_outlined,
+                    "Posisi",
+                    posisi,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A56C4),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  "Tutup",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handlePhoneTap(BuildContext context, String phoneStr) {
+    String cleanPhone = phoneStr.replaceAll(RegExp(r'[^\d+]'), '');
+    String waPhone = cleanPhone;
+    if (waPhone.startsWith('0')) {
+      waPhone = '+62${waPhone.substring(1)}';
+    } else if (waPhone.startsWith('62')) {
+      waPhone = '+$waPhone';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, AppSafeInsets.sheetBottomPadding(ctx, base: 20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Hubungi via",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.phone, color: Color(0xFF1A56C4)),
+              title: const Text("Telepon"),
+              onTap: () {
+                Navigator.pop(ctx);
+                launchUrl(Uri.parse('tel:$cleanPhone'));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.chat, color: Colors.green),
+              title: const Text("WhatsApp"),
+              onTap: () {
+                Navigator.pop(ctx);
+                launchUrl(
+                  Uri.parse('https://wa.me/${waPhone.replaceAll('+', '')}'),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleEmailTap(String emailStr) {
+    launchUrl(Uri.parse('mailto:$emailStr'));
+  }
+
+  Widget _buildProfileField(IconData icon, String label, String value,
+      {VoidCallback? onTap}) {
+    Widget content = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.grey.shade600),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color:
+                      onTap != null ? const Color(0xFF1A56C4) : Colors.black87,
+                  decoration: onTap != null ? TextDecoration.underline : null,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (onTap != null)
+          const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+      ],
+    );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: content,
+        ),
+      );
+    }
+    return content;
+  }
+
   void _showUpdateStatusModal() {
     if (!_canTapUpdateFab) return;
     showModalBottomSheet(
@@ -909,7 +1384,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                         _DetailRow(
                             icon: Icons.person_outline,
                             label: 'Pelapor',
-                            value: _report.reportedBy),
+                            value: _report.reportedBy,
+                            onTap: () => _showUserProfileByName(
+                                context, _report.reportedBy)),
                         const SizedBox(height: 12),
                         _DetailRow(
                             icon: Icons.access_time,
@@ -930,7 +1407,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                           _DetailRow(
                               icon: Icons.warning_amber_outlined,
                               label: 'Tersangka Pelanggaran',
-                              value: _report.pelakuPelanggaran!),
+                              value: _report.pelakuPelanggaran!,
+                              onTap: () => _showUserProfileByName(
+                                  context, _report.pelakuPelanggaran!)),
                         ],
                       ],
                     ),
@@ -959,7 +1438,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                           _DetailRow(
                               icon: Icons.group_outlined,
                               label: 'Petugas Lainnya',
-                              value: _report.picDepartment!),
+                              value: _report.picDepartment!,
+                              onTap: () => _showUserProfileByName(
+                                  context, _report.picDepartment!)),
                         ],
                         if (_report.subStatus == ReportSubStatus.deferred) ...[
                           const SizedBox(height: 12),
@@ -1236,58 +1717,57 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
             right: 16,
             bottom: _scrollFabBottomOffset,
             child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 320),
-                switchInCurve: const _ClampedCurve(Curves.easeOutBack),
-                switchOutCurve: const _ClampedCurve(Curves.easeInCubic),
-                transitionBuilder: (child, animation) {
-                  final clampedAnim = CurvedAnimation(
+              duration: const Duration(milliseconds: 320),
+              switchInCurve: const _ClampedCurve(Curves.easeOutBack),
+              switchOutCurve: const _ClampedCurve(Curves.easeInCubic),
+              transitionBuilder: (child, animation) {
+                final clampedAnim = CurvedAnimation(
+                  parent: animation,
+                  curve: const _ClampedCurve(Curves.linear),
+                );
+                final slide = Tween<Offset>(
+                  begin: const Offset(0, 0.22),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: const _ClampedCurve(Curves.easeOutCubic),
+                ));
+                final scale = Tween<double>(begin: 0.9, end: 1.0).animate(
+                  CurvedAnimation(
                     parent: animation,
-                    curve: const _ClampedCurve(Curves.linear),
-                  );
-                  final slide = Tween<Offset>(
-                    begin: const Offset(0, 0.22),
-                    end: Offset.zero,
-                  ).animate(CurvedAnimation(
-                    parent: animation,
-                    curve: const _ClampedCurve(Curves.easeOutCubic),
-                  ));
-                  final scale = Tween<double>(begin: 0.9, end: 1.0).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: const _ClampedCurve(Curves.easeOutBack),
-                    ),
-                  );
-                  return FadeTransition(
-                    opacity: clampedAnim,
-                    child: SlideTransition(
-                      position: slide,
-                      child: ScaleTransition(scale: scale, child: child),
-                    ),
-                  );
-                },
-                child: _showScrollToBottom
-                    ? FloatingActionButton.small(
-                        heroTag: 'report_detail_scroll_fab',
-                        key: ValueKey(
-                            'scroll_fab_${_isScrolledToBottom ? 'up' : 'down'}'),
-                        onPressed: _isScrolledToBottom
-                            ? _scrollToTop
-                            : _scrollToBottom,
-                        backgroundColor: _blue,
-                        foregroundColor: Colors.white,
-                        elevation: 4,
-                        tooltip: _isScrolledToBottom
-                            ? 'Gulir ke atas'
-                            : 'Gulir ke bawah',
-                        child: Icon(
-                          _isScrolledToBottom
-                              ? Icons.keyboard_double_arrow_up
-                              : Icons.keyboard_double_arrow_down,
-                          size: 22,
-                        ),
-                      )
-                    : const SizedBox.shrink(key: ValueKey('scroll_fab_hidden')),
-              ),
+                    curve: const _ClampedCurve(Curves.easeOutBack),
+                  ),
+                );
+                return FadeTransition(
+                  opacity: clampedAnim,
+                  child: SlideTransition(
+                    position: slide,
+                    child: ScaleTransition(scale: scale, child: child),
+                  ),
+                );
+              },
+              child: _showScrollToBottom
+                  ? FloatingActionButton.small(
+                      heroTag: 'report_detail_scroll_fab',
+                      key: ValueKey(
+                          'scroll_fab_${_isScrolledToBottom ? 'up' : 'down'}'),
+                      onPressed:
+                          _isScrolledToBottom ? _scrollToTop : _scrollToBottom,
+                      backgroundColor: _blue,
+                      foregroundColor: Colors.white,
+                      elevation: 4,
+                      tooltip: _isScrolledToBottom
+                          ? 'Gulir ke atas'
+                          : 'Gulir ke bawah',
+                      child: Icon(
+                        _isScrolledToBottom
+                            ? Icons.keyboard_double_arrow_up
+                            : Icons.keyboard_double_arrow_down,
+                        size: 22,
+                      ),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('scroll_fab_hidden')),
+            ),
           ),
         ],
       ),
@@ -1350,7 +1830,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       await _timelineFuture;
       if (!mounted) return;
       setState(() {
-        _timelineFuture = ReportStore.instance.loadTimeline(_report.id, force: true);
+        _timelineFuture =
+            ReportStore.instance.loadTimeline(_report.id, force: true);
       });
       await _timelineFuture;
       if (!mounted) return;
@@ -1557,69 +2038,69 @@ class _TimelineStatusGroupSection extends StatelessWidget {
     final lineColor = statusColor.withValues(alpha: 0.18);
 
     return Stack(
-        children: [
-          Positioned(
-            top: isFirstGroup ? 24 : 0,
-            bottom: 0,
-            left: 19,
-            width: 2,
-            child: ColoredBox(color: lineColor),
-          ),
-          Positioned(
-            top: 24,
-            left: 20,
-            width: 28,
-            height: 1.5,
-            child: ColoredBox(color: lineColor),
-          ),
-          Positioned(
-            top: 18,
-            left: 14,
-            child: Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(color: statusColor, width: 2),
-              ),
+      children: [
+        Positioned(
+          top: isFirstGroup ? 24 : 0,
+          bottom: 0,
+          left: 19,
+          width: 2,
+          child: ColoredBox(color: lineColor),
+        ),
+        Positioned(
+          top: 24,
+          left: 20,
+          width: 28,
+          height: 1.5,
+          child: ColoredBox(color: lineColor),
+        ),
+        Positioned(
+          top: 18,
+          left: 14,
+          child: Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: statusColor, width: 2),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 40),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Container(
-                      padding: EdgeInsets.zero,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FF),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: statusColor.withValues(alpha: 0.18),
-                        ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(width: 40),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.18),
                       ),
-                      child: SizedBox(
-                        height: 48,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Flexible(
-                              flex: 11,
-                              child: ClipRRect(
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(12),
-                                  bottomLeft: Radius.circular(12),
-                                ),
-                                child: ClipPath(
-                                  clipBehavior: Clip.antiAlias,
-                                  clipper: const _TimelineStatusBannerClipper(),
-                                  child: Container(
+                    ),
+                    child: SizedBox(
+                      height: 48,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Flexible(
+                            flex: 11,
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(12),
+                                bottomLeft: Radius.circular(12),
+                              ),
+                              child: ClipPath(
+                                clipBehavior: Clip.antiAlias,
+                                clipper: const _TimelineStatusBannerClipper(),
+                                child: Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       begin: Alignment.centerLeft,
@@ -1638,94 +2119,94 @@ class _TimelineStatusGroupSection extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 10,
                                   ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 24,
-                                          height: 24,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            border: Border.all(
-                                              color: Colors.white,
-                                              width: 1.1,
-                                            ),
-                                            color: Colors.white
-                                                .withValues(alpha: 0.14),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 24,
+                                        height: 24,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.white,
+                                            width: 1.1,
                                           ),
-                                          child: Icon(
-                                            statusIcon,
-                                            size: 13,
+                                          color: Colors.white
+                                              .withValues(alpha: 0.14),
+                                        ),
+                                        child: Icon(
+                                          statusIcon,
+                                          size: 13,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          group.label,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.left,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
                                             color: Colors.white,
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            group.label,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            textAlign: TextAlign.left,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
-                            Flexible(
-                              flex: 9,
-                              child: Container(
-                                alignment: Alignment.center,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 10),
-                                child: Text(
-                                  formatDate(group.startedAt),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade700,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                          ),
+                          Flexible(
+                            flex: 9,
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              child: Text(
+                                formatDate(group.startedAt),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              ...group.events.asMap().entries.map((entry) {
-                final index = entry.key;
-                final event = entry.value;
-                final isLastInGroup = index == group.events.length - 1;
-                return _TimelineItem(
-                  reportId: reportId,
-                  canViewReplies: canViewReplies,
-                  canReply: canReply,
-                  onShowSnackBar: onShowSnackBar,
-                  event: event,
-                  isLastInGroup: isLastInGroup,
-                  isCurrent: isCurrentGroup && isLastInGroup,
-                  statusColor: statusColor,
-                  formatDate: formatDate,
-                );
-              }),
-              if (!isLastGroup) const SizedBox(height: 18),
-            ],
-          ),
-        ],
-      );
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...group.events.asMap().entries.map((entry) {
+              final index = entry.key;
+              final event = entry.value;
+              final isLastInGroup = index == group.events.length - 1;
+              return _TimelineItem(
+                reportId: reportId,
+                canViewReplies: canViewReplies,
+                canReply: canReply,
+                onShowSnackBar: onShowSnackBar,
+                event: event,
+                isLastInGroup: isLastInGroup,
+                isCurrent: isCurrentGroup && isLastInGroup,
+                statusColor: statusColor,
+                formatDate: formatDate,
+              );
+            }),
+            if (!isLastGroup) const SizedBox(height: 18),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -2649,8 +3130,7 @@ class _TimelineThreadCardState extends State<_TimelineThreadCard> {
                                   tapTargetSize:
                                       MaterialTapTargetSize.shrinkWrap,
                                   foregroundColor: const Color(0xFF1A56C4),
-                                  disabledForegroundColor:
-                                      Colors.grey.shade700,
+                                  disabledForegroundColor: Colors.grey.shade700,
                                 ),
                                 icon: const Icon(
                                   Icons.reply_rounded,
@@ -3324,8 +3804,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     final cur = _currentLinearIndex;
     if (ti < cur) return false; // backward blocked
     if (ti == cur || ti == cur + 1) return true; // stay or advance one step
-    if (_canAdminSkipApprovedToAssigned &&
-        target == ReportSubStatus.assigned) {
+    if (_canAdminSkipApprovedToAssigned && target == ReportSubStatus.assigned) {
       return true;
     }
     // Forward skip: every intermediate stage must be skippable.

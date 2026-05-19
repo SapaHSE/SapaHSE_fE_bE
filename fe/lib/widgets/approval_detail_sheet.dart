@@ -273,6 +273,9 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
+    final displayTitle = item.title.toLowerCase().startsWith('pengajuan')
+        ? item.title
+        : 'Pengajuan ${item.title}';
     final submitDate = item.submittedAt ?? item.createdAt;
     final status = _statusStyle(item.approvalStatus);
     final sheetHeight = MediaQuery.of(context).size.height * 0.85;
@@ -359,7 +362,7 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              item.title,
+                              displayTitle,
                               style: const TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
@@ -372,12 +375,6 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if ((item.description ?? '').trim().isNotEmpty)
-                    Text(
-                      item.description!,
-                      style: const TextStyle(fontSize: 13, color: Colors.black54, height: 1.4),
-                    ),
-                  const SizedBox(height: 14),
                   const Divider(),
                   const SizedBox(height: 10),
                   _row('Pemohon', item.submitterName),

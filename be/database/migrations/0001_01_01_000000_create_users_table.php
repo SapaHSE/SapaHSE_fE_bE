@@ -24,7 +24,6 @@ return new class extends Migration
             $table->string('tipe_afiliasi', 50)->nullable();
             $table->string('perusahaan_kontraktor', 100)->nullable();
             $table->string('sub_kontraktor', 100)->nullable();
-            $table->string('simper', 50)->nullable();
             $table->string('address', 500)->nullable();
             $table->string('password_hash', 255);
             $table->text('profile_photo')->nullable();
