@@ -3504,16 +3504,17 @@ class _LicenseDetailPage extends StatelessWidget {
                     children: [
                       _DetailInfoRow('Nama Lisensi', license.name),
                       _DetailInfoRow('Nomor Lisensi', license.licenseNumber),
+                      _DetailInfoRow('Lembaga Penerbit', license.issuer ?? '-'),
                       _DetailInfoRow(
                           'Tanggal Diperoleh',
                           license.obtainedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
+                              ? DateFormat('dd MMM yyyy')
                                   .format(DateTime.parse(license.obtainedAt!))
                               : '-'),
                       _DetailInfoRow(
                           'Berlaku Sampai',
                           license.expiredAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
+                              ? DateFormat('dd MMM yyyy')
                                   .format(DateTime.parse(license.expiredAt!))
                               : '-'),
                       _DetailInfoRow('Status', license.status),

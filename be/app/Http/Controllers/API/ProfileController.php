@@ -158,6 +158,7 @@ class ProfileController extends Controller
         $request->validate([
             'name'           => 'required|string|max:150', 
             'license_number' => 'required|string|max:100',
+            'issuer'         => 'nullable|string|max:100',
             'obtained_at'    => 'nullable|date',
             'expired_at'     => 'nullable|date', 
             'status'         => 'required|string|in:active,expired,suspended',
@@ -168,7 +169,7 @@ class ProfileController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        $data = $request->only('name', 'license_number', 'obtained_at', 'expired_at', 'status');
+        $data = $request->only('name', 'license_number', 'issuer', 'obtained_at', 'expired_at', 'status');
         $data['approval_status'] = 'pending';
         $data['is_verified'] = false;
         $data['rejection_reason'] = null;
@@ -211,6 +212,7 @@ class ProfileController extends Controller
         $request->validate([
             'name'           => 'required|string|max:150',
             'license_number' => 'required|string|max:100',
+            'issuer'         => 'nullable|string|max:100',
             'obtained_at'    => 'nullable|date',
             'expired_at'     => 'nullable|date',
             'status'         => 'required|string|in:active,expired,suspended',
@@ -221,7 +223,7 @@ class ProfileController extends Controller
         $license = $user->licenses()->findOrFail($id);
 
         $license->update($request->only(
-            'name', 'license_number', 'obtained_at', 'expired_at', 'status'
+            'name', 'license_number', 'issuer', 'obtained_at', 'expired_at', 'status'
         ));
 
         return \response()->json([
@@ -487,6 +489,7 @@ class ProfileController extends Controller
                 'id'             => $l->id,
                 'name'           => $l->name,
                 'license_number' => $l->license_number,
+                'issuer'         => $l->issuer,
                 'obtained_at'    => $l->obtained_at?->format('Y-m-d'),
                 'expired_at'     => $l->expired_at?->format('Y-m-d'),
                 'status'         => $l->status,

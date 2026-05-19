@@ -13,6 +13,7 @@ class UserLicense extends Model
         'user_id',
         'name',
         'license_number',
+        'issuer',
         'obtained_at',
         'expired_at',
         'status',

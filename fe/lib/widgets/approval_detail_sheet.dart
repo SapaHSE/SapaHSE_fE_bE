@@ -627,11 +627,11 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                     value: _displayValue(item.itemNumber),
                                   ),
                                 ],
-                                if (isCertification) ...[
+                                if (_isLicense || isCertification) ...[
                                   const SizedBox(height: 12),
                                   _DetailRow(
                                     icon: Icons.account_balance_outlined,
-                                    label: 'Penerbit',
+                                    label: 'Lembaga Penerbit',
                                     value: _displayValue(item.itemIssuer),
                                   ),
                                 ],
