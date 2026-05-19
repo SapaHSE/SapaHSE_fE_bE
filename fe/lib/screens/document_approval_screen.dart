@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../services/approval_service.dart';
 import '../models/profile_model.dart';
 import '../widgets/app_safe_insets.dart';
+import '../widgets/reject_reason_dialog.dart';
 import 'license_detail_screen.dart';
 import 'certification_detail_screen.dart';
 
@@ -168,6 +169,14 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
                       isApprovalMode: true,
                       onApprove: _approveDocument,
                       onReject: _rejectDocument,
+                      submitterName: user['full_name']?.toString(),
+                      submitterEmployeeId: user['employee_id']?.toString(),
+                      submitterDept: user['department']?.toString(),
+                      submitterPosition: user['position']?.toString(),
+                      submitterCompany: user['company']?.toString(),
+                      submitterEmail: user['personal_email']?.toString(),
+                      submitterPhone: user['phone_number']?.toString(),
+                      submitterPhotoUrl: user['profile_photo']?.toString(),
                     ),
                   ),
                 );
@@ -181,6 +190,14 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
                       isApprovalMode: true,
                       onApprove: _approveDocument,
                       onReject: _rejectDocument,
+                      submitterName: user['full_name']?.toString(),
+                      submitterEmployeeId: user['employee_id']?.toString(),
+                      submitterDept: user['department']?.toString(),
+                      submitterPosition: user['position']?.toString(),
+                      submitterCompany: user['company']?.toString(),
+                      submitterEmail: user['personal_email']?.toString(),
+                      submitterPhone: user['phone_number']?.toString(),
+                      submitterPhotoUrl: user['profile_photo']?.toString(),
                     ),
                   ),
                 );
@@ -350,11 +367,17 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
   }
 
   Future<void> _rejectDocument(String type, String id) async {
+    final reason = await showRejectReasonDialog(
+      context,
+      title: 'Tolak Pengajuan',
+      confirmLabel: 'Tolak',
+    );
+    if (reason == null) return;
+
     setState(() => _isLoading = true);
-    const fallbackReason = 'Ditolak melalui halaman approval dokumen.';
     final response = type == 'license'
-        ? await ApprovalService.rejectLicense(id, fallbackReason)
-        : await ApprovalService.rejectCertification(id, fallbackReason);
+        ? await ApprovalService.rejectLicense(id, reason)
+        : await ApprovalService.rejectCertification(id, reason);
 
     if (mounted) {
       setState(() => _isLoading = false);

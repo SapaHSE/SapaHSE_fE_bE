@@ -321,21 +321,22 @@ class ApprovalTaskCard extends StatelessWidget {
                             const SizedBox(height: 6),
                             Align(
                               alignment: Alignment.centerLeft,
-                              child: Container(
+                              child:                            Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
+                                  horizontal: 8,
+                                  vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: status.bg,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: status.border),
+                                  color: status.fg.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                      color: status.fg.withValues(alpha: 0.3)),
                                 ),
                                 child: Text(
                                   status.label,
                                   style: TextStyle(
                                     color: status.fg,
-                                    fontSize: 9.5,
+                                    fontSize: 9,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),

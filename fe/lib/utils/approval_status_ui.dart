@@ -33,9 +33,9 @@ ApprovalStatusStyle approvalStatusStyle(String? rawStatus) {
     default: // pending / validating
       return (
         label: 'Validating',
-        bg: const Color(0xFFFFF3E0),
-        fg: const Color(0xFFE65100),
-        border: const Color(0xFFFFE0B2),
+        bg: const Color(0xFFE3F2FD),
+        fg: const Color(0xFF2196F3),
+        border: const Color(0xFFBBDEFB),
       );
   }
 }

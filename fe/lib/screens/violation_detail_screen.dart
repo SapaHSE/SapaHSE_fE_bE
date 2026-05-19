@@ -1,8 +1,7 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+
 import '../models/profile_model.dart';
-import '../main.dart';
-import '../widgets/app_safe_insets.dart';
-import '../widgets/fab_notched_bottom_bar.dart';
 
 class ViolationDetailScreen extends StatelessWidget {
   final UserViolation violation;
@@ -12,284 +11,355 @@ class ViolationDetailScreen extends StatelessWidget {
     required this.violation,
   });
 
-  void _onTabTapped(BuildContext context, int index) {
-    if (index == 4) {
-      Navigator.popUntil(context, (route) => route.isFirst);
-      return;
+  static const _danger = Color(0xFFD32F2F);
+
+  bool get _isActive => violation.status.toLowerCase() == 'aktif';
+
+  String _displayValue(String? value) {
+    final v = value?.trim();
+    return (v != null && v.isNotEmpty) ? v : '-';
+  }
+
+  DateTime? _parseDate(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    return DateTime.tryParse(raw.replaceFirst(' ', 'T'))?.toLocal();
+  }
+
+  String _formatDate(DateTime dt, {bool withTime = true}) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    if (!withTime) {
+      return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     }
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => MainScreen(initialIndex: index)),
-      (route) => false,
-    );
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}, '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final isAktif = violation.status.toLowerCase() == 'aktif';
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text('Detail Pelanggaran',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header Icon ──────────────────────────────────────────────────
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 40),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFEBEE),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.warning_amber_rounded,
-                        size: 60, color: Color(0xFFD32F2F)),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    violation.title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isAktif
-                          ? const Color(0xFFFFEBEE)
-                          : const Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      violation.status,
-                      style: TextStyle(
-                        color: isAktif
-                            ? const Color(0xFFD32F2F)
-                            : const Color(0xFF2E7D32),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Violation Details ─────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildDetailSection('INFORMASI PELANGGARAN', [
-                    _buildDetailRow('Lokasi', violation.location ?? '-'),
-                    _buildDetailRow('Tanggal', violation.dateOfViolation ?? '-'),
-                    _buildDetailRow('Berlaku Sampai', violation.expiredAt ?? '-'),
-                  ]),
-
-                  const SizedBox(height: 24),
-
-                  if (violation.sanction != null && violation.sanction!.isNotEmpty)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'SANKSI',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade500,
-                              letterSpacing: 1),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFFBFA),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.red.shade100),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.gavel_rounded,
-                                  color: Color(0xFFD32F2F), size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  violation.sanction!,
-                                  style: const TextStyle(
-                                      color: Color(0xFFB71C1C),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.5),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                  SizedBox(
-                    height: AppSafeInsets.bottomNavScrollPadding(context),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: FabNotchedBottomBar(
-        notchRadius: 0,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _DetailNavItem(
-                icon: Icons.home,
-                label: 'Home',
-                index: 0,
-                onTap: (idx) => _onTabTapped(context, idx)),
-            _DetailNavItem(
-                icon: Icons.article_outlined,
-                label: 'News',
-                index: 1,
-                onTap: (idx) => _onTabTapped(context, idx)),
-            const SizedBox(width: 56),
-            _DetailNavItem(
-                icon: Icons.inbox_outlined,
-                label: 'Inbox',
-                index: 3,
-                onTap: (idx) => _onTabTapped(context, idx)),
-            _DetailNavItem(
-                icon: Icons.menu,
-                label: 'Menu',
-                index: 4,
-                isActive: true,
-                onTap: (idx) => _onTabTapped(context, idx)),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.popUntil(context, (route) => route.isFirst),
-        backgroundColor: const Color(0xFF1A56C4),
-        foregroundColor: Colors.white,
-        shape: const CircleBorder(),
-        
-        child: const Icon(Icons.add, size: 30),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-    );
+  String _formatDateText(String? raw, {bool withTime = false}) {
+    final dt = _parseDate(raw);
+    if (dt == null) return _displayValue(raw);
+    return _formatDate(dt, withTime: withTime);
   }
 
-  Widget _buildDetailSection(String title, List<Widget> children) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey.shade500,
-              letterSpacing: 1),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Column(children: children),
-        ),
-      ],
-    );
-  }
+  Widget _buildHeroArea() {
+    final fileUrl = (violation.fileUrl ?? '').trim();
+    final hasImage = fileUrl.isNotEmpty;
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    Widget fallback = Container(
+      color: _danger.withValues(alpha: 0.08),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.warning_amber_rounded,
+        color: _danger.withValues(alpha: 0.65),
+        size: 68,
+      ),
+    );
+
+    return SizedBox(
+      width: double.infinity,
+      height: 220,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: Colors.black),
+          if (hasImage)
+            CachedNetworkImage(
+              imageUrl: fileUrl,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => fallback,
+              errorWidget: (_, __, ___) => fallback,
+            )
+          else
+            fallback,
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 70,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.65),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 12,
+            left: 16,
+            child: Row(
+              children: [
+                _badge(
+                  violation.status,
+                  _isActive ? _danger : const Color(0xFF616161),
+                  bg: _isActive
+                      ? const Color(0xFFFFEBEE)
+                      : const Color(0xFFF5F5F5),
+                ),
+                const SizedBox(width: 8),
+                _badge('PELANGGARAN', _danger),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final expiry = _parseDate(violation.expiredAt);
+    final expired = expiry != null && expiry.isBefore(DateTime.now());
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F0F0),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Detail Pelanggaran',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeroArea(),
+            _card(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    violation.title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'PELANGGARAN',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: _danger,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Divider(height: 24),
+                  _DetailRow(
+                    icon: Icons.description_outlined,
+                    label: 'Deskripsi',
+                    value: _displayValue(violation.description),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    icon: Icons.location_on_outlined,
+                    label: 'Lokasi',
+                    value: _displayValue(violation.location),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    icon: Icons.event_outlined,
+                    label: 'Tanggal Pelanggaran',
+                    value: _formatDateText(violation.dateOfViolation),
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    icon: Icons.event_busy_outlined,
+                    label: 'Berlaku Sampai',
+                    value: _formatDateText(violation.expiredAt),
+                    valueColor: expired ? _danger : null,
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailRow(
+                    icon: Icons.info_outline,
+                    label: 'Status',
+                    value: violation.status,
+                    valueColor: _isActive ? _danger : const Color(0xFF616161),
+                  ),
+                ],
+              ),
+            ),
+            if ((violation.sanction ?? '').trim().isNotEmpty)
+              _card(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _SectionHeader(
+                      icon: Icons.gavel_rounded,
+                      title: 'Sanksi',
+                      iconColor: _danger,
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFEBEE),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFFFCDD2)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            color: _danger,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              violation.sanction!.trim(),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFFB71C1C),
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            SizedBox(height: 20 + MediaQuery.of(context).padding.bottom),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _card({required Widget child, required EdgeInsets margin}) {
+    return Container(
+      margin: margin,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _badge(String label, Color color, {Color? bg}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg ?? color,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: bg != null ? color : Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
 }
 
-class _DetailNavItem extends StatelessWidget {
+class _SectionHeader extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final int index;
-  final bool isActive;
-  final Function(int) onTap;
+  final String title;
+  final Color iconColor;
 
-  const _DetailNavItem({
+  const _SectionHeader({
     required this.icon,
-    required this.label,
-    required this.index,
-    this.isActive = false,
-    required this.onTap,
+    required this.title,
+    this.iconColor = const Color(0xFF1A56C4),
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTap(index),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon,
-                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
-                size: 24),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
+    return Row(
+      children: [
+        Icon(icon, color: iconColor, size: 20),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
-      ),
+      ],
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.grey.shade500),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: valueColor ?? Colors.black87,
+                  fontWeight:
+                      valueColor != null ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1380,6 +1380,7 @@ class _InboxScreenState extends State<InboxScreen>
       backgroundColor: Colors.transparent,
       builder: (_) => ApprovalDetailSheet(
         item: item,
+        showActionButtons: true,
         onApprove: () async {
           final ok = await _runApprovalAction(item: item, approve: true);
           if (ok) {

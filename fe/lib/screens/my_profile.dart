@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
@@ -16,6 +15,9 @@ import 'package:sapahse/utils/approval_status_ui.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/utils/url_helper.dart';
 import 'package:sapahse/main.dart';
+import 'package:sapahse/screens/certification_detail_screen.dart';
+import 'package:sapahse/screens/license_detail_screen.dart';
+import 'package:sapahse/screens/violation_detail_screen.dart';
 import 'package:sapahse/widgets/app_safe_insets.dart';
 import 'package:sapahse/widgets/fab_notched_bottom_bar.dart';
 
@@ -2765,17 +2767,19 @@ class _LicenseContent extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: approvalStyle.bg,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                                color: approvalStyle.fg.withValues(alpha: 0.3)),
                           ),
                           child: Text(
                             approvalStyle.label,
                             style: TextStyle(
                               color: approvalStyle.fg,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontSize: 9,
                             ),
                           ),
                         ),
@@ -2783,17 +2787,19 @@ class _LicenseContent extends StatelessWidget {
                           const SizedBox(height: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFEBEE),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: Color(0xFFD32F2F).withValues(alpha: 0.3)),
                             ),
                             child: const Text(
                               'Expired',
                               style: TextStyle(
                                 color: Color(0xFFD32F2F),
                                 fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                                fontSize: 9,
                               ),
                             ),
                           ),
@@ -2935,17 +2941,19 @@ class _CertificationContent extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: approvalStyle.bg,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                                color: approvalStyle.fg.withValues(alpha: 0.3)),
                           ),
                           child: Text(
                             approvalStyle.label,
                             style: TextStyle(
                               color: approvalStyle.fg,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontSize: 9,
                             ),
                           ),
                         ),
@@ -2953,17 +2961,19 @@ class _CertificationContent extends StatelessWidget {
                           const SizedBox(height: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFF3E0),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: Color(0xFFEF6C00).withValues(alpha: 0.3)),
                             ),
                             child: const Text(
                               'Renew',
                               style: TextStyle(
                                 color: Color(0xFFEF6C00),
                                 fontWeight: FontWeight.bold,
-                                fontSize: 11,
+                                fontSize: 9,
                               ),
                             ),
                           ),
@@ -3252,17 +3262,19 @@ class _ViolationContent extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: bgColor,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                                color: color.withValues(alpha: 0.3)),
                           ),
                           child: Text(
                             v.status,
                             style: TextStyle(
                               color: color,
                               fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                              fontSize: 9,
                             ),
                           ),
                         ),
@@ -3292,256 +3304,10 @@ class _LicenseDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final approvalStyle = approvalStatusStyle(license.approvalStatus);
-    final activeColor =
-        license.isActive ? const Color(0xFF2E7D32) : const Color(0xFFD32F2F);
-    final activeBg =
-        license.isActive ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE);
-
-    final hasImage = license.fileUrl != null && license.fileUrl!.isNotEmpty;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F0F0),
-      appBar: AppBar(
-        title: const Text('Detail Lisensi',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (hasImage) ...[
-              Stack(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 220,
-                    child: Image.network(
-                      license.fileUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.0),
-                            Colors.black.withValues(alpha: 0.6),
-                          ],
-                          stops: const [0.6, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    child: Row(
-                      children: [
-                        _StatusPill(
-                          label: approvalStyle.label,
-                          foreground: approvalStyle.fg,
-                          background: approvalStyle.bg,
-                        ),
-                        if (!license.isActive) ...[
-                          const SizedBox(width: 8),
-                          _StatusPill(
-                            label: 'Expired',
-                            foreground: activeColor,
-                            background: activeBg,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            Padding(
-              padding: hasImage
-                  ? const EdgeInsets.symmetric(horizontal: 16, vertical: 16)
-                  : EdgeInsets.zero,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _DetailHeader(
-                    icon: Icons.badge_outlined,
-                    iconColor: const Color(0xFF1E88E5),
-                    iconBgColor: const Color(0xFFE3F2FD),
-                    title: license.name,
-                    subtitle: 'No. ${license.licenseNumber}',
-                  ),
-                  if (!hasImage) ...[
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _StatusPill(
-                          label: approvalStyle.label,
-                          foreground: approvalStyle.fg,
-                          background: approvalStyle.bg,
-                        ),
-                        if (!license.isActive)
-                          _StatusPill(
-                            label: 'Expired',
-                            foreground: activeColor,
-                            background: activeBg,
-                          ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  _DetailCard(
-                    children: [
-                      _DetailInfoRow('Nama Lisensi', license.name),
-                      _DetailInfoRow('Nomor Lisensi', license.licenseNumber),
-                      _DetailInfoRow(
-                          'Tanggal Diperoleh',
-                          license.obtainedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(license.obtainedAt!))
-                              : '-'),
-                      _DetailInfoRow(
-                          'Berlaku Sampai',
-                          license.expiredAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(license.expiredAt!))
-                              : '-'),
-                      _DetailInfoRow('Status', license.status),
-                      _DetailInfoRow(
-                          'Diajukan',
-                          license.submittedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(license.submittedAt!))
-                              : '-'),
-                      _DetailInfoRow(
-                          'Direview',
-                          license.reviewedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(license.reviewedAt!))
-                              : '-'),
-                    ],
-                  ),
-                  if ((license.rejectionReason ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _RejectionReasonCard(reason: license.rejectionReason!.trim()),
-                  ],
-                  const SizedBox(height: 24),
-                  if (license.approvalStatus.toLowerCase() == 'rejected') ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          onEdit(license);
-                        },
-                        icon: const Icon(Icons.edit_note, color: Colors.white),
-                        label: const Text(
-                          'Edit & Pengajuan Ulang',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A56C4),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ] else if (!license.isActive) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                onDelete(license);
-                              },
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              label: const Text(
-                                'Hapus Lisensi',
-                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.red),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                onEdit(license);
-                              },
-                              icon: const Icon(Icons.history, color: Colors.white),
-                              label: const Text(
-                                'Perpanjang',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E88E5),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          onEdit(license);
-                        },
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        label: const Text(
-                          'Edit Lisensi',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A56C4),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return LicenseDetailScreen(
+      license: license,
+      onProfileEdit: onEdit,
+      onProfileDelete: onDelete,
     );
   }
 }
@@ -3559,259 +3325,10 @@ class _CertificationDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final approvalStyle = approvalStatusStyle(certification.approvalStatus);
-    final activeColor = certification.isActive
-        ? const Color(0xFF2E7D32)
-        : const Color(0xFFEF6C00);
-    final activeBg = certification.isActive
-        ? const Color(0xFFE8F5E9)
-        : const Color(0xFFFFF3E0);
-
-    final hasImage = certification.fileUrl != null && certification.fileUrl!.isNotEmpty;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F0F0),
-      appBar: AppBar(
-        title: const Text('Detail Sertifikat',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (hasImage) ...[
-              Stack(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 220,
-                    child: Image.network(
-                      certification.fileUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.0),
-                            Colors.black.withValues(alpha: 0.6),
-                          ],
-                          stops: const [0.6, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    child: Row(
-                      children: [
-                        _StatusPill(
-                          label: approvalStyle.label,
-                          foreground: approvalStyle.fg,
-                          background: approvalStyle.bg,
-                        ),
-                        if (!certification.isActive) ...[
-                          const SizedBox(width: 8),
-                          _StatusPill(
-                            label: 'Renew',
-                            foreground: activeColor,
-                            background: activeBg,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            Padding(
-              padding: hasImage
-                  ? const EdgeInsets.symmetric(horizontal: 16, vertical: 16)
-                  : EdgeInsets.zero,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _DetailHeader(
-                    icon: Icons.workspace_premium_outlined,
-                    iconColor: const Color(0xFF6A1B9A),
-                    iconBgColor: const Color(0xFFF3E5F5),
-                    title: certification.name,
-                    subtitle: certification.issuer,
-                  ),
-                  if (!hasImage) ...[
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _StatusPill(
-                          label: approvalStyle.label,
-                          foreground: approvalStyle.fg,
-                          background: approvalStyle.bg,
-                        ),
-                        if (!certification.isActive)
-                          _StatusPill(
-                            label: 'Renew',
-                            foreground: activeColor,
-                            background: activeBg,
-                          ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  _DetailCard(
-                    children: [
-                      _DetailInfoRow('Nama Sertifikat', certification.name),
-                      _DetailInfoRow('Lembaga Penerbit', certification.issuer),
-                      _DetailInfoRow(
-                          'Tanggal Diperoleh',
-                          certification.obtainedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(certification.obtainedAt!))
-                              : '-'),
-                      _DetailInfoRow(
-                          'Berlaku Sampai',
-                          certification.expiredAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(certification.expiredAt!))
-                              : '-'),
-                      _DetailInfoRow('Status', certification.status),
-                      _DetailInfoRow(
-                          'Diajukan',
-                          certification.submittedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(certification.submittedAt!))
-                              : '-'),
-                      _DetailInfoRow(
-                          'Direview',
-                          certification.reviewedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(certification.reviewedAt!))
-                              : '-'),
-                    ],
-                  ),
-                  if ((certification.rejectionReason ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _RejectionReasonCard(
-                        reason: certification.rejectionReason!.trim()),
-                  ],
-                  const SizedBox(height: 24),
-                  if (certification.approvalStatus.toLowerCase() == 'rejected') ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          onEdit(certification);
-                        },
-                        icon: const Icon(Icons.edit_note, color: Colors.white),
-                        label: const Text(
-                          'Edit & Pengajuan Ulang',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A56C4),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ] else if (!certification.isActive) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: OutlinedButton.icon(
-                              onPressed: () {
-                                onDelete(certification);
-                              },
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
-                              label: const Text(
-                                'Hapus Sertifikat',
-                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.red),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: SizedBox(
-                            height: 50,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                onEdit(certification);
-                              },
-                              icon: const Icon(Icons.history, color: Colors.white),
-                              label: const Text(
-                                'Perpanjang',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E88E5),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 0,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          onEdit(certification);
-                        },
-                        icon: const Icon(Icons.edit, color: Colors.white),
-                        label: const Text(
-                          'Edit Sertifikat',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1A56C4),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+    return CertificationDetailScreen(
+      certification: certification,
+      onProfileEdit: onEdit,
+      onProfileDelete: onDelete,
     );
   }
 }
@@ -3822,311 +3339,9 @@ class _ViolationDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAktif = violation.status.toLowerCase() == 'aktif';
-    final color = isAktif ? Colors.red.shade700 : Colors.grey.shade700;
-    final bgColor = isAktif ? Colors.red.shade50 : Colors.grey.shade100;
-
-    final hasImage = violation.fileUrl != null && violation.fileUrl!.isNotEmpty;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F0F0),
-      appBar: AppBar(
-        title: const Text('Detail Pelanggaran',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (hasImage) ...[
-              Stack(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 220,
-                    child: Image.network(
-                      violation.fileUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                      ),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.0),
-                            Colors.black.withValues(alpha: 0.6),
-                          ],
-                          stops: const [0.6, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    child: Row(
-                      children: [
-                        _StatusPill(
-                          label: violation.status,
-                          foreground: color,
-                          background: bgColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            Padding(
-              padding: hasImage
-                  ? const EdgeInsets.symmetric(horizontal: 16, vertical: 16)
-                  : EdgeInsets.zero,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _DetailHeader(
-                    icon: Icons.warning_amber_rounded,
-                    iconColor: color,
-                    iconBgColor: bgColor,
-                    title: violation.title,
-                    subtitle: violation.location ?? '-',
-                  ),
-                  if (!hasImage) ...[
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _StatusPill(
-                          label: violation.status,
-                          foreground: color,
-                          background: bgColor,
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  _DetailCard(
-                    children: [
-                      _DetailInfoRow('Pelanggaran', violation.title),
-                      _DetailInfoRow('Deskripsi', (violation.description != null && violation.description!.isNotEmpty) ? violation.description! : '-'),
-                      _DetailInfoRow('Lokasi', violation.location ?? '-'),
-                      _DetailInfoRow('Tanggal', violation.dateOfViolation ?? '-'),
-                      _DetailInfoRow('Berlaku Sampai', violation.expiredAt ?? '-'),
-                      _DetailInfoRow('Status', violation.status),
-                      _DetailInfoRow('Sanksi', violation.sanction ?? '-'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return ViolationDetailScreen(violation: violation);
   }
 }
-
-class _DetailHeader extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBgColor;
-  final String title;
-  final String subtitle;
-
-  const _DetailHeader({
-    required this.icon,
-    required this.iconColor,
-    required this.iconBgColor,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: iconBgColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: iconColor, size: 28),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 17)),
-                const SizedBox(height: 4),
-                Text(subtitle,
-                    style:
-                        TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailCard extends StatelessWidget {
-  final List<Widget> children;
-  const _DetailCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: children
-            .asMap()
-            .entries
-            .map((entry) => Column(
-                  children: [
-                    entry.value,
-                    if (entry.key < children.length - 1)
-                      Divider(
-                        height: 1,
-                        color: Colors.grey.shade100,
-                        indent: 16,
-                        endIndent: 16,
-                      ),
-                  ],
-                ))
-            .toList(),
-      ),
-    );
-  }
-}
-
-class _DetailInfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _DetailInfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(label,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                height: 1.3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final Color foreground;
-  final Color background;
-
-  const _StatusPill({
-    required this.label,
-    required this.foreground,
-    required this.background,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: foreground,
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-      ),
-    );
-  }
-}
-
-class _RejectionReasonCard extends StatelessWidget {
-  final String reason;
-  const _RejectionReasonCard({required this.reason});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFEBEE),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFCDD2)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline, color: Color(0xFFD32F2F), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              reason,
-              style: const TextStyle(color: Color(0xFFB71C1C), fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-
 // ── NAV ITEM ──────────────────────────────────────────────────────────────────
 class _ProfileNavItem extends StatelessWidget {
   final IconData icon;
@@ -4557,3 +3772,4 @@ class _DepartmentPickerSheetState extends State<_DepartmentPickerSheet> {
     );
   }
 }
+
