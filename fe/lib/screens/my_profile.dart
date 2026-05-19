@@ -15,9 +15,7 @@ import 'package:sapahse/utils/approval_status_ui.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/utils/url_helper.dart';
 import 'package:sapahse/main.dart';
-import 'package:sapahse/screens/certification_detail_screen.dart';
-import 'package:sapahse/screens/license_detail_screen.dart';
-import 'package:sapahse/screens/violation_detail_screen.dart';
+import 'package:intl/intl.dart';
 import 'package:sapahse/widgets/app_safe_insets.dart';
 import 'package:sapahse/widgets/fab_notched_bottom_bar.dart';
 
@@ -2869,7 +2867,8 @@ class _LicenseContent extends StatelessWidget {
                               color: const Color(0xFFFFEBEE),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: Color(0xFFD32F2F).withValues(alpha: 0.3)),
+                                  color:
+                                      Color(0xFFD32F2F).withValues(alpha: 0.3)),
                             ),
                             child: const Text(
                               'Expired',
@@ -3048,7 +3047,8 @@ class _CertificationContent extends StatelessWidget {
                               color: const Color(0xFFFFF3E0),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: Color(0xFFEF6C00).withValues(alpha: 0.3)),
+                                  color:
+                                      Color(0xFFEF6C00).withValues(alpha: 0.3)),
                             ),
                             child: const Text(
                               'Renew',
@@ -3349,8 +3349,8 @@ class _ViolationContent extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: bgColor,
                             borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                                color: color.withValues(alpha: 0.3)),
+                            border:
+                                Border.all(color: color.withValues(alpha: 0.3)),
                           ),
                           child: Text(
                             v.status,
@@ -3405,7 +3405,8 @@ class _LicenseDetailPage extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
+        padding:
+            hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3420,7 +3421,8 @@ class _LicenseDetailPage extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                        child: const Icon(Icons.broken_image,
+                            size: 48, color: Colors.grey),
                       ),
                     ),
                   ),
@@ -3531,7 +3533,8 @@ class _LicenseDetailPage extends StatelessWidget {
                   ),
                   if ((license.rejectionReason ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    _RejectionReasonCard(reason: license.rejectionReason!.trim()),
+                    _RejectionReasonCard(
+                        reason: license.rejectionReason!.trim()),
                   ],
                   const SizedBox(height: 24),
                   if (license.approvalStatus.toLowerCase() == 'rejected') ...[
@@ -3545,7 +3548,8 @@ class _LicenseDetailPage extends StatelessWidget {
                         icon: const Icon(Icons.edit_note, color: Colors.white),
                         label: const Text(
                           'Edit & Pengajuan Ulang',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A56C4),
@@ -3567,10 +3571,14 @@ class _LicenseDetailPage extends StatelessWidget {
                               onPressed: () {
                                 onDelete(license);
                               },
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.red),
                               label: const Text(
                                 'Hapus Lisensi',
-                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                                style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13),
                               ),
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Colors.red),
@@ -3589,10 +3597,12 @@ class _LicenseDetailPage extends StatelessWidget {
                               onPressed: () {
                                 onEdit(license);
                               },
-                              icon: const Icon(Icons.history, color: Colors.white),
+                              icon: const Icon(Icons.history,
+                                  color: Colors.white),
                               label: const Text(
                                 'Perpanjang',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.bold),
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF1E88E5),
@@ -3618,7 +3628,8 @@ class _LicenseDetailPage extends StatelessWidget {
                         icon: const Icon(Icons.edit, color: Colors.white),
                         label: const Text(
                           'Edit Lisensi',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A56C4),
@@ -3662,7 +3673,8 @@ class _CertificationDetailPage extends StatelessWidget {
         ? const Color(0xFFE8F5E9)
         : const Color(0xFFFFF3E0);
 
-    final hasImage = certification.fileUrl != null && certification.fileUrl!.isNotEmpty;
+    final hasImage =
+        certification.fileUrl != null && certification.fileUrl!.isNotEmpty;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F0),
@@ -3674,7 +3686,8 @@ class _CertificationDetailPage extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
+        padding:
+            hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3689,7 +3702,8 @@ class _CertificationDetailPage extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                        child: const Icon(Icons.broken_image,
+                            size: 48, color: Colors.grey),
                       ),
                     ),
                   ),
@@ -3774,37 +3788,40 @@ class _CertificationDetailPage extends StatelessWidget {
                       _DetailInfoRow(
                           'Tanggal Diperoleh',
                           certification.obtainedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(certification.obtainedAt!))
+                              ? DateFormat('dd MMM yyyy, HH:mm').format(
+                                  DateTime.parse(certification.obtainedAt!))
                               : '-'),
                       _DetailInfoRow(
                           'Berlaku Sampai',
                           certification.expiredAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(certification.expiredAt!))
+                              ? DateFormat('dd MMM yyyy, HH:mm').format(
+                                  DateTime.parse(certification.expiredAt!))
                               : '-'),
                       _DetailInfoRow('Status', certification.status),
                       _DetailInfoRow(
                           'Diajukan',
                           certification.submittedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(certification.submittedAt!))
+                              ? DateFormat('dd MMM yyyy, HH:mm').format(
+                                  DateTime.parse(certification.submittedAt!))
                               : '-'),
                       _DetailInfoRow(
                           'Direview',
                           certification.reviewedAt != null
-                              ? DateFormat('dd MMM yyyy, HH:mm')
-                                  .format(DateTime.parse(certification.reviewedAt!))
+                              ? DateFormat('dd MMM yyyy, HH:mm').format(
+                                  DateTime.parse(certification.reviewedAt!))
                               : '-'),
                     ],
                   ),
-                  if ((certification.rejectionReason ?? '').trim().isNotEmpty) ...[
+                  if ((certification.rejectionReason ?? '')
+                      .trim()
+                      .isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _RejectionReasonCard(
                         reason: certification.rejectionReason!.trim()),
                   ],
                   const SizedBox(height: 24),
-                  if (certification.approvalStatus.toLowerCase() == 'rejected') ...[
+                  if (certification.approvalStatus.toLowerCase() ==
+                      'rejected') ...[
                     SizedBox(
                       width: double.infinity,
                       height: 50,
@@ -3815,7 +3832,8 @@ class _CertificationDetailPage extends StatelessWidget {
                         icon: const Icon(Icons.edit_note, color: Colors.white),
                         label: const Text(
                           'Edit & Pengajuan Ulang',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A56C4),
@@ -3837,10 +3855,14 @@ class _CertificationDetailPage extends StatelessWidget {
                               onPressed: () {
                                 onDelete(certification);
                               },
-                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Colors.red),
                               label: const Text(
                                 'Hapus Sertifikat',
-                                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                                style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13),
                               ),
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Colors.red),
@@ -3859,10 +3881,12 @@ class _CertificationDetailPage extends StatelessWidget {
                               onPressed: () {
                                 onEdit(certification);
                               },
-                              icon: const Icon(Icons.history, color: Colors.white),
+                              icon: const Icon(Icons.history,
+                                  color: Colors.white),
                               label: const Text(
                                 'Perpanjang',
-                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                    fontSize: 13, fontWeight: FontWeight.bold),
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF1E88E5),
@@ -3888,7 +3912,8 @@ class _CertificationDetailPage extends StatelessWidget {
                         icon: const Icon(Icons.edit, color: Colors.white),
                         label: const Text(
                           'Edit Sertifikat',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A56C4),
@@ -3933,7 +3958,8 @@ class _ViolationDetailPage extends StatelessWidget {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
+        padding:
+            hasImage ? EdgeInsets.zero : AppSafeInsets.pagePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -3948,7 +3974,8 @@ class _ViolationDetailPage extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.grey.shade200,
-                        child: const Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                        child: const Icon(Icons.broken_image,
+                            size: 48, color: Colors.grey),
                       ),
                     ),
                   ),
@@ -4015,10 +4042,17 @@ class _ViolationDetailPage extends StatelessWidget {
                   _DetailCard(
                     children: [
                       _DetailInfoRow('Pelanggaran', violation.title),
-                      _DetailInfoRow('Deskripsi', (violation.description != null && violation.description!.isNotEmpty) ? violation.description! : '-'),
+                      _DetailInfoRow(
+                          'Deskripsi',
+                          (violation.description != null &&
+                                  violation.description!.isNotEmpty)
+                              ? violation.description!
+                              : '-'),
                       _DetailInfoRow('Lokasi', violation.location ?? '-'),
-                      _DetailInfoRow('Tanggal', violation.dateOfViolation ?? '-'),
-                      _DetailInfoRow('Berlaku Sampai', violation.expiredAt ?? '-'),
+                      _DetailInfoRow(
+                          'Tanggal', violation.dateOfViolation ?? '-'),
+                      _DetailInfoRow(
+                          'Berlaku Sampai', violation.expiredAt ?? '-'),
                       _DetailInfoRow('Status', violation.status),
                       _DetailInfoRow('Sanksi', violation.sanction ?? '-'),
                     ],
@@ -4220,7 +4254,6 @@ class _RejectionReasonCard extends StatelessWidget {
     );
   }
 }
-
 
 // ── NAV ITEM ──────────────────────────────────────────────────────────────────
 class _ProfileNavItem extends StatelessWidget {
@@ -4652,4 +4685,3 @@ class _DepartmentPickerSheetState extends State<_DepartmentPickerSheet> {
     );
   }
 }
-
