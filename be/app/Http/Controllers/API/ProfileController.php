@@ -216,20 +216,45 @@ class ProfileController extends Controller
             'obtained_at'    => 'nullable|date',
             'expired_at'     => 'nullable|date',
             'status'         => 'required|string|in:active,expired,suspended',
+            'file'           => 'nullable|file|max:5120',
+            'file_url'       => 'nullable|url|max:2048',
         ]);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
         $license = $user->licenses()->findOrFail($id);
 
-        $license->update($request->only(
-            'name', 'license_number', 'issuer', 'obtained_at', 'expired_at', 'status'
-        ));
+        $updateData = $request->only(
+            'name',
+            'license_number',
+            'issuer',
+            'obtained_at',
+            'expired_at',
+            'status'
+        );
+
+        if ($request->hasFile('file')) {
+            $updateData['file_path'] = $request->file('file')->store('licenses', 'public');
+        } elseif ($request->filled('file_url')) {
+            $updateData['file_path'] = $request->file_url;
+        }
+
+        // Re-application flow: moving from rejected back to pending for re-review.
+        if ($license->approval_status === 'rejected') {
+            $updateData['approval_status'] = 'pending';
+            $updateData['is_verified'] = false;
+            $updateData['rejection_reason'] = null;
+            $updateData['reviewed_by'] = null;
+            $updateData['reviewed_at'] = null;
+            $updateData['submitted_at'] = now();
+        }
+
+        $license->update($updateData);
 
         return \response()->json([
             'status'  => 'success',
             'message' => 'License updated successfully.',
-            'data'    => $license,
+            'data'    => $license->fresh(),
         ]);
     }
 
@@ -321,20 +346,45 @@ class ProfileController extends Controller
             'obtained_at' => 'nullable|date',
             'expired_at'  => 'nullable|date',
             'status' => 'required|string|in:active,expired',
+            'file'   => 'nullable|file|max:5120',
+            'file_url' => 'nullable|url|max:2048',
         ]);
 
         /** @var \App\Models\User $user */
         $user = Auth::user();
         $cert = $user->certifications()->findOrFail($id);
 
-        $cert->update($request->only(
-            'name', 'certification_number', 'issuer', 'obtained_at', 'expired_at', 'status'
-        ));
+        $updateData = $request->only(
+            'name',
+            'certification_number',
+            'issuer',
+            'obtained_at',
+            'expired_at',
+            'status'
+        );
+
+        if ($request->hasFile('file')) {
+            $updateData['file_path'] = $request->file('file')->store('certifications', 'public');
+        } elseif ($request->filled('file_url')) {
+            $updateData['file_path'] = $request->file_url;
+        }
+
+        // Re-application flow: moving from rejected back to pending for re-review.
+        if ($cert->approval_status === 'rejected') {
+            $updateData['approval_status'] = 'pending';
+            $updateData['is_verified'] = false;
+            $updateData['rejection_reason'] = null;
+            $updateData['reviewed_by'] = null;
+            $updateData['reviewed_at'] = null;
+            $updateData['submitted_at'] = now();
+        }
+
+        $cert->update($updateData);
 
         return \response()->json([
             'status'  => 'success',
             'message' => 'Certification updated successfully.',
-            'data'    => $cert,
+            'data'    => $cert->fresh(),
         ]);
     }
 
