@@ -2167,6 +2167,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         _licenseSelectedDate = null;
                         _licenseImage = null;
                         await _loadProfile();
+                        if (mounted) {
+                          _showSuccessPopup(context, editLicense != null ? 'Lisensi berhasil diperbarui' : 'Lisensi berhasil ditambahkan');
+                        }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(result.message)));
@@ -2422,6 +2425,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         _certExpiredAt = null;
                         _certImage = null;
                         await _loadProfile();
+                        if (mounted) {
+                          _showSuccessPopup(context, editCert != null ? 'Sertifikat berhasil diperbarui' : 'Sertifikat berhasil ditambahkan');
+                        }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(result.message)));
@@ -2598,6 +2604,50 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       ),
     );
   }
+
+  void _showSuccessPopup(BuildContext ctx, String message) {
+    showDialog(
+      context: ctx,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 60),
+            const SizedBox(height: 16),
+            const Text(
+              'Berhasil!',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A56C4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text(
+                  'Tutup',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ── SUB-TAB WIDGETS (INTERNAL) ──────────────────────────────────────────────
@@ -2647,15 +2697,16 @@ class _BiodataContent extends StatelessWidget {
                 onTap: () =>
                     _copyToClipboard(context, 'Nama Lengkap', data?.fullName)),
             _buildRow(context, 'Email', data?.personalEmail ?? '-',
-                onTap: () => _launchUrl('mailto:${data?.personalEmail ?? ""}')),
+                onTap: () {
+              final e = data?.personalEmail;
+              if (e != null && e.isNotEmpty && e != '-') {
+                _showEmailOptions(context, e);
+              }
+            }),
             _buildRow(context, 'Phone', data?.phoneNumber ?? '-', onTap: () {
               final phone = data?.phoneNumber ?? "";
               if (phone.isNotEmpty && phone != '-') {
-                String waNumber = phone;
-                if (waNumber.startsWith('08')) {
-                  waNumber = '628${waNumber.substring(2)}';
-                }
-                _launchUrl('https://wa.me/$waNumber');
+                _showPhoneOptions(context, phone);
               }
             }),
             _buildRow(context, 'Alamat', data?.address ?? '-',
@@ -2759,6 +2810,136 @@ class _BiodataContent extends StatelessWidget {
     }
 
     return content;
+  }
+
+  void _showEmailOptions(BuildContext context, String email) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text(
+                'Hubungi via Email',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFFFEBEE),
+                child: Icon(Icons.email, color: Color(0xFFD32F2F)),
+              ),
+              title: const Text('Kirim Email'),
+              subtitle: Text(email),
+              onTap: () {
+                Navigator.pop(context);
+                _launchUrl('mailto:$email');
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFFFF3E0),
+                child: Icon(Icons.copy, color: Color(0xFFFB8C00)),
+              ),
+              title: const Text('Salin Email'),
+              onTap: () {
+                Navigator.pop(context);
+                _copyToClipboard(context, 'Email', email);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPhoneOptions(BuildContext context, String phone) {
+    String cleanNumber = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    String waNumber = cleanNumber;
+    if (waNumber.startsWith('0')) {
+      waNumber = '62${waNumber.substring(1)}';
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 8, bottom: 16),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              child: Text(
+                'Hubungi Karyawan',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE3F2FD),
+                child: Icon(Icons.phone, color: Color(0xFF1E88E5)),
+              ),
+              title: const Text('Panggilan Telepon'),
+              subtitle: Text(phone),
+              onTap: () {
+                Navigator.pop(context);
+                _launchUrl('tel:$cleanNumber');
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE8F5E9),
+                child: Icon(Icons.message, color: Color(0xFF43A047)),
+              ),
+              title: const Text('WhatsApp'),
+              subtitle: Text(phone),
+              onTap: () {
+                Navigator.pop(context);
+                _launchUrl('https://wa.me/$waNumber');
+              },
+            ),
+            ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFFFF3E0),
+                child: Icon(Icons.copy, color: Color(0xFFFB8C00)),
+              ),
+              title: const Text('Salin Nomor'),
+              onTap: () {
+                Navigator.pop(context);
+                _copyToClipboard(context, 'Nomor Telepon', phone);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 }
 

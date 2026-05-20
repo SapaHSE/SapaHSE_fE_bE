@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/ui_utils.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/company_service.dart';
@@ -61,8 +62,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  Future<void> _fetchUsers() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchUsers({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
     final response = await ApiService.get('/admin/users?per_page=100');
     if (mounted) {
       setState(() {
@@ -88,8 +91,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  Future<void> _fetchUnapprovedUsers() async {
-    setState(() => _isLoadingUnapproved = true);
+  Future<void> _fetchUnapprovedUsers({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoadingUnapproved = true);
+    }
     final response = await ApiService.get(
       '/admin/users?registration_status=pending',
     );
@@ -110,8 +115,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  Future<void> _fetchRejectedUsers() async {
-    setState(() => _isLoadingRejected = true);
+  Future<void> _fetchRejectedUsers({bool silent = false}) async {
+    if (!silent) {
+      setState(() => _isLoadingRejected = true);
+    }
     final response = await ApiService.get('/admin/registration-logs');
     if (mounted) {
       setState(() {
@@ -134,11 +141,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final response = await ApiService.put('/admin/users/$id/approve', {});
     if (mounted) {
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengguna berhasil disetujui!')),
-        );
-        _fetchUnapprovedUsers();
-        _fetchUsers();
+        UiUtils.showSuccessPopup(context, 'Pengguna berhasil disetujui!');
+        _fetchUnapprovedUsers(silent: true);
+        _fetchUsers(silent: true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -168,21 +173,32 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       if (mounted) {
         setState(() => _isLoadingUnapproved = false);
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Pendaftaran ditolak. Email notifikasi telah dikirim.',
-              ),
-            ),
-          );
-          _fetchUnapprovedUsers();
-          _fetchRejectedUsers();
-          _fetchUsers();
+          UiUtils.showSuccessPopup(context, 'Pendaftaran ditolak');
+          _fetchUnapprovedUsers(silent: true);
+          _fetchRejectedUsers(silent: true);
+          _fetchUsers(silent: true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(response.errorMessage ?? 'Gagal menolak.')),
           );
         }
+      }
+    }
+  }
+
+  Future<void> _deleteUser(String id) async {
+    final response = await ApiService.delete('/admin/users/$id');
+    if (mounted) {
+      if (response.success) {
+        UiUtils.showSuccessPopup(context, 'Pengguna berhasil dihapus');
+        _fetchUsers(silent: true);
+        _fetchUnapprovedUsers(silent: true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response.errorMessage ?? 'Gagal menghapus pengguna.'),
+          ),
+        );
       }
     }
   }
@@ -221,9 +237,29 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       context,
       MaterialPageRoute(builder: (_) => UserDetailScreen(user: user)),
     );
-    if (result == true) {
-      _fetchUsers();
-      _fetchUnapprovedUsers();
+    if (result != null) {
+      if (result is Map && result['action'] == 'delete') {
+        final id = result['id'];
+        _deleteUser(id);
+      } else if (result == 'updated') {
+        _fetchUsers(silent: true);
+        _fetchUnapprovedUsers(silent: true);
+        _fetchRejectedUsers(silent: true);
+        if (!mounted) return;
+        UiUtils.showSuccessPopup(context, 'Perubahan berhasil disimpan');
+      } else if (result == 'approved') {
+        _fetchUsers(silent: true);
+        _fetchUnapprovedUsers(silent: true);
+        _fetchRejectedUsers(silent: true);
+        if (!mounted) return;
+        UiUtils.showSuccessPopup(context, 'Pengguna berhasil disetujui!');
+      } else if (result == 'rejected') {
+        _fetchUsers(silent: true);
+        _fetchUnapprovedUsers(silent: true);
+        _fetchRejectedUsers(silent: true);
+        if (!mounted) return;
+        UiUtils.showSuccessPopup(context, 'Pendaftaran ditolak');
+      }
     }
   }
 
@@ -233,8 +269,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       MaterialPageRoute(builder: (_) => UserFormScreen(userToEdit: user)),
     );
     if (result == true) {
-      _fetchUsers();
-      _fetchUnapprovedUsers();
+      _fetchUsers(silent: true);
+      _fetchUnapprovedUsers(silent: true);
+      if (!mounted) return;
+      UiUtils.showSuccessPopup(
+        context,
+        user == null
+            ? 'Pengguna berhasil ditambahkan'
+            : 'Pengguna berhasil diperbarui',
+      );
     }
   }
 
@@ -955,6 +998,47 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     }
   }
 
+  Future<void> _showSuccessPopup(String message) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 64),
+            const SizedBox(height: 16),
+            const Text(
+              'Berhasil',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _blue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('OK', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _approveUser() async {
     setState(() => _isLoading = true);
     final response = await ApiService.put(
@@ -964,10 +1048,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pengguna berhasil disetujui!')),
-        );
-        Navigator.pop(context, true);
+        await _showSuccessPopup('Pengguna berhasil disetujui!');
+        if (mounted) Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response.errorMessage ?? 'Gagal menyetujui.')),
@@ -1029,14 +1111,9 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Pendaftaran ditolak. Email notifikasi telah dikirim.',
-              ),
-            ),
-          );
-          Navigator.pop(context, true);
+          await _showSuccessPopup(
+              'Pendaftaran ditolak. Email notifikasi telah dikirim.');
+          if (mounted) Navigator.pop(context, true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(response.errorMessage ?? 'Gagal menolak.')),
@@ -1075,10 +1152,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         if (response.success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Perubahan berhasil disimpan')),
-          );
-          Navigator.pop(context, true);
+          await _showSuccessPopup('Perubahan berhasil disimpan');
+          if (mounted) Navigator.pop(context, true);
         } else {
           // Show the specific error if available
           String errorMsg = response.errorMessage ?? 'Gagal menyimpan';
@@ -1126,19 +1201,14 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     );
 
     if (confirm == true) {
-      setState(() => _isLoading = true);
       try {
         final response = await ApiService.delete(
           '/admin/users/${widget.user['id']}',
         );
         if (mounted) {
           if (response.success) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Pengguna dihapus')));
             Navigator.pop(context, true);
           } else {
-            setState(() => _isLoading = false);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(response.errorMessage ?? 'Gagal menghapus'),
@@ -1148,7 +1218,6 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
         }
       } catch (e) {
         if (mounted) {
-          setState(() => _isLoading = false);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('Error: $e')));

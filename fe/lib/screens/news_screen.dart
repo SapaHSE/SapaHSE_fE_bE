@@ -438,34 +438,13 @@ class _NewsScreenState extends State<NewsScreen> {
                     ),
                   ),
 
-                  // Category badge
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: catColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        article.category,
-                        style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-
                   // Gradient + title + author + date
                   Positioned(
                     left: 0,
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      padding: const EdgeInsets.fromLTRB(12, 60, 12, 10),
+                      padding: const EdgeInsets.fromLTRB(12, 60, 95, 10),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
@@ -520,6 +499,27 @@ class _NewsScreenState extends State<NewsScreen> {
                             ),
                           ]),
                         ],
+                      ),
+                    ),
+                  ),
+
+                  // Category badge — rendered LAST so it floats above the gradient
+                  Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: catColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        article.category,
+                        style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),

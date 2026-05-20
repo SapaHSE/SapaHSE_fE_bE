@@ -34,6 +34,29 @@ class ProfileController extends Controller
         ]);
     }
 
+    // GET /api/users/{id}/profile  — view another user's full profile (read-only)
+    public function getUserProfileById($id)
+    {
+        $user = User::with(['licenses', 'certifications', 'violations' => function ($q) {
+            $q->orderBy('date_of_violation', 'desc');
+        }, 'medicals' => function ($q) {
+            $q->orderBy('checkup_date', 'desc');
+        }])->find($id);
+
+        if (!$user) {
+            return \response()->json([
+                'status'  => 'error',
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        return \response()->json([
+            'status' => 'success',
+            'data'   => $this->formatUser($user),
+        ]);
+    }
+
+
     // POST /api/profile
     public function updateProfile(Request $request)
     {
