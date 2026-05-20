@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/ui_utils.dart';
 import '../models/department_model.dart';
 import '../services/department_service.dart';
 import '../services/auth_service.dart';
@@ -29,11 +30,13 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
     _loadInitialData();
   }
 
-  Future<void> _loadInitialData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _loadInitialData({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final user = await AuthService.getCurrentUser();
       final departments = await DepartmentService.getDepartments();
@@ -56,13 +59,17 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
 
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red : Colors.green.shade700,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.all(12),
-    ));
+    if (!isError) {
+      UiUtils.showSuccessPopup(context, msg);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
+      ));
+    }
   }
 
   void _showForm({DepartmentData? department}) {
@@ -137,14 +144,12 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
               Navigator.pop(context);
-              setState(() => _isLoading = true);
               try {
                 await DepartmentService.deleteDepartment(department.id);
                 _showSnack('Department berhasil dihapus');
-                _loadInitialData();
+                _loadInitialData(silent: true);
               } catch (e) {
                 _showSnack(e.toString(), isError: true);
-                setState(() => _isLoading = false);
               }
             },
             child: const Text('Hapus'),

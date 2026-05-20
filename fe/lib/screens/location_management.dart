@@ -6,6 +6,7 @@ import '../services/storage_service.dart';
 import 'package:sapahse/main.dart';
 import '../widgets/minimal_dropdown.dart';
 import '../widgets/app_safe_insets.dart';
+import '../utils/ui_utils.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
 class LocationManagementScreen extends StatefulWidget {
@@ -49,11 +50,13 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
 
   bool get _isSuperAdmin => _userRole?.toLowerCase() == 'superadmin' || _userRole?.toLowerCase() == 'super admin';
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait([
         CompanyService.getCompanies(category: 'owner'),
@@ -84,13 +87,17 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
 
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red : Colors.green.shade700,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.all(12),
-    ));
+    if (!isError) {
+      UiUtils.showSuccessPopup(context, msg);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
+      ));
+    }
   }
 
   void _navigateToAreaForm({AreaData? area, CompanyData? defaultCompany}) async {
@@ -128,14 +135,13 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
               Navigator.pop(context);
-              setState(() => _isLoading = true);
               try {
                 await CompanyService.deleteArea(area.id);
                 _showSnack('Lokasi berhasil dihapus.');
               } catch (e) {
                 _showSnack(e.toString(), isError: true);
               }
-              _loadData();
+              _loadData(silent: true);
             },
             child: const Text('Hapus'),
           ),

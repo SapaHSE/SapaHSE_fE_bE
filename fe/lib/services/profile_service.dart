@@ -25,6 +25,25 @@ class ProfileService {
     return ProfileResult.success(ProfileData.fromJson(userData));
   }
 
+  // ── Get another user's full profile by ID (read-only) ────────────────────
+  static Future<ProfileResult> getUserProfileById(String userId) async {
+    final response = await ApiService.get('/users/$userId/profile');
+
+    if (!response.success) {
+      return ProfileResult.error(
+          response.errorMessage ?? 'Gagal memuat profil pengguna.',
+          statusCode: response.statusCode);
+    }
+
+    final userData = response.data['data'] as Map<String, dynamic>?;
+    if (userData == null) {
+      return ProfileResult.error('Respons server tidak valid.');
+    }
+
+    return ProfileResult.success(ProfileData.fromJson(userData));
+  }
+
+
   // ── Get licenses from profile ────────────────────────────────────────────────────────
   static Future<LicensesResult> getLicenses() async {
     final response = await ApiService.get('/profile');

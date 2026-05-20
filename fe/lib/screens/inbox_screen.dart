@@ -175,7 +175,7 @@ class _InboxScreenState extends State<InboxScreen>
         _currentUserId = user['id']?.toString();
         _isSuperadmin =
             (user['role']?.toString().toLowerCase() == 'superadmin') ||
-            (user['role']?.toString().toLowerCase() == 'admin');
+                (user['role']?.toString().toLowerCase() == 'admin');
         _currentUserSnapshot = _buildCurrentUserSnapshot(user);
       });
       _loadMyReports();
@@ -413,8 +413,8 @@ class _InboxScreenState extends State<InboxScreen>
       ? _reports
           .where((i) =>
               i.isApproval &&
-              ['pending', 'pending_changes'].contains(
-                  i.approvalStatus?.toLowerCase() ?? 'pending'))
+              ['pending', 'pending_changes']
+                  .contains(i.approvalStatus?.toLowerCase() ?? 'pending'))
           .toList()
       : const [];
 
@@ -808,7 +808,7 @@ class _InboxScreenState extends State<InboxScreen>
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Flexible(
-                              child: Text('Tugas',
+                              child: Text('MyTask',
                                   maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                             if (_unreadReports > 0) ...[

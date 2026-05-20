@@ -4,6 +4,7 @@ import '../services/approval_service.dart';
 import '../models/profile_model.dart';
 import '../widgets/app_safe_insets.dart';
 import '../widgets/reject_reason_dialog.dart';
+import '../utils/ui_utils.dart';
 import 'license_detail_screen.dart';
 import 'certification_detail_screen.dart';
 
@@ -54,9 +55,7 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dokumen berhasil disetujui!')),
-        );
+        await UiUtils.showSuccessPopup(context, 'Dokumen berhasil disetujui!');
         _fetchPendingDocuments();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -418,8 +417,7 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (response.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Dokumen berhasil ditolak')));
+        await UiUtils.showSuccessPopup(context, 'Dokumen berhasil ditolak');
         _fetchPendingDocuments();
       } else {
         ScaffoldMessenger.of(context)

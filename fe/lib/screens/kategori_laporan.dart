@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/report_service.dart';
 import '../services/storage_service.dart';
+import '../utils/ui_utils.dart';
 import 'package:sapahse/main.dart';
 import '../widgets/minimal_dropdown.dart';
 import '../widgets/app_safe_insets.dart';
@@ -17,7 +18,6 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
   static const _blue = Color(0xFF1A56C4);
   static const _red = Color(0xFFD32F2F);
   static const _orange = Color(0xFFF57C00);
-
 
   String? _userRole;
 
@@ -52,11 +52,13 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final results = await Future.wait([
         ReportService.getHazardCategories(),
@@ -68,7 +70,11 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
         });
       }
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
     }
   }
 
@@ -82,8 +88,10 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
       builder: (_) => _InputDialog(
         title: 'Tambah Kategori',
         fields: [
-          _FieldConfig('Nama Kategori', ctrl, 'cth: Lingkungan', required: true),
-          _FieldConfig('Kode (opsional)', codeCtrl, 'cth: LKG', maxLength: 3, capitalization: TextCapitalization.characters),
+          _FieldConfig('Nama Kategori', ctrl, 'cth: Lingkungan',
+              required: true),
+          _FieldConfig('Kode (opsional)', codeCtrl, 'cth: LKG',
+              maxLength: 3, capitalization: TextCapitalization.characters),
         ],
         onSubmit: () async {
           if (ctrl.text.trim().isEmpty) return;
@@ -113,14 +121,16 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
         title: 'Edit Kategori',
         fields: [
           _FieldConfig('Nama Kategori', ctrl, '', required: true),
-          _FieldConfig('Kode (opsional)', codeCtrl, '', maxLength: 3, capitalization: TextCapitalization.characters),
+          _FieldConfig('Kode (opsional)', codeCtrl, '',
+              maxLength: 3, capitalization: TextCapitalization.characters),
         ],
         onSubmit: () async {
           if (ctrl.text.trim().isEmpty) return;
           Navigator.pop(context);
           setState(() => _isLoading = true);
           final result = await ReportService.updateCategory(
-            cat.id, ctrl.text.trim(),
+            cat.id,
+            ctrl.text.trim(),
             code: codeCtrl.text.trim().isEmpty ? null : codeCtrl.text.trim(),
           );
           if (result != null) {
@@ -142,31 +152,37 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
         title: Row(children: [
           const Icon(Icons.warning_amber_rounded, color: Colors.red),
           const SizedBox(width: 8),
-          const Text('Hapus Kategori', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const Text('Hapus Kategori',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         ]),
         content: RichText(
           text: TextSpan(
             style: const TextStyle(color: Colors.black87, fontSize: 14),
             children: [
               const TextSpan(text: 'Yakin hapus kategori '),
-              TextSpan(text: '"${cat.name}"', style: const TextStyle(fontWeight: FontWeight.bold)),
-              const TextSpan(text: '?\n\nSemua subkategori di dalamnya akan ikut terhapus.'),
+              TextSpan(
+                  text: '"${cat.name}"',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const TextSpan(
+                  text:
+                      '?\n\nSemua subkategori di dalamnya akan ikut terhapus.'),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
               Navigator.pop(context);
-              setState(() => _isLoading = true);
               final ok = await ReportService.deleteCategory(cat.id);
               if (ok) {
-                await _loadData();
+                await _loadData(silent: true);
                 _showSnack('Kategori "${cat.name}" dihapus.');
               } else {
-                setState(() => _isLoading = false);
                 _showSnack('Gagal menghapus kategori.', isError: true);
               }
             },
@@ -195,7 +211,8 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
     }
   }
 
-  void _showEditSubcategoryDialog(HazardCategoryData cat, HazardSubcategoryData sub) async {
+  void _showEditSubcategoryDialog(
+      HazardCategoryData cat, HazardSubcategoryData sub) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -212,35 +229,40 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
     }
   }
 
-  void _confirmDeleteSubcategory(HazardCategoryData cat, HazardSubcategoryData sub) {
+  void _confirmDeleteSubcategory(
+      HazardCategoryData cat, HazardSubcategoryData sub) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Subkategori', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text('Hapus Subkategori',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         content: RichText(
           text: TextSpan(
             style: const TextStyle(color: Colors.black87, fontSize: 14),
             children: [
               const TextSpan(text: 'Yakin hapus '),
-              TextSpan(text: '"${sub.name}"', style: const TextStyle(fontWeight: FontWeight.bold)),
+              TextSpan(
+                  text: '"${sub.name}"',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               const TextSpan(text: '?'),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
               Navigator.pop(context);
-              setState(() => _isLoading = true);
               final ok = await ReportService.deleteSubcategory(cat.id, sub.id);
               if (ok) {
-                await _loadData();
+                await _loadData(silent: true);
                 _showSnack('Subkategori "${sub.name}" dihapus.');
               } else {
-                setState(() => _isLoading = false);
                 _showSnack('Gagal menghapus subkategori.', isError: true);
               }
             },
@@ -253,13 +275,17 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
 
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red : Colors.green.shade700,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.all(12),
-    ));
+    if (!isError) {
+      UiUtils.showSuccessPopup(context, msg);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
+      ));
+    }
   }
 
   void _onTabTapped(int index) {
@@ -304,38 +330,39 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: _isSearching 
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              onChanged: (val) => setState(() => _searchQuery = val),
-              decoration: const InputDecoration(
-                hintText: 'Cari kategori...',
-                border: InputBorder.none,
-                hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-              style: const TextStyle(color: Colors.black87, fontSize: 16),
-            )
-          : const Text('Kategori Laporan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: const InputDecoration(
+                  hintText: 'Cari kategori...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+                style: const TextStyle(color: Colors.black87, fontSize: 16),
+              )
+            : const Text('Kategori Laporan',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
         leading: _isSearching
-          ? IconButton(
-              icon: const Icon(Icons.close, color: Colors.black87),
-              onPressed: () {
-                setState(() {
-                  _isSearching = false;
-                  _searchQuery = '';
-                  _searchController.clear();
-                });
-              },
-            )
-          : IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black87),
-              onPressed: () => Navigator.pop(context),
-            ),
+            ? IconButton(
+                icon: const Icon(Icons.close, color: Colors.black87),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = false;
+                    _searchQuery = '';
+                    _searchController.clear();
+                  });
+                },
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                onPressed: () => Navigator.pop(context),
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -370,11 +397,31 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _KategoriNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
-            _KategoriNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+            _KategoriNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _KategoriNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped),
             const SizedBox(width: 56),
-            _KategoriNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
-            _KategoriNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+            _KategoriNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _KategoriNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped),
           ],
         ),
       ),
@@ -390,15 +437,19 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
           children: [
             const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
-            const Text('Gagal Memuat Data', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Gagal Memuat Data',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text(_error ?? '', textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey)),
+            Text(_error ?? '',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey)),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _loadData,
               icon: const Icon(Icons.refresh),
               label: const Text('Coba Lagi'),
-              style: ElevatedButton.styleFrom(backgroundColor: _blue, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _blue, foregroundColor: Colors.white),
             ),
           ],
         ),
@@ -412,7 +463,8 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
       final searchLower = _searchQuery.toLowerCase();
       final catMatch = cat.name.toLowerCase().contains(searchLower) ||
           cat.code.toLowerCase().contains(searchLower);
-      final subMatch = cat.subcategories.any((sub) => sub.name.toLowerCase().contains(searchLower));
+      final subMatch = cat.subcategories
+          .any((sub) => sub.name.toLowerCase().contains(searchLower));
       return catMatch || subMatch;
     }).toList();
 
@@ -430,7 +482,8 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
               subtitle: 'Kategori atau subkategori tidak ditemukan.',
             )
           else
-            ...filteredCategories.map((cat) => _buildRedesignedCategoryCard(cat)),
+            ...filteredCategories
+                .map((cat) => _buildRedesignedCategoryCard(cat)),
           if (_isSuperAdmin) ...[
             const SizedBox(height: 16),
             _buildAddMainCategoryButton(),
@@ -455,7 +508,10 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
           Expanded(
             child: Text(
               'Kategori ini berlaku untuk seluruh perusahaan dalam operasional harian.',
-              style: TextStyle(color: Colors.blue.shade800, fontSize: 11, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  color: Colors.blue.shade800,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -464,7 +520,11 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
   }
 
   Widget _buildRedesignedCategoryCard(HazardCategoryData cat) {
-    final color = (cat.code == 'TTA') ? _red : (cat.code == 'KTA') ? _orange : _blue;
+    final color = (cat.code == 'TTA')
+        ? _red
+        : (cat.code == 'KTA')
+            ? _orange
+            : _blue;
     final bgColor = color.withValues(alpha: 0.05);
 
     return Container(
@@ -472,7 +532,12 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(
         children: [
@@ -481,7 +546,8 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
@@ -491,19 +557,24 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
                     children: [
                       Text(
                         '${cat.code} - ${cat.name}',
-                        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${cat.subcategories.where((s) => s.isActive).length} subkategori aktif',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
                 if (_isSuperAdmin) ...[
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.red, size: 18),
                     onPressed: () => _confirmDeleteCategory(cat),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -513,14 +584,18 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
                     onPressed: () => _showEditCategoryDialog(cat),
                     style: TextButton.styleFrom(
                       foregroundColor: color,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('Edit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    child: const Text('Edit',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ],
-                const Icon(Icons.keyboard_arrow_right, color: Colors.grey, size: 20),
+                const Icon(Icons.keyboard_arrow_right,
+                    color: Colors.grey, size: 20),
               ],
             ),
           ),
@@ -546,7 +621,11 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
                       children: [
                         Icon(Icons.add, size: 16, color: Colors.grey.shade600),
                         const SizedBox(width: 4),
-                        Text('Tambah Subkategori ${cat.code}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.w500)),
+                        Text('Tambah Subkategori ${cat.code}',
+                            style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ),
@@ -558,7 +637,8 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
     );
   }
 
-  Widget _buildSubcategoryItem(HazardCategoryData cat, HazardSubcategoryData sub) {
+  Widget _buildSubcategoryItem(
+      HazardCategoryData cat, HazardSubcategoryData sub) {
     return Column(
       children: [
         Divider(height: 1, color: Colors.grey.shade100),
@@ -566,21 +646,28 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Icon(Icons.circle, size: 8, color: sub.isActive ? Colors.green : Colors.grey.shade300),
+              Icon(Icons.circle,
+                  size: 8,
+                  color: sub.isActive ? Colors.green : Colors.grey.shade300),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(sub.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                    Text(sub.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 13)),
                     if (sub.abbreviation != null)
-                      Text(sub.abbreviation!, style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                      Text(sub.abbreviation!,
+                          style: TextStyle(
+                              color: Colors.grey.shade500, fontSize: 11)),
                   ],
                 ),
               ),
               if (_isSuperAdmin) ...[
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
+                  icon: const Icon(Icons.delete_outline,
+                      color: Colors.red, size: 16),
                   onPressed: () => _confirmDeleteSubcategory(cat, sub),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -594,21 +681,28 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text('Edit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: const Text('Edit',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 4),
                 GestureDetector(
                   onTap: () => _toggleSubcategory(sub),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: sub.isActive ? Colors.green.shade50 : Colors.grey.shade100,
+                      color: sub.isActive
+                          ? Colors.green.shade50
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       sub.isActive ? 'On' : 'Off',
                       style: TextStyle(
-                        color: sub.isActive ? Colors.green.shade700 : Colors.grey.shade600,
+                        color: sub.isActive
+                            ? Colors.green.shade700
+                            : Colors.grey.shade600,
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
@@ -636,7 +730,8 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
             foregroundColor: _blue,
             side: BorderSide(color: _blue.withValues(alpha: 0.5)),
             padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ),
@@ -655,7 +750,10 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
     }
   }
 
-  Widget _buildEmptyState({required IconData icon, required String title, required String subtitle}) {
+  Widget _buildEmptyState(
+      {required IconData icon,
+      required String title,
+      required String subtitle}) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -664,9 +762,13 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
           children: [
             Icon(icon, size: 64, color: Colors.grey.shade200),
             const SizedBox(height: 16),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(title,
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade500)),
+            Text(subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade500)),
           ],
         ),
       ),
@@ -712,7 +814,7 @@ class _SubcategoryFormScreen extends StatefulWidget {
 
 class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
   static const _blue = Color(0xFF1A56C4);
-  
+
   HazardCategoryData? _selectedCategory;
   late TextEditingController _nameCtrl;
   late TextEditingController _abbrCtrl;
@@ -722,10 +824,14 @@ class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedCategory = widget.initialCategory ?? (widget.categories.isNotEmpty ? widget.categories.first : null);
-    _nameCtrl = TextEditingController(text: widget.subcategoryToEdit?.name ?? '');
-    _abbrCtrl = TextEditingController(text: widget.subcategoryToEdit?.abbreviation ?? '');
-    _descCtrl = TextEditingController(text: widget.subcategoryToEdit?.description ?? '');
+    _selectedCategory = widget.initialCategory ??
+        (widget.categories.isNotEmpty ? widget.categories.first : null);
+    _nameCtrl =
+        TextEditingController(text: widget.subcategoryToEdit?.name ?? '');
+    _abbrCtrl = TextEditingController(
+        text: widget.subcategoryToEdit?.abbreviation ?? '');
+    _descCtrl = TextEditingController(
+        text: widget.subcategoryToEdit?.description ?? '');
   }
 
   @override
@@ -749,7 +855,7 @@ class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
       dynamic result;
       if (widget.subcategoryToEdit != null) {
@@ -797,8 +903,8 @@ class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit Subkategori' : 'Tambah Subkategori', 
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(isEdit ? 'Edit Subkategori' : 'Tambah Subkategori',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -819,7 +925,10 @@ class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
             const SizedBox(height: 24),
             _buildLabel('SINGKATAN'),
             const SizedBox(height: 8),
-            _buildTextField(_abbrCtrl, hint: 'cth: TTA-01', maxLength: 3, capitalization: TextCapitalization.characters),
+            _buildTextField(_abbrCtrl,
+                hint: 'cth: TTA-01',
+                maxLength: 3,
+                capitalization: TextCapitalization.characters),
             const SizedBox(height: 24),
             _buildLabel('NAMA SUBKATEGORI'),
             const SizedBox(height: 8),
@@ -827,7 +936,8 @@ class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
             const SizedBox(height: 24),
             _buildLabel('DESKRIPSI (OPSIONAL)'),
             const SizedBox(height: 8),
-            _buildTextField(_descCtrl, hint: 'Masukkan deskripsi subkategori...', maxLines: 4),
+            _buildTextField(_descCtrl,
+                hint: 'Masukkan deskripsi subkategori...', maxLines: 4),
             const SizedBox(height: 40),
             _buildSaveButton(),
           ],
@@ -857,22 +967,31 @@ class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
         borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
         style: kMinimalDropdownTextStyle,
         decoration: minimalFieldDecoration(),
-        items: widget.categories.map((c) => DropdownMenuItem(
-          value: c,
-          child: Text(c.name, style: kMinimalDropdownTextStyle),
-        )).toList(),
+        items: widget.categories
+            .map((c) => DropdownMenuItem(
+                  value: c,
+                  child: Text(c.name, style: kMinimalDropdownTextStyle),
+                ))
+            .toList(),
         onChanged: (v) => setState(() => _selectedCategory = v),
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController ctrl, {String? hint, int maxLines = 1, int? maxLength, TextCapitalization capitalization = TextCapitalization.none}) {
+  Widget _buildTextField(TextEditingController ctrl,
+      {String? hint,
+      int maxLines = 1,
+      int? maxLength,
+      TextCapitalization capitalization = TextCapitalization.none}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: TextField(
@@ -906,13 +1025,22 @@ class _SubcategoryFormScreenState extends State<_SubcategoryFormScreen> {
           backgroundColor: _blue,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 2,
           shadowColor: _blue.withValues(alpha: 0.4),
         ),
-        child: _isLoading 
-          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-          : const Text('SIMPAN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.2)),
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2))
+            : const Text('SIMPAN',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    letterSpacing: 1.2)),
       ),
     );
   }
@@ -928,8 +1056,11 @@ class _FieldConfig {
   final int? maxLength;
   final TextCapitalization capitalization;
 
-  _FieldConfig(this.label, this.controller, this.hint, {
-    this.required = false, 
+  _FieldConfig(
+    this.label,
+    this.controller,
+    this.hint, {
+    this.required = false,
     this.maxLength,
     this.capitalization = TextCapitalization.none,
   });
@@ -950,33 +1081,44 @@ class _InputDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      title: Text(title,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: fields.expand((f) => [
-          Text(
-            '${f.label}${f.required ? ' *' : ''}',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: f.controller,
-            maxLength: f.maxLength,
-            textCapitalization: f.capitalization,
-            decoration: InputDecoration(
-              hintText: f.hint,
-              hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              counterText: "", // Hide counter
-            ),
-          ),
-          const SizedBox(height: 12),
-        ]).toList(),
+        children: fields
+            .expand((f) => [
+                  Text(
+                    '${f.label}${f.required ? ' *' : ''}',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: f.controller,
+                    maxLength: f.maxLength,
+                    textCapitalization: f.capitalization,
+                    decoration: InputDecoration(
+                      hintText: f.hint,
+                      hintStyle:
+                          const TextStyle(color: Colors.grey, fontSize: 13),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      counterText: "", // Hide counter
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ])
+            .toList(),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal')),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF1A56C4),
@@ -1017,7 +1159,9 @@ class _KategoriNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            Icon(icon,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                size: 24),
             const SizedBox(height: 2),
             Text(
               label,
@@ -1080,7 +1224,8 @@ class _KategoriMenuTile extends StatelessWidget {
                             color: Colors.black87)),
                     const SizedBox(height: 2),
                     Text(subtitle,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),

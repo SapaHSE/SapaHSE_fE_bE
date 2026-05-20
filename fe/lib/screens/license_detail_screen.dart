@@ -14,6 +14,7 @@ class LicenseDetailScreen extends StatefulWidget {
   final VoidCallback? onRefresh;
 
   final bool isApprovalMode;
+  final bool isReadOnly;
   final Future<void> Function(String, String)? onApprove;
   final Future<void> Function(String, String)? onReject;
 
@@ -34,6 +35,7 @@ class LicenseDetailScreen extends StatefulWidget {
     required this.license,
     this.onRefresh,
     this.isApprovalMode = false,
+    this.isReadOnly = false,
     this.onApprove,
     this.onReject,
     this.submitterName,
@@ -370,6 +372,8 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
   }
 
   Widget _buildActionBar() {
+    if (widget.isReadOnly) return const SizedBox.shrink();
+
     if (widget.isApprovalMode &&
         widget.onApprove != null &&
         widget.onReject != null) {
@@ -910,9 +914,7 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                             _license = updatedLicense;
                           });
                         }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Lisensi berhasil diperbarui')),
-                        );
+                        _showSuccessPopup(context, 'Lisensi berhasil diperbarui');
                       } else {
                         ScaffoldMessenger.of(context)
                             .showSnackBar(SnackBar(content: Text(result.message)));
@@ -996,6 +998,38 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                   color: date == null ? Colors.grey.shade500 : Colors.black,
                 ),
                 overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessPopup(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 60),
+            const SizedBox(height: 16),
+            const Text('Berhasil!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14)),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A56C4),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

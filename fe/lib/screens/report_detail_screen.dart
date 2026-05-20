@@ -16,6 +16,7 @@ import '../services/auth_service.dart';
 import '../main.dart';
 import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
+import 'user_profile_view_screen.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -789,495 +790,59 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   void _fetchAndShowUserProfile(BuildContext context, String name,
-      {String? userId}) {
+      {String? userId}) async {
     final cleanName = _cleanProfileName(name);
     if (cleanName.isEmpty) return;
 
     final cached = _cachedUserProfile(cleanName, userId: userId);
     if (cached != null) {
-      _showUserProfileBottomSheet(context, cached);
+      final id = (userId != null && userId.isNotEmpty) ? userId : cached['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        Navigator.push(
+          context,
+          _FadePageRoute(
+            builder: (_) => UserProfileViewScreen(
+              userId: id,
+              displayName: cached['full_name']?.toString() ?? cleanName,
+            ),
+          ),
+        );
+      }
       return;
     }
 
-    final future = _loadUserProfile(cleanName, userId: userId);
-    _showUserProfileLoadingBottomSheet(context, cleanName, future);
-  }
-
-  void _showUserProfileLoadingBottomSheet(
-    BuildContext context,
-    String name,
-    Future<Map<String, dynamic>?> future,
-  ) {
-    showModalBottomSheet(
+    // Tampilkan loading kecil saat mencari id
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => FutureBuilder<Map<String, dynamic>?>(
-        future: future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return _buildProfileLoadingSheet(ctx, name);
-          }
-
-          final user = snapshot.data;
-          if (snapshot.hasError || user == null) {
-            return _buildProfileErrorSheet(ctx, name);
-          }
-
-          return _buildUserProfileSheetContent(ctx, user);
-        },
+      barrierDismissible: false,
+      barrierColor: Colors.black26,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF1A56C4)),
       ),
     );
-  }
 
-  void _showUserProfileBottomSheet(
-      BuildContext context, Map<String, dynamic> user) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _buildUserProfileSheetContent(ctx, user),
-    );
-  }
-
-  Widget _buildProfileLoadingSheet(BuildContext ctx, String name) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        24,
-        12,
-        24,
-        AppSafeInsets.sheetBottomPadding(ctx, base: 24),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const SizedBox(
-            width: 44,
-            height: 44,
-            child: CircularProgressIndicator(
-              color: Color(0xFF1A56C4),
-              strokeWidth: 3,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Memuat detail profil...',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileErrorSheet(BuildContext ctx, String name) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        24,
-        12,
-        24,
-        AppSafeInsets.sheetBottomPadding(ctx, base: 24),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.red.shade50,
-            child: Icon(Icons.person_off_outlined,
-                color: Colors.red.shade700, size: 28),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Profil pengguna tidak ditemukan atau koneksi sedang bermasalah.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 46,
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF1A56C4),
-                side: const BorderSide(color: Color(0xFF1A56C4)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Tutup',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUserProfileSheetContent(
-    BuildContext ctx,
-    Map<String, dynamic> user,
-  ) {
-    final fullName = user['full_name']?.toString() ?? '-';
-    final employeeId = user['employee_id']?.toString() ?? '-';
-    final department = user['department']?.toString() ?? '-';
-    final jabatan = user['jabatan']?.toString() ?? '-';
-    final posisi = user['position']?.toString() ?? '-';
-    final company = user['company']?.toString() ?? '-';
-    final role = user['role']?.toString() ?? 'user';
-    final photoUrl = (user['photo_url'] ??
-            user['profile_photo_url'] ??
-            user['profile_photo'])
-        ?.toString();
-    final phone = user['phone_number']?.toString() ?? '-';
-    final email = (user['email'] ?? user['personal_email'] ?? user['work_email'])
-            ?.toString() ??
-        '-';
-    final tipeAfiliasi = user['tipe_afiliasi']?.toString() ?? '-';
-
-    final nameParts = fullName.split(' ');
-    final initials = nameParts.length > 1
-        ? '${nameParts[0][0]}${nameParts[1][0]}'.toUpperCase()
-        : nameParts.isNotEmpty && nameParts[0].isNotEmpty
-            ? nameParts[0][0].toUpperCase()
-            : '?';
-
-    Color roleBgColor = const Color(0xFFF0F4FC);
-    Color roleTextColor = const Color(0xFF1A56C4);
-    String roleLabel = 'Worker';
-
-    if (role.toLowerCase() == 'superadmin') {
-      roleBgColor = const Color(0xFFFFEBEE);
-      roleTextColor = const Color(0xFFD32F2F);
-      roleLabel = 'Superadmin';
-    } else if (role.toLowerCase() == 'admin') {
-      roleBgColor = const Color(0xFFE8F5E9);
-      roleTextColor = const Color(0xFF2E7D32);
-      roleLabel = 'HSE Admin';
+    final user = await _loadUserProfile(cleanName, userId: userId);
+    if (context.mounted) {
+      Navigator.pop(context); // hapus loading
     }
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        24,
-        12,
-        24,
-        AppSafeInsets.sheetBottomPadding(ctx, base: 24),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
+    if (user != null && context.mounted) {
+      final id = (userId != null && userId.isNotEmpty) ? userId : user['id']?.toString();
+      if (id != null && id.isNotEmpty) {
+        Navigator.push(
+          context,
+          _FadePageRoute(
+            builder: (_) => UserProfileViewScreen(
+              userId: id,
+              displayName: user['full_name']?.toString() ?? cleanName,
             ),
           ),
-          const SizedBox(height: 24),
-          Container(
-            width: 90,
-            height: 90,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF1A56C4).withValues(alpha: 0.1),
-              border: Border.all(
-                color: const Color(0xFF1A56C4).withValues(alpha: 0.2),
-                width: 3,
-              ),
-            ),
-            child: ClipOval(
-              child: photoUrl != null && photoUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: photoUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      errorWidget: (context, url, error) => Center(
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A56C4),
-                          ),
-                        ),
-                      ),
-                    )
-                  : Center(
-                      child: Text(
-                        initials,
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A56C4),
-                        ),
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            fullName,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: roleBgColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              roleLabel,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: roleTextColor,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9F9F9),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              children: [
-                _buildProfileField(
-                    Icons.badge_outlined, "NIK / NIP", employeeId),
-                const Divider(height: 20),
-                _buildProfileField(
-                  Icons.phone_outlined,
-                  "Nomor Telepon",
-                  phone,
-                  onTap: (phone != '-' && phone.isNotEmpty)
-                      ? () => _handlePhoneTap(ctx, phone)
-                      : null,
-                ),
-                const Divider(height: 20),
-                _buildProfileField(
-                  Icons.email_outlined,
-                  "Email",
-                  email,
-                  onTap: (email != '-' && email.isNotEmpty)
-                      ? () => _handleEmailTap(email)
-                      : null,
-                ),
-                const Divider(height: 20),
-                _buildProfileField(
-                    Icons.business_outlined, "Perusahaan", company),
-                const Divider(height: 20),
-                _buildProfileField(
-                    Icons.handshake_outlined, "Tipe Afiliasi", tipeAfiliasi),
-                const Divider(height: 20),
-                _buildProfileField(
-                    Icons.domain_outlined, "Departemen", department),
-                const Divider(height: 20),
-                _buildProfileField(
-                  Icons.work_outline,
-                  "Jabatan",
-                  jabatan,
-                ),
-                const Divider(height: 20),
-                _buildProfileField(
-                  Icons.assignment_ind_outlined,
-                  "Posisi",
-                  posisi,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A56C4),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                "Tutup",
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handlePhoneTap(BuildContext context, String phoneStr) {
-    String cleanPhone = phoneStr.replaceAll(RegExp(r'[^\d+]'), '');
-    String waPhone = cleanPhone;
-    if (waPhone.startsWith('0')) {
-      waPhone = '+62${waPhone.substring(1)}';
-    } else if (waPhone.startsWith('62')) {
-      waPhone = '+$waPhone';
+        );
+      }
     }
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: EdgeInsets.fromLTRB(
-            20, 20, 20, AppSafeInsets.sheetBottomPadding(ctx, base: 20)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Hubungi via",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.phone, color: Color(0xFF1A56C4)),
-              title: const Text("Telepon"),
-              onTap: () {
-                Navigator.pop(ctx);
-                launchUrl(Uri.parse('tel:$cleanPhone'));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.chat, color: Colors.green),
-              title: const Text("WhatsApp"),
-              onTap: () {
-                Navigator.pop(ctx);
-                launchUrl(
-                  Uri.parse('https://wa.me/${waPhone.replaceAll('+', '')}'),
-                  mode: LaunchMode.externalApplication,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
-  void _handleEmailTap(String emailStr) {
-    launchUrl(Uri.parse('mailto:$emailStr'));
-  }
 
-  Widget _buildProfileField(IconData icon, String label, String value,
-      {VoidCallback? onTap}) {
-    Widget content = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: Colors.grey.shade600),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color:
-                      onTap != null ? const Color(0xFF1A56C4) : Colors.black87,
-                  decoration: onTap != null ? TextDecoration.underline : null,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (onTap != null)
-          const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
-      ],
-    );
-
-    if (onTap != null) {
-      return InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: content,
-        ),
-      );
-    }
-    return content;
-  }
 
   void _showUpdateStatusModal() {
     if (!_canTapUpdateFab) return;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/ui_utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/violation_service.dart';
@@ -232,7 +233,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
     );
   }
 
-  Future<void> _fetchViolations({bool refresh = false}) async {
+  Future<void> _fetchViolations({bool refresh = false, bool silent = false}) async {
     if (refresh) {
       setState(() {
         _currentPage = 1;
@@ -240,7 +241,9 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
       });
     }
 
-    setState(() => _isLoading = true);
+    if (!silent) {
+      setState(() => _isLoading = true);
+    }
     final result = await ViolationService.getViolations(
       page: _currentPage,
       search: _searchController.text,
@@ -675,7 +678,6 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
     );
 
     if (confirm == true) {
-      setState(() => _isLoading = true);
       int successCount = 0;
       for (String id in _selectedIds) {
         final result = await ViolationService.deleteViolation(id);
@@ -684,15 +686,12 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
 
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
         _isSelectionMode = false;
         _selectedIds.clear();
       });
 
-      _fetchViolations(refresh: true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$successCount data berhasil dihapus')),
-      );
+      _fetchViolations(refresh: true, silent: true);
+      UiUtils.showSuccessPopup(context, '$successCount data berhasil dihapus');
     }
   }
 
@@ -715,14 +714,11 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
     );
 
     if (confirm == true) {
-      setState(() => _isLoading = true);
       final result = await ViolationService.deleteViolation(item.id);
       if (!mounted) return;
-      setState(() => _isLoading = false);
       if (result.success) {
-        _fetchViolations(refresh: true);
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pelanggaran berhasil dihapus')));
+        _fetchViolations(refresh: true, silent: true);
+        UiUtils.showSuccessPopup(context, 'Pelanggaran berhasil dihapus');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(result.errorMessage ?? 'Gagal menghapus data')));

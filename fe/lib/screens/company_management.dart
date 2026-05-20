@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/ui_utils.dart';
 import '../models/company_model.dart';
 import '../services/company_service.dart';
 import '../services/storage_service.dart';
@@ -11,10 +12,12 @@ class CompanyManagementScreen extends StatefulWidget {
   const CompanyManagementScreen({super.key});
 
   @override
-  State<CompanyManagementScreen> createState() => _CompanyManagementScreenState();
+  State<CompanyManagementScreen> createState() =>
+      _CompanyManagementScreenState();
 }
 
-class _CompanyManagementScreenState extends State<CompanyManagementScreen> with SingleTickerProviderStateMixin {
+class _CompanyManagementScreenState extends State<CompanyManagementScreen>
+    with SingleTickerProviderStateMixin {
   static const _blue = Color(0xFF1A56C4);
   static const _red = Color(0xFFD32F2F);
   static const _orange = Color(0xFFF57C00);
@@ -46,26 +49,34 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
     _loadData();
   }
 
-  bool get _isSuperAdmin => _userRole?.toLowerCase() == 'superadmin' || _userRole?.toLowerCase() == 'super admin';
+  bool get _isSuperAdmin =>
+      _userRole?.toLowerCase() == 'superadmin' ||
+      _userRole?.toLowerCase() == 'super admin';
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _loadData({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final companies = await CompanyService.getCompanies();
       if (mounted) {
         setState(() {
           _allCompanies = companies;
-          _isLoading = false;
+          if (!silent) {
+            _isLoading = false;
+          }
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _error = e.toString();
-          _isLoading = false;
+          if (!silent) {
+            _isLoading = false;
+          }
         });
       }
     }
@@ -79,16 +90,21 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
 
   void _showSnack(String msg, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? Colors.red : Colors.green.shade700,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      margin: const EdgeInsets.all(12),
-    ));
+    if (!isError) {
+      UiUtils.showSuccessPopup(context, msg);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(12),
+      ));
+    }
   }
 
-  void _navigateToCompanyForm({CompanyData? company, String? defaultCategory}) async {
+  void _navigateToCompanyForm(
+      {CompanyData? company, String? defaultCategory}) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -100,7 +116,9 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
     );
     if (result == true) {
       _loadData();
-      _showSnack(company == null ? 'Company berhasil ditambahkan.' : 'Company berhasil diperbarui.');
+      _showSnack(company == null
+          ? 'Company berhasil ditambahkan.'
+          : 'Company berhasil diperbarui.');
     }
   }
 
@@ -109,22 +127,27 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Company', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
-        content: Text('Yakin ingin menghapus ${company.name}? Semua data yang terkait mungkin akan hilang.'),
+        title: const Text('Hapus Company',
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+        content: Text(
+            'Yakin ingin menghapus ${company.name}? Semua data yang terkait mungkin akan hilang.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () async {
               Navigator.pop(context);
-              setState(() => _isLoading = true);
               try {
                 await CompanyService.deleteCompany(company.id);
                 _showSnack('Company berhasil dihapus.');
               } catch (e) {
                 _showSnack(e.toString(), isError: true);
               }
-              _loadData();
+              _loadData(silent: true);
             },
             child: const Text('Hapus'),
           ),
@@ -179,38 +202,39 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: _isSearching 
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              onChanged: (val) => setState(() => _searchQuery = val),
-              decoration: const InputDecoration(
-                hintText: 'Cari company...',
-                border: InputBorder.none,
-                hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-              style: const TextStyle(color: Colors.black87, fontSize: 16),
-            )
-          : const Text('Company Management', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: const InputDecoration(
+                  hintText: 'Cari company...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+                style: const TextStyle(color: Colors.black87, fontSize: 16),
+              )
+            : const Text('Company Management',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
         leading: _isSearching
-          ? IconButton(
-              icon: const Icon(Icons.close, color: Colors.black87),
-              onPressed: () {
-                setState(() {
-                  _isSearching = false;
-                  _searchQuery = '';
-                  _searchController.clear();
-                });
-              },
-            )
-          : IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black87),
-              onPressed: () => Navigator.pop(context),
-            ),
+            ? IconButton(
+                icon: const Icon(Icons.close, color: Colors.black87),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = false;
+                    _searchQuery = '';
+                    _searchController.clear();
+                  });
+                },
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                onPressed: () => Navigator.pop(context),
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -230,7 +254,8 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
           indicatorColor: _blue,
           labelColor: _blue,
           unselectedLabelColor: Colors.grey.shade400,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
             Tab(text: 'Daftar Company'),
@@ -240,7 +265,9 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+              ? Center(
+                  child:
+                      Text(_error!, style: const TextStyle(color: Colors.red)))
               : TabBarView(
                   controller: _tabController,
                   children: [
@@ -261,11 +288,31 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _CompanyNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
-            _CompanyNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+            _CompanyNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _CompanyNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped),
             const SizedBox(width: 56),
-            _CompanyNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
-            _CompanyNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+            _CompanyNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _CompanyNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped),
           ],
         ),
       ),
@@ -276,14 +323,19 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
     final filtered = _allCompanies.where((c) {
       if (_searchQuery.isEmpty) return true;
       final searchLower = _searchQuery.toLowerCase();
-      return c.name.toLowerCase().contains(searchLower) || 
-             (c.code?.toLowerCase().contains(searchLower) ?? false);
+      return c.name.toLowerCase().contains(searchLower) ||
+          (c.code?.toLowerCase().contains(searchLower) ?? false);
     }).toList();
 
     // Group companies by category
     final owners = filtered.where((c) => c.category == 'owner').toList();
-    final contractors = filtered.where((c) => c.category == 'contractor' || c.category == 'kontraktor').toList();
-    final subcontraktors = filtered.where((c) => c.category == 'sub contractor' || c.category == 'subkontraktor').toList();
+    final contractors = filtered
+        .where((c) => c.category == 'contractor' || c.category == 'kontraktor')
+        .toList();
+    final subcontraktors = filtered
+        .where((c) =>
+            c.category == 'sub contractor' || c.category == 'subkontraktor')
+        .toList();
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -293,8 +345,10 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
           _buildInfoBanner(),
           const SizedBox(height: 16),
           _buildCategoryCard('Owner', 'OWN', _blue, owners, 'owner'),
-          _buildCategoryCard('Contractor', 'CON', _red, contractors, 'contractor'),
-          _buildCategoryCard('Sub Contractor', 'SUB', _orange, subcontraktors, 'sub contractor'),
+          _buildCategoryCard(
+              'Contractor', 'CON', _red, contractors, 'contractor'),
+          _buildCategoryCard('Sub Contractor', 'SUB', _orange, subcontraktors,
+              'sub contractor'),
         ],
       ),
     );
@@ -315,7 +369,10 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
           Expanded(
             child: Text(
               'Daftar tipe company yang ada dalam sistem.',
-              style: TextStyle(color: Colors.blue.shade800, fontSize: 11, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  color: Colors.blue.shade800,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -323,7 +380,8 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
     );
   }
 
-  Widget _buildCategoryCard(String title, String code, Color color, List<CompanyData> subs, String defaultCategory) {
+  Widget _buildCategoryCard(String title, String code, Color color,
+      List<CompanyData> subs, String defaultCategory) {
     final bgColor = color.withValues(alpha: 0.05);
 
     return Container(
@@ -331,7 +389,12 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(
         children: [
@@ -340,7 +403,8 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
@@ -350,17 +414,22 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
                     children: [
                       Text(
                         '$code — $title',
-                        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${subs.where((s) => s.isActive).length} company aktif',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 20),
+                const Icon(Icons.keyboard_arrow_down,
+                    color: Colors.grey, size: 20),
               ],
             ),
           ),
@@ -373,14 +442,16 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
               child: SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _navigateToCompanyForm(defaultCategory: defaultCategory),
+                  onPressed: () =>
+                      _navigateToCompanyForm(defaultCategory: defaultCategory),
                   icon: const Icon(Icons.add, size: 18),
                   label: Text('Tambah $title'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: color,
                     side: BorderSide(color: color.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -398,21 +469,28 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Icon(Icons.circle, size: 8, color: sub.isActive ? Colors.green : Colors.grey.shade300),
+              Icon(Icons.circle,
+                  size: 8,
+                  color: sub.isActive ? Colors.green : Colors.grey.shade300),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(sub.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                    Text(sub.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w500, fontSize: 13)),
                     if (sub.code != null && sub.code!.isNotEmpty)
-                      Text(sub.code!, style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                      Text(sub.code!,
+                          style: TextStyle(
+                              color: Colors.grey.shade500, fontSize: 11)),
                   ],
                 ),
               ),
               if (_isSuperAdmin) ...[
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
+                  icon: const Icon(Icons.delete_outline,
+                      color: Colors.red, size: 16),
                   onPressed: () => _confirmDeleteCompany(sub),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -426,22 +504,30 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen> with 
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text('Edit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  child: const Text('Edit',
+                      style:
+                          TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 4),
                 GestureDetector(
                   onTap: () => _toggleStatus(sub),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: sub.isActive ? Colors.green.shade50 : Colors.grey.shade100,
+                      color: sub.isActive
+                          ? Colors.green.shade50
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       sub.isActive ? 'On' : 'Off',
                       style: TextStyle(
-                        color: sub.isActive ? Colors.green.shade700 : Colors.grey.shade600,
-                        fontWeight: sub.isActive ? FontWeight.bold : FontWeight.normal,
+                        color: sub.isActive
+                            ? Colors.green.shade700
+                            : Colors.grey.shade600,
+                        fontWeight:
+                            sub.isActive ? FontWeight.bold : FontWeight.normal,
                         fontSize: 11,
                       ),
                     ),
@@ -478,7 +564,8 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   @override
   void initState() {
     super.initState();
-    String rawCategory = widget.companyToEdit?.category ?? widget.defaultCategory ?? 'owner';
+    String rawCategory =
+        widget.companyToEdit?.category ?? widget.defaultCategory ?? 'owner';
     // Normalize Indonesian terms to English for standardized logic and dropdown matching
     if (rawCategory == 'kontraktor') {
       _category = 'contractor';
@@ -487,7 +574,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     } else {
       _category = rawCategory;
     }
-    
+
     _nameCtrl = TextEditingController(text: widget.companyToEdit?.name ?? '');
     _codeCtrl = TextEditingController(text: widget.companyToEdit?.code ?? '');
   }
@@ -511,7 +598,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
       dynamic result;
       if (widget.companyToEdit != null) {
@@ -530,6 +617,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
       }
 
       if (result != null) {
+        await UiUtils.showSuccessPopup(context, 'Data berhasil disimpan');
         if (mounted) Navigator.pop(context, true);
       } else {
         if (mounted) {
@@ -556,8 +644,8 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit Company' : 'Tambah Company', 
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(isEdit ? 'Edit Company' : 'Tambah Company',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -593,11 +681,15 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
                 children: [
                   _buildLabel('NAMA COMPANY *'),
                   const SizedBox(height: 8),
-                  _buildTextField(_nameCtrl, hint: 'Contoh: PT Bukit Baiduri Energi'),
+                  _buildTextField(_nameCtrl,
+                      hint: 'Contoh: PT Bukit Baiduri Energi'),
                   const SizedBox(height: 16),
                   _buildLabel('KODE (OPSIONAL)'),
                   const SizedBox(height: 8),
-                  _buildTextField(_codeCtrl, hint: 'Contoh: BBE', maxLength: 5, capitalization: TextCapitalization.characters),
+                  _buildTextField(_codeCtrl,
+                      hint: 'Contoh: BBE',
+                      maxLength: 5,
+                      capitalization: TextCapitalization.characters),
                 ],
               ),
             ),
@@ -610,7 +702,12 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4))
+            ],
           ),
           child: Row(
             children: [
@@ -618,7 +715,9 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
                 flex: 1,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Batal', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                  child: const Text('Batal',
+                      style: TextStyle(
+                          color: Colors.black87, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 16),
@@ -630,12 +729,19 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
                     backgroundColor: _blue,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                   child: _isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Simpan',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
               ),
             ],
@@ -661,10 +767,15 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           Expanded(
             child: RichText(
               text: const TextSpan(
-                style: TextStyle(color: Color(0xFFF57F17), fontSize: 13, height: 1.4),
+                style: TextStyle(
+                    color: Color(0xFFF57F17), fontSize: 13, height: 1.4),
                 children: [
-                  TextSpan(text: 'Setelah disimpan, perubahan akan langsung berlaku pada data '),
-                  TextSpan(text: 'Company Management.', style: TextStyle(fontWeight: FontWeight.bold)),
+                  TextSpan(
+                      text:
+                          'Setelah disimpan, perubahan akan langsung berlaku pada data '),
+                  TextSpan(
+                      text: 'Company Management.',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -682,7 +793,10 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -726,16 +840,25 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
         style: kMinimalDropdownTextStyle,
         decoration: minimalFieldDecoration(),
         items: const [
-          DropdownMenuItem(value: 'owner', child: Text('Owner', style: kMinimalDropdownTextStyle)),
-          DropdownMenuItem(value: 'contractor', child: Text('Contractor', style: kMinimalDropdownTextStyle)),
-          DropdownMenuItem(value: 'sub contractor', child: Text('Sub Contractor', style: kMinimalDropdownTextStyle)),
+          DropdownMenuItem(
+              value: 'owner',
+              child: Text('Owner', style: kMinimalDropdownTextStyle)),
+          DropdownMenuItem(
+              value: 'contractor',
+              child: Text('Contractor', style: kMinimalDropdownTextStyle)),
+          DropdownMenuItem(
+              value: 'sub contractor',
+              child: Text('Sub Contractor', style: kMinimalDropdownTextStyle)),
         ],
         onChanged: (v) => setState(() => _category = v!),
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController ctrl, {String? hint, int? maxLength, TextCapitalization capitalization = TextCapitalization.none}) {
+  Widget _buildTextField(TextEditingController ctrl,
+      {String? hint,
+      int? maxLength,
+      TextCapitalization capitalization = TextCapitalization.none}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -791,7 +914,9 @@ class _CompanyNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            Icon(icon,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                size: 24),
             const SizedBox(height: 2),
             Text(
               label,
@@ -854,7 +979,8 @@ class _CompanyMenuTile extends StatelessWidget {
                             color: Colors.black87)),
                     const SizedBox(height: 2),
                     Text(subtitle,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
