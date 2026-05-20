@@ -2461,6 +2461,8 @@ if (picked.isNotEmpty) {
       backgroundColor: _bgColor,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0.0,
         elevation: 0.5,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black87),
@@ -2477,8 +2479,15 @@ if (picked.isNotEmpty) {
         onTap: () => FocusScope.of(context).unfocus(),
         child: SafeArea(
           top: false,
-          child: Stepper(
-            type: StepperType.horizontal,
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              canvasColor: Colors.white,
+              colorScheme: Theme.of(context).colorScheme.copyWith(
+                surface: Colors.white,
+              ),
+            ),
+            child: Stepper(
+              type: StepperType.horizontal,
             currentStep: _currentStep,
             elevation: 0,
             controlsBuilder: (context, details) {
@@ -2552,7 +2561,8 @@ if (picked.isNotEmpty) {
             ],
           ),
         ),
-      )
+        ),
+      ),
     );
   }
 }
