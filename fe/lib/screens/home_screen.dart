@@ -1384,7 +1384,7 @@ class _ReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dueChip = _dueChip();
-    final double cardBodyHeight = dueChip != null ? 156 : 138;
+    final double cardBodyHeight = dueChip != null ? 124 : 106;
 
     return GestureDetector(
       onTap: onTap,
@@ -1437,16 +1437,18 @@ class _ReportCard extends StatelessWidget {
                           ),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            height: 20,
                             color: _typeColor,
-                            child: Text(
-                              report.type.label.toUpperCase(),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
+                            child: Center(
+                              child: Text(
+                                report.type.label.toUpperCase(),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
                           ),
@@ -1456,113 +1458,161 @@ class _ReportCard extends StatelessWidget {
 
                     // ── RIGHT SIDE: Details ──────────────────────────────────
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              report.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 215;
+                          final dense = compact || constraints.maxHeight <= 126;
+                          final description = report.description.trim();
+                          final showDescription = description.isNotEmpty;
+                          const descMaxLines = 1;
+                          final metaFontSize = dense ? 9.0 : 10.0;
+                          final iconSize = dense ? 9.0 : 10.0;
+                          final chipVPad = dense ? 2.0 : 3.0;
+                          final chipHPad = dense ? 6.0 : 8.0;
+                          return Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              12,
+                              dense ? 7 : 10,
+                              12,
+                              dense ? 6 : 9,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              report.description,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.black54,
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Date & Location
-                            Row(
-                              children: [
-                                const Icon(Icons.calendar_today_outlined,
-                                    size: 10, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(_formatDate(report.createdAt),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontSize: 10, color: Colors.grey)),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.location_on_outlined,
-                                    size: 10, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                    child: Text(report.location,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            fontSize: 10, color: Colors.grey))),
-                              ],
-                            ),
-                            if (dueChip != null) ...[
-                              const SizedBox(height: 6),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: dueChip,
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-
-                            // Status & Priority
-                            Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Flexible(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: _statusColor.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                          color: _statusColor.withValues(
-                                              alpha: 0.3)),
-                                    ),
-                                    child: Text(
-                                      report.displayStatusLabel,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      report.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                          color: _statusColor,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold),
+                                        fontSize: dense ? 13 : 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
                                     ),
-                                  ),
+                                    if (showDescription) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        description,
+                                        maxLines: descMaxLines,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.black54,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: _severityColor,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    report.severity.label,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold),
-                                  ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.calendar_today_outlined,
+                                            size: iconSize,
+                                            color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(_formatDate(report.createdAt),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                  fontSize: metaFontSize,
+                                                  color: Colors.grey)),
+                                        ),
+                                        SizedBox(width: dense ? 6 : 8),
+                                        Icon(Icons.location_on_outlined,
+                                            size: iconSize,
+                                            color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                            child: Text(report.location,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    fontSize: metaFontSize,
+                                                    color: Colors.grey))),
+                                      ],
+                                    ),
+                                    if (dueChip != null) ...[
+                                      SizedBox(height: dense ? 3 : 4),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: dueChip,
+                                      ),
+                                    ],
+                                    SizedBox(height: dense ? 4 : 6),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: chipHPad,
+                                                  vertical: chipVPad),
+                                              decoration: BoxDecoration(
+                                                color: _statusColor.withValues(
+                                                    alpha: 0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                                border: Border.all(
+                                                    color: _statusColor.withValues(
+                                                        alpha: 0.3)),
+                                              ),
+                                              child: Text(
+                                                report.displayStatusLabel,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    color: _statusColor,
+                                                    fontSize: 9,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: dense ? 4 : 6),
+                                        ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            minWidth: 56,
+                                            maxWidth: dense ? 82 : 90,
+                                          ),
+                                          child: Container(
+                                            alignment: Alignment.center,
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: chipHPad,
+                                                vertical: chipVPad),
+                                            decoration: BoxDecoration(
+                                              color: _severityColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              report.severity.label,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],

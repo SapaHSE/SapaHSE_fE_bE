@@ -175,23 +175,25 @@ class ApprovalTaskCard extends StatelessWidget {
 
   Widget _buildLeftPanel() {
     return Container(
-      width: 120,
+      width: 110,
       color: Colors.grey.shade50,
       child: Column(
         children: [
           Expanded(child: _buildImagePreview()),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 6),
+            height: 20,
             color: _accent,
-            child: Text(
-              _typeLabel,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
+            child: Center(
+              child: Text(
+                _typeLabel,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
           ),
@@ -202,6 +204,7 @@ class ApprovalTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isRead = item.isRead;
     final submittedAt = item.submittedAt ?? item.createdAt;
     final status = _statusStyle(item.approvalStatus);
     final statusPending =
@@ -216,19 +219,23 @@ class ApprovalTaskCard extends StatelessWidget {
     final submitterLine =
         department.isEmpty ? submitter : '$submitter • $department';
     final metaInfo = _metaInfo;
-    final hasMetaInfo = metaInfo != null && metaInfo.trim().isNotEmpty;
-    final cardContentHeight = showActions
-        ? (hasMetaInfo ? 170.0 : 160.0)
-        : (hasMetaInfo ? 162.0 : 154.0);
+    final previewText = ((item.description ?? metaInfo) ?? '').trim();
+    final hasPreviewText = previewText.isNotEmpty;
+    const cardContentHeight = 122.0;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isRead ? Colors.white : const Color(0xFFF0F7FF),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _accent.withValues(alpha: 0.25)),
+          border: Border.all(
+            color: isRead
+                ? Colors.grey.shade200
+                : const Color(0xFF1A56C4).withValues(alpha: 0.3),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -248,104 +255,135 @@ class ApprovalTaskCard extends StatelessWidget {
                   children: [
                     _buildLeftPanel(),
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                  height: 1.25),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 215;
+                          final dense = compact || constraints.maxHeight <= 126;
+                          final showPreview = hasPreviewText;
+                          final metaFontSize = dense ? 9.5 : 11.0;
+                          final iconSize = dense ? 9.0 : 11.0;
+                          final chipVPad = dense ? 2.0 : 3.0;
+                          final chipHPad = dense ? 6.0 : 8.0;
+                          return Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              12,
+                              dense ? 7 : 10,
+                              12,
+                              dense ? 6 : 9,
                             ),
-                            if (hasMetaInfo) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                metaInfo,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.black54,
-                                  height: 1.3,
-                                ),
-                              ),
-                            ],
-                            const Spacer(),
-                            Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  size: 13,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    _formatDate(submittedAt),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                          fontSize: dense ? 13 : 14,
+                                          fontWeight: isRead
+                                              ? FontWeight.w600
+                                              : FontWeight.bold,
+                                          color: Colors.black87),
                                     ),
-                                  ),
+                                    if (showPreview) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        previewText,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.black54,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.access_time,
+                                          size: iconSize,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(
+                                            _formatDate(submittedAt),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: metaFontSize,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: dense ? 3 : 4),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.person_outline,
+                                          size: iconSize,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            submitterLine,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: metaFontSize,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: dense ? 4 : 6),
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: chipHPad,
+                                          vertical: chipVPad,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: status.fg.withValues(alpha: 0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                          border: Border.all(
+                                              color: status.fg
+                                                  .withValues(alpha: 0.3)),
+                                        ),
+                                        child: Text(
+                                          status.label,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: status.fg,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.person_outline,
-                                  size: 13,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    submitterLine,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: status.fg.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                      color: status.fg.withValues(alpha: 0.3)),
-                                ),
-                                child: Text(
-                                  status.label,
-                                  style: TextStyle(
-                                    color: status.fg,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],

@@ -2164,8 +2164,8 @@ class _InboxCard extends StatelessWidget {
               SizedBox(
                 height:
                     item.reportType == ReportType.hazard && dueChip != null
-                        ? 155
-                        : 135,
+                        ? 124
+                        : 106,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -2201,16 +2201,18 @@ class _InboxCard extends StatelessWidget {
                           ),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            height: 20,
                             color: _typeColor,
-                            child: Text(
-                              _typeLabel,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
+                            child: Center(
+                              child: Text(
+                                _typeLabel,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
                             ),
                           ),
@@ -2220,132 +2222,171 @@ class _InboxCard extends StatelessWidget {
 
                     // ── RIGHT SIDE: Details ──────────────────────────────────
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: isRead
-                                        ? FontWeight.w600
-                                        : FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                                if (item.description != null &&
-                                    item.description!.trim().isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    item.description!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.black54,
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                ],
-                              ],
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 215;
+                          final dense = compact || constraints.maxHeight <= 126;
+                          final description = item.description?.trim() ?? '';
+                          final showDescription = description.isNotEmpty;
+                          const descMaxLines = 1;
+                          final metaFontSize = dense ? 9.5 : 11.0;
+                          final iconSize = dense ? 9.0 : 11.0;
+                          final chipVPad = dense ? 2.0 : 3.0;
+                          final chipHPad = dense ? 6.0 : 8.0;
+                          return Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              12,
+                              dense ? 7 : 10,
+                              12,
+                              dense ? 6 : 9,
                             ),
-                            const SizedBox(height: 8),
-                            Column(
+                            child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                // Date & Location
-                                Row(
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.access_time,
-                                        size: 12, color: Colors.grey),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(formatDate(item.createdAt),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              fontSize: 11, color: Colors.grey)),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Icon(Icons.location_on_outlined,
-                                        size: 12, color: Colors.grey),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                          (item.location != null &&
-                                                  item.location!
-                                                      .trim()
-                                                      .isNotEmpty)
-                                              ? item.location!
-                                              : '-',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                              fontSize: 11, color: Colors.grey)),
-                                    ),
-                                  ],
-                                ),
-                                if (dueChip != null) ...[
-                                  const SizedBox(height: 6),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: dueChip,
-                                  ),
-                                ],
-                                const SizedBox(height: 10),
-
-                                // Status & Priority
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: badgeColor.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(
-                                            color:
-                                                badgeColor.withValues(alpha: 0.3)),
-                                      ),
-                                      child: Text(
-                                        badgeLabel,
-                                        style: TextStyle(
-                                            color: badgeColor,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold),
+                                    Text(
+                                      item.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: dense ? 13 : 14,
+                                        fontWeight: isRead
+                                            ? FontWeight.w600
+                                            : FontWeight.bold,
+                                        color: Colors.black87,
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: severityColor(severity),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        levelResiko(severity),
+                                    if (showDescription) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        description,
+                                        maxLines: descMaxLines,
+                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.bold),
+                                          fontSize: 11,
+                                          color: Colors.black54,
+                                          height: 1.3,
+                                        ),
                                       ),
+                                    ],
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.access_time,
+                                            size: iconSize,
+                                            color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Flexible(
+                                          child: Text(formatDate(item.createdAt),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                  fontSize: metaFontSize,
+                                                  color: Colors.grey)),
+                                        ),
+                                        SizedBox(width: dense ? 6 : 8),
+                                        Icon(Icons.location_on_outlined,
+                                            size: iconSize,
+                                            color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            (item.location != null &&
+                                                    item.location!
+                                                        .trim()
+                                                        .isNotEmpty)
+                                                ? item.location!
+                                                : '-',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize: metaFontSize,
+                                                color: Colors.grey),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (dueChip != null) ...[
+                                      SizedBox(height: dense ? 3 : 4),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: dueChip,
+                                      ),
+                                    ],
+                                    SizedBox(height: dense ? 4 : 6),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Container(
+                                              padding: EdgeInsets.symmetric(
+                                                  horizontal: chipHPad,
+                                                  vertical: chipVPad),
+                                              decoration: BoxDecoration(
+                                                color: badgeColor.withValues(
+                                                    alpha: 0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                                border: Border.all(
+                                                    color: badgeColor.withValues(
+                                                        alpha: 0.3)),
+                                              ),
+                                              child: Text(
+                                                badgeLabel,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    color: badgeColor,
+                                                    fontSize: 9,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: dense ? 4 : 6),
+                                        ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            minWidth: 56,
+                                            maxWidth: dense ? 84 : 96,
+                                          ),
+                                          child: Container(
+                                            alignment: Alignment.center,
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: chipHPad,
+                                                vertical: chipVPad),
+                                            decoration: BoxDecoration(
+                                              color: severityColor(severity),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              levelResiko(severity),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
                   ],
