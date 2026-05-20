@@ -293,275 +293,268 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
               ),
               const SizedBox(height: 4),
 
-              // ── Scrollable content ─────────────────────────────────────────────
-              Expanded(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _handleScrollNotification,
-                  child: ListView(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.only(bottom: 16),
-                    children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
-                        ),
-                        child: _buildHeroArea(),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ReportStyleDetailCard(
-                              margin: EdgeInsets.zero,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    displayTitle,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
+            // ── Scrollable content ─────────────────────────────────────────
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 16),
+                children: [
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                    child: _buildHeroArea(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ReportStyleDetailCard(
+                          margin: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayTitle,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _typeLabel,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _typeColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const Divider(height: 24),
+                              if ((item.description ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
+                                ReportStyleDetailRow(
+                                  icon: Icons.description_outlined,
+                                  label: 'Deskripsi',
+                                  value: item.description!.trim(),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                              ReportStyleDetailRow(
+                                icon: Icons.access_time,
+                                label: 'Tanggal Pengajuan',
+                                value: _formatDate(submitDate),
+                              ),
+                              const SizedBox(height: 12),
+                              ReportStyleDetailRow(
+                                icon: Icons.info_outline,
+                                label: 'Status',
+                                value: status.label,
+                                valueColor: status.fg,
+                              ),
+                              if ((item.rejectionReason ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFEBEE),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: const Color(0xFFFFCDD2),
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _typeLabel,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: _typeColor,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const Divider(height: 24),
-                                  if ((item.description ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    ReportStyleDetailRow(
-                                      icon: Icons.description_outlined,
-                                      label: 'Deskripsi',
-                                      value: item.description!.trim(),
-                                    ),
-                                    const SizedBox(height: 12),
-                                  ],
-                                  ReportStyleDetailRow(
-                                    icon: Icons.access_time,
-                                    label: 'Tanggal Pengajuan',
-                                    value: _formatDate(submitDate),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ReportStyleDetailRow(
-                                    icon: Icons.info_outline,
-                                    label: 'Status',
-                                    value: status.label,
-                                    valueColor: status.fg,
-                                  ),
-                                  if ((item.rejectionReason ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFFEBEE),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: const Color(0xFFFFCDD2),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.error_outline,
+                                        color: Color(0xFFC62828),
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Alasan Penolakan',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                                color: Color(0xFFC62828),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              item.rejectionReason!.trim(),
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                color: Color(0xFFC62828),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Icon(
-                                            Icons.error_outline,
-                                            color: Color(0xFFC62828),
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                const Text(
-                                                  'Alasan Penolakan',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 12,
-                                                    color: Color(0xFFC62828),
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  item.rejectionReason!.trim(),
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Color(0xFFC62828),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ReportStyleDetailCard(
-                              margin: EdgeInsets.zero,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const ReportStyleSectionHeader(
-                                    icon: Icons.person_outline,
-                                    title: 'Informasi Pemohon',
+                                    ],
                                   ),
-                                  const SizedBox(height: 12),
-                                  ReportStyleDetailRow(
-                                    icon: Icons.person_outline,
-                                    label: 'Pemohon',
-                                    value: _displayValue(item.submitterName),
-                                  ),
-                                  if (submitterRole.isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.work_outline,
-                                      label: 'Jabatan / Departemen',
-                                      value: submitterRole,
-                                    ),
-                                  ],
-                                  if ((item.submitterEmployeeId ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.badge_outlined,
-                                      label: 'NIP',
-                                      value: _displayValue(
-                                          item.submitterEmployeeId),
-                                    ),
-                                  ],
-                                  if ((item.submitterEmail ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.email_outlined,
-                                      label: 'Email',
-                                      value: _displayValue(item.submitterEmail),
-                                    ),
-                                  ],
-                                  if ((item.submitterPhone ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.phone_outlined,
-                                      label: 'Telepon',
-                                      value: _displayValue(item.submitterPhone),
-                                    ),
-                                  ],
-                                  if ((item.submitterCompany ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.business_outlined,
-                                      label: 'Perusahaan',
-                                      value:
-                                          _displayValue(item.submitterCompany),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ReportStyleDetailCard(
-                              margin: EdgeInsets.zero,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const ReportStyleSectionHeader(
-                                    icon: Icons.assignment_outlined,
-                                    title: 'Detail Pengajuan',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ReportStyleDetailRow(
-                                    icon: Icons.category_outlined,
-                                    label: 'Jenis',
-                                    value: _typeLabel,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ReportStyleDetailRow(
-                                    icon: Icons.calendar_today_outlined,
-                                    label: 'Tanggal Pengajuan',
-                                    value: _formatDate(submitDate),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ReportStyleDetailRow(
-                                    icon: Icons.verified_outlined,
-                                    label: 'Status',
-                                    value: status.label,
-                                    valueColor: status.fg,
-                                  ),
-                                  if (hasDocumentDetails) ...[
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: _isLicense
-                                          ? Icons.badge_outlined
-                                          : Icons.workspace_premium_outlined,
-                                      label: _isLicense
-                                          ? 'Nama Lisensi'
-                                          : 'Nama Sertifikat',
-                                      value: _displayValue(item.itemName),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.pin_outlined,
-                                      label: _isLicense
-                                          ? 'Nomor Lisensi'
-                                          : 'Nomor Sertifikat',
-                                      value: _displayValue(item.itemNumber),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.account_balance_outlined,
-                                      label: 'Lembaga Penerbit',
-                                      value: _displayValue(item.itemIssuer),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.event_available_outlined,
-                                      label: 'Tanggal Terbit',
-                                      value: item.itemObtainedAt != null
-                                          ? _formatDateShort(
-                                              item.itemObtainedAt!)
-                                          : '-',
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ReportStyleDetailRow(
-                                      icon: Icons.event_busy_outlined,
-                                      label: 'Tanggal Kadaluarsa',
-                                      value: item.itemExpiredAt != null
-                                          ? _formatDateShort(
-                                              item.itemExpiredAt!)
-                                          : '-',
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        ReportStyleDetailCard(
+                          margin: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const ReportStyleSectionHeader(
+                                icon: Icons.person_outline,
+                                title: 'Informasi Pemohon',
+                              ),
+                              const SizedBox(height: 12),
+                              ReportStyleDetailRow(
+                                icon: Icons.person_outline,
+                                label: 'Pemohon',
+                                value: _displayValue(item.submitterName),
+                              ),
+                              if (submitterRole.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.work_outline,
+                                  label: 'Jabatan / Departemen',
+                                  value: submitterRole,
+                                ),
+                              ],
+                              if ((item.submitterEmployeeId ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.badge_outlined,
+                                  label: 'NIP',
+                                  value:
+                                      _displayValue(item.submitterEmployeeId),
+                                ),
+                              ],
+                              if ((item.submitterEmail ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.email_outlined,
+                                  label: 'Email',
+                                  value: _displayValue(item.submitterEmail),
+                                ),
+                              ],
+                              if ((item.submitterPhone ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.phone_outlined,
+                                  label: 'Telepon',
+                                  value: _displayValue(item.submitterPhone),
+                                ),
+                              ],
+                              if ((item.submitterCompany ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.business_outlined,
+                                  label: 'Perusahaan',
+                                  value: _displayValue(item.submitterCompany),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailCard(
+                          margin: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const ReportStyleSectionHeader(
+                                icon: Icons.assignment_outlined,
+                                title: 'Detail Pengajuan',
+                              ),
+                              const SizedBox(height: 12),
+                              ReportStyleDetailRow(
+                                icon: Icons.category_outlined,
+                                label: 'Jenis',
+                                value: _typeLabel,
+                              ),
+                              const SizedBox(height: 12),
+                              ReportStyleDetailRow(
+                                icon: Icons.calendar_today_outlined,
+                                label: 'Tanggal Pengajuan',
+                                value: _formatDate(submitDate),
+                              ),
+                              const SizedBox(height: 12),
+                              ReportStyleDetailRow(
+                                icon: Icons.verified_outlined,
+                                label: 'Status',
+                                value: status.label,
+                                valueColor: status.fg,
+                              ),
+                              if (hasDocumentDetails) ...[
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: _isLicense
+                                      ? Icons.badge_outlined
+                                      : Icons.workspace_premium_outlined,
+                                  label: _isLicense
+                                      ? 'Nama Lisensi'
+                                      : 'Nama Sertifikat',
+                                  value: _displayValue(item.itemName),
+                                ),
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.pin_outlined,
+                                  label: _isLicense
+                                      ? 'Nomor Lisensi'
+                                      : 'Nomor Sertifikat',
+                                  value: _displayValue(item.itemNumber),
+                                ),
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.account_balance_outlined,
+                                  label: 'Lembaga Penerbit',
+                                  value: _displayValue(item.itemIssuer),
+                                ),
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.event_available_outlined,
+                                  label: 'Tanggal Terbit',
+                                  value: item.itemObtainedAt != null
+                                      ? _formatDateShort(item.itemObtainedAt!)
+                                      : '-',
+                                ),
+                                const SizedBox(height: 12),
+                                ReportStyleDetailRow(
+                                  icon: Icons.event_busy_outlined,
+                                  label: 'Tanggal Kadaluarsa',
+                                  value: item.itemExpiredAt != null
+                                      ? _formatDateShort(item.itemExpiredAt!)
+                                      : '-',
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
+            ),
 
               // ── Action buttons ─────────────────────────────────────────────
               SafeArea(
