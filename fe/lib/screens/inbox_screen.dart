@@ -21,6 +21,7 @@ import '../widgets/app_safe_insets.dart';
 import '../services/storage_service.dart';
 import '../services/cloud_save_service.dart';
 import '../utils/url_helper.dart';
+import '../utils/ui_utils.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -1354,14 +1355,11 @@ class _InboxScreenState extends State<InboxScreen>
     if (!mounted) return false;
 
     if (response.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            approve
-                ? 'Pengajuan berhasil disetujui.'
-                : 'Pengajuan berhasil ditolak.',
-          ),
-        ),
+      await UiUtils.showSuccessPopup(
+        context,
+        approve
+            ? 'Pengajuan berhasil disetujui.'
+            : 'Pengajuan berhasil ditolak.',
       );
       return true;
     }

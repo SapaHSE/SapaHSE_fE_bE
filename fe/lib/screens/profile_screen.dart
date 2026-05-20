@@ -901,73 +901,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAboutFooter() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                "assets/logo.png",
-                height: 34,
-                errorBuilder: (context, error, stackTrace) => const Icon(
-                  Icons.health_and_safety,
-                  color: Color(0xFF1A56C4),
-                  size: 28,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
+              ],
+            ),
+            child: Image.asset(
+              "assets/logo.png",
+              height: 36,
+              width: 36,
+              errorBuilder: (context, error, stackTrace) => const Icon(
+                Icons.health_and_safety,
+                color: Color(0xFF1A56C4),
+                size: 28,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "SapaHSE",
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      "Tim Pengembang:",
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      "Farid Rudiansyah : Project Manager\nNoor Lintang Bhaskara : Front End\nMuhammad Fa'iz : Middleware\nReyfaldho Alfarazel : Back End",
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Text(
-                "v1.0.0",
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
+            ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            "© 2026 SapaHSE. All Rights Reserved.",
+          Text(
+            "v1.0.0",
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey,
+              fontSize: 11,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "SapaHSE",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Tim Pengembang:",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade500,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Farid Rudiansyah : Project Manager\nNoor Lintang Bhaskara : Front End Developer\nMuhammad Fa'iz : Middleware Developer\nReyfaldho Alfarazel : Back End Developer",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "© 2026 SapaHSE. All Rights Reserved.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10.5,
+              color: Colors.grey.shade500,
               fontWeight: FontWeight.w500,
             ),
           ),
