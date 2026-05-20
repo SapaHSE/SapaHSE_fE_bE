@@ -98,7 +98,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     final catColor = _categoryColor(article.category);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF2F2F2),
       body: CustomScrollView(
         slivers: [
           // SliverAppBar with hero image
@@ -287,7 +287,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5F5F5),
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(tag,
