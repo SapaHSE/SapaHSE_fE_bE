@@ -1083,7 +1083,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
           // Dots + author/date
           Positioned(
             left: 16,
-            right: 16,
+            right: 100, // Make room for the floating badge on the bottom right
             bottom: 12,
             child: Row(
               children: [
@@ -1115,30 +1115,35 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Builder(builder: (_) {
-                  final item = _carouselItems[_currentPage];
-                  final isNews = item is NewsArticle;
-                  final label = isNews ? 'BERITA' : 'PENGUMUMAN';
-                  final labelColor = isNews ? Colors.blue : Colors.purple;
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: labelColor.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      label,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  );
-                }),
               ],
             ),
+          ),
+
+          // Type badge — rendered last so it floats above everything
+          Positioned(
+            bottom: 10,
+            right: 10,
+            child: Builder(builder: (_) {
+              final item = _carouselItems[_currentPage];
+              final isNews = item is NewsArticle;
+              final label = isNews ? 'BERITA' : 'PENGUMUMAN';
+              final labelColor = isNews ? Colors.blue : Colors.purple;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: labelColor.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            }),
           ),
         ],
       ),

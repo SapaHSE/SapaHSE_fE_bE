@@ -6,6 +6,7 @@ import '../services/news_service.dart';
 import 'news_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/app_safe_insets.dart';
+import '../widgets/minimal_dropdown.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
@@ -362,68 +363,33 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildCategoryFilter() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       margin: const EdgeInsets.only(bottom: 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'NEWS TYPE',
-              style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey,
-                  letterSpacing: 0.6),
-            ),
+          const Text(
+            'NEWS TYPE',
+            style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey,
+                letterSpacing: 0.6),
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 38,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: newsCategories.length,
-              itemBuilder: (context, index) {
-                final category = newsCategories[index];
-                final isSelected = _selectedCategory == category;
-                final catColor = _categoryColor(category);
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedCategory = category;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? catColor : const Color(0xFFF5F5F5),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected ? Colors.transparent : Colors.grey.shade300,
-                          width: 1,
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          category,
-                          style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.black87,
-                            fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+          const SizedBox(height: 8),
+          MinimalDropdown<String>(
+            value: _selectedCategory,
+            items: newsCategories.map((cat) {
+              return DropdownMenuItem(
+                value: cat,
+                child: Text(cat, style: kMinimalDropdownTextStyle),
+              );
+            }).toList(),
+            onChanged: (val) {
+              if (val != null) {
+                setState(() => _selectedCategory = val);
+              }
+            },
           ),
         ],
       ),
@@ -482,7 +448,7 @@ class _NewsScreenState extends State<NewsScreen> {
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      padding: const EdgeInsets.fromLTRB(12, 60, 12, 10),
+                      padding: const EdgeInsets.fromLTRB(12, 60, 100, 10),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
@@ -539,26 +505,36 @@ class _NewsScreenState extends State<NewsScreen> {
                               style: const TextStyle(
                                   fontSize: 11, color: Colors.white70),
                             ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: catColor,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                article.category,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 9,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700),
-                              ),
-                            ),
                           ]),
                         ],
+                      ),
+                    ),
+                  ),
+
+                  // Category badge — rendered LAST so it floats above the gradient
+                  Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.35,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: catColor,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          article.category,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
                   ),
