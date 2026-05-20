@@ -665,7 +665,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         subtitle: isSyncing
                             ? 'Sedang menyinkronkan data...'
                             : pendingCount > 0
-                                ? 'Ada $pendingCount laporan tertunda • Tap untuk sync'
+                                ? 'Ada $pendingCount draft tertunda • Tap untuk sync'
                                 : 'Semua data tersinkronisasi • Antrean bersih',
                         trailing: isSyncing
                             ? const SizedBox(
@@ -694,7 +694,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           if (pendingCount > 0) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Memulai sinkronisasi laporan...'),
+                                content: Text('Memulai sinkronisasi draft...'),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -702,7 +702,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Semua laporan lokal sudah tersinkronisasi.'),
+                                content: Text('Semua draft lokal sudah tersinkronisasi.'),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -743,7 +743,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     );
                     if (confirm == true) {
                       await _clearLocalStorage();
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Local cache berhasil dihapus.'),

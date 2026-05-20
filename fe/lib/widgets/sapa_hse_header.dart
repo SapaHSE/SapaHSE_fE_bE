@@ -1,8 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import '../services/cloud_save_service.dart';
-import '../screens/cloud_save_screen.dart';
+
+import '../services/background_sync_service.dart';
 
 class SapaHseHeader extends StatefulWidget {
   final bool isSearching;
@@ -32,9 +30,6 @@ class _SapaHseHeaderState extends State<SapaHseHeader>
     with SingleTickerProviderStateMixin {
   static const _blue = Color(0xFF1A56C4);
 
-  int _draftCount = 0;
-  bool _isOnline = false;
-  StreamSubscription<List<ConnectivityResult>>? _connectSub;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
 
@@ -48,42 +43,12 @@ class _SapaHseHeaderState extends State<SapaHseHeader>
     _pulseAnim = Tween<double>(begin: 0.7, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-
-    _initConnectivity();
-    _loadDraftCount();
-
-    _connectSub =
-        CloudSaveService.instance.connectivityStream.listen((results) async {
-      final online = await CloudSaveService.isOnline();
-      if (mounted) setState(() => _isOnline = online);
-      _loadDraftCount(); // refresh count when connectivity changes
-    });
-  }
-
-  Future<void> _initConnectivity() async {
-    _isOnline = await CloudSaveService.isOnline();
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _loadDraftCount() async {
-    final count = await CloudSaveService.instance.getDraftCount();
-    if (mounted) setState(() => _draftCount = count);
   }
 
   @override
   void dispose() {
-    _connectSub?.cancel();
     _pulseController.dispose();
     super.dispose();
-  }
-
-  void _openCloudSave() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CloudSaveScreen()),
-    );
-    // Refresh draft count when returning from CloudSaveScreen
-    _loadDraftCount();
   }
 
   @override
@@ -94,7 +59,6 @@ class _SapaHseHeaderState extends State<SapaHseHeader>
       child: Row(
         children: [
           if (!widget.isSearching) ...[
-            // ── Logo ─────────────────────────────────────────────────────
             Container(
               width: 36,
               height: 36,
@@ -142,17 +106,14 @@ class _SapaHseHeaderState extends State<SapaHseHeader>
               ),
             ),
           ],
-
-          // ── Cloud Save Icon ───────────────────────────────────────────
           if (widget.showCloudSave && !widget.isSearching)
-            _CloudSaveIconButton(
-              draftCount: _draftCount,
-              isOnline: _isOnline,
-              pulseAnim: _pulseAnim,
-              onTap: _openCloudSave,
+            ValueListenableBuilder<bool>(
+              valueListenable: BackgroundSyncService.instance.isOnline,
+              builder: (_, isOnline, __) => _ConnectionIndicatorButton(
+                isOnline: isOnline,
+                pulseAnim: _pulseAnim,
+              ),
             ),
-
-          // ── Search Toggle ─────────────────────────────────────────────
           if (widget.showSearch)
             IconButton(
               icon: Icon(
@@ -167,92 +128,41 @@ class _SapaHseHeaderState extends State<SapaHseHeader>
   }
 }
 
-// ── Cloud Save Icon Button ────────────────────────────────────────────────────
-class _CloudSaveIconButton extends StatelessWidget {
-  final int draftCount;
+class _ConnectionIndicatorButton extends StatelessWidget {
   final bool isOnline;
   final Animation<double> pulseAnim;
-  final VoidCallback onTap;
 
-  const _CloudSaveIconButton({
-    required this.draftCount,
+  const _ConnectionIndicatorButton({
     required this.isOnline,
     required this.pulseAnim,
-    required this.onTap,
   });
-
-  static const _blue = Color(0xFF1A56C4);
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: draftCount > 0
-          ? '$draftCount laporan belum terkirim'
-          : 'Cloud Save',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: draftCount > 0
-                    ? const Color(0xFFEFF4FF)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: draftCount > 0 && !isOnline
-                    // Pulsing offline icon
-                    ? FadeTransition(
-                        opacity: pulseAnim,
-                        child: const Icon(
-                          Icons.cloud_off_outlined,
-                          color: Color(0xFFFF9800),
-                          size: 22,
-                        ),
-                      )
-                    : Icon(
-                        draftCount > 0
-                            ? Icons.cloud_upload_outlined
-                            : Icons.cloud_outlined,
-                        color: draftCount > 0 ? _blue : Colors.grey,
-                        size: 22,
-                      ),
-              ),
-            ),
-
-            // Badge: draft count
-            if (draftCount > 0)
-              Positioned(
-                top: -4,
-                right: -4,
-                child: Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: isOnline
-                        ? _blue
-                        : const Color(0xFFFF9800),
-                    shape: BoxShape.circle,
-                    border:
-                        Border.all(color: const Color(0xFFF8F8F8), width: 1.5),
-                  ),
-                  constraints:
-                      const BoxConstraints(minWidth: 18, minHeight: 18),
-                  child: Text(
-                    draftCount > 99 ? '99+' : '$draftCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
+      message: isOnline ? 'Koneksi online' : 'Koneksi offline',
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isOnline ? Colors.transparent : const Color(0xFFFFF3E0),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Center(
+          child: isOnline
+              ? const Icon(
+                  Icons.cloud_done_outlined,
+                  color: Color(0xFF2E7D32),
+                  size: 22,
+                )
+              : FadeTransition(
+                  opacity: pulseAnim,
+                  child: const Icon(
+                    Icons.cloud_off_outlined,
+                    color: Color(0xFFFF9800),
+                    size: 22,
                   ),
                 ),
-              ),
-          ],
         ),
       ),
     );

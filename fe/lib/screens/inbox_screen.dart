@@ -3,14 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../data/report_store.dart';
 import '../models/inbox_item.dart';
 import '../models/profile_model.dart';
 import '../models/report.dart';
 import '../services/api_service.dart';
 import '../services/approval_service.dart';
+import '../services/background_sync_service.dart';
 import '../services/inbox_service.dart';
 import '../services/profile_service.dart';
 import '../services/report_service.dart';
+import 'certification_detail_screen.dart';
+import 'draft_report_detail_screen.dart';
+import 'license_detail_screen.dart';
 import 'report_detail_screen.dart';
 import '../widgets/approval_detail_sheet.dart';
 import '../widgets/approval_task_card.dart';
@@ -123,6 +128,8 @@ class _InboxScreenState extends State<InboxScreen>
   List<UserLicense> _myLicenses = [];
   List<UserCertification> _myCertifications = [];
   final Map<String, bool> _approvalActionLoading = {};
+  final Map<String, bool> _draftActionLoading = {};
+  final Map<String, ReportDraft> _draftById = {};
   bool _loadingReports = false;
   bool _loadingAnnouncements = false;
   bool _loadingMyReports = false;
@@ -279,6 +286,9 @@ class _InboxScreenState extends State<InboxScreen>
     setState(() {
       _loadingMyReports = false;
       _myDrafts = drafts;
+      _draftById
+        ..clear()
+        ..addEntries(drafts.map((d) => MapEntry(d.id, d)));
       if (reportResult.success) {
         _myRawReports = reportResult.reports
             .where((r) => r.reporterId == _currentUserId)
@@ -487,6 +497,189 @@ class _InboxScreenState extends State<InboxScreen>
   List<InboxItem> get _myCertificationItems =>
       _myCertifications.map(_certificationToInboxItem).toList();
 
+  bool _isReportDraftType(DraftType type) =>
+      type == DraftType.hazard || type == DraftType.inspection;
+
+  bool _isLicenseDraftType(DraftType type) =>
+      type == DraftType.licenseCreate || type == DraftType.licenseUpdate;
+
+  bool _isCertificationDraftType(DraftType type) =>
+      type == DraftType.certificationCreate ||
+      type == DraftType.certificationUpdate;
+
+  String? _trimmedOrNull(dynamic value) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty || raw == '-') return null;
+    return raw;
+  }
+
+  String? _firstDraftValue(Map<String, dynamic> data, List<String> keys) {
+    for (final key in keys) {
+      final value = _trimmedOrNull(data[key]);
+      if (value != null) return value;
+    }
+    return null;
+  }
+
+  String? _draftCardImageUrl(ReportDraft draft) {
+    final imagePath = _firstDraftValue(draft.data, ['imagePath', 'filePath']);
+    if (imagePath != null &&
+        (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
+      return imagePath;
+    }
+    final rawPhotoPaths = draft.data['photoPaths'];
+    if (rawPhotoPaths is List) {
+      for (final candidate in rawPhotoPaths) {
+        final path = candidate?.toString().trim();
+        if (path == null || path.isEmpty) continue;
+        if (path.startsWith('http://') || path.startsWith('https://')) {
+          return path;
+        }
+      }
+    }
+    return null;
+  }
+
+  InboxItem _draftToInboxItem(ReportDraft draft) {
+    if (_isReportDraftType(draft.type)) {
+      final isHazard = draft.type == DraftType.hazard;
+      return InboxItem(
+        id: draft.id,
+        itemType: InboxItemType.report,
+        backendItemType: isHazard ? 'hazard_report' : 'inspection_report',
+        isDraft: true,
+        isRead: true,
+        title: draft.title,
+        createdAt: draft.createdAt,
+        reportType: isHazard ? ReportType.hazard : ReportType.inspection,
+        description: _firstDraftValue(
+              draft.data,
+              ['description', 'kronologi', 'notes'],
+            ) ??
+            '-',
+        status: ReportStatus.open,
+        subStatus: null,
+        location: _firstDraftValue(draft.data, ['location', 'area']) ?? '-',
+        imageUrl: _draftCardImageUrl(draft),
+        severity: _parseSeverity(draft.data['severity']),
+      );
+    }
+
+    if (_isLicenseDraftType(draft.type)) {
+      final submitter = _currentUserSnapshot;
+      final name = _firstDraftValue(draft.data, ['name']) ?? draft.title;
+      final number = _firstDraftValue(draft.data, ['licenseNumber']) ?? '-';
+      final issuer = _firstDraftValue(draft.data, ['issuer']);
+      return InboxItem(
+        id: draft.id,
+        itemType: InboxItemType.approvalLicense,
+        backendItemType: 'approval_license',
+        isDraft: true,
+        isRead: true,
+        title: name,
+        createdAt: draft.createdAt,
+        description: 'Nomor Lisensi: $number',
+        approvalStatus: 'draft',
+        submittedAt: draft.createdAt,
+        submitterName: submitter['full_name'],
+        submitterDept: submitter['department'],
+        submitterCompany: submitter['company'],
+        submitterEmail: submitter['personal_email'],
+        submitterEmployeeId: submitter['employee_id'],
+        submitterPosition: submitter['position'],
+        submitterPhone: submitter['phone_number'],
+        submitterPhotoUrl: submitter['profile_photo'],
+        itemName: name,
+        itemNumber: number,
+        itemIssuer: issuer,
+        itemFileUrl: _firstDraftValue(draft.data, ['imagePath', 'filePath']),
+        itemObtainedAt:
+            _parseDateTextOrNull(_firstDraftValue(draft.data, ['obtainedAt'])),
+        itemExpiredAt:
+            _parseDateTextOrNull(_firstDraftValue(draft.data, ['expiredAt'])),
+      );
+    }
+
+    final submitter = _currentUserSnapshot;
+    final name = _firstDraftValue(draft.data, ['name']) ?? draft.title;
+    final issuer = _firstDraftValue(draft.data, ['issuer']);
+    final number = _firstDraftValue(draft.data, ['certificationNumber']);
+    return InboxItem(
+      id: draft.id,
+      itemType: InboxItemType.approvalCertification,
+      backendItemType: 'approval_certification',
+      isDraft: true,
+      isRead: true,
+      title: name,
+      createdAt: draft.createdAt,
+      description: 'Penerbit: ${issuer ?? '-'}',
+      approvalStatus: 'draft',
+      submittedAt: draft.createdAt,
+      submitterName: submitter['full_name'],
+      submitterDept: submitter['department'],
+      submitterCompany: submitter['company'],
+      submitterEmail: submitter['personal_email'],
+      submitterEmployeeId: submitter['employee_id'],
+      submitterPosition: submitter['position'],
+      submitterPhone: submitter['phone_number'],
+      submitterPhotoUrl: submitter['profile_photo'],
+      itemName: name,
+      itemNumber: number,
+      itemIssuer: issuer,
+      itemFileUrl: _firstDraftValue(draft.data, ['imagePath', 'filePath']),
+      itemObtainedAt:
+          _parseDateTextOrNull(_firstDraftValue(draft.data, ['obtainedAt'])),
+      itemExpiredAt:
+          _parseDateTextOrNull(_firstDraftValue(draft.data, ['expiredAt'])),
+    );
+  }
+
+  UserLicense _draftToLicense(ReportDraft draft) {
+    final data = draft.data;
+    final remoteId = _firstDraftValue(data, ['id', 'remoteId', 'targetId']);
+    return UserLicense(
+      id: remoteId ?? draft.id,
+      name: _firstDraftValue(data, ['name']) ?? draft.title,
+      licenseNumber: _firstDraftValue(data, ['licenseNumber']) ?? '-',
+      issuer: _firstDraftValue(data, ['issuer']),
+      obtainedAt: _firstDraftValue(data, ['obtainedAt']),
+      expiredAt: _firstDraftValue(data, ['expiredAt']),
+      status: 'active',
+      isVerified: false,
+      approvalStatus: 'draft',
+      rejectionReason: null,
+      submittedAt: draft.createdAt.toIso8601String(),
+      reviewedAt: null,
+      fileUrl: _firstDraftValue(data, ['imagePath', 'filePath']),
+    );
+  }
+
+  UserCertification _draftToCertification(ReportDraft draft) {
+    final data = draft.data;
+    final remoteId = _firstDraftValue(data, ['id', 'remoteId', 'targetId']);
+    return UserCertification(
+      id: remoteId ?? draft.id,
+      name: _firstDraftValue(data, ['name']) ?? draft.title,
+      certificationNumber: _firstDraftValue(data, ['certificationNumber']),
+      issuer: _firstDraftValue(data, ['issuer']) ?? '-',
+      obtainedAt: _firstDraftValue(data, ['obtainedAt']),
+      expiredAt: _firstDraftValue(data, ['expiredAt']),
+      status: 'active',
+      isVerified: false,
+      approvalStatus: 'draft',
+      rejectionReason: null,
+      submittedAt: draft.createdAt.toIso8601String(),
+      reviewedAt: null,
+      fileUrl: _firstDraftValue(data, ['imagePath', 'filePath']),
+    );
+  }
+
+  List<InboxItem> _sortByCreatedDesc(Iterable<InboxItem> items) {
+    final list = items.toList();
+    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return list;
+  }
+
   int _severityValue(ReportSeverity? s) {
     if (s == null) return 0;
     switch (s) {
@@ -530,39 +723,29 @@ class _InboxScreenState extends State<InboxScreen>
       _filterByReadState(_announcements);
 
   List<InboxItem> get _activeMyReports {
-    final drafts = _myDrafts
-        .map((d) => InboxItem(
-              id: d.id,
-              itemType: InboxItemType.report,
-              backendItemType: d.type == DraftType.hazard
-                  ? 'hazard_report'
-                  : 'inspection_report',
-              isRead: true,
-              title: '[DRAFT] ${d.title}',
-              createdAt: d.createdAt,
-              reportType: d.type == DraftType.hazard
-                  ? ReportType.hazard
-                  : ReportType.inspection,
-              description: d.data['description']?.toString() ??
-                  d.data['kronologi']?.toString() ??
-                  '',
-              status: ReportStatus.open, // Placeholder for draft
-              subStatus: null,
-              location: d.data['location']?.toString() ?? '-',
-              severity: _parseSeverity(d.data['severity']),
-            ))
-        .toList();
+    final drafts = _sortByCreatedDesc(_myDrafts.map(_draftToInboxItem));
     final licenses = _myLicenseItems;
     final certifications = _myCertificationItems;
     final approvals = <InboxItem>[...licenses, ...certifications];
+    final licenseDrafts =
+        drafts.where((i) => i.itemType == InboxItemType.approvalLicense);
+    final certificationDrafts =
+        drafts.where((i) => i.itemType == InboxItemType.approvalCertification);
+    final reportValidating =
+        _myReports.where((i) => i.subStatus == ReportSubStatus.validating);
     final reportApproved = _myReports.where((i) =>
         i.subStatus != ReportSubStatus.validating &&
         i.subStatus != ReportSubStatus.rejected &&
         i.status != ReportStatus.closed);
-    final reportRejected =
-        _myReports.where((i) => i.status == ReportStatus.closed);
+    final reportRejected = _myReports.where((i) =>
+        i.status == ReportStatus.closed ||
+        i.subStatus == ReportSubStatus.rejected);
     final approvalPending = approvals.where(
-        (i) => (i.approvalStatus ?? 'pending').toLowerCase() == 'pending');
+      (i) {
+        final status = (i.approvalStatus ?? 'pending').toLowerCase();
+        return status == 'pending' || status == 'pending_changes';
+      },
+    );
     final approvalApproved = approvals
         .where((i) => (i.approvalStatus ?? '').toLowerCase() == 'approved');
     final approvalRejected = approvals
@@ -570,28 +753,26 @@ class _InboxScreenState extends State<InboxScreen>
 
     switch (_activeMyPostFilter) {
       case _MyPostFilter.all:
-        final all = [...drafts, ..._myReports, ...approvals];
-        all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        return all;
+        final nonDraftItems = _sortByCreatedDesc([..._myReports, ...approvals]);
+        return [...drafts, ...nonDraftItems];
       case _MyPostFilter.draft:
         return drafts;
       case _MyPostFilter.validating:
-        return [
-          ..._myReports.where((i) => i.subStatus == ReportSubStatus.validating),
-          ...approvalPending,
-        ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return _sortByCreatedDesc([...reportValidating, ...approvalPending]);
       case _MyPostFilter.approved:
-        return [...reportApproved, ...approvalApproved]
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return _sortByCreatedDesc([...reportApproved, ...approvalApproved]);
       case _MyPostFilter.rejected:
-        return [...reportRejected, ...approvalRejected]
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return _sortByCreatedDesc([...reportRejected, ...approvalRejected]);
       case _MyPostFilter.license:
-        return [...licenses]
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return [
+          ...licenseDrafts,
+          ..._sortByCreatedDesc(licenses),
+        ];
       case _MyPostFilter.certificate:
-        return [...certifications]
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return [
+          ...certificationDrafts,
+          ..._sortByCreatedDesc(certifications),
+        ];
     }
   }
 
@@ -864,6 +1045,13 @@ class _InboxScreenState extends State<InboxScreen>
                                 ..._myLicenseItems,
                                 ..._myCertificationItems,
                               ];
+                              final licenseDraftCount = _myDrafts
+                                  .where((d) => _isLicenseDraftType(d.type))
+                                  .length;
+                              final certificationDraftCount = _myDrafts
+                                  .where(
+                                      (d) => _isCertificationDraftType(d.type))
+                                  .length;
                               int count = 0;
                               if (f == _MyPostFilter.all) {
                                 count = _myDrafts.length +
@@ -910,9 +1098,10 @@ class _InboxScreenState extends State<InboxScreen>
                                             'rejected')
                                         .length;
                               } else if (f == _MyPostFilter.license) {
-                                count = _myLicenseItems.length;
+                                count = licenseDraftCount + _myLicenseItems.length;
                               } else if (f == _MyPostFilter.certificate) {
-                                count = _myCertificationItems.length;
+                                count = certificationDraftCount +
+                                    _myCertificationItems.length;
                               }
                               return DropdownMenuItem(
                                 value: f,
@@ -1085,12 +1274,14 @@ class _InboxScreenState extends State<InboxScreen>
 
   Widget _buildMyReportsTab() {
     if (_loadingMyReports &&
+        _myDrafts.isEmpty &&
         _myRawReports.isEmpty &&
         _myLicenses.isEmpty &&
         _myCertifications.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     if (_errorMyReports != null &&
+        _myDrafts.isEmpty &&
         _myRawReports.isEmpty &&
         _myLicenses.isEmpty &&
         _myCertifications.isEmpty) {
@@ -1143,9 +1334,124 @@ class _InboxScreenState extends State<InboxScreen>
 
   Widget _buildMyApprovalStatusCard(InboxItem item) => ApprovalTaskCard(
         item: item,
-        onTap: () => _showMyApprovalDetail(context, item),
+        onTap: () {
+          if (item.isDraft) {
+            _openDraftDetail(item);
+            return;
+          }
+          _showMyApprovalDetail(context, item);
+        },
         showActionButtons: false,
       );
+
+  Future<bool> _sendDraft(ReportDraft draft) async {
+    if (_draftActionLoading[draft.id] == true) return false;
+    if (!mounted) return false;
+    setState(() => _draftActionLoading[draft.id] = true);
+    try {
+      final ok = await ReportStore.instance.submitDraft(draft);
+      if (ok) {
+        await CloudSaveService.instance.deleteDraft(draft.id);
+        await BackgroundSyncService.instance.notifyDraftSaved();
+        await _loadMyReports();
+      }
+      return ok;
+    } catch (_) {
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _draftActionLoading.remove(draft.id));
+      }
+    }
+  }
+
+  Future<bool> _deleteDraft(ReportDraft draft) async {
+    if (_draftActionLoading[draft.id] == true) return false;
+    if (!mounted) return false;
+    setState(() => _draftActionLoading[draft.id] = true);
+    try {
+      await CloudSaveService.instance.deleteDraft(draft.id);
+      await BackgroundSyncService.instance.notifyDraftSaved();
+      await _loadMyReports();
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _draftActionLoading.remove(draft.id));
+      }
+    }
+  }
+
+  Future<void> _openDraftDetail(InboxItem item) async {
+    final draft = _draftById[item.id];
+    if (draft == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Draft tidak ditemukan.')),
+      );
+      return;
+    }
+
+    final submitter = _currentUserSnapshot;
+    bool? changed;
+    if (_isReportDraftType(draft.type)) {
+      changed = await Navigator.push<bool>(
+        context,
+        _FadePageRoute(
+          builder: (_) => DraftReportDetailScreen(
+            draft: draft,
+            onSendDraft: () => _sendDraft(draft),
+            onDeleteDraft: () => _deleteDraft(draft),
+          ),
+        ),
+      );
+    } else if (_isLicenseDraftType(draft.type)) {
+      changed = await Navigator.push<bool>(
+        context,
+        _FadePageRoute(
+          builder: (_) => LicenseDetailScreen(
+            license: _draftToLicense(draft),
+            isDraftView: true,
+            onSendDraft: () => _sendDraft(draft),
+            onDeleteDraft: () => _deleteDraft(draft),
+            submitterName: submitter['full_name'],
+            submitterEmployeeId: submitter['employee_id'],
+            submitterDept: submitter['department'],
+            submitterPosition: submitter['position'],
+            submitterCompany: submitter['company'],
+            submitterEmail: submitter['personal_email'],
+            submitterPhone: submitter['phone_number'],
+            submitterPhotoUrl: submitter['profile_photo'],
+          ),
+        ),
+      );
+    } else if (_isCertificationDraftType(draft.type)) {
+      changed = await Navigator.push<bool>(
+        context,
+        _FadePageRoute(
+          builder: (_) => CertificationDetailScreen(
+            certification: _draftToCertification(draft),
+            isDraftView: true,
+            onSendDraft: () => _sendDraft(draft),
+            onDeleteDraft: () => _deleteDraft(draft),
+            submitterName: submitter['full_name'],
+            submitterEmployeeId: submitter['employee_id'],
+            submitterDept: submitter['department'],
+            submitterPosition: submitter['position'],
+            submitterCompany: submitter['company'],
+            submitterEmail: submitter['personal_email'],
+            submitterPhone: submitter['phone_number'],
+            submitterPhotoUrl: submitter['profile_photo'],
+          ),
+        ),
+      );
+    }
+
+    if (changed == true) {
+      await _loadMyReports();
+    }
+  }
 
   void _showMyApprovalDetail(BuildContext context, InboxItem item) {
     showModalBottomSheet(
@@ -1282,6 +1588,10 @@ class _InboxScreenState extends State<InboxScreen>
         statusLabel: _statusLabel,
         severityColor: _severityColor,
         onDetail: () {
+          if (item.isDraft) {
+            _openDraftDetail(item);
+            return;
+          }
           _markItemRead(item);
           if (item.isApproval) {
             _showApprovalDetail(context, item);
@@ -1703,6 +2013,7 @@ class _InboxCard extends StatelessWidget {
   }
 
   bool _needsImmediateAction(ReportStatus status, ReportSeverity severity) {
+    if (item.isDraft) return false;
     if (status == ReportStatus.closed) return false;
     final remaining = _remainingDuration();
     final nearDeadline =
@@ -1746,6 +2057,7 @@ class _InboxCard extends StatelessWidget {
   }
 
   Widget? _dueChip(ReportStatus status) {
+    if (item.isDraft) return null;
     if (item.reportType != ReportType.hazard) return null;
     if (item.dueDate == null) return null;
     if (status == ReportStatus.closed) return null;
@@ -1802,13 +2114,18 @@ class _InboxCard extends StatelessWidget {
     final ReportSeverity severity = item.severity ?? ReportSeverity.medium;
     final String imageUrl = item.imageUrl ?? '';
     final dueChip = _dueChip(status);
-    final urgencyStyle = _urgencyStyle(status, severity);
+    final urgencyStyle = item.isDraft
+        ? (border: Colors.grey.shade200, background: Colors.white)
+        : _urgencyStyle(status, severity);
 
     // Sub-status 'validating' ditampilkan sebagai "Validating" dengan warna
     // parent status 'open' (biru) agar konsisten dengan hierarki status.
     final String badgeLabel;
     final Color badgeColor;
-    if (item.subStatus == ReportSubStatus.validating) {
+    if (item.isDraft) {
+      badgeLabel = 'Draft';
+      badgeColor = const Color(0xFF1565C0);
+    } else if (item.subStatus == ReportSubStatus.validating) {
       badgeLabel = 'Validating';
       badgeColor = statusColor(ReportStatus.open);
     } else if (item.subStatus == ReportSubStatus.rejected) {
@@ -1844,16 +2161,14 @@ class _InboxCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Column(
             children: [
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: item.reportType == ReportType.hazard && dueChip != null
-                      ? 155
-                      : 135,
-                ),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+              SizedBox(
+                height:
+                    item.reportType == ReportType.hazard && dueChip != null
+                        ? 155
+                        : 135,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                     // ── LEFT SIDE: Image + Category ──────────────────────────
                     Container(
                       width: 110,
@@ -1947,93 +2262,95 @@ class _InboxCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Date & Location
-                            Row(
-                              children: [
-                                const Icon(Icons.access_time,
-                                    size: 12, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(formatDate(item.createdAt),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontSize: 11, color: Colors.grey)),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.access_time,
+                                        size: 12, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(formatDate(item.createdAt),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 11, color: Colors.grey)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Icon(Icons.location_on_outlined,
+                                        size: 12, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                          (item.location != null &&
+                                                  item.location!
+                                                      .trim()
+                                                      .isNotEmpty)
+                                              ? item.location!
+                                              : '-',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              fontSize: 11, color: Colors.grey)),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-                                const Icon(Icons.location_on_outlined,
-                                    size: 12, color: Colors.grey),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                      (item.location != null &&
-                                              item.location!.trim().isNotEmpty)
-                                          ? item.location!
-                                          : '-',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          fontSize: 11, color: Colors.grey)),
-                                ),
-                              ],
-                            ),
-                            if (dueChip != null) ...[
-                              const SizedBox(height: 6),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: dueChip,
-                              ),
-                            ],
-                            const SizedBox(height: 10),
+                                if (dueChip != null) ...[
+                                  const SizedBox(height: 6),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: dueChip,
+                                  ),
+                                ],
+                                const SizedBox(height: 10),
 
-                            // Status & Priority
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: badgeColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                        color:
-                                            badgeColor.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Text(
-                                    badgeLabel,
-                                    style: TextStyle(
-                                        color: badgeColor,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: severityColor(severity),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    levelResiko(severity),
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold),
-                                  ),
+                                // Status & Priority
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: badgeColor.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                            color:
+                                                badgeColor.withValues(alpha: 0.3)),
+                                      ),
+                                      child: Text(
+                                        badgeLabel,
+                                        style: TextStyle(
+                                            color: badgeColor,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: severityColor(severity),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        levelResiko(severity),
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
+              ),
               // ── BOTTOM: Warning Banner if Open ───────────────────────────
               if (_needsImmediateAction(status, severity))
                 Container(

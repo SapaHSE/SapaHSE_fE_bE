@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/offline_reference_cache_service.dart';
 import '../services/storage_service.dart';
 import '../services/push_notification_service.dart';
 import '../main.dart';
@@ -62,6 +63,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (loggedIn) {
       await PushNotificationService.syncTokenWithBackendIfLoggedIn();
+      OfflineReferenceCacheService.prefetchHazardCreateReferences();
       if (!mounted) return;
     }
 

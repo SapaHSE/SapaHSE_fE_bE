@@ -7,6 +7,7 @@ import '../models/profile_model.dart';
 import '../services/profile_service.dart';
 import '../utils/approval_status_ui.dart';
 import '../widgets/app_safe_insets.dart';
+import '../widgets/draft_action_fab.dart';
 import '../widgets/report_style_detail_widgets.dart';
 
 class CertificationDetailScreen extends StatefulWidget {
@@ -29,6 +30,9 @@ class CertificationDetailScreen extends StatefulWidget {
 
   final Function(UserCertification)? onProfileEdit;
   final Function(UserCertification)? onProfileDelete;
+  final bool isDraftView;
+  final Future<bool> Function()? onSendDraft;
+  final Future<bool> Function()? onDeleteDraft;
 
   const CertificationDetailScreen({
     super.key,
@@ -48,6 +52,9 @@ class CertificationDetailScreen extends StatefulWidget {
     this.submitterPhotoUrl,
     this.onProfileEdit,
     this.onProfileDelete,
+    this.isDraftView = false,
+    this.onSendDraft,
+    this.onDeleteDraft,
   });
 
   @override
@@ -58,6 +65,7 @@ class CertificationDetailScreen extends StatefulWidget {
 class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
   late UserCertification _certification;
   bool _isSubmitting = false;
+  bool _isDraftActionLoading = false;
 
   static const _purple = Color(0xFF6A1B9A);
 
@@ -373,6 +381,7 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
   }
 
   Widget _buildActionBar() {
+    if (widget.isDraftView) return const SizedBox.shrink();
     if (widget.isReadOnly) return const SizedBox.shrink();
 
     if (widget.isApprovalMode &&
@@ -458,6 +467,65 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleSendDraft() async {
+    if (_isDraftActionLoading || widget.onSendDraft == null) return;
+    setState(() => _isDraftActionLoading = true);
+    final ok = await widget.onSendDraft!();
+    if (!mounted) return;
+    setState(() => _isDraftActionLoading = false);
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Draft berhasil dikirim.')),
+      );
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal mengirim draft.')),
+      );
+    }
+  }
+
+  Future<void> _handleDeleteDraft() async {
+    if (_isDraftActionLoading || widget.onDeleteDraft == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Hapus Draft?'),
+        content: const Text(
+          'Draft sertifikat ini akan dihapus dari penyimpanan lokal.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _isDraftActionLoading = true);
+    final ok = await widget.onDeleteDraft!();
+    if (!mounted) return;
+    setState(() => _isDraftActionLoading = false);
+    if (ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Draft berhasil dihapus.')),
+      );
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal menghapus draft.')),
+      );
+    }
   }
 
   @override
@@ -727,16 +795,26 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
           ],
         ),
       ),
+      floatingActionButton: widget.isDraftView
+          ? DraftActionFab(
+              heroTag: 'certification_draft_fab_${_certification.id}',
+              isProcessing: _isDraftActionLoading,
+              onSend: _handleSendDraft,
+              onDelete: _handleDeleteDraft,
+            )
+          : null,
       bottomNavigationBar: SafeArea(
         top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0F0F0),
-            border: Border(top: BorderSide(color: Colors.grey.shade200)),
-          ),
-          child: _buildActionBar(),
-        ),
+        child: widget.isDraftView
+            ? const SizedBox.shrink()
+            : Container(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F0F0),
+                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: _buildActionBar(),
+              ),
       ),
     );
   }

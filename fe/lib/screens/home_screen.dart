@@ -1383,6 +1383,9 @@ class _ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dueChip = _dueChip();
+    final double cardBodyHeight = dueChip != null ? 156 : 138;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1403,14 +1406,14 @@ class _ReportCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Column(
             children: [
-              IntrinsicHeight(
+              SizedBox(
+                height: cardBodyHeight,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── LEFT SIDE: Image + Category ──────────────────────────
                     Container(
                       width: 110,
-                      constraints: const BoxConstraints(minHeight: 120),
                       color: Colors.grey.shade50,
                       child: Column(
                         children: [
@@ -1507,11 +1510,11 @@ class _ReportCard extends StatelessWidget {
                                             fontSize: 10, color: Colors.grey))),
                               ],
                             ),
-                            if (_dueChip() != null) ...[
+                            if (dueChip != null) ...[
                               const SizedBox(height: 6),
                               Align(
                                 alignment: Alignment.centerLeft,
-                                child: _dueChip()!,
+                                child: dueChip,
                               ),
                             ],
                             const SizedBox(height: 8),

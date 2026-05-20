@@ -1,4 +1,7 @@
+import 'dart:io' show File;
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 class ReportStyleDetailBadge extends StatelessWidget {
@@ -129,6 +132,92 @@ Future<void> showSingleImagePreview(BuildContext context, String imageUrl) async
   controller.dispose();
 }
 
+Future<void> showSingleLocalImagePreview(
+    BuildContext context, String imagePath) async {
+  final path = imagePath.trim();
+  if (path.isEmpty || kIsWeb) return;
+  final file = File(path);
+  if (!file.existsSync()) return;
+
+  final provider = FileImage(file);
+  try {
+    await precacheImage(provider, context);
+  } catch (_) {
+    // Keep preview behavior consistent even when pre-cache fails.
+  }
+  if (!context.mounted) return;
+
+  final controller = TransformationController();
+  var doubleTapPosition = Offset.zero;
+  const doubleTapZoomScale = 2.5;
+
+  void handleDoubleTap() {
+    final currentScale = controller.value.getMaxScaleOnAxis();
+    if (currentScale > 1.0) {
+      controller.value = Matrix4.identity();
+      return;
+    }
+
+    const scale = doubleTapZoomScale;
+    controller.value = Matrix4(
+      scale,
+      0,
+      0,
+      0,
+      0,
+      scale,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      -doubleTapPosition.dx * (scale - 1),
+      -doubleTapPosition.dy * (scale - 1),
+      0,
+      1,
+    );
+  }
+
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          iconTheme: const IconThemeData(color: Colors.white),
+          elevation: 0,
+          title: const Text(
+            '1/1',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+        ),
+        extendBodyBehindAppBar: true,
+        body: Center(
+          child: GestureDetector(
+            onDoubleTapDown: (details) =>
+                doubleTapPosition = details.localPosition,
+            onDoubleTap: handleDoubleTap,
+            child: InteractiveViewer(
+              minScale: 1.0,
+              maxScale: 4.0,
+              transformationController: controller,
+              child: Image.file(file, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  controller.dispose();
+}
+
 class ReportStyleDetailHero extends StatelessWidget {
   final String imageUrl;
   final Color accentColor;
@@ -151,6 +240,9 @@ class ReportStyleDetailHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final fileUrl = imageUrl.trim();
     final hasImage = fileUrl.isNotEmpty;
+    final isNetwork =
+        fileUrl.startsWith('http://') || fileUrl.startsWith('https://');
+    final hasLocalFile = !kIsWeb && !isNetwork && File(fileUrl).existsSync();
 
     Widget buildFallback() =>
         fallback ??
@@ -170,7 +262,7 @@ class ReportStyleDetailHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (hasImage)
+          if (hasImage && isNetwork)
             GestureDetector(
               onTap: () => showSingleImagePreview(context, fileUrl),
               child: CachedNetworkImage(
@@ -178,6 +270,15 @@ class ReportStyleDetailHero extends StatelessWidget {
                 fit: BoxFit.cover,
                 placeholder: (_, __) => buildFallback(),
                 errorWidget: (_, __, ___) => buildFallback(),
+              ),
+            )
+          else if (hasLocalFile)
+            GestureDetector(
+              onTap: () => showSingleLocalImagePreview(context, fileUrl),
+              child: Image.file(
+                File(fileUrl),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => buildFallback(),
               ),
             )
           else

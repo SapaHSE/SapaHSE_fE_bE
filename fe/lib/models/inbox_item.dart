@@ -73,6 +73,7 @@ class InboxItem {
   final String id;
   final InboxItemType itemType;
   final String backendItemType;
+  final bool isDraft;
   bool isRead; // mutable for optimistic updates
   final String title;
   final DateTime createdAt;
@@ -132,6 +133,7 @@ class InboxItem {
     required this.id,
     required this.itemType,
     required this.backendItemType,
+    this.isDraft = false,
     required this.isRead,
     required this.title,
     required this.createdAt,
@@ -201,6 +203,7 @@ class InboxItem {
         id: json['id']?.toString() ?? '',
         itemType: InboxItemType.announcement,
         backendItemType: rawType,
+        isDraft: false,
         isRead: json['is_read'] == true,
         title: json['title']?.toString() ?? '-',
         createdAt: createdAt,
@@ -235,6 +238,7 @@ class InboxItem {
         id: json['id']?.toString() ?? '',
         itemType: type,
         backendItemType: rawType,
+        isDraft: false,
         isRead: json['is_read'] == true,
         title: json['title']?.toString() ?? '-',
         createdAt: createdAt,
@@ -292,6 +296,7 @@ class InboxItem {
       id: json['id']?.toString() ?? '',
       itemType: InboxItemType.report,
       backendItemType: rawType,
+      isDraft: false,
       isRead: json['is_read'] == true,
       title: json['title']?.toString() ?? '-',
       createdAt: createdAt,

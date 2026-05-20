@@ -4,7 +4,14 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ── Model: Draft Laporan ──────────────────────────────────────────────────────
-enum DraftType { hazard, inspection }
+enum DraftType {
+  hazard,
+  inspection,
+  licenseCreate,
+  licenseUpdate,
+  certificationCreate,
+  certificationUpdate,
+}
 
 class ReportDraft {
   final String id;
@@ -33,11 +40,37 @@ class ReportDraft {
 
   factory ReportDraft.fromJson(Map<String, dynamic> json) => ReportDraft(
         id: json['id'] as String,
-        type: DraftType.values.firstWhere((e) => e.name == json['type']),
+        type: _parseDraftType(json['type']?.toString()),
         title: json['title'] as String,
         data: Map<String, dynamic>.from(json['data'] as Map),
         createdAt: DateTime.parse(json['createdAt'] as String),
       );
+
+  static DraftType _parseDraftType(String? rawType) {
+    if (rawType == null || rawType.trim().isEmpty) return DraftType.hazard;
+    final normalized = rawType.trim().toLowerCase().replaceAll('-', '_');
+    switch (normalized) {
+      case 'hazard':
+      case 'hazard_report':
+        return DraftType.hazard;
+      case 'inspection':
+      case 'inspection_report':
+        return DraftType.inspection;
+      case 'license_create':
+        return DraftType.licenseCreate;
+      case 'license_update':
+        return DraftType.licenseUpdate;
+      case 'certification_create':
+        return DraftType.certificationCreate;
+      case 'certification_update':
+        return DraftType.certificationUpdate;
+    }
+    for (final value in DraftType.values) {
+      if (value.name.toLowerCase() == normalized) return value;
+    }
+    // Backward compatibility: unknown legacy type fallback to hazard.
+    return DraftType.hazard;
+  }
 }
 
 // ── Service ───────────────────────────────────────────────────────────────────

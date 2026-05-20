@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:math' show Random;
 import 'dart:io';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,6 +10,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sapahse/models/profile_model.dart';
 import 'package:sapahse/models/department_model.dart';
 import 'package:sapahse/services/company_service.dart';
+import 'package:sapahse/services/background_sync_service.dart';
+import 'package:sapahse/services/cloud_save_service.dart';
 import 'package:sapahse/services/department_service.dart';
 import 'package:sapahse/services/profile_service.dart';
 import 'package:sapahse/services/storage_service.dart';
@@ -229,6 +232,45 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  String _formatDateForPayload(DateTime? value) {
+    if (value == null) return '';
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
+
+  String _buildDraftId(String prefix) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return '${prefix}_${now}_${Random().nextInt(9999)}';
+  }
+
+  bool _isNoInternetMessage(String message) {
+    final normalized = message.trim().toLowerCase();
+    return normalized.contains('no internet') ||
+        normalized.contains('koneksi internet') ||
+        normalized.contains('internet connection') ||
+        normalized.contains('socketexception');
+  }
+
+  Future<void> _saveApprovalDraft({
+    required DraftType type,
+    required String title,
+    required Map<String, dynamic> data,
+    required String successMessage,
+  }) async {
+    final draft = ReportDraft(
+      id: _buildDraftId(type.name),
+      type: type,
+      title: title.trim().isEmpty ? 'Draft Approval' : title.trim(),
+      data: data,
+      createdAt: DateTime.now(),
+    );
+    await CloudSaveService.instance.saveDraft(draft);
+    await BackgroundSyncService.instance.notifyDraftSaved();
+    if (!mounted) return;
+    _showSuccessPopup(context, successMessage);
   }
 
   Future<void> _pickImage() async {
@@ -2130,46 +2172,99 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           ? 'Memperbarui Lisensi...'
                           : 'Menyimpan Lisensi...');
 
-                      final result = editLicense != null
-                          ? await ProfileService.updateLicense(
-                              id: editLicense.id.toString(),
-                              name: _licenseNameController.text,
-                              licenseNumber: _licenseNumberController.text,
-                              issuer: _licenseIssuerController.text,
-                              obtainedAt: _licenseObtainedAt != null
-                                  ? '${_licenseObtainedAt!.year}-${_licenseObtainedAt!.month.toString().padLeft(2, '0')}-${_licenseObtainedAt!.day.toString().padLeft(2, '0')}'
-                                  : null,
-                              expiredAt: _licenseSelectedDate != null
-                                  ? '${_licenseSelectedDate!.year}-${_licenseSelectedDate!.month.toString().padLeft(2, '0')}-${_licenseSelectedDate!.day.toString().padLeft(2, '0')}'
-                                  : null,
-                              imageFile: _licenseImage,
-                            )
-                          : await ProfileService.addLicense(
-                              name: _licenseNameController.text,
-                              licenseNumber: _licenseNumberController.text,
-                              issuer: _licenseIssuerController.text,
-                              obtainedAt: _licenseObtainedAt != null
-                                  ? '${_licenseObtainedAt!.year}-${_licenseObtainedAt!.month.toString().padLeft(2, '0')}-${_licenseObtainedAt!.day.toString().padLeft(2, '0')}'
-                                  : null,
-                              expiredAt: _licenseSelectedDate != null
-                                  ? '${_licenseSelectedDate!.year}-${_licenseSelectedDate!.month.toString().padLeft(2, '0')}-${_licenseSelectedDate!.day.toString().padLeft(2, '0')}'
-                                  : null,
-                              imageFile: _licenseImage,
-                            );
+                      final isEdit = editLicense != null;
+                      final licenseName = _licenseNameController.text.trim();
+                      final licenseNumber =
+                          _licenseNumberController.text.trim();
+                      final issuer = _licenseIssuerController.text.trim();
+                      final obtainedAt = _formatDateForPayload(_licenseObtainedAt);
+                      final expiredAt =
+                          _formatDateForPayload(_licenseSelectedDate);
+                      final imagePath = _licenseImage?.path;
 
-                      if (!mounted) return;
-                      _dismissLoadingDialog();
-                      if (result.success) {
+                      void clearLicenseForm() {
                         _licenseNameController.clear();
                         _licenseNumberController.clear();
                         _licenseIssuerController.clear();
                         _licenseObtainedAt = null;
                         _licenseSelectedDate = null;
                         _licenseImage = null;
+                      }
+
+                      final draftPayload = <String, dynamic>{
+                        'operation': isEdit ? 'update' : 'create',
+                        if (isEdit) 'remoteId': editLicense.id,
+                        if (isEdit) 'targetId': editLicense.id,
+                        'name': licenseName,
+                        'licenseNumber': licenseNumber,
+                        'issuer': issuer.isEmpty ? null : issuer,
+                        'obtainedAt': obtainedAt.isEmpty ? null : obtainedAt,
+                        'expiredAt': expiredAt.isEmpty ? null : expiredAt,
+                        'imagePath': imagePath,
+                      };
+
+                      final online = await CloudSaveService.isOnline();
+                      if (!online) {
+                        if (!mounted) return;
+                        _dismissLoadingDialog();
+                        await _saveApprovalDraft(
+                          type: isEdit
+                              ? DraftType.licenseUpdate
+                              : DraftType.licenseCreate,
+                          title: licenseName,
+                          data: draftPayload,
+                          successMessage:
+                              'Tidak ada koneksi internet. Draft lisensi disimpan di Inbox > MyPost > Draft.',
+                        );
+                        clearLicenseForm();
+                        return;
+                      }
+
+                      final result = isEdit
+                          ? await ProfileService.updateLicense(
+                              id: editLicense.id.toString(),
+                              name: licenseName,
+                              licenseNumber: licenseNumber,
+                              issuer: issuer,
+                              obtainedAt:
+                                  obtainedAt.isEmpty ? null : obtainedAt,
+                              expiredAt: expiredAt.isEmpty ? null : expiredAt,
+                              imageFile: _licenseImage,
+                            )
+                          : await ProfileService.addLicense(
+                              name: licenseName,
+                              licenseNumber: licenseNumber,
+                              issuer: issuer,
+                              obtainedAt:
+                                  obtainedAt.isEmpty ? null : obtainedAt,
+                              expiredAt: expiredAt.isEmpty ? null : expiredAt,
+                              imageFile: _licenseImage,
+                            );
+
+                      if (!mounted) return;
+                      _dismissLoadingDialog();
+                      if (result.success) {
+                        clearLicenseForm();
                         await _loadProfile();
                         if (mounted) {
-                          _showSuccessPopup(context, editLicense != null ? 'Lisensi berhasil diperbarui' : 'Lisensi berhasil ditambahkan');
+                          _showSuccessPopup(
+                            context,
+                            isEdit
+                                ? 'Lisensi berhasil diperbarui'
+                                : 'Lisensi berhasil ditambahkan',
+                          );
                         }
+                      } else if (_isNoInternetMessage(result.message)) {
+                        await _saveApprovalDraft(
+                          type: isEdit
+                              ? DraftType.licenseUpdate
+                              : DraftType.licenseCreate,
+                          title: licenseName,
+                          data: draftPayload,
+                          successMessage:
+                              'Koneksi internet terputus. Draft lisensi disimpan di Inbox > MyPost > Draft.',
+                        );
+                        clearLicenseForm();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(result.message)));
@@ -2388,46 +2483,100 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           ? 'Memperbarui Sertifikat...'
                           : 'Menyimpan Sertifikat...');
 
-                      final result = editCert != null
-                          ? await ProfileService.updateCertification(
-                              id: editCert.id.toString(),
-                              name: _certNameController.text,
-                              certificationNumber: _certNumberController.text,
-                              issuer: _certIssuerController.text,
-                              obtainedAt: _certObtainedAt != null
-                                  ? '${_certObtainedAt!.year}-${_certObtainedAt!.month.toString().padLeft(2, '0')}-${_certObtainedAt!.day.toString().padLeft(2, '0')}'
-                                  : null,
-                              expiredAt: _certExpiredAt != null
-                                  ? '${_certExpiredAt!.year}-${_certExpiredAt!.month.toString().padLeft(2, '0')}-${_certExpiredAt!.day.toString().padLeft(2, '0')}'
-                                  : null,
-                              imageFile: _certImage,
-                            )
-                          : await ProfileService.addCertification(
-                              name: _certNameController.text,
-                              certificationNumber: _certNumberController.text,
-                              issuer: _certIssuerController.text,
-                              obtainedAt: _certObtainedAt != null
-                                  ? '${_certObtainedAt!.year}-${_certObtainedAt!.month.toString().padLeft(2, '0')}-${_certObtainedAt!.day.toString().padLeft(2, '0')}'
-                                  : null,
-                              expiredAt: _certExpiredAt != null
-                                  ? '${_certExpiredAt!.year}-${_certExpiredAt!.month.toString().padLeft(2, '0')}-${_certExpiredAt!.day.toString().padLeft(2, '0')}'
-                                  : null,
-                              imageFile: _certImage,
-                            );
+                      final isEdit = editCert != null;
+                      final certName = _certNameController.text.trim();
+                      final certNumber = _certNumberController.text.trim();
+                      final issuer = _certIssuerController.text.trim();
+                      final obtainedAt = _formatDateForPayload(_certObtainedAt);
+                      final expiredAt = _formatDateForPayload(_certExpiredAt);
+                      final imagePath = _certImage?.path;
 
-                      if (!mounted) return;
-                      _dismissLoadingDialog();
-                      if (result.success) {
+                      void clearCertificationForm() {
                         _certNameController.clear();
                         _certNumberController.clear();
                         _certIssuerController.clear();
                         _certObtainedAt = null;
                         _certExpiredAt = null;
                         _certImage = null;
+                      }
+
+                      final draftPayload = <String, dynamic>{
+                        'operation': isEdit ? 'update' : 'create',
+                        if (isEdit) 'remoteId': editCert.id,
+                        if (isEdit) 'targetId': editCert.id,
+                        'name': certName,
+                        'certificationNumber':
+                            certNumber.isEmpty ? null : certNumber,
+                        'issuer': issuer,
+                        'obtainedAt': obtainedAt.isEmpty ? null : obtainedAt,
+                        'expiredAt': expiredAt.isEmpty ? null : expiredAt,
+                        'imagePath': imagePath,
+                      };
+
+                      final online = await CloudSaveService.isOnline();
+                      if (!online) {
+                        if (!mounted) return;
+                        _dismissLoadingDialog();
+                        await _saveApprovalDraft(
+                          type: isEdit
+                              ? DraftType.certificationUpdate
+                              : DraftType.certificationCreate,
+                          title: certName,
+                          data: draftPayload,
+                          successMessage:
+                              'Tidak ada koneksi internet. Draft sertifikat disimpan di Inbox > MyPost > Draft.',
+                        );
+                        clearCertificationForm();
+                        return;
+                      }
+
+                      final result = isEdit
+                          ? await ProfileService.updateCertification(
+                              id: editCert.id.toString(),
+                              name: certName,
+                              certificationNumber:
+                                  certNumber.isEmpty ? null : certNumber,
+                              issuer: issuer,
+                              obtainedAt:
+                                  obtainedAt.isEmpty ? null : obtainedAt,
+                              expiredAt: expiredAt.isEmpty ? null : expiredAt,
+                              imageFile: _certImage,
+                            )
+                          : await ProfileService.addCertification(
+                              name: certName,
+                              certificationNumber:
+                                  certNumber.isEmpty ? null : certNumber,
+                              issuer: issuer,
+                              obtainedAt:
+                                  obtainedAt.isEmpty ? null : obtainedAt,
+                              expiredAt: expiredAt.isEmpty ? null : expiredAt,
+                              imageFile: _certImage,
+                            );
+
+                      if (!mounted) return;
+                      _dismissLoadingDialog();
+                      if (result.success) {
+                        clearCertificationForm();
                         await _loadProfile();
                         if (mounted) {
-                          _showSuccessPopup(context, editCert != null ? 'Sertifikat berhasil diperbarui' : 'Sertifikat berhasil ditambahkan');
+                          _showSuccessPopup(
+                            context,
+                            isEdit
+                                ? 'Sertifikat berhasil diperbarui'
+                                : 'Sertifikat berhasil ditambahkan',
+                          );
                         }
+                      } else if (_isNoInternetMessage(result.message)) {
+                        await _saveApprovalDraft(
+                          type: isEdit
+                              ? DraftType.certificationUpdate
+                              : DraftType.certificationCreate,
+                          title: certName,
+                          data: draftPayload,
+                          successMessage:
+                              'Koneksi internet terputus. Draft sertifikat disimpan di Inbox > MyPost > Draft.',
+                        );
+                        clearCertificationForm();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text(result.message)));

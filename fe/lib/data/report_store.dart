@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/report.dart';
 import '../services/cloud_save_service.dart';
+import '../services/profile_service.dart';
 import '../services/report_service.dart';
 
 class TimelineEvent {
@@ -276,63 +278,157 @@ class ReportStore {
 
   Future<bool> submitDraft(ReportDraft draft) async {
     try {
-      if (draft.type == DraftType.hazard) {
-        final severityRaw = (draft.data['severity']?.toString() ?? '').trim();
-        final severityApi =
-            severityRaw.isEmpty ? 'medium' : severityRaw.toLowerCase();
-        final isPublicRaw = draft.data['isPublic'];
-        final isPublic = switch (isPublicRaw) {
-          null => true,
-          final bool v => v,
-          _ => () {
-              final s = isPublicRaw.toString().trim().toLowerCase();
-              if (s == 'false' || s == '0' || s == 'no' || s == 'off') {
-                return false;
-              }
-              return true;
-            }(),
-        };
+      switch (draft.type) {
+        case DraftType.hazard:
+          final severityRaw = (draft.data['severity']?.toString() ?? '').trim();
+          final severityApi =
+              severityRaw.isEmpty ? 'medium' : severityRaw.toLowerCase();
+          final isPublicRaw = draft.data['isPublic'];
+          final isPublic = switch (isPublicRaw) {
+            null => true,
+            final bool v => v,
+            _ => () {
+                final s = isPublicRaw.toString().trim().toLowerCase();
+                if (s == 'false' || s == '0' || s == 'no' || s == 'off') {
+                  return false;
+                }
+                return true;
+              }(),
+          };
 
-        await createHazardReport(
-          title: (draft.data['title']?.toString() ?? '').trim(),
-          description: (draft.data['kronologi']?.toString() ?? '').trim(),
-          location: (draft.data['location']?.toString() ?? '').trim(),
-          severity: severityApi,
-          company: draft.data['perusahaan']?.toString(),
-          area: draft.data['area']?.toString(),
-          picDepartment: draft.data['pic']?.toString(),
-          department: draft.data['departemen']?.toString(),
-          hazardCategory: draft.data['kategori']?.toString(),
-          hazardSubcategory: draft.data['subkategori']?.toString(),
-          suggestion: draft.data['saran']?.toString(),
-          pelakuPelanggaran: draft.data['pelakuPelanggaran']?.toString(),
-          pelaporLocation: draft.data['pelaporLocation']?.toString(),
-          kejadianLocation: draft.data['kejadianLocation']?.toString(),
-          imagePaths: _draftPhotoPaths(draft),
-          isPublic: isPublic,
-        );
-      } else {
-        final checklistRaw = draft.data['checklist'];
-        final checklistItems = checklistRaw is List
-            ? checklistRaw
-                .map((e) => Map<String, dynamic>.from(e as Map))
-                .toList()
-            : const <Map<String, dynamic>>[];
+          await createHazardReport(
+            title: (draft.data['title']?.toString() ?? '').trim(),
+            description: (draft.data['kronologi']?.toString() ?? '').trim(),
+            location: (draft.data['location']?.toString() ?? '').trim(),
+            severity: severityApi,
+            company: draft.data['perusahaan']?.toString(),
+            area: draft.data['area']?.toString(),
+            picDepartment: draft.data['pic']?.toString(),
+            department: _firstNonEmptyString(
+              draft.data['departemen']?.toString(),
+              draft.data['department']?.toString(),
+              draft.data['reported_department']?.toString(),
+            ),
+            hazardCategory: draft.data['kategori']?.toString(),
+            hazardSubcategory: draft.data['subkategori']?.toString(),
+            suggestion: draft.data['saran']?.toString(),
+            pelakuPelanggaran: draft.data['pelakuPelanggaran']?.toString(),
+            pelaporLocation: draft.data['pelaporLocation']?.toString(),
+            kejadianLocation: draft.data['kejadianLocation']?.toString(),
+            imagePaths: _draftPhotoPaths(draft),
+            isPublic: isPublic,
+          );
+          break;
+        case DraftType.inspection:
+          final checklistRaw = draft.data['checklist'];
+          final checklistItems = checklistRaw is List
+              ? checklistRaw
+                  .map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList()
+              : const <Map<String, dynamic>>[];
 
-        await createInspectionReport(
-          title: (draft.data['title']?.toString() ?? '').trim(),
-          description: (draft.data['notes']?.toString() ?? '').trim().isEmpty
-              ? 'Laporan inspeksi dari draft offline.'
-              : (draft.data['notes']?.toString() ?? '').trim(),
-          location: (draft.data['location']?.toString() ?? '').trim(),
-          inspector: draft.data['inspector']?.toString(),
-          reportedDepartment: draft.data['reported_department']?.toString(),
-          area: draft.data['area']?.toString(),
-          result: _inspectionResultUiToApi(draft.data['result']?.toString()),
-          notes: draft.data['notes']?.toString(),
-          checklistItems: checklistItems,
-          imagePaths: _draftPhotoPaths(draft),
-        );
+          await createInspectionReport(
+            title: (draft.data['title']?.toString() ?? '').trim(),
+            description: (draft.data['notes']?.toString() ?? '').trim().isEmpty
+                ? 'Laporan inspeksi dari draft offline.'
+                : (draft.data['notes']?.toString() ?? '').trim(),
+            location: (draft.data['location']?.toString() ?? '').trim(),
+            inspector: draft.data['inspector']?.toString(),
+            reportedDepartment: _firstNonEmptyString(
+              draft.data['reported_department']?.toString(),
+              draft.data['department']?.toString(),
+            ),
+            area: draft.data['area']?.toString(),
+            result: _inspectionResultUiToApi(draft.data['result']?.toString()),
+            notes: draft.data['notes']?.toString(),
+            checklistItems: checklistItems,
+            imagePaths: _draftPhotoPaths(draft),
+          );
+          break;
+        case DraftType.licenseCreate:
+        case DraftType.licenseUpdate:
+          {
+            final imagePath = _firstNonEmptyString(
+              draft.data['imagePath']?.toString(),
+              draft.data['filePath']?.toString(),
+            );
+            final imageFile = (imagePath != null && imagePath.isNotEmpty)
+                ? XFile(imagePath)
+                : null;
+
+            if (draft.type == DraftType.licenseCreate) {
+              final response = await ProfileService.addLicense(
+                name: _requiredDraftString(draft, 'name'),
+                licenseNumber: _requiredDraftString(draft, 'licenseNumber'),
+                issuer: draft.data['issuer']?.toString(),
+                obtainedAt: draft.data['obtainedAt']?.toString(),
+                expiredAt: draft.data['expiredAt']?.toString(),
+                imageFile: imageFile,
+              );
+              if (!response.success) return false;
+            } else {
+              final remoteId = _firstNonEmptyString(
+                draft.data['id']?.toString(),
+                draft.data['remoteId']?.toString(),
+                draft.data['targetId']?.toString(),
+              );
+              if (remoteId == null || remoteId.isEmpty) return false;
+              final response = await ProfileService.updateLicense(
+                id: remoteId,
+                name: _requiredDraftString(draft, 'name'),
+                licenseNumber: _requiredDraftString(draft, 'licenseNumber'),
+                issuer: draft.data['issuer']?.toString(),
+                obtainedAt: draft.data['obtainedAt']?.toString(),
+                expiredAt: draft.data['expiredAt']?.toString(),
+                imageFile: imageFile,
+              );
+              if (!response.success) return false;
+            }
+          }
+          break;
+        case DraftType.certificationCreate:
+        case DraftType.certificationUpdate:
+          {
+            final imagePath = _firstNonEmptyString(
+              draft.data['imagePath']?.toString(),
+              draft.data['filePath']?.toString(),
+            );
+            final imageFile = (imagePath != null && imagePath.isNotEmpty)
+                ? XFile(imagePath)
+                : null;
+
+            if (draft.type == DraftType.certificationCreate) {
+              final response = await ProfileService.addCertification(
+                name: _requiredDraftString(draft, 'name'),
+                certificationNumber:
+                    draft.data['certificationNumber']?.toString(),
+                issuer: _requiredDraftString(draft, 'issuer'),
+                obtainedAt: draft.data['obtainedAt']?.toString(),
+                expiredAt: draft.data['expiredAt']?.toString(),
+                imageFile: imageFile,
+              );
+              if (!response.success) return false;
+            } else {
+              final remoteId = _firstNonEmptyString(
+                draft.data['id']?.toString(),
+                draft.data['remoteId']?.toString(),
+                draft.data['targetId']?.toString(),
+              );
+              if (remoteId == null || remoteId.isEmpty) return false;
+              final response = await ProfileService.updateCertification(
+                id: remoteId,
+                name: _requiredDraftString(draft, 'name'),
+                certificationNumber:
+                    draft.data['certificationNumber']?.toString(),
+                issuer: _requiredDraftString(draft, 'issuer'),
+                obtainedAt: draft.data['obtainedAt']?.toString(),
+                expiredAt: draft.data['expiredAt']?.toString(),
+                imageFile: imageFile,
+              );
+              if (!response.success) return false;
+            }
+          }
+          break;
       }
       return true;
     } catch (_) {
@@ -495,7 +591,25 @@ class ReportStore {
     }
     final single = draft.data['photoPath']?.toString();
     if (single != null && single.isNotEmpty) return [single];
+    final imagePath = draft.data['imagePath']?.toString();
+    if (imagePath != null && imagePath.isNotEmpty) return [imagePath];
     return const [];
+  }
+
+  String _requiredDraftString(ReportDraft draft, String key) {
+    final value = draft.data[key]?.toString().trim();
+    if (value == null || value.isEmpty) {
+      throw Exception('Draft field "$key" is required.');
+    }
+    return value;
+  }
+
+  String? _firstNonEmptyString(String? first, [String? second, String? third]) {
+    for (final candidate in [first, second, third]) {
+      final raw = candidate?.trim();
+      if (raw != null && raw.isNotEmpty) return raw;
+    }
+    return null;
   }
 
   String? _inspectionResultUiToApi(String? uiValue) {

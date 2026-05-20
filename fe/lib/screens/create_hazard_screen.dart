@@ -10,8 +10,10 @@ import 'package:path_provider/path_provider.dart';
 import '../data/report_store.dart';
 import '../models/company_model.dart';
 import '../models/report.dart';
+import '../services/background_sync_service.dart';
 import '../services/cloud_save_service.dart';
 import '../services/company_service.dart';
+import '../services/offline_reference_cache_service.dart';
 import '../services/report_service.dart';
 import '../widgets/app_safe_insets.dart';
 import 'map_picker_screen.dart';
@@ -51,6 +53,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   List<AreaData> _apiAreas = [];
   bool _isLoadingData = true;
   bool _isLoadingAreas = false;
+  bool _referenceDataUnavailableOffline = false;
 
   // ── Step 1 state ─────────────────────────────────────────────────────────────
   final List<String> _selectedKategori = [];
@@ -117,21 +120,56 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   }
 
   Future<void> _loadFormData() async {
-    final results = await Future.wait([
-      ReportService.getHazardCategories(),
-      ReportService.getDepartments(),
-      ReportService.getUsers(),
-      CompanyService.getCompanies(category: 'owner'),
-    ]);
+    final cachedBundle = await OfflineReferenceCacheService.loadHazardCreateRefs();
     if (!mounted) return;
-    setState(() {
-      _apiCategories = results[0] as List<HazardCategoryData>;
-      _apiDepartments = results[1] as List<String>;
-      _apiUsers = results[2] as List<UserEntry>;
-      _apiCompanies = results[3] as List<CompanyData>;
-      _ensureLockedDeptsSelected();
-      _isLoadingData = false;
-    });
+
+    if (cachedBundle.hasData) {
+      setState(() {
+        _apiCategories = cachedBundle.categories;
+        _apiDepartments = cachedBundle.departments;
+        _apiUsers = cachedBundle.users;
+        _apiCompanies = cachedBundle.companies;
+        _referenceDataUnavailableOffline = false;
+        _ensureLockedDeptsSelected();
+        _isLoadingData = false;
+      });
+    }
+
+    try {
+      final results = await Future.wait([
+        ReportService.getHazardCategories(),
+        ReportService.getDepartments(),
+        ReportService.getUsers(),
+        CompanyService.getCompanies(category: 'owner'),
+      ]);
+      if (!mounted) return;
+      final categories = results[0] as List<HazardCategoryData>;
+      final departments = results[1] as List<String>;
+      final users = results[2] as List<UserEntry>;
+      final companies = results[3] as List<CompanyData>;
+      setState(() {
+        _apiCategories = categories;
+        _apiDepartments = departments;
+        _apiUsers = users;
+        _apiCompanies = companies;
+        _referenceDataUnavailableOffline = false;
+        _ensureLockedDeptsSelected();
+        _isLoadingData = false;
+      });
+      await OfflineReferenceCacheService.saveHazardCreateRefs(
+        categories: categories,
+        departments: departments,
+        users: users,
+        companies: companies,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingData = false;
+        _referenceDataUnavailableOffline = !cachedBundle.hasData;
+      });
+      debugPrint('Gagal load referensi hazard: $e');
+    }
   }
 
   Future<void> _loadAreasForCompany(int? companyId) async {
@@ -153,10 +191,16 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         _apiAreas = areas;
         _isLoadingAreas = false;
       });
+      await OfflineReferenceCacheService.saveAreasForCompany(
+        companyId: companyId,
+        areas: areas,
+      );
     } catch (e) {
+      final cachedAreas =
+          await OfflineReferenceCacheService.loadAreasForCompany(companyId);
       if (!mounted) return;
       setState(() {
-        _apiAreas = [];
+        _apiAreas = cachedAreas;
         _isLoadingAreas = false;
       });
       debugPrint('Gagal load area company: $e');
@@ -1070,13 +1114,15 @@ if (picked.isNotEmpty) {
         createdAt: DateTime.now(),
       );
       await CloudSaveService.instance.saveDraft(draft);
+      await BackgroundSyncService.instance.notifyDraftSaved();
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
       _showResultDialog(
         isOffline: true,
         title: 'Tersimpan sebagai Draft',
-        message: 'Tidak ada koneksi internet. Laporan disimpan secara lokal.',
+        message:
+            'Tidak ada koneksi internet. Laporan disimpan sebagai draft di Inbox > MyPost > Draft.',
       );
     } else {
       try {
@@ -1801,6 +1847,37 @@ if (picked.isNotEmpty) {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_referenceDataUnavailableOffline) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF3E0),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFFFF9800).withValues(alpha: 0.45),
+                ),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: Color(0xFFE65100)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Data referensi belum tersedia offline. Silakan sambungkan internet dan buka form ini sekali agar kategori, departemen, dan perusahaan tersimpan untuk mode offline.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFFE65100),
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           _label('Kategori Hazard *', key: _step1Key),
           if (_isLoadingData)
             const Center(child: CircularProgressIndicator())

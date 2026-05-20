@@ -6,7 +6,9 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../data/report_store.dart';
+import '../services/background_sync_service.dart';
 import '../services/cloud_save_service.dart';
+import '../services/offline_reference_cache_service.dart';
 import '../services/report_service.dart';
 import '../widgets/app_safe_insets.dart';
 import '../widgets/minimal_dropdown.dart';
@@ -45,6 +47,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
   // dan punya akses update yang sama dengan inspector yang di-tag namanya.
   List<String> _apiDepartments = [];
   bool _isLoadingDepts = true;
+  bool _referenceDataUnavailableOffline = false;
   final Set<String> _selectedDepts = {};
 
   final List<String> _areas = [
@@ -72,16 +75,36 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
   }
 
   Future<void> _loadDepartments() async {
+    final cachedBundle = await OfflineReferenceCacheService.loadHazardCreateRefs();
+    if (!mounted) return;
+    if (cachedBundle.departments.isNotEmpty) {
+      setState(() {
+        _apiDepartments = cachedBundle.departments;
+        _isLoadingDepts = false;
+        _referenceDataUnavailableOffline = false;
+      });
+    }
+
     try {
       final list = await ReportService.getDepartments();
       if (!mounted) return;
       setState(() {
         _apiDepartments = list;
         _isLoadingDepts = false;
+        _referenceDataUnavailableOffline = false;
       });
+      await OfflineReferenceCacheService.saveHazardCreateRefs(
+        categories: cachedBundle.categories,
+        departments: list,
+        users: cachedBundle.users,
+        companies: cachedBundle.companies,
+      );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isLoadingDepts = false);
+      setState(() {
+        _isLoadingDepts = false;
+        _referenceDataUnavailableOffline = cachedBundle.departments.isEmpty;
+      });
     }
   }
 
@@ -336,6 +359,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
         createdAt: DateTime.now(),
       );
       await CloudSaveService.instance.saveDraft(draft);
+      await BackgroundSyncService.instance.notifyDraftSaved();
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -343,7 +367,7 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
         isOffline: true,
         title: 'Tersimpan sebagai Draft',
         message:
-            'Tidak ada koneksi internet. Laporan inspeksi disimpan secara lokal dan akan dikirim saat Anda kembali online.',
+            'Tidak ada koneksi internet. Laporan inspeksi disimpan sebagai draft di Inbox > MyPost > Draft dan akan dikirim saat Anda kembali online.',
       );
     } else {
       try {
@@ -465,8 +489,8 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
                         size: 14, color: Color(0xFFE65100)),
                     SizedBox(width: 6),
                     Expanded(
-                      child: Text(
-                        'Cek ikon Cloud Save di header untuk melihat & mengirim draft.',
+                        child: Text(
+                        'Buka Inbox > MyPost > Draft untuk melihat dan mengirim draft.',
                         style: TextStyle(
                             fontSize: 11,
                             color: Color(0xFFE65100),
@@ -627,6 +651,40 @@ class _CreateInspectionScreenState extends State<CreateInspectionScreen> {
               ],
 
               const SizedBox(height: 16),
+
+              if (_referenceDataUnavailableOffline) ...[
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3E0),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFFFF9800).withValues(alpha: 0.45),
+                    ),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline,
+                          size: 16, color: Color(0xFFE65100)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Data referensi belum tersedia offline. Sambungkan internet dan buka form ini sekali agar data departemen tersimpan.',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: Color(0xFFE65100),
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
 
               // ── Form card ─────────────────────────────────────────────
               _buildCard(children: [
