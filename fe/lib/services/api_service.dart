@@ -8,9 +8,7 @@ import 'storage_service.dart';
 
 class ApiService {
   // ── Base URL ─────────────────────────────────────────────────────────────
-  // Gunakan 'http://10.0.2.2:8000/api' jika menggunakan Android Emulator,
-  // atau IP Address komputer jika menggunakan perangkat fisik (contoh: 'http://192.168.1.x:8000/api').
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  static const String baseUrl = 'https://sapahse.up.railway.app/api';
 
   // ── Headers ───────────────────────────────────────────────────────────────
   static Future<Map<String, String>> _headers({bool auth = true}) async {
