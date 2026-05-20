@@ -330,6 +330,109 @@ class InboxController extends Controller
         ]);
     }
 
+    public function documentApprovals(Request $request)
+    {
+        $user = Auth::user();
+        if (!in_array($user->role, ['admin', 'superadmin'], true)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Akses ditolak.',
+            ], 403);
+        }
+
+        $status = $request->input('status', 'pending');
+        $search = trim((string) $request->input('search', ''));
+        $perPage = max(1, (int) $request->input('per_page', 100));
+        $currentPage = max(1, (int) $request->input('page', 1));
+
+        $readLicenseIds = ReadStatus::where('user_id', $user->id)
+            ->where('item_type', 'approval_license')
+            ->pluck('item_id');
+        $readCertificationIds = ReadStatus::where('user_id', $user->id)
+            ->where('item_type', 'approval_certification')
+            ->pluck('item_id');
+
+        $licenseQuery = UserLicense::with('user');
+        $certificationQuery = UserCertification::with('user');
+
+        $statuses = null;
+        switch ($status) {
+            case 'history':
+                $statuses = ['approved', 'rejected'];
+                break;
+            case 'approved':
+                $statuses = ['approved'];
+                break;
+            case 'rejected':
+                $statuses = ['rejected'];
+                break;
+            case 'all':
+                $statuses = null;
+                break;
+            case 'pending':
+            default:
+                $statuses = ['pending', 'pending_changes'];
+                break;
+        }
+
+        if ($statuses !== null) {
+            $licenseQuery->whereIn('approval_status', $statuses);
+            $certificationQuery->whereIn('approval_status', $statuses);
+        }
+
+        if ($search !== '') {
+            $licenseQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('license_number', 'like', "%{$search}%")
+                    ->orWhere('issuer', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('employee_id', 'like', "%{$search}%")
+                            ->orWhere('department', 'like', "%{$search}%");
+                    });
+            });
+
+            $certificationQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('certification_number', 'like', "%{$search}%")
+                    ->orWhere('issuer', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($userQuery) use ($search) {
+                        $userQuery->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('employee_id', 'like', "%{$search}%")
+                            ->orWhere('department', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $licenses = $licenseQuery->get()->map(function (UserLicense $license) use ($readLicenseIds) {
+            return $this->formatApprovalLicense($license, $readLicenseIds->contains($license->id));
+        });
+
+        $certifications = $certificationQuery->get()->map(function (UserCertification $certification) use ($readCertificationIds) {
+            return $this->formatApprovalCertification($certification, $readCertificationIds->contains($certification->id));
+        });
+
+        $merged = $licenses
+            ->concat($certifications)
+            ->sortByDesc(fn(array $item) => $item['reviewed_at'] ?? $item['created_at'])
+            ->values();
+
+        $pagedData = $merged->forPage($currentPage, $perPage)->values();
+        $total = $merged->count();
+
+        return response()->json([
+            'status' => 'success',
+            'meta' => [
+                'total'        => $total,
+                'per_page'     => $perPage,
+                'current_page' => $currentPage,
+                'last_page'    => (int) ceil($total / $perPage),
+                'has_more'     => ($currentPage * $perPage) < $total,
+            ],
+            'data' => $pagedData,
+        ]);
+    }
+
     private function pendingRegistrationItems(\Illuminate\Support\Collection $readIds)
     {
         return User::where('registration_status', 'pending')
@@ -403,6 +506,7 @@ class InboxController extends Controller
             'approval_status' => $license->approval_status ?? 'pending',
             'rejection_reason' => $license->rejection_reason,
             'submitted_at'    => $submittedAt?->toIso8601String(),
+            'reviewed_at'     => $license->reviewed_at?->toIso8601String(),
             'is_read'         => $isRead,
             'submitter'       => $submitter ? [
                 'id'             => $submitter->id,
@@ -443,6 +547,7 @@ class InboxController extends Controller
             'approval_status' => $certification->approval_status ?? 'pending',
             'rejection_reason' => $certification->rejection_reason,
             'submitted_at'    => $submittedAt?->toIso8601String(),
+            'reviewed_at'     => $certification->reviewed_at?->toIso8601String(),
             'is_read'         => $isRead,
             'submitter'       => $submitter ? [
                 'id'             => $submitter->id,

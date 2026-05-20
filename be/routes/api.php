@@ -230,6 +230,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/violations/{violationId}', [AuthController::class, 'adminDestroyViolation'])->middleware('role:admin,superadmin');
 
     // Admin: Verification
+    Route::get('/admin/document-approvals', [InboxController::class, 'documentApprovals'])->middleware('role:admin,superadmin');
     Route::put('/admin/licenses/{id}/verify', [AuthController::class, 'adminVerifyLicense'])->middleware('role:admin,superadmin');
     Route::put('/admin/certifications/{id}/verify', [AuthController::class, 'adminVerifyCertification'])->middleware('role:admin,superadmin');
     Route::put('/admin/licenses/{id}/approve', [AuthController::class, 'adminApproveLicense'])->middleware('role:admin,superadmin');
