@@ -292,6 +292,7 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                           color: Colors.red.shade200),
                                     ),
                                     child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(
                                           Icons.warning_amber_rounded,
@@ -310,10 +311,14 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                                       ],
                                     ),
                                   ),
-                                  Text(
-                                    remainingDaysText,
-                                    style: TextStyle(
-                                        color: Colors.grey, fontSize: 11),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      remainingDaysText,
+                                      textAlign: TextAlign.end,
+                                      style: const TextStyle(
+                                          color: Colors.grey, fontSize: 11),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1110,35 +1115,30 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
+                Builder(builder: (_) {
+                  final item = _carouselItems[_currentPage];
+                  final isNews = item is NewsArticle;
+                  final label = isNews ? 'BERITA' : 'PENGUMUMAN';
+                  final labelColor = isNews ? Colors.blue : Colors.purple;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: labelColor.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  );
+                }),
               ],
             ),
-          ),
-
-          // Type badge — rendered last so it floats above everything
-          Positioned(
-            bottom: 10,
-            right: 10,
-            child: Builder(builder: (_) {
-              final item = _carouselItems[_currentPage];
-              final isNews = item is NewsArticle;
-              final label = isNews ? 'BERITA' : 'PENGUMUMAN';
-              final labelColor = isNews ? Colors.blue : Colors.purple;
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: labelColor.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              );
-            }),
           ),
         ],
       ),
@@ -1398,17 +1398,14 @@ class _ReportCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Column(
             children: [
-              SizedBox(
-                height:
-                    report.type == ReportType.hazard && report.dueDate != null
-                        ? 155
-                        : 135,
+              IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── LEFT SIDE: Image + Category ──────────────────────────
                     Container(
                       width: 110,
+                      constraints: const BoxConstraints(minHeight: 120),
                       color: Colors.grey.shade50,
                       child: Column(
                         children: [
@@ -1455,6 +1452,7 @@ class _ReportCard extends StatelessWidget {
                         padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               report.title,
@@ -1467,16 +1465,14 @@ class _ReportCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Expanded(
-                              child: Text(
-                                report.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.black54,
-                                  height: 1.3,
-                                ),
+                            Text(
+                              report.description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.black54,
+                                height: 1.3,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1487,10 +1483,14 @@ class _ReportCard extends StatelessWidget {
                                 const Icon(Icons.calendar_today_outlined,
                                     size: 10, color: Colors.grey),
                                 const SizedBox(width: 4),
-                                Text(_formatDate(report.createdAt),
-                                    style: const TextStyle(
-                                        fontSize: 10, color: Colors.grey)),
-                                const SizedBox(width: 12),
+                                Flexible(
+                                  child: Text(_formatDate(report.createdAt),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 10, color: Colors.grey)),
+                                ),
+                                const SizedBox(width: 8),
                                 const Icon(Icons.location_on_outlined,
                                     size: 10, color: Colors.grey),
                                 const SizedBox(width: 4),
@@ -1509,30 +1509,33 @@ class _ReportCard extends StatelessWidget {
                                 child: _dueChip()!,
                               ),
                             ],
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
 
                             // Status & Priority
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: _statusColor.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
-                                        color: _statusColor.withValues(
-                                            alpha: 0.3)),
-                                  ),
-                                  child: Text(
-                                    report.displayStatusLabel,
-                                    style: TextStyle(
-                                        color: _statusColor,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold),
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: _statusColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                          color: _statusColor.withValues(
+                                              alpha: 0.3)),
+                                    ),
+                                    child: Text(
+                                      report.displayStatusLabel,
+                                      style: TextStyle(
+                                          color: _statusColor,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 8, vertical: 3),

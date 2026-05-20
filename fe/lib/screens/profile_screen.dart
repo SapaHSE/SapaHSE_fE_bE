@@ -523,7 +523,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style:
                           TextStyle(fontSize: 13, color: Colors.grey.shade500)),
                   const SizedBox(height: 10),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -540,7 +542,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: Color(0xFF6A1B9A),
                                 fontWeight: FontWeight.w700)),
                       ),
-                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
@@ -935,22 +936,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            "v1.0.0",
+            "SapaHSE",
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade500,
+              fontSize: 14,
+              color: Colors.grey.shade700,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            "SapaHSE",
+            "v1.0.0",
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 11,
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade700,
+              color: Colors.grey.shade500,
             ),
           ),
           const SizedBox(height: 4),

@@ -10,7 +10,8 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
   _FadePageRoute({required this.builder})
       : super(
-          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -98,7 +99,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     final catColor = _categoryColor(article.category);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF2F2F2),
       body: CustomScrollView(
         slivers: [
           // SliverAppBar with hero image
@@ -184,7 +185,10 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                             fontWeight: FontWeight.bold,
                             height: 1.35,
                             shadows: [
-                              Shadow(color: Colors.black87, blurRadius: 6, offset: Offset(0, 1.5))
+                              Shadow(
+                                  color: Colors.black87,
+                                  blurRadius: 6,
+                                  offset: Offset(0, 1.5))
                             ],
                           ),
                         ),
@@ -235,7 +239,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-
                   // Body content
                   if (_isLoading)
                     const Center(
@@ -287,7 +290,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5F5F5),
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(tag,
@@ -320,11 +323,31 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _NewsNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 1, onTap: _onTabTapped),
-            _NewsNavItem(icon: Icons.article, label: 'News', index: 1, currentIndex: 1, onTap: _onTabTapped),
+            _NewsNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 1,
+                onTap: _onTabTapped),
+            _NewsNavItem(
+                icon: Icons.article,
+                label: 'News',
+                index: 1,
+                currentIndex: 1,
+                onTap: _onTabTapped),
             const SizedBox(width: 56),
-            _NewsNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 1, onTap: _onTabTapped),
-            _NewsNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 1, onTap: _onTabTapped),
+            _NewsNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 1,
+                onTap: _onTabTapped),
+            _NewsNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 1,
+                onTap: _onTabTapped),
           ],
         ),
       ),
@@ -360,7 +383,9 @@ class _NewsNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            Icon(icon,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                size: 24),
             const SizedBox(height: 2),
             Text(
               label,

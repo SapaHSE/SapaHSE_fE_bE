@@ -1844,13 +1844,16 @@ class _InboxCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Column(
             children: [
-              SizedBox(
-                height: item.reportType == ReportType.hazard && dueChip != null
-                    ? 155
-                    : 135,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: item.reportType == ReportType.hazard && dueChip != null
+                      ? 155
+                      : 135,
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                     // ── LEFT SIDE: Image + Category ──────────────────────────
                     Container(
                       width: 110,
@@ -1906,34 +1909,44 @@ class _InboxCard extends StatelessWidget {
                         padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              item.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight:
-                                    isRead ? FontWeight.w600 : FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Expanded(
-                              child: Text(
-                                item.description ?? '',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.black54,
-                                  height: 1.3,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: isRead
+                                        ? FontWeight.w600
+                                        : FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
                                 ),
-                              ),
+                                if (item.description != null &&
+                                    item.description!.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item.description!,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.black54,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                             const SizedBox(height: 8),
-
-                            // Date & Location
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Date & Location
                             Row(
                               children: [
                                 const Icon(Icons.access_time,
@@ -2013,12 +2026,14 @@ class _InboxCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-
+              ],
+            ),
+          ),
+        ),
               // ── BOTTOM: Warning Banner if Open ───────────────────────────
               if (_needsImmediateAction(status, severity))
                 Container(

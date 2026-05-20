@@ -144,9 +144,8 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
   Widget _buildHeroArea() {
     final fileUrl = (widget.item.itemFileUrl ?? '').trim();
     final submitterPhoto = (widget.item.submitterPhotoUrl ?? '').trim();
-    final heroImageUrl = fileUrl.isNotEmpty
-        ? fileUrl
-        : (_isRegistration ? submitterPhoto : '');
+    final heroImageUrl =
+        fileUrl.isNotEmpty ? fileUrl : (_isRegistration ? submitterPhoto : '');
 
     final registrationFallback = _isRegistration
         ? Container(
@@ -257,7 +256,9 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                 ),
                               ),
                               const Divider(height: 24),
-                              if ((item.description ?? '').trim().isNotEmpty) ...[
+                              if ((item.description ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
                                 ReportStyleDetailRow(
                                   icon: Icons.description_outlined,
                                   label: 'Deskripsi',
@@ -277,7 +278,9 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                 value: status.label,
                                 valueColor: status.fg,
                               ),
-                              if ((item.rejectionReason ?? '').trim().isNotEmpty) ...[
+                              if ((item.rejectionReason ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 Container(
                                   padding: const EdgeInsets.all(12),
@@ -289,7 +292,8 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                     ),
                                   ),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       const Icon(
                                         Icons.error_outline,
@@ -352,15 +356,20 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                   value: submitterRole,
                                 ),
                               ],
-                              if ((item.submitterEmployeeId ?? '').trim().isNotEmpty) ...[
+                              if ((item.submitterEmployeeId ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 ReportStyleDetailRow(
                                   icon: Icons.badge_outlined,
                                   label: 'NIP',
-                                  value: _displayValue(item.submitterEmployeeId),
+                                  value:
+                                      _displayValue(item.submitterEmployeeId),
                                 ),
                               ],
-                              if ((item.submitterEmail ?? '').trim().isNotEmpty) ...[
+                              if ((item.submitterEmail ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 ReportStyleDetailRow(
                                   icon: Icons.email_outlined,
@@ -368,7 +377,9 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                   value: _displayValue(item.submitterEmail),
                                 ),
                               ],
-                              if ((item.submitterPhone ?? '').trim().isNotEmpty) ...[
+                              if ((item.submitterPhone ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 ReportStyleDetailRow(
                                   icon: Icons.phone_outlined,
@@ -376,7 +387,9 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                   value: _displayValue(item.submitterPhone),
                                 ),
                               ],
-                              if ((item.submitterCompany ?? '').trim().isNotEmpty) ...[
+                              if ((item.submitterCompany ?? '')
+                                  .trim()
+                                  .isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 ReportStyleDetailRow(
                                   icon: Icons.business_outlined,

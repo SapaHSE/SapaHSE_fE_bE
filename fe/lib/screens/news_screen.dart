@@ -5,7 +5,6 @@ import '../data/news_data.dart';
 import '../services/news_service.dart';
 import 'news_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
-import '../widgets/minimal_dropdown.dart';
 import '../widgets/app_safe_insets.dart';
 
 class _FadePageRoute<T> extends PageRouteBuilder<T> {
@@ -363,29 +362,68 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget _buildCategoryFilter() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       margin: const EdgeInsets.only(bottom: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'NEWS TYPE',
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Colors.grey,
-                letterSpacing: 0.6),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'NEWS TYPE',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey,
+                  letterSpacing: 0.6),
+            ),
           ),
-          const SizedBox(height: 8),
-          MinimalDropdown<String>(
-            value: _selectedCategory,
-            items: newsCategories
-                .map((c) => DropdownMenuItem(
-                    value: c, child: Text(c, style: kMinimalDropdownTextStyle)))
-                .toList(),
-            onChanged: (val) {
-              if (val != null) setState(() => _selectedCategory = val);
-            },
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 38,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: newsCategories.length,
+              itemBuilder: (context, index) {
+                final category = newsCategories[index];
+                final isSelected = _selectedCategory == category;
+                final catColor = _categoryColor(category);
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = category;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? catColor : const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? Colors.transparent : Colors.grey.shade300,
+                          width: 1,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.black87,
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -444,7 +482,7 @@ class _NewsScreenState extends State<NewsScreen> {
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      padding: const EdgeInsets.fromLTRB(12, 60, 95, 10),
+                      padding: const EdgeInsets.fromLTRB(12, 60, 12, 10),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.bottomCenter,
@@ -474,12 +512,16 @@ class _NewsScreenState extends State<NewsScreen> {
                             const Icon(Icons.person_outline,
                                 size: 12, color: Colors.white70),
                             const SizedBox(width: 4),
-                            Text(
-                              article.author,
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w500),
+                            Flexible(
+                              child: Text(
+                                article.author,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w500),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Container(
@@ -497,29 +539,26 @@ class _NewsScreenState extends State<NewsScreen> {
                               style: const TextStyle(
                                   fontSize: 11, color: Colors.white70),
                             ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: catColor,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                article.category,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
                           ]),
                         ],
-                      ),
-                    ),
-                  ),
-
-                  // Category badge — rendered LAST so it floats above the gradient
-                  Positioned(
-                    bottom: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: catColor,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        article.category,
-                        style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),

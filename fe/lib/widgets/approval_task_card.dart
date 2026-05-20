@@ -26,7 +26,8 @@ class ApprovalTaskCard extends StatelessWidget {
   static const _licenseColor = Color(0xFFEF6C00);
   static const _certColor = Color(0xFF6A1B9A);
 
-  bool get _isRegistration => item.itemType == InboxItemType.approvalRegistration;
+  bool get _isRegistration =>
+      item.itemType == InboxItemType.approvalRegistration;
   bool get _isLicense => item.itemType == InboxItemType.approvalLicense;
 
   Color get _accent {
@@ -203,7 +204,8 @@ class ApprovalTaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final submittedAt = item.submittedAt ?? item.createdAt;
     final status = _statusStyle(item.approvalStatus);
-    final statusPending = normalizeApprovalStatus(item.approvalStatus) == 'pending';
+    final statusPending =
+        normalizeApprovalStatus(item.approvalStatus) == 'pending';
     final showActions = showActionButtons &&
         statusPending &&
         onApprove != null &&
@@ -216,8 +218,8 @@ class ApprovalTaskCard extends StatelessWidget {
     final metaInfo = _metaInfo;
     final hasMetaInfo = metaInfo != null && metaInfo.trim().isNotEmpty;
     final cardContentHeight = showActions
-        ? (hasMetaInfo ? 154.0 : 144.0)
-        : (hasMetaInfo ? 146.0 : 138.0);
+        ? (hasMetaInfo ? 170.0 : 160.0)
+        : (hasMetaInfo ? 162.0 : 154.0);
 
     return GestureDetector(
       onTap: onTap,
@@ -321,7 +323,7 @@ class ApprovalTaskCard extends StatelessWidget {
                             const SizedBox(height: 6),
                             Align(
                               alignment: Alignment.centerLeft,
-                              child:                            Container(
+                              child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 3,
