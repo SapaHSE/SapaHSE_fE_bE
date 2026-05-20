@@ -119,7 +119,6 @@ class DatabaseSeeder extends Seeder
             'role'           => 'user',
             'tipe_afiliasi'  => 'kontraktor',
             'perusahaan_kontraktor' => 'PT PAMA',
-            'simper'         => 'PAMA-OP-12345',            
             'email_verified_at' => now(),
         ]);
 
@@ -180,6 +179,7 @@ class DatabaseSeeder extends Seeder
             'name'           => 'SIM B2 Umum (Alat Berat)',
             'license_number' => 'SIM-B2-2021-001234',
             'expired_at'     => now()->addYears(2)->toDateString(),
+            'issuer'         => 'Polri',
             'status'         => 'active',
             'is_verified'    => true,
         ]);
@@ -188,6 +188,7 @@ class DatabaseSeeder extends Seeder
             'name'           => 'Lisensi Operator Excavator K3',
             'license_number' => 'LOP-EXC-2022-00456',
             'expired_at'     => now()->addYear()->toDateString(),
+            'issuer'         => 'BNSP',
             'status'         => 'active',
             'is_verified'    => false,
         ]);
@@ -196,6 +197,7 @@ class DatabaseSeeder extends Seeder
             'name'           => 'Sertifikat Ahli K3 Umum',
             'license_number' => 'AK3U-2020-007811',
             'expired_at'     => now()->subMonths(4)->toDateString(),
+            'issuer'         => 'BNSP',
             'status'         => 'expired',
             'is_verified'    => true,
         ]);
@@ -204,6 +206,7 @@ class DatabaseSeeder extends Seeder
             'name'           => 'Lisensi Las SMAW (BNSP)',
             'license_number' => 'LAS-SMAW-2023-00099',
             'expired_at'     => now()->addYears(3)->toDateString(),
+            'issuer'         => 'BNSP',
             'status'         => 'active',
             'is_verified'    => true,
         ]);
@@ -212,6 +215,7 @@ class DatabaseSeeder extends Seeder
             'name'           => 'Sertifikat Instalatir Listrik Madya',
             'license_number' => 'INST-MAD-2021-00532',
             'expired_at'     => now()->addYear()->toDateString(),
+            'issuer'         => 'PLN',
             'status'         => 'active',
             'is_verified'    => true,
         ]);
@@ -220,6 +224,7 @@ class DatabaseSeeder extends Seeder
             'name'           => 'Ahli K3 Madya Pertambangan',
             'license_number' => 'AK3-MADYA-2020-00188',
             'expired_at'     => now()->addMonths(8)->toDateString(),
+            'issuer'         => 'Kemenaker',
             'status'         => 'active',
             'is_verified'    => true,
         ]);
@@ -228,6 +233,7 @@ class DatabaseSeeder extends Seeder
             'name'           => 'AMDAL Dasar (Kementerian LHK)',
             'license_number' => 'AMDAL-D-2022-00341',
             'expired_at'     => now()->addYears(4)->toDateString(),
+            'issuer'         => 'KLHK',
             'status'         => 'active',
             'is_verified'    => true,
         ]);

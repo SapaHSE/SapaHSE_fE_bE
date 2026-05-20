@@ -71,6 +71,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/medical/{id}',      [ProfileController::class, 'updateMedical']);
     Route::delete('/profile/medical/{id}',   [ProfileController::class, 'destroyMedical']);
 
+    // View another user's full profile (read-only)
+    Route::get('/users/{id}/profile', [ProfileController::class, 'getUserProfileById']);
+
+
     // ── Hazard Reports ────────────────────────────────────────────────────────
     Route::get('/hazard-reports',              [HazardReportController::class, 'index']);
     Route::post('/hazard-reports',             [HazardReportController::class, 'store']);
