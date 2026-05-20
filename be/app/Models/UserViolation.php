@@ -32,6 +32,21 @@ class UserViolation extends Model
         ];
     }
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($model) {
+            if ($model->expired_at) {
+                if ($model->expired_at->isPast()) {
+                    $model->status = 'Selesai';
+                } elseif ($model->status === 'Selesai') {
+                    $model->status = 'Aktif';
+                }
+            }
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');

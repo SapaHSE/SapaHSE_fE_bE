@@ -331,6 +331,7 @@ class ProfileController extends Controller
             $statusMap = [
                 'Aktif' => 'active',
                 'Kadaluarsa' => 'expired',
+                'Expired' => 'expired',
                 'active' => 'active',
                 'expired' => 'expired'
             ];
@@ -383,6 +384,7 @@ class ProfileController extends Controller
             $statusMap = [
                 'Aktif' => 'active',
                 'Kadaluarsa' => 'expired',
+                'Expired' => 'expired',
                 'active' => 'active',
                 'expired' => 'expired'
             ];
