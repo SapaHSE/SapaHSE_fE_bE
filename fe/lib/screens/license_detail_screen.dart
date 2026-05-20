@@ -187,7 +187,7 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
           color: _approvalStyle.fg,
         ),
         const ReportStyleDetailBadge(
-          label: 'LISENSI',
+          label: 'Lisensi',
           color: Color(0xFFEF6C00),
         ),
       ],

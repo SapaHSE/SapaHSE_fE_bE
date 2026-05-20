@@ -234,6 +234,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     }
   }
 
+  Future<void> _onRefresh() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+    await Future.wait([
+      _loadProfile(),
+      _fetchCompanyData(),
+    ]);
+  }
+
   String _formatDateForPayload(DateTime? value) {
     if (value == null) return '';
     final month = value.month.toString().padLeft(2, '0');
@@ -415,7 +426,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content:
-                  Text(result.errorMessage ?? 'Gagal mengunggah foto profil')),
+                  Text(result.errorMessage ?? 'Gagal mengunggah foto profil'),
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)),
         );
         return;
       }
@@ -425,7 +438,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       if (!mounted) return;
       setState(() => _avatarFile = null);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto profil berhasil diperbarui')),
+        const SnackBar(
+          content: Text('Foto profil berhasil diperbarui'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
+        ),
       );
     } catch (_) {
       if (!mounted) return;
@@ -433,6 +450,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Terjadi masalah saat memilih atau crop foto.'),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
         ),
       );
     }
@@ -585,17 +604,21 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       ),
       body: _profileData == null && _isLoading
           ? const SizedBox.shrink()
-          : SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildProfileHeader(),
-                  _buildSubTabBar(),
-                  const SizedBox(height: 20),
-                  _buildSubTabContent(),
-                  SizedBox(
-                    height: AppSafeInsets.bottomNavScrollPadding(context),
-                  ),
-                ],
+          : RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    _buildProfileHeader(),
+                    _buildSubTabBar(),
+                    const SizedBox(height: 20),
+                    _buildSubTabContent(),
+                    SizedBox(
+                      height: AppSafeInsets.bottomNavScrollPadding(context),
+                    ),
+                  ],
+                ),
               ),
             ),
       floatingActionButton: FloatingActionButton(
@@ -1330,14 +1353,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                     content:
-                                        Text('Profil berhasil diperbarui')),
+                                        Text('Profil berhasil diperbarui'),
+                                    behavior: SnackBarBehavior.floating,
+                                    margin: EdgeInsets.fromLTRB(16, 16, 16, 16)),
                               );
                             } else {
                               _dismissLoadingDialog();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                     content: Text(result.errorMessage ??
-                                        'Gagal memperbarui')),
+                                        'Gagal memperbarui'),
+                                    behavior: SnackBarBehavior.floating,
+                                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)),
                               );
                             }
                           },
@@ -1880,7 +1907,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       } else {
                         _dismissLoadingDialog();
                         ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(result.message)));
+                            SnackBar(
+                                content: Text(result.message),
+                                behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -2163,7 +2193,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           _licenseNumberController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                                content: Text('Harap lengkapi semua data')));
+                                content: Text('Harap lengkapi semua data'),
+                                behavior: SnackBarBehavior.floating,
+                                margin: EdgeInsets.fromLTRB(16, 16, 16, 16)));
                         return;
                       }
 
@@ -2267,7 +2299,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         clearLicenseForm();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(result.message)));
+                            SnackBar(
+                                content: Text(result.message),
+                                behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -2474,7 +2509,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                                 content:
-                                    Text('Harap lengkapi nama dan penerbit')));
+                                    Text('Harap lengkapi nama dan penerbit'),
+                                behavior: SnackBarBehavior.floating,
+                                margin: EdgeInsets.fromLTRB(16, 16, 16, 16)));
                         return;
                       }
 
@@ -2579,7 +2616,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         clearCertificationForm();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(result.message)));
+                            SnackBar(
+                                content: Text(result.message),
+                                behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -2633,12 +2673,20 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   Navigator.pop(context);
                 }
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Lisensi berhasil dihapus')),
+                  const SnackBar(
+                    content: Text('Lisensi berhasil dihapus'),
+                    behavior: SnackBarBehavior.floating,
+                    margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  ),
                 );
               } else {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result.message)),
+                  SnackBar(
+                    content: Text(result.message),
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  ),
                 );
               }
             },
@@ -2680,12 +2728,20 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   Navigator.pop(context);
                 }
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sertifikat berhasil dihapus')),
+                  const SnackBar(
+                    content: Text('Sertifikat berhasil dihapus'),
+                    behavior: SnackBarBehavior.floating,
+                    margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  ),
                 );
               } else {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result.message)),
+                  SnackBar(
+                    content: Text(result.message),
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  ),
                 );
               }
             },
@@ -2817,6 +2873,8 @@ class _BiodataContent extends StatelessWidget {
           SnackBar(
             content: Text('$label berhasil disalin'),
             duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
           ),
         );
       }
@@ -4548,7 +4606,7 @@ class _LicenseDetailPage extends StatelessWidget {
                   label: approvalStyle.label,
                   color: approvalStyle.fg,
                 ),
-                const ReportStyleDetailBadge(label: 'LISENSI', color: typeColor),
+                const ReportStyleDetailBadge(label: 'Lisensi', color: typeColor),
                 if (!license.isActive)
                   const ReportStyleDetailBadge(
                     label: 'Expired',
@@ -4575,7 +4633,7 @@ class _LicenseDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'LISENSI',
+                          'Lisensi',
                           style: TextStyle(
                             fontSize: 13,
                             color: typeColor,
@@ -4860,7 +4918,7 @@ class _CertificationDetailPage extends StatelessWidget {
                   color: approvalStyle.fg,
                 ),
                 const ReportStyleDetailBadge(
-                  label: 'SERTIFIKAT',
+                  label: 'Sertifikat',
                   color: typeColor,
                 ),
                 if (!certification.isActive)
@@ -4889,7 +4947,7 @@ class _CertificationDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'SERTIFIKAT',
+                          'Sertifikat',
                           style: TextStyle(
                             fontSize: 13,
                             color: typeColor,

@@ -48,9 +48,9 @@ class ApprovalTaskCard extends StatelessWidget {
       case InboxItemType.approvalRegistration:
         return 'REGISTRASI';
       case InboxItemType.approvalLicense:
-        return 'LICENSE';
+        return 'LISENSI';
       case InboxItemType.approvalCertification:
-        return 'CERTIFICATE';
+        return 'SERTIFIKAT';
       default:
         return 'APPROVAL';
     }

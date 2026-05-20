@@ -129,7 +129,6 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
   String _displayValue(String? value) => value?.trim() ?? '';
 
   void _onTabTapped(int index) {
-    if (index == 0) return;
     Navigator.pushAndRemoveUntil(
       context,
       PageRouteBuilder(
@@ -1286,21 +1285,23 @@ class _ProfileNavItem extends StatelessWidget {
     return GestureDetector(
       onTap: () => onTap(index),
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: SizedBox(
+        width: 70,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon,
-                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                color: Colors.grey,
                 size: 24),
-            const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                    color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
-                    fontSize: 10,
-                    fontWeight:
-                        isActive ? FontWeight.bold : FontWeight.normal)),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
           ],
         ),
       ),

@@ -53,13 +53,13 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
   String get _typeLabel {
     switch (widget.item.itemType) {
       case InboxItemType.approvalRegistration:
-        return 'REGISTRASI';
+        return 'Registrasi';
       case InboxItemType.approvalLicense:
-        return 'LISENSI';
+        return 'Lisensi';
       case InboxItemType.approvalCertification:
-        return 'SERTIFIKAT';
+        return 'Sertifikat';
       default:
-        return 'APPROVAL';
+        return 'Approval';
     }
   }
 

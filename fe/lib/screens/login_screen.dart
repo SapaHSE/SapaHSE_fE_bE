@@ -251,8 +251,8 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── NIK field ────────────
-                          _buildLabel('NIK'),
+                          // ── NIP field ────────────
+                          _buildLabel('NIP'),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _employeeIdCtrl,
@@ -267,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen>
                               return null;
                             },
                             decoration: _inputDecoration(
-                              hint: 'Masukkan NIK',
+                              hint: 'Masukkan NIP',
                               prefixIcon: Icons.badge_outlined,
                             ),
                           ),
@@ -476,7 +476,7 @@ class _LoginScreenState extends State<LoginScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Masukkan email pribadi atau NIK Anda. Tautan reset password akan dikirimkan ke email Anda.',
+                'Masukkan email pribadi atau NIP Anda. Tautan reset password akan dikirimkan ke email Anda.',
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
               const SizedBox(height: 14),
@@ -507,7 +507,7 @@ class _LoginScreenState extends State<LoginScreen>
                 controller: identifierCtrl,
                 keyboardType: TextInputType.emailAddress,
                 decoration: _inputDecoration(
-                    hint: 'Email atau NIK',
+                    hint: 'Email atau NIP',
                     prefixIcon: Icons.person_outline),
               ),
             ],

@@ -478,13 +478,17 @@ class _InboxScreenState extends State<InboxScreen>
     return list;
   }
 
+  bool _shouldShowInUrgentTaskSection(InboxItem item) {
+    if (item.status == ReportStatus.closed) return false;
+    return _isValidating(item) || _needsImmediateAction(item);
+  }
+
   List<InboxItem> get _urgentTaskReports => _filteredReports
-      .where((i) => i.status != ReportStatus.closed && _needsImmediateAction(i))
+      .where(_shouldShowInUrgentTaskSection)
       .toList();
 
   List<InboxItem> get _otherTaskReports => _filteredReports
-      .where(
-          (i) => !(i.status != ReportStatus.closed && _needsImmediateAction(i)))
+      .where((i) => !_shouldShowInUrgentTaskSection(i))
       .toList();
 
   // Reports created by the current user, fetched from ReportService

@@ -188,7 +188,7 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
           color: _approvalStyle.fg,
         ),
         const ReportStyleDetailBadge(
-          label: 'SERTIFIKAT',
+          label: 'Sertifikat',
           color: _purple,
         ),
       ],
