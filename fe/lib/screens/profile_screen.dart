@@ -941,7 +941,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 2),
                     const Text(
-                      "Noor Lintang Bhaskara : Front End\nMuhammad Fa'iz : Middleware\nReyfaldho Alfarazel : Back End",
+                      "Farid Rudiansyah : Project Manager\nNoor Lintang Bhaskara : Front End\nMuhammad Fa'iz : Middleware\nReyfaldho Alfarazel : Back End",
                       style: TextStyle(
                         fontSize: 10.5,
                         color: Colors.grey,
