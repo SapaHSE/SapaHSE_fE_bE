@@ -21,9 +21,25 @@ class NewsController extends Controller
     // Filter  : ?category=K3/HSE &is_featured=1
     // Search  : ?search=keyword
     // Paginate: ?page=1&per_page=10
+    // Admin   : ?include_scheduled=1 — list scheduled drafts too (requires admin/supervisor)
+    //           ?only_scheduled=1 — only return scheduled drafts
     public function index(Request $request)
     {
-        $query = News::active()->with('creator')->latest();
+        $user = $request->user();
+        $isAdmin = $user && in_array($user->role, ['admin', 'superadmin', 'supervisor']);
+
+        $includeScheduled = $isAdmin && $request->boolean('include_scheduled');
+        $onlyScheduled    = $isAdmin && $request->boolean('only_scheduled');
+
+        if ($onlyScheduled) {
+            $query = News::scheduled();
+        } elseif ($includeScheduled) {
+            $query = News::active();
+        } else {
+            $query = News::published();
+        }
+
+        $query->with('creator')->latest();
 
         if ($request->filled('category'))   $query->where('category', $request->category);
         if ($request->filled('is_featured')) $query->where('is_featured', true);
@@ -54,9 +70,13 @@ class NewsController extends Controller
     }
 
     // GET /api/news/{id}
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $news = News::active()->with('creator')->findOrFail($id);
+        $user = $request->user();
+        $isAdmin = $user && in_array($user->role, ['admin', 'superadmin', 'supervisor']);
+
+        $query = $isAdmin ? News::active() : News::published();
+        $news  = $query->with('creator')->findOrFail($id);
 
         return response()->json([
             'status' => 'success',
@@ -83,28 +103,35 @@ class NewsController extends Controller
             $imageUrl = asset('storage/' . $request->file('image')->store('news', 'public'));
         }
 
+        $publishDate = $request->input('publish_date') ?? now()->toDateString();
+        $isScheduled = $publishDate > now()->toDateString();
+
         $news = News::create([
-            'created_by'   => Auth::id(),
-            'title'        => $request->title,
-            'excerpt'      => $request->excerpt,
-            'content'      => $request->input('content'),
-            'category'     => $request->category,
-            'author_name'  => $request->author_name ?? Auth::user()->full_name,
-            'image_url'    => $imageUrl,
-            'is_featured'  => $request->boolean('is_featured', false),
-            'is_active'    => true,
-            'publish_date' => $request->input('publish_date') ?? now()->toDateString(),
+            'created_by'         => Auth::id(),
+            'title'              => $request->title,
+            'excerpt'            => $request->excerpt,
+            'content'            => $request->input('content'),
+            'category'           => $request->category,
+            'author_name'        => $request->author_name ?? Auth::user()->full_name,
+            'image_url'          => $imageUrl,
+            'is_featured'        => $request->boolean('is_featured', false),
+            'is_active'          => true,
+            'publish_date'       => $publishDate,
+            'published_notified' => ! $isScheduled,
         ]);
 
-        // Broadcast notification
-        try {
-            $this->notificationService->sendPushToAll(
-                "Berita HSE Baru",
-                $news->title,
-                ['news_id' => $news->id, 'type' => 'news']
-            );
-        } catch (\Exception $e) {
-            \Log::error('Gagal broadcast berita: ' . $e->getMessage());
+        // Broadcast notification only if article is publishing today/now.
+        // Scheduled articles get push fired by news:publish-scheduled command.
+        if (! $isScheduled) {
+            try {
+                $this->notificationService->sendPushToAll(
+                    "Berita HSE Baru",
+                    $news->title,
+                    ['news_id' => $news->id, 'type' => 'news']
+                );
+            } catch (\Exception $e) {
+                \Log::error('Gagal broadcast berita: ' . $e->getMessage());
+            }
         }
 
         return response()->json([
@@ -135,6 +162,7 @@ class NewsController extends Controller
     private function formatNews(News $news, bool $withContent = true): array
     {
         $publishDate = $news->publish_date ?? $news->created_at;
+        $isScheduled = $news->isScheduled();
 
         $data = [
             'id'                 => $news->id,
@@ -148,6 +176,8 @@ class NewsController extends Controller
             'created_at'         => $news->created_at?->toDateTimeString(),
             'publish_date'       => $news->publish_date?->format('Y-m-d'),
             'publish_date_label' => $publishDate?->locale('id')->isoFormat('dddd, D MMMM YYYY'),
+            'is_scheduled'       => $isScheduled,
+            'status'             => $isScheduled ? 'scheduled' : 'published',
         ];
 
         if ($withContent) {
