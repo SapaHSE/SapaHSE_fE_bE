@@ -9,7 +9,7 @@ import 'helper/save_helper.dart'
     if (dart.library.io) 'helper/mobile_save_helper.dart';
 
 class IdCardPdfService {
-  static const String _idCardLogoPath = 'assets/logo_bbe.jpg';
+  static const String _idCardLogoPath = 'assets/logo_bbe.svg';
   static const double _mm = PdfPageFormat.mm;
   static const double _cardWidthMm = 55;
   static const double _cardHeightMm = 86;

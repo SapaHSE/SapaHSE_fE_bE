@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('areas', function (Blueprint $table) {
-            $table->json('pic_user_ids')->nullable()->after('pic_user_id');
-        });
+        if (!Schema::hasColumn('areas', 'pic_user_ids')) {
+            Schema::table('areas', function (Blueprint $table) {
+                $table->json('pic_user_ids')->nullable()->after('pic_user_id');
+            });
+        }
     }
 
     /**
@@ -21,8 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('areas', function (Blueprint $table) {
-            $table->dropColumn('pic_user_ids');
-        });
+        if (Schema::hasColumn('areas', 'pic_user_ids')) {
+            Schema::table('areas', function (Blueprint $table) {
+                $table->dropColumn('pic_user_ids');
+            });
+        }
     }
 };

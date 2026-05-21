@@ -11,13 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('areas', function (Blueprint $table) {
-            $table->foreignId('pic_user_id')
-                ->nullable()
-                ->after('code')
-                ->constrained('users')
-                ->nullOnDelete();
-        });
+        if (!Schema::hasColumn('areas', 'pic_user_id')) {
+            Schema::table('areas', function (Blueprint $table) {
+                $table->foreignId('pic_user_id')
+                    ->nullable()
+                    ->after('code')
+                    ->constrained('users')
+                    ->nullOnDelete();
+            });
+        }
     }
 
     /**
@@ -25,8 +27,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('areas', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('pic_user_id');
-        });
+        if (Schema::hasColumn('areas', 'pic_user_id')) {
+            Schema::table('areas', function (Blueprint $table) {
+                $table->dropConstrainedForeignId('pic_user_id');
+            });
+        }
     }
 };
