@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -108,6 +109,12 @@ class NotificationController extends Controller
         $request->validate(['fcm_token' => 'required|string']);
 
         $user = $request->user();
+
+        // Evict this device's token from any other user (stale logout, account switch on same device)
+        User::where('fcm_token', $request->fcm_token)
+            ->where('id', '!=', $user->id)
+            ->update(['fcm_token' => null]);
+
         $user->update(['fcm_token' => $request->fcm_token]);
 
         return response()->json([
