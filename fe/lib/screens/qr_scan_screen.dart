@@ -4,6 +4,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/profile_model.dart';
+import '../services/id_card_pdf_service.dart';
 import '../services/profile_service.dart';
 import '../services/qr_service.dart';
 import '../widgets/app_safe_insets.dart';
@@ -33,6 +34,7 @@ class _QrScanScreenState extends State<QrScanScreen>
   QrScanResult? _scanResult;
 
   bool _isLoadingProfile = true;
+  bool _isExportingIdCard = false;
   String? _profileError;
   ProfileData? _profile;
 
@@ -152,6 +154,29 @@ class _QrScanScreenState extends State<QrScanScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Kode QR disalin')),
     );
+  }
+
+  Future<void> _exportIdCard(ProfileData profile, String qrCode) async {
+    if (_isExportingIdCard) return;
+
+    setState(() => _isExportingIdCard = true);
+    try {
+      await IdCardPdfService.exportMinePermit(
+        profile: profile,
+        qrCode: qrCode,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('PDF ID Card berhasil dibuat')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membuat PDF ID Card: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingIdCard = false);
+    }
   }
 
   void _openUser(ProfileData user) {
@@ -282,7 +307,9 @@ class _QrScanScreenState extends State<QrScanScreen>
           _MyQrCard(
             profile: profile,
             qrCode: qrCode,
+            isExporting: _isExportingIdCard,
             onCopy: () => _copyQrCode(qrCode),
+            onExport: () => _exportIdCard(profile, qrCode),
           ),
         ],
       ),
@@ -423,12 +450,16 @@ class _QrTabButton extends StatelessWidget {
 class _MyQrCard extends StatelessWidget {
   final ProfileData profile;
   final String qrCode;
+  final bool isExporting;
   final VoidCallback onCopy;
+  final VoidCallback onExport;
 
   const _MyQrCard({
     required this.profile,
     required this.qrCode,
+    required this.isExporting,
     required this.onCopy,
+    required this.onExport,
   });
 
   @override
@@ -579,6 +610,34 @@ class _MyQrCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: isExporting ? null : onExport,
+              icon: isExporting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label:
+                  Text(isExporting ? 'Membuat PDF...' : 'Export ID Card PDF'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A56C4),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFF9DB7E8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 48,

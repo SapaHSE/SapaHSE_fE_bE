@@ -5,7 +5,6 @@ import 'helper/save_helper.dart'
     if (dart.library.html) 'helper/web_save_helper.dart'
     if (dart.library.io) 'helper/mobile_save_helper.dart';
 
-
 class ExcelService {
   static Future<void> exportReports({
     required List<Report> reports,
@@ -114,7 +113,11 @@ class ExcelService {
     final String fileName =
         '${title.replaceAll(' ', '_')}_${DateTime.now().millisecondsSinceEpoch}.xlsx';
 
-    await saveAndLaunchFile(bytes, fileName);
+    await saveAndLaunchFile(
+      bytes,
+      fileName,
+      mimeType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
   }
 }
-

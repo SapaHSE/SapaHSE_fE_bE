@@ -18,6 +18,7 @@ class ProfileData {
   final String? tipeAfiliasi;
   final String? perusahaanKontraktor;
   final String? subKontraktor;
+  final String? simper;
   final String? profilePhoto;
   final String? address;
   final String role;
@@ -42,6 +43,7 @@ class ProfileData {
     this.tipeAfiliasi,
     this.perusahaanKontraktor,
     this.subKontraktor,
+    this.simper,
     this.profilePhoto,
     this.address,
     required this.role,
@@ -68,6 +70,7 @@ class ProfileData {
       tipeAfiliasi: json['tipe_afiliasi']?.toString(),
       perusahaanKontraktor: json['perusahaan_kontraktor']?.toString(),
       subKontraktor: json['sub_kontraktor']?.toString(),
+      simper: json['simper']?.toString(),
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
       address: json['alamat']?.toString() ?? json['address']?.toString(),
       role: json['role']?.toString() ?? 'user',
