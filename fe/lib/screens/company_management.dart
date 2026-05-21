@@ -1,4 +1,9 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../utils/ui_utils.dart';
 import '../models/company_model.dart';
 import '../services/auth_service.dart';
@@ -8,6 +13,11 @@ import 'package:sapahse/main.dart';
 import '../widgets/minimal_dropdown.dart';
 import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
+
+bool _isSvgPath(String value) {
+  final path = Uri.tryParse(value)?.path.toLowerCase() ?? value.toLowerCase();
+  return path.endsWith('.svg');
+}
 
 class CompanyManagementScreen extends StatefulWidget {
   const CompanyManagementScreen({super.key});
@@ -469,94 +479,89 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
     return Column(
       children: [
         Divider(height: 1, color: Colors.grey.shade100),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              _buildCompanyLogo(sub),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(sub.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 13)),
-                    if (sub.code != null && sub.code!.isNotEmpty)
-                      Text(sub.code!,
-                          style: TextStyle(
-                              color: Colors.grey.shade500, fontSize: 11)),
-                    if (sub.kttDisplayName.isNotEmpty)
-                      Text('KTT: ${sub.kttDisplayName}',
+        GestureDetector(
+          onTap: () {
+            if (_isSuperAdmin) {
+              _navigateToCompanyForm(company: sub);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                _buildCompanyLogo(sub),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(sub.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 13)),
+                      if (sub.code != null && sub.code!.isNotEmpty)
+                        Text(sub.code!,
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 11)),
+                      if (sub.kttDisplayName.isNotEmpty)
+                        Text('KTT: ${sub.kttDisplayName}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: Colors.grey.shade600, fontSize: 11)),
+                      if ((sub.emergencyNumber ?? '').trim().isNotEmpty ||
+                          (sub.ertFreq ?? '').trim().isNotEmpty)
+                        Text(
+                          [
+                            if ((sub.emergencyNumber ?? '').trim().isNotEmpty)
+                              'Emergency: ${sub.emergencyNumber!.trim()}',
+                            if ((sub.ertFreq ?? '').trim().isNotEmpty)
+                              'ERT: ${sub.ertFreq!.trim()}',
+                          ].join('  •  '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 11)),
-                    if ((sub.emergencyNumber ?? '').trim().isNotEmpty ||
-                        (sub.ertFreq ?? '').trim().isNotEmpty)
-                      Text(
-                        [
-                          if ((sub.emergencyNumber ?? '').trim().isNotEmpty)
-                            'Emergency: ${sub.emergencyNumber!.trim()}',
-                          if ((sub.ertFreq ?? '').trim().isNotEmpty)
-                            'ERT: ${sub.ertFreq!.trim()}',
-                        ].join('  •  '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 11),
-                      ),
-                  ],
-                ),
-              ),
-              if (_isSuperAdmin) ...[
-                IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      color: Colors.red, size: 16),
-                  onPressed: () => _confirmDeleteCompany(sub),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => _navigateToCompanyForm(company: sub),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              color: Colors.grey.shade600, fontSize: 11),
+                        ),
+                    ],
                   ),
-                  child: const Text('Edit',
-                      style:
-                          TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 ),
-                const SizedBox(width: 4),
-                GestureDetector(
-                  onTap: () => _toggleStatus(sub),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: sub.isActive
-                          ? Colors.green.shade50
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      sub.isActive ? 'On' : 'Off',
-                      style: TextStyle(
+                if (_isSuperAdmin) ...[
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.red, size: 16),
+                    onPressed: () => _confirmDeleteCompany(sub),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _toggleStatus(sub),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
                         color: sub.isActive
-                            ? Colors.green.shade700
-                            : Colors.grey.shade600,
-                        fontWeight:
-                            sub.isActive ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 11,
+                            ? Colors.green.shade50
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        sub.isActive ? 'On' : 'Off',
+                        style: TextStyle(
+                          color: sub.isActive
+                              ? Colors.green.shade700
+                              : Colors.grey.shade600,
+                          fontWeight: sub.isActive
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ],
@@ -578,11 +583,17 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
           ),
           clipBehavior: Clip.antiAlias,
           child: logoUrl.isNotEmpty
-              ? Image.network(
-                  logoUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _companyInitial(company),
-                )
+              ? (_isSvgPath(logoUrl)
+                  ? SvgPicture.network(
+                      logoUrl,
+                      fit: BoxFit.contain,
+                      placeholderBuilder: (_) => _companyInitial(company),
+                    )
+                  : Image.network(
+                      logoUrl,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => _companyInitial(company),
+                    ))
               : _companyInitial(company),
         ),
         Positioned(
@@ -626,6 +637,11 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
       ),
     );
   }
+
+  static bool _isSvgPath(String value) {
+    final path = Uri.tryParse(value)?.path.toLowerCase() ?? value.toLowerCase();
+    return path.endsWith('.svg');
+  }
 }
 
 // ── Company Form Screen ─────────────────────────────────────────────────────
@@ -645,9 +661,11 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   late String _category;
   late TextEditingController _nameCtrl;
   late TextEditingController _codeCtrl;
-  late TextEditingController _logoUrlCtrl;
   late TextEditingController _emergencyNumberCtrl;
   late TextEditingController _ertFreqCtrl;
+  String? _logoUrl;
+  XFile? _logoImageFile;
+  bool _clearLogo = false;
   String? _selectedKttUserId;
   _KttUserOption? _selectedKttUser;
   bool _isLoading = false;
@@ -669,8 +687,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
 
     _nameCtrl = TextEditingController(text: widget.companyToEdit?.name ?? '');
     _codeCtrl = TextEditingController(text: widget.companyToEdit?.code ?? '');
-    _logoUrlCtrl =
-        TextEditingController(text: widget.companyToEdit?.logoUrl ?? '');
+    _logoUrl = widget.companyToEdit?.logoUrl;
     _emergencyNumberCtrl =
         TextEditingController(text: widget.companyToEdit?.emergencyNumber ?? '');
     _ertFreqCtrl =
@@ -686,7 +703,6 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _codeCtrl.dispose();
-    _logoUrlCtrl.dispose();
     _emergencyNumberCtrl.dispose();
     _ertFreqCtrl.dispose();
     super.dispose();
@@ -695,20 +711,13 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     final code = _codeCtrl.text.trim();
-    final logoUrl = _logoUrlCtrl.text.trim();
+    final logoUrl = _clearLogo ? '' : (_logoUrl ?? '');
     final emergencyNumber = _emergencyNumberCtrl.text.trim();
     final ertFreq = _ertFreqCtrl.text.trim();
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nama Company wajib diisi')),
-      );
-      return;
-    }
-
-    if (logoUrl.isNotEmpty && Uri.tryParse(logoUrl)?.hasScheme != true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Logo harus berupa URL valid')),
       );
       return;
     }
@@ -724,6 +733,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           _category,
           code: code,
           logoUrl: logoUrl,
+          logoImagePath: _logoImageFile?.path,
           kttUserId: _selectedKttUserId,
           emergencyNumber: emergencyNumber,
           ertFreq: ertFreq,
@@ -734,6 +744,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           _category,
           code: code,
           logoUrl: logoUrl,
+          logoImagePath: _logoImageFile?.path,
           kttUserId: _selectedKttUserId,
           emergencyNumber: emergencyNumber,
           ertFreq: ertFreq,
@@ -816,11 +827,9 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
                       maxLength: 50,
                       capitalization: TextCapitalization.characters),
                   const SizedBox(height: 16),
-                  _buildLabel('LOGO URL'),
+                  _buildLabel('LOGO COMPANY'),
                   const SizedBox(height: 8),
-                  _buildTextField(_logoUrlCtrl,
-                      hint: 'https://domain.com/logo.png',
-                      keyboardType: TextInputType.url),
+                  _buildLogoPicker(),
                   const SizedBox(height: 16),
                   _buildLabel('KEPALA TEKNIK TAMBANG'),
                   const SizedBox(height: 8),
@@ -1011,6 +1020,187 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
         }),
       ),
     );
+  }
+
+  Widget _buildLogoPicker() {
+    final hasLogo =
+        _logoImageFile != null || (!_clearLogo && (_logoUrl ?? '').isNotEmpty);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 3,
+            child: InkWell(
+              onTap: _isLoading ? null : _showLogoOptions,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF0F7),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _buildLogoPreview(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _showLogoOptions,
+                  icon: const Icon(Icons.image_outlined, size: 18),
+                  label: Text(hasLogo ? 'Ganti Logo' : 'Pilih Logo'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _blue,
+                    side: BorderSide(color: _blue.withValues(alpha: 0.4)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+              if (hasLogo) ...[
+                const SizedBox(width: 10),
+                IconButton(
+                  onPressed: _isLoading ? null : _clearSelectedLogo,
+                  icon: const Icon(Icons.delete_outline),
+                  color: Colors.red,
+                  tooltip: 'Hapus logo',
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogoPreview() {
+    final imageFile = _logoImageFile;
+    if (imageFile != null) {
+      return _isSvgPath(imageFile.path)
+          ? SvgPicture.file(File(imageFile.path), fit: BoxFit.contain)
+          : Image.file(File(imageFile.path), fit: BoxFit.contain);
+    }
+
+    final logoUrl = _clearLogo ? '' : (_logoUrl?.trim() ?? '');
+    if (logoUrl.isNotEmpty) {
+      return _isSvgPath(logoUrl)
+          ? SvgPicture.network(
+              logoUrl,
+              fit: BoxFit.contain,
+              placeholderBuilder: (_) => _emptyLogoPreview(),
+            )
+          : Image.network(
+              logoUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => _emptyLogoPreview(),
+            );
+    }
+
+    return _emptyLogoPreview();
+  }
+
+  Widget _emptyLogoPreview() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add_photo_alternate_outlined,
+              color: Colors.grey.shade500, size: 30),
+          const SizedBox(height: 6),
+          Text(
+            'Upload logo',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _clearSelectedLogo() {
+    setState(() {
+      _logoImageFile = null;
+      _logoUrl = null;
+      _clearLogo = true;
+    });
+  }
+
+  void _showLogoOptions() {
+    if (kIsWeb) {
+      _pickLogoFromSource(ImageSource.gallery);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          20,
+          0,
+          AppSafeInsets.sheetBottomPadding(ctx, base: 20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Pilih Sumber Logo',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: _blue),
+              title: const Text('Kamera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickLogoFromSource(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: _blue),
+              title: const Text('Galeri'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickLogoFromSource(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickLogoFromSource(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, imageQuality: 95);
+      if (picked == null) return;
+
+      if (!mounted) return;
+      setState(() {
+        _logoImageFile = picked;
+        _clearLogo = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memilih logo: $e')),
+      );
+    }
   }
 
   Widget _buildKttPicker() {

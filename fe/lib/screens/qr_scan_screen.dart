@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -11,6 +12,11 @@ import '../services/profile_service.dart';
 import '../services/qr_service.dart';
 import '../widgets/app_safe_insets.dart';
 import 'user_profile_view_screen.dart';
+
+bool _isSvgUrl(String value) {
+  final path = Uri.tryParse(value)?.path.toLowerCase() ?? value.toLowerCase();
+  return path.endsWith('.svg');
+}
 
 class QrScanScreen extends StatefulWidget {
   final String? initialQrCode;
@@ -706,12 +712,19 @@ class _MinePermitFrontPreview extends StatelessWidget {
                 width: 136,
                 height: 36,
                 child: logoUrl.isNotEmpty
-                    ? Image.network(
-                        logoUrl,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) =>
-                            _companyTextHeader(profile),
-                      )
+                    ? (_isSvgUrl(logoUrl)
+                        ? SvgPicture.network(
+                            logoUrl,
+                            fit: BoxFit.contain,
+                            placeholderBuilder: (_) =>
+                                _companyTextHeader(profile),
+                          )
+                        : Image.network(
+                            logoUrl,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) =>
+                                _companyTextHeader(profile),
+                          ))
                     : _companyTextHeader(profile),
               ),
             ),
@@ -1273,11 +1286,18 @@ class _MiniSignaturePreview extends StatelessWidget {
             width: 55,
             height: 14,
             child: logoUrl.isNotEmpty
-                ? Image.network(
-                    logoUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => _signatureCode(companyCode),
-                  )
+                ? (_isSvgUrl(logoUrl)
+                    ? SvgPicture.network(
+                        logoUrl,
+                        fit: BoxFit.contain,
+                        placeholderBuilder: (_) => _signatureCode(companyCode),
+                      )
+                    : Image.network(
+                        logoUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            _signatureCode(companyCode),
+                      ))
                 : _signatureCode(companyCode),
           ),
           Text(

@@ -74,7 +74,7 @@ class SupabaseStorageService {
 
   /// Extract the storage object path from a Supabase public URL.
   /// Example URL pattern:
-  ///   https://xxx.supabase.co/storage/v1/object/public/<bucket>/<folder>/<file>
+  ///   `https://xxx.supabase.co/storage/v1/object/public/<bucket>/<folder>/<file>`
   static String? _objectPathFromUrl(String url) {
     final marker = '/object/public/$_bucket/';
     final idx = url.indexOf(marker);
@@ -87,7 +87,7 @@ class SupabaseStorageService {
     if (lastDot < 0 || lastDot == path.length - 1) return '.jpg';
     final ext = path.substring(lastDot).toLowerCase();
     // Sanity-check: only allow image-ish extensions
-    const allowed = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'};
+    const allowed = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.svg'};
     return allowed.contains(ext) ? ext : '.jpg';
   }
 
@@ -101,6 +101,8 @@ class SupabaseStorageService {
         return 'image/webp';
       case '.heic':
         return 'image/heic';
+      case '.svg':
+        return 'image/svg+xml';
       case '.jpg':
       case '.jpeg':
       default:

@@ -1,5 +1,7 @@
 import '../models/company_model.dart';
+import '../config/supabase_config.dart';
 import 'api_service.dart';
+import 'supabase_storage_service.dart';
 
 class CompanyService {
   // ── Companies ─────────────────────────────────────────────────────────────
@@ -24,15 +26,17 @@ class CompanyService {
     String category, {
     String? code,
     String? logoUrl,
+    String? logoImagePath,
     String? kttUserId,
     String? emergencyNumber,
     String? ertFreq,
   }) async {
+    final uploadedLogoUrl = await _uploadLogoIfNeeded(logoImagePath);
     final response = await ApiService.post('/companies', {
       'name': name,
       'category': _normalizeCategory(category),
       'code': code ?? '',
-      'logo_url': logoUrl ?? '',
+      'logo_url': uploadedLogoUrl ?? logoUrl ?? '',
       'ktt_user_id': kttUserId ?? '',
       'emergency_number': emergencyNumber ?? '',
       'ert_freq': ertFreq ?? '',
@@ -49,15 +53,17 @@ class CompanyService {
     String category, {
     String? code,
     String? logoUrl,
+    String? logoImagePath,
     String? kttUserId,
     String? emergencyNumber,
     String? ertFreq,
   }) async {
+    final uploadedLogoUrl = await _uploadLogoIfNeeded(logoImagePath);
     final response = await ApiService.put('/companies/$id', {
       'name': name,
       'category': _normalizeCategory(category),
       'code': code ?? '',
-      'logo_url': logoUrl ?? '',
+      'logo_url': uploadedLogoUrl ?? logoUrl ?? '',
       'ktt_user_id': kttUserId ?? '',
       'emergency_number': emergencyNumber ?? '',
       'ert_freq': ertFreq ?? '',
@@ -149,6 +155,21 @@ class CompanyService {
       return AreaData.fromJson(response.data['data']);
     }
     return null;
+  }
+
+  static Future<String?> _uploadLogoIfNeeded(String? logoImagePath) async {
+    if (logoImagePath == null || logoImagePath.trim().isEmpty) {
+      return null;
+    }
+
+    final uploadedUrl = await SupabaseStorageService.uploadImage(
+      imagePath: logoImagePath,
+      folder: SupabaseConfig.companyLogosFolder,
+    );
+    if (uploadedUrl == null) {
+      throw Exception('Gagal mengunggah logo perusahaan ke Supabase.');
+    }
+    return uploadedUrl;
   }
 
   static String _normalizeCategory(String category) {

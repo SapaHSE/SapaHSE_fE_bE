@@ -53,6 +53,7 @@ class IdCardPdfService {
     final document = pw.Document();
     final avatar = await _loadNetworkImage(profile.profilePhoto);
     final companyLogo = await _loadNetworkImage(profile.companyDetail?.logoUrl);
+    final companyLogoSvg = await _loadNetworkSvg(profile.companyDetail?.logoUrl);
     final bbeLogo = await _loadAssetSvg(_bbeLogoPath);
     final khotaiLogo = await _loadAssetSvg(_khotaiLogoPath);
     final selectedLogo = _selectCompanyLogo(
@@ -65,8 +66,14 @@ class IdCardPdfService {
       pw.Page(
         pageFormat: _cardFormat,
         margin: pw.EdgeInsets.zero,
-        build: (_) =>
-            _frontCard(profile, qrCode, avatar, selectedLogo, companyLogo),
+        build: (_) => _frontCard(
+          profile,
+          qrCode,
+          avatar,
+          selectedLogo,
+          companyLogo,
+          companyLogoSvg,
+        ),
       ),
     );
 
@@ -99,6 +106,7 @@ class IdCardPdfService {
     pw.MemoryImage? avatar,
     String logo,
     pw.MemoryImage? companyLogo,
+    String? companyLogoSvg,
   ) {
     final positionDepartment = [
       _display(profile.jabatan ?? profile.position, fallback: ''),
@@ -108,7 +116,7 @@ class IdCardPdfService {
     return _printPage(
       child: pw.Stack(
         children: [
-          _bbeHeader(logo, companyLogo),
+          _bbeHeader(logo, companyLogo, companyLogoSvg),
           _blueTitleBar('MINE PERMIT'),
           pw.Positioned(
             left: 5.2 * _mm,
@@ -160,7 +168,12 @@ class IdCardPdfService {
           pw.Positioned(
             left: 5.6 * _mm,
             top: 71.0 * _mm,
-            child: _signatureBlock(logo, companyLogo, _kttName(profile)),
+            child: _signatureBlock(
+              logo,
+              companyLogo,
+              companyLogoSvg,
+              _kttName(profile),
+            ),
           ),
           pw.Positioned(
             right: 4.8 * _mm,
@@ -339,7 +352,26 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _bbeHeader(String logo, pw.MemoryImage? logoImage) {
+  static pw.Widget _bbeHeader(
+    String logo,
+    pw.MemoryImage? logoImage,
+    String? logoSvg,
+  ) {
+    if (logoSvg != null && logoSvg.trim().isNotEmpty) {
+      return pw.Positioned(
+        left: 0,
+        right: 0,
+        top: 2.4 * _mm,
+        child: pw.Center(
+          child: pw.SizedBox(
+            width: 28.5 * _mm,
+            height: 8.2 * _mm,
+            child: pw.SvgImage(svg: logoSvg, fit: pw.BoxFit.contain),
+          ),
+        ),
+      );
+    }
+
     if (logoImage != null) {
       return pw.Positioned(
         left: 0,
@@ -544,9 +576,10 @@ class IdCardPdfService {
   static pw.Widget _signatureBlock(
     String logo,
     pw.MemoryImage? logoImage,
+    String? logoSvg,
     String kttName,
   ) {
-    if (logo.isEmpty && logoImage == null) {
+    if (logo.isEmpty && logoImage == null && (logoSvg ?? '').trim().isEmpty) {
       return pw.SizedBox(
         width: 19.6 * _mm,
         child: pw.Column(
@@ -639,9 +672,11 @@ class IdCardPdfService {
           pw.SizedBox(
             width: 14.0 * _mm,
             height: 4.4 * _mm,
-            child: logoImage != null
-                ? pw.Image(logoImage, fit: pw.BoxFit.contain)
-                : pw.SvgImage(svg: logo, fit: pw.BoxFit.contain),
+            child: _logoWidget(
+              fallbackSvg: logo,
+              image: logoImage,
+              svg: logoSvg,
+            ),
           ),
           pw.Text(
             kttName,
@@ -904,12 +939,44 @@ class IdCardPdfService {
     }
   }
 
+  static Future<String?> _loadNetworkSvg(String? url) async {
+    if (url == null || url.trim().isEmpty) return null;
+    try {
+      final uri = Uri.parse(url);
+      if (!uri.path.toLowerCase().endsWith('.svg')) return null;
+      final response = await http.get(uri).timeout(
+            const Duration(seconds: 10),
+          );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+      return response.body;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<String?> _loadAssetSvg(String assetPath) async {
     try {
       return await rootBundle.loadString(assetPath);
     } catch (_) {
       return null;
     }
+  }
+
+  static pw.Widget _logoWidget({
+    required String fallbackSvg,
+    required pw.MemoryImage? image,
+    required String? svg,
+  }) {
+    final svgValue = svg?.trim() ?? '';
+    if (svgValue.isNotEmpty) {
+      return pw.SvgImage(svg: svgValue, fit: pw.BoxFit.contain);
+    }
+    if (image != null) {
+      return pw.Image(image, fit: pw.BoxFit.contain);
+    }
+    return pw.SvgImage(svg: fallbackSvg, fit: pw.BoxFit.contain);
   }
 
   static String _companyName(ProfileData profile) {
