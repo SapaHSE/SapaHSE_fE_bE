@@ -62,7 +62,7 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
       case InboxItemType.approvalCertification:
         return 'Sertifikat';
       case InboxItemType.approvalProfileChange:
-        return 'Perubahan Profil';
+        return 'Profil';
       default:
         return 'Approval';
     }

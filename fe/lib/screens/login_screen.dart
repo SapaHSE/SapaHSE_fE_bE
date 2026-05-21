@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'register_screen.dart';
 import '../main.dart';
 import '../services/auth_service.dart';
+import '../services/idle_timeout_service.dart';
 import '../services/offline_reference_cache_service.dart';
 import '../services/storage_service.dart';
 import 'package:local_auth/local_auth.dart';
@@ -87,6 +88,7 @@ class _LoginScreenState extends State<LoginScreen>
         if (result.success) {
           await PushNotificationService.syncTokenWithBackendIfLoggedIn();
           OfflineReferenceCacheService.prefetchHazardCreateReferences();
+          await IdleTimeoutService.instance.start();
           if (!mounted) return;
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => const MainScreen()),
@@ -128,6 +130,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (result.success) {
       await PushNotificationService.syncTokenWithBackendIfLoggedIn();
       OfflineReferenceCacheService.prefetchHazardCreateReferences();
+      await IdleTimeoutService.instance.start();
       if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(

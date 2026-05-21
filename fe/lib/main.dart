@@ -8,9 +8,9 @@ import 'app_globals.dart';
 import 'config/supabase_config.dart';
 import 'services/announcement_service.dart';
 import 'services/background_sync_service.dart';
+import 'services/idle_timeout_service.dart';
 import 'services/storage_service.dart';
 import 'screens/splash_screen.dart';
-import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/news_screen.dart';
 import 'screens/inbox_screen.dart';
@@ -20,6 +20,8 @@ import 'screens/create_inspection_screen.dart';
 import 'screens/qr_scan_screen.dart';
 import 'widgets/app_safe_insets.dart';
 import 'widgets/fab_notched_bottom_bar.dart';
+import 'widgets/idle_detector.dart';
+import 'widgets/session_expired_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -81,6 +83,7 @@ class BBEApp extends StatelessWidget {
       ),
       navigatorKey: navigatorKey,
       navigatorObservers: [routeObserver],
+      builder: (context, child) => IdleDetector(child: child ?? const SizedBox.shrink()),
       home: const SplashScreen(),
     );
   }
@@ -124,45 +127,23 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      // Pastikan timestamp terakhir ter-persist sebelum app benar-benar di-background.
+      IdleTimeoutService.instance.recordActivity();
+      return;
+    }
     if (state == AppLifecycleState.resumed) {
-      StorageService.isLoggedIn().then((loggedIn) {
-        if (!loggedIn && mounted) {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.lock_clock, color: Color(0xFF1A56C4)),
-                  SizedBox(width: 8),
-                  Text('Sesi Berakhir'),
-                ],
-              ),
-              content: const Text(
-                'Sesi kamu telah habis. Silakan login kembali untuk melanjutkan.',
-              ),
-              actions: [
-                FilledButton(
-                  onPressed: () {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A56C4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Login Kembali'),
-                ),
-              ],
-            ),
-          );
+      StorageService.isLoggedIn().then((loggedIn) async {
+        if (!mounted) return;
+        if (!loggedIn) {
+          await showSessionExpiredDialog();
+          return;
+        }
+        final expired = await IdleTimeoutService.instance.checkOnResume();
+        if (!mounted) return;
+        if (!expired) {
+          // Re-arm in-memory ticker setelah app kembali ke foreground.
+          await IdleTimeoutService.instance.start();
         }
       });
     }

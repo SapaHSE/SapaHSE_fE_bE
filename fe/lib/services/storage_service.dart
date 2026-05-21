@@ -5,7 +5,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class StorageService {
   static const _keyToken = 'auth_token';
   static const _keyUser = 'auth_user';
-  static const _keyExpiry = 'auth_expiry';
   static const _keyRememberMe = 'auth_remember';
   static const _keyBiometricEnabled = 'biometric_enabled';
   static const _keyReadAnnouncements = 'read_announcement_ids';
@@ -23,49 +22,26 @@ class StorageService {
   static Future<void> saveToken(String token,
       {required bool rememberMe}) async {
     final prefs = await _getPrefs();
-
     await prefs.setString(_keyToken, token);
     await prefs.setBool(_keyRememberMe, rememberMe);
-
-    if (rememberMe) {
-      // Sesi selamanya — tidak ada expiry di sisi client.
-      await prefs.remove(_keyExpiry);
-    } else {
-      final expiry =
-          DateTime.now().add(const Duration(minutes: 15)).toIso8601String();
-      await prefs.setString(_keyExpiry, expiry);
-    }
   }
 
   static Future<String?> getToken() async {
     final prefs = await _getPrefs();
-    final token = prefs.getString(_keyToken);
-    if (token == null) return null;
+    return prefs.getString(_keyToken);
+  }
 
-    final rememberMe = prefs.getBool(_keyRememberMe) ?? false;
-    if (rememberMe) {
-      // Remember me aktif — sesi tidak pernah expired di sisi client.
-      return token;
-    }
-
-    final expiry = prefs.getString(_keyExpiry);
-    if (expiry == null) return null;
-
-    // Cek apakah sesi sudah kadaluarsa
-    final expiryDate = DateTime.parse(expiry);
-    if (DateTime.now().isAfter(expiryDate)) {
-      // Token kadaluarsa — hapus semua
-      await clear();
-      return null;
-    }
-
-    return token;
+  /// Cek raw apakah ada token tersimpan, tanpa side-effect.
+  /// Berbeda dari [getToken] yang mengembalikan nilai token — ini cuma cek
+  /// "user pernah login" untuk membedakan 401 sesi-habis vs 401 kredensial-salah.
+  static Future<bool> hasStoredToken() async {
+    final prefs = await _getPrefs();
+    return prefs.getString(_keyToken) != null;
   }
 
   static Future<void> removeToken() async {
     final prefs = await _getPrefs();
     await prefs.remove(_keyToken);
-    await prefs.remove(_keyExpiry);
     await prefs.remove(_keyRememberMe);
   }
 
@@ -92,30 +68,13 @@ class StorageService {
     final prefs = await _getPrefs();
     await prefs.remove(_keyToken);
     await prefs.remove(_keyUser);
-    await prefs.remove(_keyExpiry);
     await prefs.remove(_keyRememberMe);
   }
 
-  // ── Cek login + validasi expiry sekaligus ─────────────────────────────────
+  // ── Cek login ─────────────────────────────────────────────────────────────
   static Future<bool> isLoggedIn() async {
-    final token = await getToken(); // getToken() sudah handle expiry check
+    final token = await getToken();
     return token != null;
-  }
-
-  // ── Sisa waktu sesi (opsional, untuk ditampilkan di UI) ───────────────────
-  static Future<Duration?> getRemainingSession() async {
-    final prefs = await _getPrefs();
-
-    // Remember me aktif → sesi tidak terbatas, tidak ada countdown.
-    final rememberMe = prefs.getBool(_keyRememberMe) ?? false;
-    if (rememberMe) return null;
-
-    final expiry = prefs.getString(_keyExpiry);
-    if (expiry == null) return null;
-
-    final expiryDate = DateTime.parse(expiry);
-    final remaining = expiryDate.difference(DateTime.now());
-    return remaining.isNegative ? null : remaining;
   }
 
   // ── Biometric Login ───────────────────────────────────────────────────────

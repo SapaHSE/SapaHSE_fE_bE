@@ -629,6 +629,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 items: ['Indonesia', 'English'],
                 onChanged: (v) => setState(() => _selectedLanguage = v!),
               ),
+              /*
               _buildDivider(),
               _buildSwitchRow(
                 icon: Icons.dark_mode,
@@ -637,6 +638,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: _isDarkMode,
                 onChanged: (v) => setState(() => _isDarkMode = v),
               ),
+              */
               _buildDivider(),
               _buildSwitchRow(
                 icon: Icons.notifications_active,

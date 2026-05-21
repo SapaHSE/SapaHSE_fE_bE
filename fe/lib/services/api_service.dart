@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../app_globals.dart';
-import '../screens/login_screen.dart';
+import '../widgets/session_expired_dialog.dart';
+import 'idle_timeout_service.dart';
 import 'storage_service.dart';
 
 class ApiService {
@@ -184,48 +183,11 @@ class ApiService {
         return ApiResponse.error(body['message'] ?? 'Unknown error');
       }
     } else if (response.statusCode == 401) {
-      final hasToken = await StorageService.getToken() != null;
+      final hasToken = await StorageService.hasStoredToken();
       if (hasToken) {
-        StorageService.clear().then((_) {
-          final ctx = navigatorKey.currentContext;
-          if (ctx == null || !ctx.mounted) return;
-          showDialog(
-            context: ctx,
-            barrierDismissible: false,
-            builder: (_) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.lock_clock, color: Color(0xFF1A56C4)),
-                  SizedBox(width: 8),
-                  Text('Sesi Berakhir'),
-                ],
-              ),
-              content: const Text(
-                'Sesi kamu telah habis. Silakan login kembali untuk melanjutkan.',
-              ),
-              actions: [
-                FilledButton(
-                  onPressed: () {
-                    navigatorKey.currentState?.pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A56C4),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Login Kembali'),
-                ),
-              ],
-            ),
-          );
-        });
+        await IdleTimeoutService.instance.stop();
+        await StorageService.clear();
+        await showSessionExpiredDialog();
       }
       return ApiResponse.error(
         body['message'] ??
