@@ -54,7 +54,8 @@ flutter:
  
   assets:
     - assets/logo.png
-    - assets/logo_bbe.jpg
+    - assets/logo_bbe.svg
+    - assets/logo_khotai.svg
     - assets/icon/
  
 # ── App Icon Config ───────────────────────────────────────────────────────────
