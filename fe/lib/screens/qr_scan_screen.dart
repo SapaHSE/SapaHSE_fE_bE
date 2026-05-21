@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -70,9 +72,9 @@ class _QrScanScreenState extends State<QrScanScreen>
   }
 
   @override
-  Future<void> dispose() async {
+  void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    await _controller.dispose();
+    unawaited(_controller.dispose());
     super.dispose();
   }
 
@@ -183,11 +185,15 @@ class _QrScanScreenState extends State<QrScanScreen>
   Future<void> _exportIdCard(ProfileData profile, String qrCode) async {
     if (_isExportingIdCard) return;
 
+    final tableRows = await _showMinePermitReview(profile, qrCode);
+    if (tableRows == null || !mounted) return;
+
     setState(() => _isExportingIdCard = true);
     try {
       await IdCardPdfService.exportMinePermit(
         profile: profile,
         qrCode: qrCode,
+        tableRows: tableRows,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -201,6 +207,23 @@ class _QrScanScreenState extends State<QrScanScreen>
     } finally {
       if (mounted) setState(() => _isExportingIdCard = false);
     }
+  }
+
+  Future<List<MinePermitTableRow>?> _showMinePermitReview(
+    ProfileData profile,
+    String qrCode,
+  ) async {
+    final rows = IdCardPdfService.buildMinePermitTableRows(profile);
+    return showModalBottomSheet<List<MinePermitTableRow>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _MinePermitReviewSheet(
+        profile: profile,
+        qrCode: qrCode,
+        initialRows: rows,
+      ),
+    );
   }
 
   void _openUser(ProfileData user) {
@@ -419,6 +442,975 @@ class _QrScanScreenState extends State<QrScanScreen>
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _MinePermitReviewSheet extends StatefulWidget {
+  final ProfileData profile;
+  final String qrCode;
+  final List<MinePermitTableRow> initialRows;
+
+  const _MinePermitReviewSheet({
+    required this.profile,
+    required this.qrCode,
+    required this.initialRows,
+  });
+
+  @override
+  State<_MinePermitReviewSheet> createState() => _MinePermitReviewSheetState();
+}
+
+class _MinePermitReviewSheetState extends State<_MinePermitReviewSheet> {
+  late final List<TextEditingController> _vehicleControllers;
+
+  @override
+  void initState() {
+    super.initState();
+    _vehicleControllers = widget.initialRows
+        .map((row) => TextEditingController(text: row.vehicleEquipment))
+        .toList();
+    for (final controller in _vehicleControllers) {
+      controller.addListener(_refreshPreview);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _vehicleControllers) {
+      controller
+        ..removeListener(_refreshPreview)
+        ..dispose();
+    }
+    super.dispose();
+  }
+
+  void _refreshPreview() {
+    if (mounted) setState(() {});
+  }
+
+  List<MinePermitTableRow> get _editedRows {
+    return [
+      for (var i = 0; i < widget.initialRows.length; i++)
+        MinePermitTableRow(
+          code: widget.initialRows[i].code,
+          vehicleEquipment: _vehicleControllers[i].text.trim(),
+          licenseNumber: widget.initialRows[i].licenseNumber,
+          issuedDate: widget.initialRows[i].issuedDate,
+        ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.image_search_outlined,
+                        color: Color(0xFF1A56C4),
+                        size: 22,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Preview Mine Permit',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Divider(height: 1, color: Colors.grey.shade200),
+            Flexible(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                children: [
+                  _MinePermitPreviewPair(
+                    profile: widget.profile,
+                    qrCode: widget.qrCode,
+                    rows: _editedRows,
+                  ),
+                  const SizedBox(height: 14),
+                  ...List.generate(widget.initialRows.length, (index) {
+                    final row = widget.initialRows[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _MinePermitEditRow(
+                        row: row,
+                        controller: _vehicleControllers[index],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                14,
+                8,
+                14,
+                AppSafeInsets.sheetBottomPadding(context, base: 14),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text('Batal'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(context, _editedRows),
+                      icon: const Icon(Icons.picture_as_pdf_outlined),
+                      label: const Text('Download PDF'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A56C4),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MinePermitPreviewPair extends StatelessWidget {
+  final ProfileData profile;
+  final String qrCode;
+  final List<MinePermitTableRow> rows;
+
+  const _MinePermitPreviewPair({
+    required this.profile,
+    required this.qrCode,
+    required this.rows,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardWidth = constraints.maxWidth >= 540 ? 245.0 : 260.0;
+        final cards = [
+          _MinePermitFrontPreview(profile: profile, width: cardWidth),
+          _MinePermitBackPreview(
+            profile: profile,
+            rows: rows,
+            width: cardWidth,
+          ),
+        ];
+
+        if (constraints.maxWidth >= 540) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              cards[0],
+              const SizedBox(width: 14),
+              cards[1],
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            cards[0],
+            const SizedBox(height: 12),
+            cards[1],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MinePermitFrontPreview extends StatelessWidget {
+  final ProfileData profile;
+  final double width;
+
+  const _MinePermitFrontPreview({
+    required this.profile,
+    required this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final positionDepartment = [
+      profile.jabatan ?? profile.position ?? '',
+      profile.department ?? '',
+    ].where((value) => value.trim().isNotEmpty).join(' - ');
+
+    return _PreviewCardFrame(
+      width: width,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 10,
+            child: Center(
+              child: SizedBox(
+                width: 136,
+                height: 36,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _companyShort(profile.company),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF303744),
+                        height: 0.95,
+                      ),
+                    ),
+                    Text(
+                      profile.company ?? 'PT Bukit Baiduri Energi',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 5.5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 58,
+            child: Container(
+              height: 31,
+              color: const Color(0xFF2F73C8),
+              alignment: Alignment.center,
+              child: const Text(
+                'MINE PERMIT',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 24,
+            top: 103,
+            child: Container(
+              width: 98,
+              height: 128,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF0F7),
+                border: Border.all(color: const Color(0xFF9BA7B8)),
+              ),
+              child: Text(
+                _initials(profile.fullName),
+                style: const TextStyle(
+                  color: Color(0xFF245A9C),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 130,
+            top: 104,
+            right: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _frontInfo('Name', profile.fullName),
+                _frontInfo(
+                  'Registration Number',
+                  (profile.simper ?? '').trim().isEmpty
+                      ? profile.employeeId
+                      : profile.simper!,
+                ),
+                _frontInfo('Position & Department', positionDepartment),
+                _frontInfo(
+                  'Company',
+                  profile.company ?? 'PT Bukit Baiduri Energi',
+                ),
+                _frontInfo('Valid Until', '-'),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 38,
+            top: 250,
+            child: Column(
+              children: const [
+                _MiniCounterPreview('VIOLATION'),
+                SizedBox(height: 8),
+                _MiniCounterPreview('INCIDENT'),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 22,
+            bottom: 22,
+            child: _MiniSignaturePreview(company: profile.company),
+          ),
+          Positioned(
+            right: 18,
+            bottom: 26,
+            child: Column(
+              children: [
+                const Icon(Icons.qr_code_2, size: 88),
+                const SizedBox(height: 4),
+                const Text(
+                  'SCAN QR PROFIL',
+                  style: TextStyle(
+                    color: Color(0xFF245A9C),
+                    fontSize: 7,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _frontInfo(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            style: const TextStyle(
+              color: Color(0xFF2F73C8),
+              fontSize: 6.5,
+              fontWeight: FontWeight.bold,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          Text(
+            value.trim().isEmpty ? '-' : value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF303744),
+              fontSize: 7.7,
+              fontWeight: FontWeight.bold,
+              height: 1.05,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _companyShort(String? company) {
+    final value = (company ?? '').toLowerCase();
+    if (value.contains('khotai')) return 'KHOTAI';
+    return 'BBE';
+  }
+}
+
+class _MinePermitBackPreview extends StatelessWidget {
+  final ProfileData profile;
+  final List<MinePermitTableRow> rows;
+  final double width;
+
+  const _MinePermitBackPreview({
+    required this.profile,
+    required this.rows,
+    required this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _PreviewCardFrame(
+      width: width,
+      child: Stack(
+        children: [
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 8,
+            child: Text(
+              'SIMPER',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF28B463),
+                fontSize: 19,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 7,
+            top: 42,
+            width: 110,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'SIM POLISI',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                _previewInfo('NOMOR', _firstSimNumber(rows)),
+                _previewInfo('TIPE', _firstSimType(rows)),
+                _previewInfo('EXP. DATE', ''),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 138,
+            top: 41,
+            child: Container(
+              width: 1,
+              height: 47,
+              color: Colors.grey.shade400,
+            ),
+          ),
+          Positioned(
+            left: 154,
+            top: 42,
+            right: 10,
+            child: Text(
+              'SIMPER\n${profile.simper ?? ''}',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 5,
+            right: 5,
+            top: 98,
+            child: _previewTable(rows),
+          ),
+          Positioned(
+            left: 5,
+            right: 5,
+            top: 238,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: const [
+                _PreviewCheck('PIT AREA'),
+                _PreviewCheck('PORT AREA'),
+                _PreviewCheck('HANDAK'),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 5,
+            right: 5,
+            top: 258,
+            child: Container(height: 1, color: Colors.grey.shade400),
+          ),
+          Positioned(
+            left: 6,
+            right: 6,
+            top: 264,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Keterangan:',
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
+                ),
+                const Text(
+                  'F = Full, P = Probation, R = Restricted, T = Training, I = Instructor',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 6.4, fontStyle: FontStyle.italic),
+                ),
+                const SizedBox(height: 2),
+                _rulePreview(
+                  '1. Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
+                ),
+                _rulePreview(
+                  '2. Kartu ini milik perusahaan, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku.',
+                ),
+                _rulePreview(
+                    '3. Segera laporkan ke QHSE jika kehilangan kartu ini.'),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 326,
+            child: Container(
+              height: 15,
+              color: const Color(0xFFE5506A),
+              alignment: Alignment.center,
+              child: const Text(
+                'EMERGENCY CONTACT',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 23,
+              color: const Color(0xFF28B463),
+              alignment: Alignment.center,
+              child: const Text(
+                'WAJIB MEMATUHI PERATURAN K3LH\nSELAMA BERADA DI JOB SITE',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  height: 1.05,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _previewInfo(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 48,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF2F73C8),
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              ': $value',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _previewTable(List<MinePermitTableRow> rows) {
+    const border = BorderSide(color: Color(0xFF9BA7B8), width: 0.7);
+    return Table(
+      border: TableBorder.all(color: border.color, width: border.width),
+      columnWidths: const {
+        0: FlexColumnWidth(0.7),
+        1: FlexColumnWidth(2.8),
+        2: FlexColumnWidth(0.9),
+        3: FlexColumnWidth(1.2),
+      },
+      children: [
+        const TableRow(
+          decoration: BoxDecoration(color: Color(0xFF2F73C8)),
+          children: [
+            _PreviewHeader(''),
+            _PreviewHeader('VEHICLE / EQUIPMENT'),
+            _PreviewHeader('LIC'),
+            _PreviewHeader('ISSUED DATE'),
+          ],
+        ),
+        ...rows.map(
+          (row) => TableRow(
+            children: [
+              _PreviewCell(row.code, bold: true),
+              _PreviewCell(row.vehicleEquipment),
+              _PreviewCell(row.licenseNumber),
+              _PreviewCell(row.issuedDate),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _firstSimNumber(List<MinePermitTableRow> rows) {
+    for (final row in rows) {
+      if ((row.code == 'LV' || row.code == 'DT' || row.code == 'WT') &&
+          row.licenseNumber.isNotEmpty) {
+        return row.licenseNumber;
+      }
+    }
+    return '';
+  }
+
+  static String _firstSimType(List<MinePermitTableRow> rows) {
+    for (final row in rows) {
+      if (row.code == 'LV' && row.licenseNumber.isNotEmpty) return 'SIM A';
+      if ((row.code == 'DT' || row.code == 'WT') &&
+          row.licenseNumber.isNotEmpty) {
+        return 'SIM B1/B2';
+      }
+    }
+    return '';
+  }
+}
+
+class _PreviewCardFrame extends StatelessWidget {
+  final double width;
+  final Widget child;
+
+  const _PreviewCardFrame({
+    required this.width,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: AspectRatio(
+        aspectRatio: 55 / 86,
+        child: Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF4F5E70), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniCounterPreview extends StatelessWidget {
+  final String title;
+
+  const _MiniCounterPreview(this.title);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 70,
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF245A9C),
+              fontSize: 8,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Table(
+            border: TableBorder.all(
+              color: const Color(0xFF9BA7B8),
+              width: 0.7,
+            ),
+            children: const [
+              TableRow(
+                children: [
+                  _PreviewCell('1', bold: true),
+                  _PreviewCell('2', bold: true),
+                  _PreviewCell('3', bold: true),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniSignaturePreview extends StatelessWidget {
+  final String? company;
+
+  const _MiniSignaturePreview({required this.company});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 92,
+      child: Column(
+        children: [
+          const Text(
+            'Disahkan oleh,',
+            style: TextStyle(
+              color: Color(0xFF245A9C),
+              fontSize: 7,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Container(
+            width: 55,
+            height: 10,
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Color(0xFF245A9C), width: 1),
+              ),
+            ),
+          ),
+          Text(
+            (company ?? '').toLowerCase().contains('khotai') ? 'KHOTAI' : 'BBE',
+            style: const TextStyle(
+              color: Color(0xFF303744),
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Text(
+            'Reno Barus, S.T',
+            style: TextStyle(fontSize: 6.2, fontWeight: FontWeight.bold),
+          ),
+          const Text(
+            'Kepala Teknik Tambang',
+            style: TextStyle(fontSize: 5.8, fontStyle: FontStyle.italic),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewCheck extends StatelessWidget {
+  final String label;
+
+  const _PreviewCheck(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF9BA7B8), width: 0.8),
+          ),
+        ),
+        const SizedBox(width: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF245A9C),
+            fontSize: 7,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+Widget _rulePreview(String text) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 1),
+    child: Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: Color(0xFF303744),
+        fontSize: 6.2,
+        height: 1.0,
+      ),
+    ),
+  );
+}
+
+String _initials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  final chars = parts
+      .where((part) => part.isNotEmpty)
+      .take(2)
+      .map((part) => part[0])
+      .join()
+      .toUpperCase();
+  return chars.isEmpty ? '?' : chars;
+}
+
+class _MinePermitEditRow extends StatelessWidget {
+  final MinePermitTableRow row;
+  final TextEditingController controller;
+
+  const _MinePermitEditRow({
+    required this.row,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF4FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              row.code,
+              style: const TextStyle(
+                color: Color(0xFF1A56C4),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                labelText: 'Vehicle / Equipment',
+                hintText: 'Isi manual jika perlu',
+                isDense: true,
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewHeader extends StatelessWidget {
+  final String text;
+
+  const _PreviewHeader(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+      child: Text(
+        text,
+        maxLines: 1,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 5.8,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _PreviewCell extends StatelessWidget {
+  final String text;
+  final bool bold;
+
+  const _PreviewCell(this.text, {this.bold = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: text.length > 14 ? 6 : 7,
+          fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+        ),
       ),
     );
   }

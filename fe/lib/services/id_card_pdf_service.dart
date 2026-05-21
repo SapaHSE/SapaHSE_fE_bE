@@ -2,6 +2,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'dart:typed_data';
 
 import '../models/profile_model.dart';
 import 'helper/save_helper.dart'
@@ -28,6 +29,26 @@ class IdCardPdfService {
   static Future<void> exportMinePermit({
     required ProfileData profile,
     required String qrCode,
+    List<MinePermitTableRow>? tableRows,
+  }) async {
+    final bytes = await buildMinePermitPdf(
+      profile: profile,
+      qrCode: qrCode,
+      tableRows: tableRows,
+    );
+    final fileName = minePermitFileName(profile);
+
+    await saveAndLaunchFile(
+      bytes,
+      fileName,
+      mimeType: 'application/pdf',
+    );
+  }
+
+  static Future<Uint8List> buildMinePermitPdf({
+    required ProfileData profile,
+    required String qrCode,
+    List<MinePermitTableRow>? tableRows,
   }) async {
     final document = pw.Document();
     final avatar = await _loadNetworkImage(profile.profilePhoto);
@@ -51,24 +72,23 @@ class IdCardPdfService {
       pw.Page(
         pageFormat: _cardFormat,
         margin: pw.EdgeInsets.zero,
-        build: (_) => _backCard(profile),
+        build: (_) => _backCard(
+          profile,
+          tableRows ?? buildMinePermitTableRows(profile),
+        ),
       ),
     );
 
-    final bytes = await document.save();
+    return document.save();
+  }
+
+  static String minePermitFileName(ProfileData profile) {
     final safeName = profile.fullName
         .trim()
         .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
         .replaceAll(RegExp(r'_+'), '_')
         .replaceAll(RegExp(r'^_|_$'), '');
-    final fileName =
-        'ID_Card_${safeName.isEmpty ? profile.employeeId : safeName}.pdf';
-
-    await saveAndLaunchFile(
-      bytes,
-      fileName,
-      mimeType: 'application/pdf',
-    );
+    return 'ID_Card_${safeName.isEmpty ? profile.employeeId : safeName}.pdf';
   }
 
   static pw.Widget _frontCard(
@@ -152,7 +172,12 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _backCard(ProfileData profile) {
+  static pw.Widget _backCard(
+    ProfileData profile,
+    List<MinePermitTableRow> tableRows,
+  ) {
+    final simPolice = _simPoliceLicense(profile);
+
     return _printPage(
       child: pw.Stack(
         children: [
@@ -186,9 +211,12 @@ class IdCardPdfService {
                       color: _ink,
                     ),
                   ),
-                  _smallLabelRow('NOMOR', ''),
-                  _smallLabelRow('TIPE', ''),
-                  _smallLabelRow('EXP. DATE', ''),
+                  _smallLabelRow('NOMOR', simPolice?.licenseNumber ?? ''),
+                  _smallLabelRow('TIPE', _simPoliceType(simPolice)),
+                  _smallLabelRow(
+                    'EXP. DATE',
+                    _formatLicenseDate(simPolice?.expiredAt),
+                  ),
                 ],
               ),
             ),
@@ -216,7 +244,10 @@ class IdCardPdfService {
           pw.Positioned(
             left: 1.0 * _mm,
             top: 20.8 * _mm,
-            child: pw.SizedBox(width: 50.6 * _mm, child: _simperTable(profile)),
+            child: pw.SizedBox(
+              width: 50.6 * _mm,
+              child: _simperTable(tableRows),
+            ),
           ),
           pw.Positioned(
             left: 0.8 * _mm,
@@ -670,20 +701,14 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _simperTable(ProfileData profile) {
-    const vehicleCodes = ['LV', 'DT', 'BD', 'BHL', 'EX', 'WT', 'WL'];
-    final licenseByCode = {
-      for (final license in profile.licenses)
-        license.name.trim().toUpperCase(): license,
-    };
-
+  static pw.Widget _simperTable(List<MinePermitTableRow> rows) {
     return pw.Table(
       border: pw.TableBorder.all(color: _line, width: 0.55),
       columnWidths: const {
-        0: pw.FixedColumnWidth(8.2),
-        1: pw.FlexColumnWidth(),
-        2: pw.FixedColumnWidth(11.4),
-        3: pw.FixedColumnWidth(25.0),
+        0: pw.FixedColumnWidth(6.4),
+        1: pw.FixedColumnWidth(22.4),
+        2: pw.FixedColumnWidth(9.8),
+        3: pw.FixedColumnWidth(12.0),
       },
       children: [
         pw.TableRow(
@@ -695,14 +720,13 @@ class IdCardPdfService {
             _tableHeader('ISSUED DATE'),
           ],
         ),
-        ...vehicleCodes.map((code) {
-          final license = licenseByCode[code];
+        ...rows.map((row) {
           return pw.TableRow(
             children: [
-              _tableCell(code, bold: true),
-              _tableCell(license?.name ?? ''),
-              _tableCell(license == null ? '' : 'F'),
-              _tableCell(license?.obtainedAt ?? ''),
+              _tableCell(row.code, bold: true),
+              _tableCell(row.vehicleEquipment),
+              _tableCell(row.licenseNumber),
+              _tableCell(row.issuedDate),
             ],
           );
         }),
@@ -744,12 +768,25 @@ class IdCardPdfService {
         value,
         maxLines: 1,
         style: pw.TextStyle(
-          fontSize: 4.5,
+          fontSize: _tableCellFontSize(value),
           fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
           color: _ink,
         ),
       ),
     );
+  }
+
+  static List<MinePermitTableRow> buildMinePermitTableRows(
+    ProfileData profile,
+  ) {
+    return _simperRows(profile);
+  }
+
+  static double _tableCellFontSize(String value) {
+    final length = value.trim().length;
+    if (length > 18) return 3.25;
+    if (length > 12) return 3.7;
+    return 4.5;
   }
 
   static pw.Widget _checkboxLabel(String label) {
@@ -878,6 +915,18 @@ class IdCardPdfService {
     return '${value.day} ${months[value.month - 1]} ${value.year}';
   }
 
+  static String _formatLicenseDate(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return '';
+
+    final parsed = DateTime.tryParse(trimmed.replaceFirst(' ', 'T'));
+    if (parsed == null) return trimmed;
+
+    final day = parsed.day.toString().padLeft(2, '0');
+    final month = parsed.month.toString().padLeft(2, '0');
+    return '$day/$month/${parsed.year}';
+  }
+
   static String _initials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
     final chars = parts
@@ -914,4 +963,141 @@ class IdCardPdfService {
     }
     return bbeLogo ?? khotaiLogo ?? '';
   }
+
+  static List<UserLicense> _usableLicenses(ProfileData profile) {
+    return profile.licenses.where((license) {
+      final status = license.status.trim().toLowerCase();
+      final approval = license.approvalStatus.trim().toLowerCase();
+      return status != 'expired' &&
+          status != 'suspended' &&
+          approval != 'rejected';
+    }).toList();
+  }
+
+  static UserLicense? _simPoliceLicense(ProfileData profile) {
+    final licenses = _usableLicenses(profile)
+        .where((license) => _isSimPoliceName(license.name))
+        .toList()
+      ..sort((a, b) => _simPriority(b.name).compareTo(_simPriority(a.name)));
+
+    return licenses.isEmpty ? null : licenses.first;
+  }
+
+  static String _simPoliceType(UserLicense? license) {
+    if (license == null) return '';
+    final type = _simTypeLabel(license.name);
+    return type.isEmpty ? license.name : type;
+  }
+
+  static List<MinePermitTableRow> _simperRows(ProfileData profile) {
+    final licenses = _usableLicenses(profile);
+    const specs = [
+      _SimperRowSpec('LV', ['SIM A', 'SIM A UMUM']),
+      _SimperRowSpec('DT', ['SIM B1', 'SIM B2', 'DUMP TRUCK']),
+      _SimperRowSpec('BD', ['BULLDOZER', 'DOZER', 'BD']),
+      _SimperRowSpec('BHL', ['BACKHOE', 'BHL']),
+      _SimperRowSpec('EX', ['EXCAVATOR', 'EX']),
+      _SimperRowSpec('WT', ['SIM B1', 'SIM B2', 'WATER TRUCK']),
+      _SimperRowSpec('WL', ['WHEEL LOADER', 'LOADER', 'WL']),
+    ];
+
+    return specs
+        .map((spec) {
+          final license = _findLicenseForSpec(licenses, spec);
+          return MinePermitTableRow(
+              code: spec.code,
+              vehicleEquipment: '',
+              licenseNumber: license?.licenseNumber ?? '',
+              issuedDate: _formatLicenseDate(license?.obtainedAt),
+            );
+        })
+        .toList();
+  }
+
+  static UserLicense? _findLicenseForSpec(
+    List<UserLicense> licenses,
+    _SimperRowSpec spec,
+  ) {
+    final matched = licenses.where((license) {
+      final haystack = _licenseSearchText(license);
+      return spec.keywords.any((keyword) => haystack.contains(keyword));
+    }).toList()
+      ..sort((a, b) => _licenseSpecificity(b, spec)
+          .compareTo(_licenseSpecificity(a, spec)));
+
+    return matched.isEmpty ? null : matched.first;
+  }
+
+  static int _licenseSpecificity(UserLicense license, _SimperRowSpec spec) {
+    final haystack = _licenseSearchText(license);
+    var score = 0;
+    if (haystack.contains(spec.code)) score += 4;
+    if (haystack.contains('UMUM')) score += 1;
+    if (license.isVerified) score += 1;
+    return score;
+  }
+
+  static String _licenseSearchText(UserLicense license) {
+    return [
+      license.name,
+      license.licenseNumber,
+      license.issuer ?? '',
+    ].join(' ').toUpperCase();
+  }
+
+  static bool _isSimPoliceName(String value) {
+    final normalized = value.toUpperCase();
+    return normalized.contains('SIM A') ||
+        normalized.contains('SIM B1') ||
+        normalized.contains('SIM B2');
+  }
+
+  static int _simPriority(String value) {
+    final normalized = value.toUpperCase();
+    if (normalized.contains('SIM B2') && normalized.contains('UMUM')) return 6;
+    if (normalized.contains('SIM B2')) return 5;
+    if (normalized.contains('SIM B1') && normalized.contains('UMUM')) return 4;
+    if (normalized.contains('SIM B1')) return 3;
+    if (normalized.contains('SIM A') && normalized.contains('UMUM')) return 2;
+    if (normalized.contains('SIM A')) return 1;
+    return 0;
+  }
+
+  static String _simTypeLabel(String value) {
+    final normalized = value.toUpperCase();
+    if (normalized.contains('SIM B2') && normalized.contains('UMUM')) {
+      return 'SIM B2 UMUM';
+    }
+    if (normalized.contains('SIM B2')) return 'SIM B2';
+    if (normalized.contains('SIM B1') && normalized.contains('UMUM')) {
+      return 'SIM B1 UMUM';
+    }
+    if (normalized.contains('SIM B1')) return 'SIM B1';
+    if (normalized.contains('SIM A') && normalized.contains('UMUM')) {
+      return 'SIM A UMUM';
+    }
+    if (normalized.contains('SIM A')) return 'SIM A';
+    return '';
+  }
+}
+
+class _SimperRowSpec {
+  final String code;
+  final List<String> keywords;
+
+  const _SimperRowSpec(this.code, this.keywords);
+}
+
+class MinePermitTableRow {
+  final String code;
+  final String vehicleEquipment;
+  final String licenseNumber;
+  final String issuedDate;
+
+  const MinePermitTableRow({
+    required this.code,
+    required this.vehicleEquipment,
+    required this.licenseNumber,
+    required this.issuedDate,
+  });
 }
