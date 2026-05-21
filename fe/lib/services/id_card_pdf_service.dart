@@ -165,9 +165,9 @@ class IdCardPdfService {
           ),
           pw.Positioned(
             left: 5 * _mm,
-            top: 10.4 * _mm,
+            top: 10.8 * _mm,
             child: pw.SizedBox(
-              width: 18.2 * _mm,
+              width: 20.8 * _mm,
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -187,15 +187,15 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 26.5 * _mm,
+            left: 29.0 * _mm,
             top: 10.1 * _mm,
             child: pw.Container(width: 0.45, height: 14.2 * _mm, color: _line),
           ),
           pw.Positioned(
-            left: 31.0 * _mm,
+            left: 33.0 * _mm,
             top: 10.5 * _mm,
             child: pw.SizedBox(
-              width: 17.2 * _mm,
+              width: 15.0 * _mm,
               child: pw.Text(
                 'SIMPER\n${_display(profile.simper, fallback: '')}',
                 style: pw.TextStyle(
@@ -207,19 +207,19 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 4.8 * _mm,
-            top: 26.8 * _mm,
-            child: pw.SizedBox(width: 45.4 * _mm, child: _simperTable(profile)),
+            left: 3.0 * _mm,
+            top: 26.2 * _mm,
+            child: pw.SizedBox(width: 46.7 * _mm, child: _simperTable(profile)),
           ),
           pw.Positioned(
-            left: 8.4 * _mm,
-            top: 54.2 * _mm,
+            left: 4.8 * _mm,
+            right: 4.8 * _mm,
+            top: 53.8 * _mm,
             child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
               children: [
                 _checkboxLabel('PIT AREA'),
-                pw.SizedBox(width: 4.2 * _mm),
                 _checkboxLabel('PORT AREA'),
-                pw.SizedBox(width: 4.2 * _mm),
                 _checkboxLabel('HANDAK'),
               ],
             ),
@@ -227,28 +227,28 @@ class IdCardPdfService {
           pw.Positioned(
             left: 4.8 * _mm,
             right: 4.8 * _mm,
-            top: 58.9 * _mm,
+            top: 58.4 * _mm,
             child: pw.Container(height: 0.45, color: _line),
           ),
           pw.Positioned(
             left: 4.8 * _mm,
             right: 4.8 * _mm,
-            top: 59.6 * _mm,
+            top: 59.0 * _mm,
             child: _rulesBlock(),
           ),
           pw.Positioned(
             left: 4.8 * _mm,
             right: 4.8 * _mm,
-            top: 69.2 * _mm,
+            top: 72.4 * _mm,
             child: pw.Container(
-              height: 4.3 * _mm,
+              height: 3.2 * _mm,
               alignment: pw.Alignment.center,
               color: _red,
               child: pw.Text(
                 'EMERGENCY CONTACT',
                 style: pw.TextStyle(
                   color: PdfColors.white,
-                  fontSize: 6.2,
+                  fontSize: 5.3,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
@@ -257,9 +257,9 @@ class IdCardPdfService {
           pw.Positioned(
             left: 4.8 * _mm,
             right: 4.8 * _mm,
-            top: 74.2 * _mm,
+            top: 76.6 * _mm,
             child: pw.Container(
-              height: 6.7 * _mm,
+              height: 4.9 * _mm,
               alignment: pw.Alignment.center,
               color: _green,
               child: pw.Text(
@@ -267,7 +267,7 @@ class IdCardPdfService {
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                   color: PdfColors.white,
-                  fontSize: 6.3,
+                  fontSize: 5.1,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
@@ -583,11 +583,11 @@ class IdCardPdfService {
 
   static pw.Widget _smallLabelRow(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(top: 1.0),
+      padding: const pw.EdgeInsets.only(top: 1.25),
       child: pw.Row(
         children: [
           pw.SizedBox(
-            width: 14.4 * _mm,
+            width: 10.2 * _mm,
             child: pw.Text(
               label,
               style: pw.TextStyle(
@@ -597,7 +597,14 @@ class IdCardPdfService {
               ),
             ),
           ),
-          pw.Text(': ', style: pw.TextStyle(fontSize: 4.6, color: _ink)),
+          pw.SizedBox(
+            width: 2.2 * _mm,
+            child: pw.Text(
+              ':',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(fontSize: 4.6, color: _ink),
+            ),
+          ),
           pw.Expanded(
             child: pw.Text(
               value,
@@ -619,10 +626,10 @@ class IdCardPdfService {
     return pw.Table(
       border: pw.TableBorder.all(color: _line, width: 0.55),
       columnWidths: const {
-        0: pw.FixedColumnWidth(12),
+        0: pw.FixedColumnWidth(10.0),
         1: pw.FlexColumnWidth(),
-        2: pw.FixedColumnWidth(15),
-        3: pw.FixedColumnWidth(30),
+        2: pw.FixedColumnWidth(12.8),
+        3: pw.FixedColumnWidth(24.0),
       },
       children: [
         pw.TableRow(
@@ -651,14 +658,15 @@ class IdCardPdfService {
 
   static pw.Widget _tableHeader(String value) {
     return pw.Container(
-      height: 3.25 * _mm,
+      height: 3.45 * _mm,
       alignment: pw.Alignment.center,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 0.8),
       child: pw.Text(
         value,
         textAlign: pw.TextAlign.center,
         style: pw.TextStyle(
           color: PdfColors.white,
-          fontSize: 4.15,
+          fontSize: 4.0,
           fontWeight: pw.FontWeight.bold,
         ),
       ),
@@ -667,13 +675,14 @@ class IdCardPdfService {
 
   static pw.Widget _tableCell(String value, {bool bold = false}) {
     return pw.Container(
-      height: 3.15 * _mm,
+      height: 3.25 * _mm,
       alignment: pw.Alignment.center,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 0.5),
       child: pw.Text(
         value,
         maxLines: 1,
         style: pw.TextStyle(
-          fontSize: 5.0,
+          fontSize: 4.8,
           fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
           color: _ink,
         ),
