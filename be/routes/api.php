@@ -59,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile',                 [ProfileController::class, 'updateProfile']);
     Route::delete('/profile',               [ProfileController::class, 'destroyAccount']);
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword']);
+    Route::get('/profile/change-requests',  [ProfileController::class, 'getProfileChangeRequests']);
     Route::post('/profile/license',         [ProfileController::class, 'storeLicense']);
     Route::put('/profile/license/{id}',      [ProfileController::class, 'updateLicense']);
     Route::delete('/profile/license/{id}',   [ProfileController::class, 'destroyLicense']);
@@ -237,5 +238,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/licenses/{id}/reject', [AuthController::class, 'adminRejectLicense'])->middleware('role:admin,superadmin');
     Route::put('/admin/certifications/{id}/approve', [AuthController::class, 'adminApproveCertification'])->middleware('role:admin,superadmin');
     Route::post('/admin/certifications/{id}/reject', [AuthController::class, 'adminRejectCertification'])->middleware('role:admin,superadmin');
-        
+
+    // Admin: Profile Change Requests
+    Route::put('/admin/profile-change-requests/{id}/approve', [ProfileController::class, 'adminApproveProfileChange'])->middleware('role:admin,superadmin');
+    Route::post('/admin/profile-change-requests/{id}/reject', [ProfileController::class, 'adminRejectProfileChange'])->middleware('role:admin,superadmin');
+
 });

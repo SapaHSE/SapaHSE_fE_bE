@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProfileChangeRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -80,37 +81,201 @@ class ProfileController extends Controller
             'profile_photo_url' => 'nullable|url|max:2048',
         ]);
 
-        if ($request->filled('full_name'))    $user->full_name    = $request->full_name;
-        if ($request->filled('personal_email')) $user->personal_email = $request->personal_email;
-        if ($request->filled('work_email'))   $user->work_email   = $request->work_email;
-        if ($request->filled('phone_number')) $user->phone_number = $request->phone_number;
-        if ($request->filled('position'))     $user->position     = $request->position;
-        if ($request->filled('jabatan'))      $user->jabatan      = $request->jabatan;
-        if ($request->filled('department'))   $user->department   = $request->department;
-        if ($request->filled('company'))      $user->company      = $request->company;
-        if ($request->has('tipe_afiliasi')) $user->tipe_afiliasi = $request->tipe_afiliasi;
-        if ($request->has('perusahaan_kontraktor')) {
-            $user->perusahaan_kontraktor = $request->perusahaan_kontraktor;
-        }
-        if ($request->has('sub_kontraktor')) $user->sub_kontraktor = $request->sub_kontraktor;
-        if ($request->filled('address'))      $user->address      = $request->address;
-
+        // Photo update — apply directly without approval
+        $photoUpdated = false;
         if ($request->hasFile('profile_photo')) {
-            if ($user->profile_photo) {
+            if ($user->profile_photo && !filter_var($user->profile_photo, FILTER_VALIDATE_URL)) {
                 Storage::disk('public')->delete($user->profile_photo);
             }
             $user->profile_photo = $request->file('profile_photo')->store('avatars', 'public');
+            $photoUpdated = true;
         } elseif ($request->filled('profile_photo_url')) {
-            // Support external storage URLs (e.g. Supabase public object URL).
             $user->profile_photo = $request->profile_photo_url;
+            $photoUpdated = true;
         }
 
-        $user->save();
+        // Collect non-photo field changes
+        $approvalFields = [
+            'full_name', 'personal_email', 'work_email', 'phone_number',
+            'position', 'jabatan', 'department', 'company',
+            'tipe_afiliasi', 'perusahaan_kontraktor', 'sub_kontraktor', 'address',
+        ];
+
+        $requestedChanges = [];
+        $originalValues = [];
+
+        foreach ($approvalFields as $field) {
+            if ($request->has($field)) {
+                $newValue = $request->input($field);
+                $currentValue = $user->{$field};
+                if ((string) $newValue !== (string) $currentValue) {
+                    $requestedChanges[$field] = $newValue;
+                    $originalValues[$field] = $currentValue;
+                }
+            }
+        }
+
+        // If only photo changed (no other fields), save directly
+        if (empty($requestedChanges)) {
+            if ($photoUpdated) {
+                $user->save();
+            }
+            return \response()->json([
+                'status'  => 'success',
+                'message' => 'Profile updated successfully',
+                'data'    => $this->formatUser($user->fresh()),
+            ]);
+        }
+
+        // Save photo if changed
+        if ($photoUpdated) {
+            $user->save();
+        }
+
+        // Cancel any existing pending request from this user
+        ProfileChangeRequest::where('user_id', $user->id)
+            ->where('approval_status', 'pending')
+            ->update(['approval_status' => 'cancelled']);
+
+        // Create a new profile change request
+        $changeRequest = ProfileChangeRequest::create([
+            'user_id' => $user->id,
+            'approval_status' => 'pending',
+            'requested_changes' => $requestedChanges,
+            'original_values' => $originalValues,
+            'submitted_at' => now(),
+        ]);
+
+        // Notify admins
+        $this->notifyAdminsAboutProfileChange($user->full_name);
 
         return \response()->json([
             'status'  => 'success',
-            'message' => 'Profile updated successfully',
-            'data'    => $this->formatUser($user),
+            'message' => 'Pengajuan perubahan profil berhasil dikirim. Menunggu persetujuan admin.',
+            'data'    => $this->formatUser($user->fresh()),
+            'change_request' => [
+                'id' => $changeRequest->id,
+                'approval_status' => $changeRequest->approval_status,
+                'requested_changes' => $changeRequest->requested_changes,
+                'submitted_at' => $changeRequest->submitted_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    // GET /api/profile/change-requests
+    public function getProfileChangeRequests()
+    {
+        $user = Auth::user();
+
+        $requests = ProfileChangeRequest::where('user_id', $user->id)
+            ->whereIn('approval_status', ['pending', 'approved', 'rejected'])
+            ->orderByDesc('submitted_at')
+            ->limit(20)
+            ->get()
+            ->map(fn($r) => [
+                'id' => $r->id,
+                'approval_status' => $r->approval_status,
+                'requested_changes' => $r->requested_changes,
+                'original_values' => $r->original_values,
+                'rejection_reason' => $r->rejection_reason,
+                'submitted_at' => $r->submitted_at?->toIso8601String(),
+                'reviewed_at' => $r->reviewed_at?->toIso8601String(),
+                'created_at' => $r->created_at?->toIso8601String(),
+            ]);
+
+        return \response()->json([
+            'status' => 'success',
+            'data' => $requests,
+        ]);
+    }
+
+    // PUT /admin/profile-change-requests/{id}/approve
+    public function adminApproveProfileChange($id)
+    {
+        $changeRequest = ProfileChangeRequest::findOrFail($id);
+
+        if ($changeRequest->approval_status !== 'pending') {
+            return \response()->json([
+                'status' => 'error',
+                'message' => 'Pengajuan ini sudah diproses sebelumnya.',
+            ], 422);
+        }
+
+        $user = User::findOrFail($changeRequest->user_id);
+
+        // Apply requested changes to user
+        foreach ($changeRequest->requested_changes as $field => $value) {
+            $user->{$field} = $value;
+        }
+        $user->save();
+
+        $changeRequest->update([
+            'approval_status' => 'approved',
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        // Notify user
+        try {
+            $this->notificationService->createNotification(
+                $user,
+                'profile_change_approved',
+                'Perubahan Profil Disetujui',
+                'Pengajuan perubahan profil Anda telah disetujui oleh admin.',
+                ['type' => 'approval']
+            );
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Gagal mengirim notifikasi: ' . $e->getMessage());
+        }
+
+        return \response()->json([
+            'status' => 'success',
+            'message' => 'Perubahan profil berhasil disetujui.',
+        ]);
+    }
+
+    // POST /admin/profile-change-requests/{id}/reject
+    public function adminRejectProfileChange(Request $request, $id)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $changeRequest = ProfileChangeRequest::findOrFail($id);
+
+        if ($changeRequest->approval_status !== 'pending') {
+            return \response()->json([
+                'status' => 'error',
+                'message' => 'Pengajuan ini sudah diproses sebelumnya.',
+            ], 422);
+        }
+
+        $changeRequest->update([
+            'approval_status' => 'rejected',
+            'rejection_reason' => $request->reason,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
+
+        // Notify user
+        $user = User::find($changeRequest->user_id);
+        if ($user) {
+            try {
+                $this->notificationService->createNotification(
+                    $user,
+                    'profile_change_rejected',
+                    'Perubahan Profil Ditolak',
+                    'Pengajuan perubahan profil Anda ditolak. Alasan: ' . $request->reason,
+                    ['type' => 'approval']
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Gagal mengirim notifikasi: ' . $e->getMessage());
+            }
+        }
+
+        return \response()->json([
+            'status' => 'success',
+            'message' => 'Pengajuan perubahan profil ditolak.',
         ]);
     }
 
@@ -604,6 +769,31 @@ class ProfileController extends Controller
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error(
                     'Gagal mengirim notifikasi pending_changes: ' . $e->getMessage()
+                );
+            }
+        }
+    }
+
+    private function notifyAdminsAboutProfileChange(string $userName): void
+    {
+        $admins = \App\Models\User::whereIn('role', ['admin', 'superadmin'])
+            ->where('is_active', true)
+            ->get();
+
+        $message = "{$userName} mengajukan perubahan data profil";
+
+        foreach ($admins as $admin) {
+            try {
+                $this->notificationService->createNotification(
+                    $admin,
+                    'profile_change_pending',
+                    'Perubahan Profil',
+                    $message,
+                    ['type' => 'approval']
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error(
+                    'Gagal mengirim notifikasi profile_change: ' . $e->getMessage()
                 );
             }
         }

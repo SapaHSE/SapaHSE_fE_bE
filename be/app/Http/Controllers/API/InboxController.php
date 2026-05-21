@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\HazardCategory;
+use App\Models\ProfileChangeRequest;
 use App\Models\ReadStatus;
 use App\Models\HazardReport;
 use App\Models\InspectionReport;
@@ -56,6 +57,9 @@ class InboxController extends Controller
             $readApprovalCertificationIds = ReadStatus::where('user_id', $userId)
                 ->where('item_type', 'approval_certification')
                 ->pluck('item_id');
+            $readApprovalProfileChangeIds = ReadStatus::where('user_id', $userId)
+                ->where('item_type', 'approval_profile_change')
+                ->pluck('item_id');
         }
 
         // Personal: reports where user is PJA, Tersangka Pelanggaran, Inspector, or tagged.
@@ -97,6 +101,7 @@ class InboxController extends Controller
         $pendingRegistrationUnread = 0;
         $pendingLicenseUnread = 0;
         $pendingCertificationUnread = 0;
+        $pendingProfileChangeUnread = 0;
         if ($isAdminOrSA) {
             $pendingRegistrationUnread = User::where('registration_status', 'pending')
                 ->whereNotIn('id', $readApprovalRegistrationIds)
@@ -107,8 +112,11 @@ class InboxController extends Controller
             $pendingCertificationUnread = UserCertification::whereIn('approval_status', ['pending', 'pending_changes'])
                 ->whereNotIn('id', $readApprovalCertificationIds)
                 ->count();
+            $pendingProfileChangeUnread = ProfileChangeRequest::where('approval_status', 'pending')
+                ->whereNotIn('id', $readApprovalProfileChangeIds)
+                ->count();
         }
-        $approvalUnreadCount = $pendingRegistrationUnread + $pendingLicenseUnread + $pendingCertificationUnread;
+        $approvalUnreadCount = $pendingRegistrationUnread + $pendingLicenseUnread + $pendingCertificationUnread + $pendingProfileChangeUnread;
 
         // ── 2. Fetch data sesuai tab ───────────────────────────────────────────
         if ($type === 'announcement') {
@@ -191,7 +199,8 @@ class InboxController extends Controller
             if ($isAdminOrSA) {
                 $approvalItems = $this->pendingRegistrationItems($readApprovalRegistrationIds)
                     ->concat($this->pendingLicenseItems($readApprovalLicenseIds))
-                    ->concat($this->pendingCertificationItems($readApprovalCertificationIds));
+                    ->concat($this->pendingCertificationItems($readApprovalCertificationIds))
+                    ->concat($this->pendingProfileChangeItems($readApprovalProfileChangeIds));
 
                 if ($isRead !== null) {
                     $approvalItems = $approvalItems
@@ -250,7 +259,7 @@ class InboxController extends Controller
     {
         $request->validate([
             'item_id'   => 'required|string',
-            'item_type' => 'required|in:hazard_report,inspection_report,announcement,approval_registration,approval_license,approval_certification',
+            'item_type' => 'required|in:hazard_report,inspection_report,announcement,approval_registration,approval_license,approval_certification,approval_profile_change',
         ]);
 
         ReadStatus::firstOrCreate([
@@ -322,6 +331,14 @@ class InboxController extends Controller
                     'item_type' => 'approval_certification',
                 ], ['read_at' => now()]);
             }
+
+            foreach (ProfileChangeRequest::where('approval_status', 'pending')->pluck('id') as $id) {
+                ReadStatus::firstOrCreate([
+                    'user_id'   => $userId,
+                    'item_id'   => $id,
+                    'item_type' => 'approval_profile_change',
+                ], ['read_at' => now()]);
+            }
         }
 
         return response()->json([
@@ -351,9 +368,13 @@ class InboxController extends Controller
         $readCertificationIds = ReadStatus::where('user_id', $user->id)
             ->where('item_type', 'approval_certification')
             ->pluck('item_id');
+        $readProfileChangeIds = ReadStatus::where('user_id', $user->id)
+            ->where('item_type', 'approval_profile_change')
+            ->pluck('item_id');
 
         $licenseQuery = UserLicense::with('user');
         $certificationQuery = UserCertification::with('user');
+        $profileChangeQuery = ProfileChangeRequest::with('user');
 
         $statuses = null;
         switch ($status) {
@@ -378,6 +399,7 @@ class InboxController extends Controller
         if ($statuses !== null) {
             $licenseQuery->whereIn('approval_status', $statuses);
             $certificationQuery->whereIn('approval_status', $statuses);
+            $profileChangeQuery->whereIn('approval_status', $statuses);
         }
 
         if ($search !== '') {
@@ -402,6 +424,14 @@ class InboxController extends Controller
                             ->orWhere('department', 'like', "%{$search}%");
                     });
             });
+
+            $profileChangeQuery->where(function ($q) use ($search) {
+                $q->whereHas('user', function ($userQuery) use ($search) {
+                    $userQuery->where('full_name', 'like', "%{$search}%")
+                        ->orWhere('employee_id', 'like', "%{$search}%")
+                        ->orWhere('department', 'like', "%{$search}%");
+                });
+            });
         }
 
         $licenses = $licenseQuery->get()->map(function (UserLicense $license) use ($readLicenseIds) {
@@ -412,8 +442,13 @@ class InboxController extends Controller
             return $this->formatApprovalCertification($certification, $readCertificationIds->contains($certification->id));
         });
 
+        $profileChanges = $profileChangeQuery->get()->map(function (ProfileChangeRequest $profileChange) use ($readProfileChangeIds) {
+            return $this->formatApprovalProfileChange($profileChange, $readProfileChangeIds->contains($profileChange->id));
+        });
+
         $merged = $licenses
             ->concat($certifications)
+            ->concat($profileChanges)
             ->sortByDesc(fn(array $item) => $item['reviewed_at'] ?? $item['created_at'])
             ->values();
 
@@ -464,6 +499,18 @@ class InboxController extends Controller
             ->get()
             ->map(function (UserCertification $certification) use ($readIds) {
                 return $this->formatApprovalCertification($certification, $readIds->contains($certification->id));
+            });
+    }
+
+    private function pendingProfileChangeItems(\Illuminate\Support\Collection $readIds)
+    {
+        return ProfileChangeRequest::with('user')
+            ->where('approval_status', 'pending')
+            ->latest('submitted_at')
+            ->latest('created_at')
+            ->get()
+            ->map(function (ProfileChangeRequest $request) use ($readIds) {
+                return $this->formatApprovalProfileChange($request, $readIds->contains($request->id));
             });
     }
 
@@ -569,6 +616,68 @@ class InboxController extends Controller
                 'expired_at'  => $certification->expired_at ? \Carbon\Carbon::parse($certification->expired_at)->format('Y-m-d') : null,
                 'status'      => $certification->status,
                 'file_url'    => $this->resolveFileUrl($certification->file_path),
+            ],
+            'created_at'      => $submittedAt?->toIso8601String(),
+            'time_ago'        => $submittedAt?->diffForHumans(),
+        ];
+    }
+
+    private function formatApprovalProfileChange(ProfileChangeRequest $request, bool $isRead): array
+    {
+        $submittedAt = $request->submitted_at ?? $request->created_at;
+        $submitter = $request->user;
+
+        $fieldLabels = [
+            'full_name' => 'Nama Lengkap',
+            'personal_email' => 'Email Pribadi',
+            'work_email' => 'Email Kantor',
+            'phone_number' => 'Nomor Telepon',
+            'position' => 'Posisi',
+            'jabatan' => 'Jabatan',
+            'department' => 'Departemen',
+            'company' => 'Perusahaan Owner',
+            'tipe_afiliasi' => 'Tipe Afiliasi',
+            'perusahaan_kontraktor' => 'Perusahaan Kontraktor',
+            'sub_kontraktor' => 'Sub-Kontraktor',
+            'address' => 'Alamat',
+        ];
+
+        $changes = [];
+        foreach ($request->requested_changes as $field => $newValue) {
+            $changes[] = [
+                'field' => $field,
+                'label' => $fieldLabels[$field] ?? $field,
+                'old_value' => $request->original_values[$field] ?? null,
+                'new_value' => $newValue,
+            ];
+        }
+
+        return [
+            'id'              => $request->id,
+            'item_type'       => 'approval_profile_change',
+            'title'           => 'Perubahan Profil',
+            'description'     => 'Pengajuan perubahan data profil',
+            'approval_status' => $request->approval_status ?? 'pending',
+            'rejection_reason' => $request->rejection_reason,
+            'submitted_at'    => $submittedAt?->toIso8601String(),
+            'reviewed_at'     => $request->reviewed_at?->toIso8601String(),
+            'is_read'         => $isRead,
+            'submitter'       => $submitter ? [
+                'id'             => $submitter->id,
+                'full_name'      => $submitter->full_name,
+                'employee_id'    => $submitter->employee_id,
+                'personal_email' => $submitter->personal_email,
+                'phone_number'   => $submitter->phone_number,
+                'position'       => $submitter->position,
+                'department'     => $submitter->department,
+                'company'        => $submitter->company,
+                'profile_photo'  => $this->resolveFileUrl($submitter->profile_photo),
+            ] : null,
+            'item'            => [
+                'id'               => $request->id,
+                'requested_changes' => $request->requested_changes,
+                'original_values'  => $request->original_values,
+                'changes'          => $changes,
             ],
             'created_at'      => $submittedAt?->toIso8601String(),
             'time_ago'        => $submittedAt?->diffForHumans(),
