@@ -108,6 +108,54 @@ class User extends Authenticatable
         return $employeeQrCode;
     }
 
+    public function resolvedCompany(): ?Company
+    {
+        $candidates = [
+            ['name' => $this->sub_kontraktor, 'category' => 'subkontraktor'],
+            ['name' => $this->perusahaan_kontraktor, 'category' => 'kontraktor'],
+            ['name' => $this->company, 'category' => 'owner'],
+        ];
+
+        foreach ($candidates as $candidate) {
+            $name = trim((string) ($candidate['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $company = Company::with('kttUser')
+                ->where('category', $candidate['category'])
+                ->get()
+                ->first(function (Company $company) use ($name) {
+                    return self::normalizeCompanyLookup((string) $company->name) === self::normalizeCompanyLookup($name)
+                        || self::normalizeCompanyLookup((string) $company->code) === self::normalizeCompanyLookup($name);
+                });
+
+            if ($company) {
+                return $company;
+            }
+        }
+
+        return null;
+    }
+
+    public function companyDetailPayload(): ?array
+    {
+        return $this->resolvedCompany()?->toApiArray();
+    }
+
+    public static function normalizeCompanyLookup(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+        $normalized = preg_replace('/[.,]/', ' ', $normalized) ?? $normalized;
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+
+        if (str_starts_with($normalized, 'pt ')) {
+            $normalized = trim(substr($normalized, 3));
+        }
+
+        return $normalized;
+    }
+
     public function hazardReports()
     {
         return $this->hasMany(HazardReport::class, 'user_id');

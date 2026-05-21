@@ -52,6 +52,7 @@ class IdCardPdfService {
   }) async {
     final document = pw.Document();
     final avatar = await _loadNetworkImage(profile.profilePhoto);
+    final companyLogo = await _loadNetworkImage(profile.companyDetail?.logoUrl);
     final bbeLogo = await _loadAssetSvg(_bbeLogoPath);
     final khotaiLogo = await _loadAssetSvg(_khotaiLogoPath);
     final selectedLogo = _selectCompanyLogo(
@@ -64,7 +65,8 @@ class IdCardPdfService {
       pw.Page(
         pageFormat: _cardFormat,
         margin: pw.EdgeInsets.zero,
-        build: (_) => _frontCard(profile, qrCode, avatar, selectedLogo),
+        build: (_) =>
+            _frontCard(profile, qrCode, avatar, selectedLogo, companyLogo),
       ),
     );
 
@@ -96,6 +98,7 @@ class IdCardPdfService {
     String qrCode,
     pw.MemoryImage? avatar,
     String logo,
+    pw.MemoryImage? companyLogo,
   ) {
     final positionDepartment = [
       _display(profile.jabatan ?? profile.position, fallback: ''),
@@ -105,7 +108,7 @@ class IdCardPdfService {
     return _printPage(
       child: pw.Stack(
         children: [
-          _bbeHeader(logo),
+          _bbeHeader(logo, companyLogo),
           _blueTitleBar('MINE PERMIT'),
           pw.Positioned(
             left: 5.2 * _mm,
@@ -131,10 +134,7 @@ class IdCardPdfService {
                   ),
                   _profileLine(
                     'Company',
-                    _display(
-                      profile.company,
-                      fallback: 'PT Bukit Baiduri Energi',
-                    ),
+                    _companyName(profile),
                   ),
                   _profileLine('Valid Until', _formatDate(_validUntil())),
                 ],
@@ -160,7 +160,7 @@ class IdCardPdfService {
           pw.Positioned(
             left: 5.6 * _mm,
             top: 71.0 * _mm,
-            child: _signatureBlock(logo),
+            child: _signatureBlock(logo, companyLogo, _kttName(profile)),
           ),
           pw.Positioned(
             right: 4.8 * _mm,
@@ -177,6 +177,7 @@ class IdCardPdfService {
     List<MinePermitTableRow> tableRows,
   ) {
     final simPolice = _simPoliceLicense(profile);
+    final emergencyContact = _emergencyContactText(profile);
 
     return _printPage(
       child: pw.Stack(
@@ -283,10 +284,11 @@ class IdCardPdfService {
               alignment: pw.Alignment.center,
               color: _red,
               child: pw.Text(
-                'EMERGENCY CONTACT',
+                emergencyContact,
+                textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                   color: PdfColors.white,
-                  fontSize: 5.3,
+                  fontSize: emergencyContact == 'EMERGENCY CONTACT' ? 5.3 : 4.5,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
@@ -337,7 +339,22 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _bbeHeader(String logo) {
+  static pw.Widget _bbeHeader(String logo, pw.MemoryImage? logoImage) {
+    if (logoImage != null) {
+      return pw.Positioned(
+        left: 0,
+        right: 0,
+        top: 2.4 * _mm,
+        child: pw.Center(
+          child: pw.SizedBox(
+            width: 28.5 * _mm,
+            height: 8.2 * _mm,
+            child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+          ),
+        ),
+      );
+    }
+
     if (logo.isEmpty) {
       return pw.Positioned(
         left: 0,
@@ -524,8 +541,12 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _signatureBlock(String logo) {
-    if (logo.isEmpty) {
+  static pw.Widget _signatureBlock(
+    String logo,
+    pw.MemoryImage? logoImage,
+    String kttName,
+  ) {
+    if (logo.isEmpty && logoImage == null) {
       return pw.SizedBox(
         width: 19.6 * _mm,
         child: pw.Column(
@@ -572,7 +593,7 @@ class IdCardPdfService {
               ],
             ),
             pw.Text(
-              'Reno Barus, S.T',
+              kttName,
               style: pw.TextStyle(
                 fontSize: 3.9,
                 fontWeight: pw.FontWeight.bold,
@@ -618,10 +639,12 @@ class IdCardPdfService {
           pw.SizedBox(
             width: 14.0 * _mm,
             height: 4.4 * _mm,
-            child: pw.SvgImage(svg: logo, fit: pw.BoxFit.contain),
+            child: logoImage != null
+                ? pw.Image(logoImage, fit: pw.BoxFit.contain)
+                : pw.SvgImage(svg: logo, fit: pw.BoxFit.contain),
           ),
           pw.Text(
-            'Reno Barus, S.T',
+            kttName,
             style: pw.TextStyle(
               fontSize: 3.9,
               fontWeight: pw.FontWeight.bold,
@@ -867,6 +890,8 @@ class IdCardPdfService {
   static Future<pw.MemoryImage?> _loadNetworkImage(String? url) async {
     if (url == null || url.trim().isEmpty) return null;
     try {
+      final uri = Uri.parse(url);
+      if (uri.path.toLowerCase().endsWith('.svg')) return null;
       final response = await http.get(Uri.parse(url)).timeout(
             const Duration(seconds: 10),
           );
@@ -885,6 +910,31 @@ class IdCardPdfService {
     } catch (_) {
       return null;
     }
+  }
+
+  static String _companyName(ProfileData profile) {
+    return _display(
+      profile.companyDetail?.name ?? profile.company,
+      fallback: 'PT Bukit Baiduri Energi',
+    );
+  }
+
+  static String _kttName(ProfileData profile) {
+    return _display(
+      profile.companyDetail?.kttUser?.fullName,
+      fallback: 'Reno Barus, S.T',
+    );
+  }
+
+  static String _emergencyContactText(ProfileData profile) {
+    final emergency = profile.companyDetail?.emergencyNumber?.trim() ?? '';
+    final ert = profile.companyDetail?.ertFreq?.trim() ?? '';
+    final parts = <String>[
+      if (emergency.isNotEmpty) 'EMERGENCY: $emergency',
+      if (ert.isNotEmpty) 'ERT: $ert',
+    ];
+
+    return parts.isEmpty ? 'EMERGENCY CONTACT' : parts.join('  |  ');
   }
 
   static String _display(String? value, {String fallback = '-'}) {

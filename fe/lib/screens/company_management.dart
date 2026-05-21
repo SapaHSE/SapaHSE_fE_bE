@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/ui_utils.dart';
 import '../models/company_model.dart';
+import '../services/auth_service.dart';
 import '../services/company_service.dart';
 import '../services/storage_service.dart';
 import 'package:sapahse/main.dart';
@@ -324,7 +325,10 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
       if (_searchQuery.isEmpty) return true;
       final searchLower = _searchQuery.toLowerCase();
       return c.name.toLowerCase().contains(searchLower) ||
-          (c.code?.toLowerCase().contains(searchLower) ?? false);
+          (c.code?.toLowerCase().contains(searchLower) ?? false) ||
+          c.kttDisplayName.toLowerCase().contains(searchLower) ||
+          (c.emergencyNumber?.toLowerCase().contains(searchLower) ?? false) ||
+          (c.ertFreq?.toLowerCase().contains(searchLower) ?? false);
     }).toList();
 
     // Group companies by category
@@ -346,9 +350,9 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
           const SizedBox(height: 16),
           _buildCategoryCard('Owner', 'OWN', _blue, owners, 'owner'),
           _buildCategoryCard(
-              'Contractor', 'CON', _red, contractors, 'contractor'),
+              'Contractor', 'CON', _red, contractors, 'kontraktor'),
           _buildCategoryCard('Sub Contractor', 'SUB', _orange, subcontraktors,
-              'sub contractor'),
+              'subkontraktor'),
         ],
       ),
     );
@@ -469,9 +473,7 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Icon(Icons.circle,
-                  size: 8,
-                  color: sub.isActive ? Colors.green : Colors.grey.shade300),
+              _buildCompanyLogo(sub),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -484,6 +486,26 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
                       Text(sub.code!,
                           style: TextStyle(
                               color: Colors.grey.shade500, fontSize: 11)),
+                    if (sub.kttDisplayName.isNotEmpty)
+                      Text('KTT: ${sub.kttDisplayName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 11)),
+                    if ((sub.emergencyNumber ?? '').trim().isNotEmpty ||
+                        (sub.ertFreq ?? '').trim().isNotEmpty)
+                      Text(
+                        [
+                          if ((sub.emergencyNumber ?? '').trim().isNotEmpty)
+                            'Emergency: ${sub.emergencyNumber!.trim()}',
+                          if ((sub.ertFreq ?? '').trim().isNotEmpty)
+                            'ERT: ${sub.ertFreq!.trim()}',
+                        ].join('  •  '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 11),
+                      ),
                   ],
                 ),
               ),
@@ -540,6 +562,70 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
       ],
     );
   }
+
+  Widget _buildCompanyLogo(CompanyData company) {
+    final logoUrl = company.logoUrl?.trim() ?? '';
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEAF0F7),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: logoUrl.isNotEmpty
+              ? Image.network(
+                  logoUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _companyInitial(company),
+                )
+              : _companyInitial(company),
+        ),
+        Positioned(
+          right: -1,
+          bottom: -1,
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: company.isActive ? Colors.green : Colors.grey.shade400,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _companyInitial(CompanyData company) {
+    final text = (company.code?.trim().isNotEmpty == true
+            ? company.code!.trim()
+            : company.name
+                .trim()
+                .split(RegExp(r'\s+'))
+                .where((e) => e.isNotEmpty)
+                .take(2)
+                .map((e) => e[0])
+                .join())
+        .toUpperCase();
+    return Center(
+      child: Text(
+        text.isEmpty ? '?' : text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: _blue,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
 }
 
 // ── Company Form Screen ─────────────────────────────────────────────────────
@@ -559,7 +645,13 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   late String _category;
   late TextEditingController _nameCtrl;
   late TextEditingController _codeCtrl;
+  late TextEditingController _logoUrlCtrl;
+  late TextEditingController _emergencyNumberCtrl;
+  late TextEditingController _ertFreqCtrl;
+  String? _selectedKttUserId;
+  _KttUserOption? _selectedKttUser;
   bool _isLoading = false;
+  bool _isLoadingKtt = false;
 
   @override
   void initState() {
@@ -567,32 +659,56 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     String rawCategory =
         widget.companyToEdit?.category ?? widget.defaultCategory ?? 'owner';
     // Normalize Indonesian terms to English for standardized logic and dropdown matching
-    if (rawCategory == 'kontraktor') {
-      _category = 'contractor';
-    } else if (rawCategory == 'subkontraktor') {
-      _category = 'sub contractor';
+    if (rawCategory == 'contractor') {
+      _category = 'kontraktor';
+    } else if (rawCategory == 'sub contractor') {
+      _category = 'subkontraktor';
     } else {
       _category = rawCategory;
     }
 
     _nameCtrl = TextEditingController(text: widget.companyToEdit?.name ?? '');
     _codeCtrl = TextEditingController(text: widget.companyToEdit?.code ?? '');
+    _logoUrlCtrl =
+        TextEditingController(text: widget.companyToEdit?.logoUrl ?? '');
+    _emergencyNumberCtrl =
+        TextEditingController(text: widget.companyToEdit?.emergencyNumber ?? '');
+    _ertFreqCtrl =
+        TextEditingController(text: widget.companyToEdit?.ertFreq ?? '');
+    _selectedKttUserId = widget.companyToEdit?.kttUserId;
+    final kttUser = widget.companyToEdit?.kttUser;
+    if (kttUser != null) {
+      _selectedKttUser = _KttUserOption.fromCompanyKttUser(kttUser);
+    }
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _codeCtrl.dispose();
+    _logoUrlCtrl.dispose();
+    _emergencyNumberCtrl.dispose();
+    _ertFreqCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     final name = _nameCtrl.text.trim();
     final code = _codeCtrl.text.trim();
+    final logoUrl = _logoUrlCtrl.text.trim();
+    final emergencyNumber = _emergencyNumberCtrl.text.trim();
+    final ertFreq = _ertFreqCtrl.text.trim();
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nama Company wajib diisi')),
+      );
+      return;
+    }
+
+    if (logoUrl.isNotEmpty && Uri.tryParse(logoUrl)?.hasScheme != true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logo harus berupa URL valid')),
       );
       return;
     }
@@ -607,16 +723,25 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           name,
           _category,
           code: code,
+          logoUrl: logoUrl,
+          kttUserId: _selectedKttUserId,
+          emergencyNumber: emergencyNumber,
+          ertFreq: ertFreq,
         );
       } else {
         result = await CompanyService.createCompany(
           name,
           _category,
           code: code,
+          logoUrl: logoUrl,
+          kttUserId: _selectedKttUserId,
+          emergencyNumber: emergencyNumber,
+          ertFreq: ertFreq,
         );
       }
 
       if (result != null) {
+        if (!mounted) return;
         await UiUtils.showSuccessPopup(context, 'Data berhasil disimpan');
         if (mounted) Navigator.pop(context, true);
       } else {
@@ -688,8 +813,37 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
                   const SizedBox(height: 8),
                   _buildTextField(_codeCtrl,
                       hint: 'Contoh: BBE',
-                      maxLength: 5,
+                      maxLength: 50,
                       capitalization: TextCapitalization.characters),
+                  const SizedBox(height: 16),
+                  _buildLabel('LOGO URL'),
+                  const SizedBox(height: 8),
+                  _buildTextField(_logoUrlCtrl,
+                      hint: 'https://domain.com/logo.png',
+                      keyboardType: TextInputType.url),
+                  const SizedBox(height: 16),
+                  _buildLabel('KEPALA TEKNIK TAMBANG'),
+                  const SizedBox(height: 8),
+                  _buildKttPicker(),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildSectionCard(
+              title: 'KONTAK & RADIO',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLabel('EMERGENCY NUMBER'),
+                  const SizedBox(height: 8),
+                  _buildTextField(_emergencyNumberCtrl,
+                      hint: 'Contoh: 0541-123456',
+                      keyboardType: TextInputType.phone),
+                  const SizedBox(height: 16),
+                  _buildLabel('ERT FREQ'),
+                  const SizedBox(height: 8),
+                  _buildTextField(_ertFreqCtrl,
+                      hint: 'Contoh: CH 1 / 155.000 MHz'),
                 ],
               ),
             ),
@@ -844,13 +998,236 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
               value: 'owner',
               child: Text('Owner', style: kMinimalDropdownTextStyle)),
           DropdownMenuItem(
-              value: 'contractor',
+              value: 'kontraktor',
               child: Text('Contractor', style: kMinimalDropdownTextStyle)),
           DropdownMenuItem(
-              value: 'sub contractor',
+              value: 'subkontraktor',
               child: Text('Sub Contractor', style: kMinimalDropdownTextStyle)),
         ],
-        onChanged: (v) => setState(() => _category = v!),
+        onChanged: (v) => setState(() {
+          _category = v!;
+          _selectedKttUserId = null;
+          _selectedKttUser = null;
+        }),
+      ),
+    );
+  }
+
+  Widget _buildKttPicker() {
+    final selected = _selectedKttUser;
+    final hasSelection = selected != null;
+
+    return InkWell(
+      onTap: _isLoadingKtt ? null : _showKttPicker,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.engineering_outlined,
+                color: _isLoadingKtt ? Colors.grey.shade400 : Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _isLoadingKtt
+                    ? 'Memuat user...'
+                    : (hasSelection
+                        ? selected.displayLabel
+                        : 'Ketuk untuk pilih KTT'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: hasSelection ? Colors.black87 : Colors.grey.shade500,
+                  fontSize: 14,
+                  fontWeight: hasSelection ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ),
+            if (hasSelection)
+              IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                color: Colors.grey.shade500,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => setState(() {
+                  _selectedKttUserId = null;
+                  _selectedKttUser = null;
+                }),
+              )
+            else
+              Icon(Icons.arrow_forward_ios,
+                  size: 14, color: Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showKttPicker() async {
+    final companyName = _nameCtrl.text.trim();
+    if (companyName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Isi nama company terlebih dahulu')),
+      );
+      return;
+    }
+
+    setState(() => _isLoadingKtt = true);
+    List<_KttUserOption> users = [];
+    try {
+      final response = await AuthService.listUsers(
+        companyName: companyName,
+        companyCategory: _category,
+      );
+      if (response.success && response.data['data'] is List) {
+        users = (response.data['data'] as List)
+            .whereType<Map>()
+            .map((item) =>
+                _KttUserOption.fromJson(Map<String, dynamic>.from(item)))
+            .where((user) => user.id.isNotEmpty)
+            .toList();
+      } else {
+        throw Exception(response.errorMessage ?? 'Gagal memuat user');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat user: $e')),
+        );
+      }
+      return;
+    } finally {
+      if (mounted) setState(() => _isLoadingKtt = false);
+    }
+
+    if (!mounted) return;
+    String query = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final q = query.toLowerCase();
+          final filteredUsers = users
+              .where((user) =>
+                  user.fullName.toLowerCase().contains(q) ||
+                  user.employeeId.toLowerCase().contains(q) ||
+                  (user.department?.toLowerCase().contains(q) ?? false))
+              .toList();
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    'Pilih Kepala Teknik Tambang',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama atau NIK...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (v) => setSheetState(() => query = v),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      if (_selectedKttUserId != null)
+                        ListTile(
+                          leading:
+                              const Icon(Icons.person_remove_outlined, size: 20),
+                          title: const Text('Kosongkan pilihan',
+                              style: TextStyle(fontSize: 14)),
+                          onTap: () {
+                            setState(() {
+                              _selectedKttUserId = null;
+                              _selectedKttUser = null;
+                            });
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      if (filteredUsers.isNotEmpty)
+                        ...filteredUsers.map((user) {
+                          final isSelected = _selectedKttUserId == user.id;
+                          return ListTile(
+                            leading:
+                                const Icon(Icons.person_outline, size: 20),
+                            title: Text(user.fullName,
+                                style: const TextStyle(fontSize: 14)),
+                            subtitle: Text(
+                              [
+                                if (user.employeeId.isNotEmpty) user.employeeId,
+                                if ((user.department ?? '').isNotEmpty)
+                                  user.department!,
+                              ].join(' • '),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey),
+                            ),
+                            trailing: Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.add_circle_outline,
+                              color: isSelected ? _blue : Colors.grey,
+                            ),
+                            onTap: () {
+                              setState(() {
+                                _selectedKttUserId = user.id;
+                                _selectedKttUser = user;
+                              });
+                              Navigator.pop(ctx);
+                            },
+                          );
+                        })
+                      else
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Text(
+                              'Tidak ada user aktif untuk company ini',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -858,7 +1235,8 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   Widget _buildTextField(TextEditingController ctrl,
       {String? hint,
       int? maxLength,
-      TextCapitalization capitalization = TextCapitalization.none}) {
+      TextCapitalization capitalization = TextCapitalization.none,
+      TextInputType? keyboardType}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -868,6 +1246,7 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
       child: TextField(
         controller: ctrl,
         maxLength: maxLength,
+        keyboardType: keyboardType,
         textCapitalization: capitalization,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
@@ -884,6 +1263,52 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
         ),
       ),
     );
+  }
+}
+
+class _KttUserOption {
+  final String id;
+  final String fullName;
+  final String employeeId;
+  final String? department;
+  final String? position;
+  final String? jabatan;
+
+  const _KttUserOption({
+    required this.id,
+    required this.fullName,
+    required this.employeeId,
+    this.department,
+    this.position,
+    this.jabatan,
+  });
+
+  factory _KttUserOption.fromJson(Map<String, dynamic> json) {
+    return _KttUserOption(
+      id: json['id']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? '',
+      employeeId: json['employee_id']?.toString() ?? '',
+      department: json['department']?.toString(),
+      position: json['position']?.toString(),
+      jabatan: json['jabatan']?.toString(),
+    );
+  }
+
+  factory _KttUserOption.fromCompanyKttUser(CompanyKttUserData user) {
+    return _KttUserOption(
+      id: user.id,
+      fullName: user.fullName,
+      employeeId: user.employeeId ?? '',
+      department: user.department,
+      position: user.position,
+      jabatan: user.jabatan,
+    );
+  }
+
+  String get displayLabel {
+    final name = fullName.trim().isEmpty ? 'Tanpa nama' : fullName.trim();
+    final nik = employeeId.trim();
+    return nik.isEmpty ? name : '$name - $nik';
   }
 }
 

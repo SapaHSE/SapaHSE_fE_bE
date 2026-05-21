@@ -176,6 +176,20 @@ class OfflineReferenceCacheService {
         'id': c.id,
         'name': c.name,
         'code': c.code,
+        'logo_url': c.logoUrl,
+        'ktt_user_id': c.kttUserId,
+        'ktt_user': c.kttUser == null
+            ? null
+            : {
+                'id': c.kttUser!.id,
+                'full_name': c.kttUser!.fullName,
+                'employee_id': c.kttUser!.employeeId,
+                'department': c.kttUser!.department,
+                'position': c.kttUser!.position,
+                'jabatan': c.kttUser!.jabatan,
+              },
+        'emergency_number': c.emergencyNumber,
+        'ert_freq': c.ertFreq,
         'category': c.category,
         'is_active': c.isActive,
       };

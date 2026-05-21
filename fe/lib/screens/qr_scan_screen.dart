@@ -691,6 +691,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
       profile.jabatan ?? profile.position ?? '',
       profile.department ?? '',
     ].where((value) => value.trim().isNotEmpty).join(' - ');
+    final logoUrl = profile.companyDetail?.logoUrl?.trim() ?? '';
 
     return _PreviewCardFrame(
       width: width,
@@ -704,28 +705,14 @@ class _MinePermitFrontPreview extends StatelessWidget {
               child: SizedBox(
                 width: 136,
                 height: 36,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _companyShort(profile.company),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF303744),
-                        height: 0.95,
-                      ),
-                    ),
-                    Text(
-                      profile.company ?? 'PT Bukit Baiduri Energi',
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 5.5),
-                    ),
-                  ],
-                ),
+                child: logoUrl.isNotEmpty
+                    ? Image.network(
+                        logoUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            _companyTextHeader(profile),
+                      )
+                    : _companyTextHeader(profile),
               ),
             ),
           ),
@@ -785,7 +772,9 @@ class _MinePermitFrontPreview extends StatelessWidget {
                 _frontInfo('Position & Department', positionDepartment),
                 _frontInfo(
                   'Company',
-                  profile.company ?? 'PT Bukit Baiduri Energi',
+                  profile.companyDetail?.name ??
+                      profile.company ??
+                      'PT Bukit Baiduri Energi',
                 ),
                 _frontInfo('Valid Until', '-'),
               ],
@@ -805,7 +794,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
           Positioned(
             left: 22,
             bottom: 22,
-            child: _MiniSignaturePreview(company: profile.company),
+            child: _MiniSignaturePreview(profile: profile),
           ),
           Positioned(
             right: 18,
@@ -867,6 +856,35 @@ class _MinePermitFrontPreview extends StatelessWidget {
     if (value.contains('khotai')) return 'KHOTAI';
     return 'BBE';
   }
+
+  static Widget _companyTextHeader(ProfileData profile) {
+    final companyName =
+        profile.companyDetail?.name ?? profile.company ?? 'PT Bukit Baiduri Energi';
+    final shortText = profile.companyDetail?.code ?? _companyShort(companyName);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          shortText,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF303744),
+            height: 0.95,
+          ),
+        ),
+        Text(
+          companyName,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 5.5),
+        ),
+      ],
+    );
+  }
 }
 
 class _MinePermitBackPreview extends StatelessWidget {
@@ -882,6 +900,10 @@ class _MinePermitBackPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final companyName =
+        profile.companyDetail?.name ?? profile.company ?? 'perusahaan';
+    final emergencyContact = _emergencyContactText(profile);
+
     return _PreviewCardFrame(
       width: width,
       child: Stack(
@@ -988,7 +1010,7 @@ class _MinePermitBackPreview extends StatelessWidget {
                   '1. Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
                 ),
                 _rulePreview(
-                  '2. Kartu ini milik perusahaan, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku.',
+                  '2. Kartu ini milik $companyName, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku.',
                 ),
                 _rulePreview(
                     '3. Segera laporkan ke QHSE jika kehilangan kartu ini.'),
@@ -1003,11 +1025,12 @@ class _MinePermitBackPreview extends StatelessWidget {
               height: 15,
               color: const Color(0xFFE5506A),
               alignment: Alignment.center,
-              child: const Text(
-                'EMERGENCY CONTACT',
+              child: Text(
+                emergencyContact,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 8,
+                  fontSize: emergencyContact == 'EMERGENCY CONTACT' ? 8 : 6.7,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1036,6 +1059,17 @@ class _MinePermitBackPreview extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _emergencyContactText(ProfileData profile) {
+    final emergency = profile.companyDetail?.emergencyNumber?.trim() ?? '';
+    final ert = profile.companyDetail?.ertFreq?.trim() ?? '';
+    final parts = <String>[
+      if (emergency.isNotEmpty) 'EMERGENCY: $emergency',
+      if (ert.isNotEmpty) 'ERT: $ert',
+    ];
+
+    return parts.isEmpty ? 'EMERGENCY CONTACT' : parts.join('  |  ');
   }
 
   static Widget _previewInfo(String label, String value) {
@@ -1203,12 +1237,17 @@ class _MiniCounterPreview extends StatelessWidget {
 }
 
 class _MiniSignaturePreview extends StatelessWidget {
-  final String? company;
+  final ProfileData profile;
 
-  const _MiniSignaturePreview({required this.company});
+  const _MiniSignaturePreview({required this.profile});
 
   @override
   Widget build(BuildContext context) {
+    final logoUrl = profile.companyDetail?.logoUrl?.trim() ?? '';
+    final kttName = profile.companyDetail?.kttUser?.fullName ?? 'Reno Barus, S.T';
+    final companyCode =
+        profile.companyDetail?.code ?? _MinePermitFrontPreview._companyShort(profile.company);
+
     return SizedBox(
       width: 92,
       child: Column(
@@ -1230,23 +1269,43 @@ class _MiniSignaturePreview extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            (company ?? '').toLowerCase().contains('khotai') ? 'KHOTAI' : 'BBE',
-            style: const TextStyle(
-              color: Color(0xFF303744),
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
+          SizedBox(
+            width: 55,
+            height: 14,
+            child: logoUrl.isNotEmpty
+                ? Image.network(
+                    logoUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => _signatureCode(companyCode),
+                  )
+                : _signatureCode(companyCode),
           ),
-          const Text(
-            'Reno Barus, S.T',
-            style: TextStyle(fontSize: 6.2, fontWeight: FontWeight.bold),
+          Text(
+            kttName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 6.2, fontWeight: FontWeight.bold),
           ),
           const Text(
             'Kepala Teknik Tambang',
             style: TextStyle(fontSize: 5.8, fontStyle: FontStyle.italic),
           ),
         ],
+      ),
+    );
+  }
+
+  static Widget _signatureCode(String value) {
+    return Center(
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Color(0xFF303744),
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

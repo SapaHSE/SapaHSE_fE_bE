@@ -223,7 +223,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json([
-            'user' => $request->user(),
+            'user' => $this->formatUser($request->user()),
         ]);
     }
 
@@ -246,11 +246,21 @@ class AuthController extends Controller
     public function listUsers(Request $request)
     {
         $search = $request->query('search');
+        $companyName = $request->query('company_name');
+        $companyCategory = $this->normalizeCompanyCategory((string) $request->query('company_category', ''));
+        $companyColumns = $this->companyFilterColumns($companyCategory);
 
         $users = User::when($request->department, fn($q) => $q->where('department', $request->department))
         ->when($search, fn($q) => $q->where(function($sub) use ($search) {
             $sub->where('full_name', 'like', "%{$search}%")
                 ->orWhere('employee_id', 'like', "%{$search}%");
+        }))
+        ->when($companyName, fn($q) => $q->where(function($sub) use ($companyName, $companyColumns) {
+            foreach ($companyColumns as $index => $column) {
+                $method = $index === 0 ? 'where' : 'orWhere';
+                $sub->{$method}($column, $companyName)
+                    ->orWhere($column, 'like', "%{$companyName}%");
+            }
         }))
         ->where('is_active', true)
         ->orderBy('full_name')
@@ -281,6 +291,26 @@ class AuthController extends Controller
             'status' => 'success',
             'data'   => $users,
         ]);
+    }
+
+    private function normalizeCompanyCategory(string $category): ?string
+    {
+        return match ($category) {
+            'owner' => 'owner',
+            'kontraktor', 'contractor' => 'kontraktor',
+            'subkontraktor', 'sub contractor' => 'subkontraktor',
+            default => null,
+        };
+    }
+
+    private function companyFilterColumns(?string $category): array
+    {
+        return match ($category) {
+            'owner' => ['company'],
+            'kontraktor' => ['perusahaan_kontraktor'],
+            'subkontraktor' => ['sub_kontraktor'],
+            default => ['company', 'perusahaan_kontraktor', 'sub_kontraktor'],
+        };
     }
 
 
@@ -866,6 +896,7 @@ class AuthController extends Controller
             'jabatan'        => $user->jabatan,
             'department'     => $user->department,
             'company'        => $user->company,
+            'company_detail' => $user->companyDetailPayload(),
             'address'        => $user->address,
             'tipe_afiliasi'  => $user->tipe_afiliasi,
             'perusahaan_kontraktor' => $user->perusahaan_kontraktor,

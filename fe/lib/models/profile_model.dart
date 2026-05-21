@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'company_model.dart';
 import '../utils/url_helper.dart';
 import '../utils/value_parser.dart';
 
@@ -15,6 +16,7 @@ class ProfileData {
   final String? jabatan;
   final String? department;
   final String? company;
+  final CompanyDetailData? companyDetail;
   final String? tipeAfiliasi;
   final String? perusahaanKontraktor;
   final String? subKontraktor;
@@ -40,6 +42,7 @@ class ProfileData {
     this.jabatan,
     this.department,
     this.company,
+    this.companyDetail,
     this.tipeAfiliasi,
     this.perusahaanKontraktor,
     this.subKontraktor,
@@ -67,6 +70,10 @@ class ProfileData {
       jabatan: json['jabatan']?.toString(),
       department: json['department']?.toString(),
       company: json['company']?.toString(),
+      companyDetail: json['company_detail'] is Map
+          ? CompanyDetailData.fromJson(
+              Map<String, dynamic>.from(json['company_detail'] as Map))
+          : null,
       tipeAfiliasi: json['tipe_afiliasi']?.toString(),
       perusahaanKontraktor: json['perusahaan_kontraktor']?.toString(),
       subKontraktor: json['sub_kontraktor']?.toString(),
@@ -96,6 +103,52 @@ class ProfileData {
   }
 
   String get email => workEmail ?? personalEmail;
+}
+
+class CompanyDetailData {
+  final int id;
+  final String name;
+  final String? code;
+  final String? logoUrl;
+  final String? kttUserId;
+  final CompanyKttUserData? kttUser;
+  final String? emergencyNumber;
+  final String? ertFreq;
+  final String category;
+  final bool isActive;
+
+  const CompanyDetailData({
+    required this.id,
+    required this.name,
+    this.code,
+    this.logoUrl,
+    this.kttUserId,
+    this.kttUser,
+    this.emergencyNumber,
+    this.ertFreq,
+    required this.category,
+    required this.isActive,
+  });
+
+  factory CompanyDetailData.fromJson(Map<String, dynamic> json) {
+    final kttUserRaw = json['ktt_user'];
+    return CompanyDetailData(
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      name: json['name']?.toString() ?? '',
+      code: json['code']?.toString(),
+      logoUrl: normalizeStorageUrl(json['logo_url']?.toString()),
+      kttUserId: json['ktt_user_id']?.toString(),
+      kttUser: kttUserRaw is Map
+          ? CompanyKttUserData.fromJson(Map<String, dynamic>.from(kttUserRaw))
+          : null,
+      emergencyNumber: json['emergency_number']?.toString(),
+      ertFreq: json['ert_freq']?.toString(),
+      category: json['category']?.toString() ?? 'owner',
+      isActive: parseFlexibleBool(json['is_active']),
+    );
+  }
 }
 
 class UserLicense {

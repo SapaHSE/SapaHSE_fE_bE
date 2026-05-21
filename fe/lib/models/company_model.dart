@@ -1,7 +1,14 @@
+import '../utils/url_helper.dart';
+
 class CompanyData {
   final int id;
   final String name;
   final String? code;
+  final String? logoUrl;
+  final String? kttUserId;
+  final CompanyKttUserData? kttUser;
+  final String? emergencyNumber;
+  final String? ertFreq;
   final String category;
   final bool isActive;
 
@@ -9,18 +16,68 @@ class CompanyData {
     required this.id,
     required this.name,
     this.code,
+    this.logoUrl,
+    this.kttUserId,
+    this.kttUser,
+    this.emergencyNumber,
+    this.ertFreq,
     required this.category,
     required this.isActive,
   });
 
   factory CompanyData.fromJson(Map<String, dynamic> json) {
+    final kttUserRaw = json['ktt_user'];
     return CompanyData(
       id: json['id'],
       name: json['name'] ?? '',
       code: json['code'],
+      logoUrl: normalizeStorageUrl(json['logo_url']?.toString()),
+      kttUserId: json['ktt_user_id']?.toString(),
+      kttUser: kttUserRaw is Map
+          ? CompanyKttUserData.fromJson(Map<String, dynamic>.from(kttUserRaw))
+          : null,
+      emergencyNumber: json['emergency_number']?.toString(),
+      ertFreq: json['ert_freq']?.toString(),
       category: json['category'] ?? 'owner',
       isActive: json['is_active'] == 1 || json['is_active'] == true,
     );
+  }
+
+  String get kttDisplayName => kttUser?.displayLabel ?? '';
+}
+
+class CompanyKttUserData {
+  final String id;
+  final String fullName;
+  final String? employeeId;
+  final String? department;
+  final String? position;
+  final String? jabatan;
+
+  const CompanyKttUserData({
+    required this.id,
+    required this.fullName,
+    this.employeeId,
+    this.department,
+    this.position,
+    this.jabatan,
+  });
+
+  factory CompanyKttUserData.fromJson(Map<String, dynamic> json) {
+    return CompanyKttUserData(
+      id: json['id']?.toString() ?? '',
+      fullName: json['full_name']?.toString() ?? '',
+      employeeId: json['employee_id']?.toString(),
+      department: json['department']?.toString(),
+      position: json['position']?.toString(),
+      jabatan: json['jabatan']?.toString(),
+    );
+  }
+
+  String get displayLabel {
+    final name = fullName.trim().isEmpty ? 'Tanpa nama' : fullName.trim();
+    final nik = employeeId?.trim() ?? '';
+    return nik.isEmpty ? name : '$name - $nik';
   }
 }
 

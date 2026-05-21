@@ -141,6 +141,7 @@ class QrAssetController extends Controller
             'jabatan'        => $user->jabatan,
             'department'     => $user->department,
             'company'        => $user->company,
+            'company_detail' => $user->companyDetailPayload(),
             'tipe_afiliasi'  => $user->tipe_afiliasi,
             'perusahaan_kontraktor' => $user->perusahaan_kontraktor,
             'sub_kontraktor' => $user->sub_kontraktor,

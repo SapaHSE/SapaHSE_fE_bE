@@ -8,7 +8,7 @@ class CompanyService {
     String query = '';
     List<String> params = [];
     if (active != null) params.add('active=$active');
-    if (category != null) params.add('category=$category');
+    if (category != null) params.add('category=${_normalizeCategory(category)}');
     if (params.isNotEmpty) query = '?${params.join('&')}';
 
     final response = await ApiService.get('/companies$query', auth: false);
@@ -19,11 +19,23 @@ class CompanyService {
     throw Exception(response.errorMessage ?? 'Gagal mengambil data perusahaan');
   }
 
-  static Future<CompanyData?> createCompany(String name, String category, {String? code}) async {
+  static Future<CompanyData?> createCompany(
+    String name,
+    String category, {
+    String? code,
+    String? logoUrl,
+    String? kttUserId,
+    String? emergencyNumber,
+    String? ertFreq,
+  }) async {
     final response = await ApiService.post('/companies', {
       'name': name,
-      'category': category,
-      if (code != null && code.isNotEmpty) 'code': code,
+      'category': _normalizeCategory(category),
+      'code': code ?? '',
+      'logo_url': logoUrl ?? '',
+      'ktt_user_id': kttUserId ?? '',
+      'emergency_number': emergencyNumber ?? '',
+      'ert_freq': ertFreq ?? '',
     });
     if (response.success && response.data['data'] != null) {
       return CompanyData.fromJson(response.data['data']);
@@ -31,11 +43,24 @@ class CompanyService {
     return null;
   }
 
-  static Future<CompanyData?> updateCompany(int id, String name, String category, {String? code}) async {
+  static Future<CompanyData?> updateCompany(
+    int id,
+    String name,
+    String category, {
+    String? code,
+    String? logoUrl,
+    String? kttUserId,
+    String? emergencyNumber,
+    String? ertFreq,
+  }) async {
     final response = await ApiService.put('/companies/$id', {
       'name': name,
-      'category': category,
-      if (code != null && code.isNotEmpty) 'code': code,
+      'category': _normalizeCategory(category),
+      'code': code ?? '',
+      'logo_url': logoUrl ?? '',
+      'ktt_user_id': kttUserId ?? '',
+      'emergency_number': emergencyNumber ?? '',
+      'ert_freq': ertFreq ?? '',
     });
     if (response.success && response.data['data'] != null) {
       return CompanyData.fromJson(response.data['data']);
@@ -124,5 +149,16 @@ class CompanyService {
       return AreaData.fromJson(response.data['data']);
     }
     return null;
+  }
+
+  static String _normalizeCategory(String category) {
+    switch (category) {
+      case 'contractor':
+        return 'kontraktor';
+      case 'sub contractor':
+        return 'subkontraktor';
+      default:
+        return category;
+    }
   }
 }

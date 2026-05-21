@@ -142,11 +142,22 @@ class AuthService {
   }
 
   // ── Get users list (simplified for tagging/selection) ──────────────────────
-  static Future<ApiResponse> listUsers({String? search}) async {
-    String url = '/users';
-    if (search != null && search.isNotEmpty) {
-      url += '?search=${Uri.encodeComponent(search)}';
+  static Future<ApiResponse> listUsers({
+    String? search,
+    String? companyName,
+    String? companyCategory,
+  }) async {
+    final params = <String, String>{};
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    if (companyName != null && companyName.isNotEmpty) {
+      params['company_name'] = companyName;
     }
+    if (companyCategory != null && companyCategory.isNotEmpty) {
+      params['company_category'] = companyCategory;
+    }
+
+    final query = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final url = '/users$query';
     return await ApiService.get(url);
   }
 
