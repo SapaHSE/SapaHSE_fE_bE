@@ -14,6 +14,35 @@ import '../services/storage_service.dart';
 class NewsCreateScreen extends StatefulWidget {
   const NewsCreateScreen({super.key});
 
+  static Route<bool> route() {
+    return PageRouteBuilder<bool>(
+      transitionDuration: const Duration(milliseconds: 380),
+      reverseTransitionDuration: const Duration(milliseconds: 300),
+      opaque: true,
+      pageBuilder: (_, __, ___) => const NewsCreateScreen(),
+      transitionsBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(curved),
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.985, end: 1).animate(curved),
+              child: child,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   State<NewsCreateScreen> createState() => _NewsCreateScreenState();
 }
@@ -173,33 +202,8 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
           style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700),
         ),
         iconTheme: const IconThemeData(color: Colors.black87),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: ElevatedButton(
-              onPressed: _submitting ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: _primary.withValues(alpha: 0.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-              ),
-              child: _submitting
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Text('Publikasikan',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-          ),
-        ],
       ),
+      bottomNavigationBar: _bottomBar(),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -208,7 +212,6 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _imagePickerCard(),
                 const SizedBox(height: 16),
                 _sectionLabel('Judul Berita'),
                 _textField(
@@ -267,6 +270,8 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
                 _quillCard(),
                 const SizedBox(height: 18),
                 _featuredSwitch(),
+                const SizedBox(height: 18),
+                _imagePickerCard(),
               ],
             ),
           ),
@@ -276,6 +281,63 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
   }
 
   // ── Widgets ───────────────────────────────────────────────────────────────
+
+  Widget _bottomBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE0E4EA))),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 12,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: SizedBox(
+            height: 50,
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _submitting ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: _primary.withValues(alpha: 0.5),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: _submitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.4),
+                    )
+                  : const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.send_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Publikasikan',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 15),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _sectionLabel(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6, left: 2),
@@ -328,66 +390,6 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
       maxLines: maxLines,
       validator: validator,
       decoration: _inputDecoration(hint),
-    );
-  }
-
-  Widget _imagePickerCard() {
-    return GestureDetector(
-      onTap: _pickImage,
-      child: Container(
-        height: 180,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE0E4EA)),
-          image: _image != null
-              ? DecorationImage(
-                  image: FileImage(File(_image!.path)),
-                  fit: BoxFit.cover,
-                )
-              : null,
-        ),
-        child: _image != null
-            ? Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Material(
-                    color: Colors.black54,
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => setState(() => _image = null),
-                      child: const Padding(
-                        padding: EdgeInsets.all(6),
-                        child: Icon(Icons.close,
-                            color: Colors.white, size: 18),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            : const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add_photo_alternate_outlined,
-                      size: 42, color: _primary),
-                  SizedBox(height: 6),
-                  Text(
-                    'Tap untuk pilih gambar utama',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF455A64),
-                        fontWeight: FontWeight.w500),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'JPG / PNG, maks 2 MB',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF90A4AE)),
-                  ),
-                ],
-              ),
-      ),
     );
   }
 
@@ -472,4 +474,64 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
       ),
     );
   }
+
+  Widget _imagePickerCard() {
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        height: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE0E4EA)),
+          image: _image != null
+              ? DecorationImage(
+                  image: FileImage(File(_image!.path)),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: _image != null
+            ? Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Material(
+                    color: Colors.black54,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => setState(() => _image = null),
+                      child: const Padding(
+                        padding: EdgeInsets.all(6),
+                        child: Icon(Icons.close,
+                            color: Colors.white, size: 18),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate_outlined,
+                      size: 42, color: _primary),
+                  SizedBox(height: 6),
+                  Text(
+                    'Tap untuk pilih gambar utama',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF455A64),
+                        fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'JPG / PNG',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF90A4AE)),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }  
 }

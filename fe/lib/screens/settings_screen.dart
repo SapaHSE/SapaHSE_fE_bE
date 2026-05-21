@@ -254,10 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _openCreateNewsScreen() async {
-    await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const NewsCreateScreen()),
-    );
+    await Navigator.of(context).push(NewsCreateScreen.route());
   }
 
   void _showAddAnnouncementSheet() {

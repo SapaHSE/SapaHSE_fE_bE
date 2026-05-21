@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -84,6 +86,13 @@ class BBEApp extends StatelessWidget {
       ),
       navigatorKey: navigatorKey,
       navigatorObservers: [routeObserver],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        FlutterQuillLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en'), Locale('id')],
       builder: (context, child) => IdleDetector(child: child ?? const SizedBox.shrink()),
       home: const SplashScreen(),
     );
@@ -201,10 +210,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _openCreateNewsScreen() async {
-    final created = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const NewsCreateScreen()),
-    );
+    final created = await Navigator.of(context).push(NewsCreateScreen.route());
     if (created == true && mounted) {
       setState(() => _currentIndex = 1);
     }

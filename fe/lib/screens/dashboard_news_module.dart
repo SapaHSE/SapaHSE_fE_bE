@@ -83,10 +83,7 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
   }
 
   Future<void> _showCreateNewsForm() async {
-    final created = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const NewsCreateScreen()),
-    );
+    final created = await Navigator.of(context).push(NewsCreateScreen.route());
     if (created == true && mounted) {
       _fetchNews(page: 1);
     }
