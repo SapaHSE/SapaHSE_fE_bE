@@ -51,7 +51,13 @@ class QrAssetController extends Controller
 
         $qrCode = $this->normalizeQrCode($request->qr_code);
 
-        $user = User::where('qr_code', $qrCode)
+        $employeeId = $this->employeeIdFromUserQrCode($qrCode);
+        $user = User::where(function ($query) use ($qrCode, $employeeId) {
+            $query->where('qr_code', $qrCode);
+            if ($employeeId !== null) {
+                $query->orWhereRaw('UPPER(employee_id) = ?', [$employeeId]);
+            }
+        })
             ->where('is_active', true)
             ->whereNotNull('email_verified_at')
             ->first();
@@ -166,5 +172,16 @@ class QrAssetController extends Controller
         }
 
         return strtoupper(trim($value));
+    }
+
+    private function employeeIdFromUserQrCode(string $qrCode): ?string
+    {
+        $prefix = 'SAPA-HSE-USER-';
+        if (! str_starts_with($qrCode, $prefix)) {
+            return null;
+        }
+
+        $employeeId = trim(substr($qrCode, strlen($prefix)));
+        return $employeeId === '' ? null : $employeeId;
     }
 }

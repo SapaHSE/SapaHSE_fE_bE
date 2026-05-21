@@ -9,7 +9,8 @@ import 'helper/save_helper.dart'
     if (dart.library.io) 'helper/mobile_save_helper.dart';
 
 class IdCardPdfService {
-  static const String _idCardLogoPath = 'assets/logo_bbe.svg';
+  static const String _bbeLogoPath = 'assets/logo_bbe.svg';
+  static const String _khotaiLogoPath = 'assets/logo_khotai.svg';
   static const double _mm = PdfPageFormat.mm;
   static const double _cardWidthMm = 55;
   static const double _cardHeightMm = 86;
@@ -30,13 +31,19 @@ class IdCardPdfService {
   }) async {
     final document = pw.Document();
     final avatar = await _loadNetworkImage(profile.profilePhoto);
-    final bbeLogo = await _loadAssetImage(_idCardLogoPath);
+    final bbeLogo = await _loadAssetSvg(_bbeLogoPath);
+    final khotaiLogo = await _loadAssetSvg(_khotaiLogoPath);
+    final selectedLogo = _selectCompanyLogo(
+      profile.company,
+      bbeLogo: bbeLogo,
+      khotaiLogo: khotaiLogo,
+    );
 
     document.addPage(
       pw.Page(
         pageFormat: _cardFormat,
         margin: pw.EdgeInsets.zero,
-        build: (_) => _frontCard(profile, qrCode, avatar, bbeLogo),
+        build: (_) => _frontCard(profile, qrCode, avatar, selectedLogo),
       ),
     );
 
@@ -68,7 +75,7 @@ class IdCardPdfService {
     ProfileData profile,
     String qrCode,
     pw.MemoryImage? avatar,
-    pw.MemoryImage? bbeLogo,
+    String logo,
   ) {
     final positionDepartment = [
       _display(profile.jabatan ?? profile.position, fallback: ''),
@@ -78,18 +85,18 @@ class IdCardPdfService {
     return _printPage(
       child: pw.Stack(
         children: [
-          _bbeHeader(bbeLogo),
+          _bbeHeader(logo),
           _blueTitleBar('MINE PERMIT'),
           pw.Positioned(
             left: 5.2 * _mm,
-            top: 27.4 * _mm,
+            top: 21.8 * _mm,
             child: _avatarBox(avatar, profile.fullName),
           ),
           pw.Positioned(
-            left: 29.0 * _mm,
-            top: 27.3 * _mm,
+            left: 27.4 * _mm,
+            top: 22.0 * _mm,
             child: pw.SizedBox(
-              width: 19.6 * _mm,
+              width: 21.0 * _mm,
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -115,29 +122,29 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 5.2 * _mm,
-            top: 54.8 * _mm,
+            left: 7.9 * _mm,
+            top: 53.2 * _mm,
             child: pw.SizedBox(
-              width: 20.5 * _mm,
+              width: 15.4 * _mm,
               child: _counterBox('VIOLATION'),
             ),
           ),
           pw.Positioned(
-            left: 5.2 * _mm,
-            top: 63.2 * _mm,
+            left: 7.9 * _mm,
+            top: 61.3 * _mm,
             child: pw.SizedBox(
-              width: 20.5 * _mm,
+              width: 15.4 * _mm,
               child: _counterBox('INCIDENT'),
             ),
           ),
           pw.Positioned(
-            left: 6.8 * _mm,
-            top: 70.7 * _mm,
-            child: _signatureBlock(bbeLogo),
+            left: 5.6 * _mm,
+            top: 71.0 * _mm,
+            child: _signatureBlock(logo),
           ),
           pw.Positioned(
-            right: 5.2 * _mm,
-            bottom: 5.1 * _mm,
+            right: 4.8 * _mm,
+            bottom: 7.0 * _mm,
             child: _qrBlock(qrCode),
           ),
         ],
@@ -152,22 +159,22 @@ class IdCardPdfService {
           pw.Positioned(
             left: 0,
             right: 0,
-            top: 2.1 * _mm,
+            top: 1.7 * _mm,
             child: pw.Text(
               'SIMPER',
               textAlign: pw.TextAlign.center,
               style: pw.TextStyle(
                 color: _green,
                 fontWeight: pw.FontWeight.bold,
-                fontSize: 12.0,
+                fontSize: 11.2,
               ),
             ),
           ),
           pw.Positioned(
-            left: 5 * _mm,
-            top: 10.8 * _mm,
+            left: 1.4 * _mm,
+            top: 8.8 * _mm,
             child: pw.SizedBox(
-              width: 20.8 * _mm,
+              width: 23.2 * _mm,
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -187,15 +194,15 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 29.0 * _mm,
-            top: 10.1 * _mm,
-            child: pw.Container(width: 0.45, height: 14.2 * _mm, color: _line),
+            left: 28.4 * _mm,
+            top: 8.8 * _mm,
+            child: pw.Container(width: 0.45, height: 10.0 * _mm, color: _line),
           ),
           pw.Positioned(
-            left: 33.0 * _mm,
-            top: 10.5 * _mm,
+            left: 31.8 * _mm,
+            top: 8.9 * _mm,
             child: pw.SizedBox(
-              width: 15.0 * _mm,
+              width: 18.0 * _mm,
               child: pw.Text(
                 'SIMPER\n${_display(profile.simper, fallback: '')}',
                 style: pw.TextStyle(
@@ -207,14 +214,14 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 3.0 * _mm,
-            top: 26.2 * _mm,
-            child: pw.SizedBox(width: 46.7 * _mm, child: _simperTable(profile)),
+            left: 1.0 * _mm,
+            top: 20.8 * _mm,
+            child: pw.SizedBox(width: 50.6 * _mm, child: _simperTable(profile)),
           ),
           pw.Positioned(
-            left: 4.8 * _mm,
-            right: 4.8 * _mm,
-            top: 53.8 * _mm,
+            left: 0.8 * _mm,
+            right: 0.8 * _mm,
+            top: 50.1 * _mm,
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
               children: [
@@ -225,21 +232,21 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 4.8 * _mm,
-            right: 4.8 * _mm,
-            top: 58.4 * _mm,
+            left: 0.8 * _mm,
+            right: 0.8 * _mm,
+            top: 54.2 * _mm,
             child: pw.Container(height: 0.45, color: _line),
           ),
           pw.Positioned(
-            left: 4.8 * _mm,
-            right: 4.8 * _mm,
-            top: 59.0 * _mm,
-            child: _rulesBlock(),
+            left: 0.8 * _mm,
+            right: 0.8 * _mm,
+            top: 54.8 * _mm,
+            child: _rulesBlock(profile.company),
           ),
           pw.Positioned(
-            left: 4.8 * _mm,
-            right: 4.8 * _mm,
-            top: 72.4 * _mm,
+            left: 0,
+            right: 0,
+            top: 69.4 * _mm,
             child: pw.Container(
               height: 3.2 * _mm,
               alignment: pw.Alignment.center,
@@ -255,9 +262,9 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 4.8 * _mm,
-            right: 4.8 * _mm,
-            top: 76.6 * _mm,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: pw.Container(
               height: 4.9 * _mm,
               alignment: pw.Alignment.center,
@@ -299,62 +306,71 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _bbeHeader(pw.MemoryImage? logo) {
+  static pw.Widget _bbeHeader(String logo) {
+    if (logo.isEmpty) {
+      return pw.Positioned(
+        left: 0,
+        right: 0,
+        top: 2.4 * _mm,
+        child: pw.Center(
+          child: pw.Row(
+            mainAxisSize: pw.MainAxisSize.min,
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Container(
+                width: 5.2 * _mm,
+                height: 7.0 * _mm,
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromInt(0xFF2AB673),
+                  borderRadius: pw.BorderRadius.circular(7),
+                ),
+                alignment: pw.Alignment.center,
+                child: pw.Text(
+                  'B',
+                  style: pw.TextStyle(
+                    color: PdfColors.white,
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 7,
+                  ),
+                ),
+              ),
+              pw.SizedBox(width: 1.4 * _mm),
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'BBE',
+                    style: pw.TextStyle(
+                      fontSize: 16.2,
+                      fontWeight: pw.FontWeight.bold,
+                      color: _ink,
+                    ),
+                  ),
+                  pw.Text(
+                    'PT BUKIT BAIDURI ENERGI',
+                    style: pw.TextStyle(
+                      fontSize: 2.8,
+                      color: _ink,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return pw.Positioned(
       left: 0,
       right: 0,
       top: 2.4 * _mm,
       child: pw.Center(
-        child: logo == null
-            ? pw.Row(
-                mainAxisSize: pw.MainAxisSize.min,
-                crossAxisAlignment: pw.CrossAxisAlignment.center,
-                children: [
-                  pw.Container(
-                    width: 5.2 * _mm,
-                    height: 7.0 * _mm,
-                    decoration: pw.BoxDecoration(
-                      color: PdfColor.fromInt(0xFF2AB673),
-                      borderRadius: pw.BorderRadius.circular(7),
-                    ),
-                    alignment: pw.Alignment.center,
-                    child: pw.Text(
-                      'B',
-                      style: pw.TextStyle(
-                        color: PdfColors.white,
-                        fontWeight: pw.FontWeight.bold,
-                        fontSize: 7,
-                      ),
-                    ),
-                  ),
-                  pw.SizedBox(width: 1.4 * _mm),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text(
-                        'BBE',
-                        style: pw.TextStyle(
-                          fontSize: 16.2,
-                          fontWeight: pw.FontWeight.bold,
-                          color: _ink,
-                        ),
-                      ),
-                      pw.Text(
-                        'PT BUKIT BAIDURI ENERGI',
-                        style: pw.TextStyle(
-                          fontSize: 2.8,
-                          color: _ink,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              )
-            : pw.SizedBox(
-                width: 30.0 * _mm,
-                height: 9.4 * _mm,
-                child: pw.Image(logo, fit: pw.BoxFit.cover),
-              ),
+        child: pw.SizedBox(
+          width: 28.5 * _mm,
+          height: 8.2 * _mm,
+          child: pw.SvgImage(svg: logo, fit: pw.BoxFit.contain),
+        ),
       ),
     );
   }
@@ -363,9 +379,9 @@ class IdCardPdfService {
     return pw.Positioned(
       left: 0,
       right: 0,
-      top: 15.1 * _mm,
+      top: 12.2 * _mm,
       child: pw.Container(
-        height: 8.8 * _mm,
+        height: 6.6 * _mm,
         color: _blue,
         alignment: pw.Alignment.center,
         child: pw.Text(
@@ -373,7 +389,7 @@ class IdCardPdfService {
           style: pw.TextStyle(
             color: PdfColors.white,
             fontWeight: pw.FontWeight.bold,
-            fontSize: 15.2,
+            fontSize: 11.2,
           ),
         ),
       ),
@@ -393,7 +409,7 @@ class IdCardPdfService {
               child: pw.Text(
                 _initials(name),
                 style: pw.TextStyle(
-                  fontSize: 12,
+                  fontSize: 10.8,
                   fontWeight: pw.FontWeight.bold,
                   color: _deepBlue,
                 ),
@@ -405,7 +421,7 @@ class IdCardPdfService {
 
   static pw.Widget _profileLine(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 2.1),
+      padding: const pw.EdgeInsets.only(bottom: 1.45),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -413,7 +429,7 @@ class IdCardPdfService {
             label,
             maxLines: 1,
             style: pw.TextStyle(
-              fontSize: 5.0,
+              fontSize: 4.5,
               fontStyle: pw.FontStyle.italic,
               fontWeight: pw.FontWeight.bold,
               color: _blue,
@@ -423,8 +439,8 @@ class IdCardPdfService {
             value,
             maxLines: 2,
             style: pw.TextStyle(
-              fontSize: _fitText(value, base: 6.2, small: 5.5, tiny: 4.9),
-              lineSpacing: -0.2,
+              fontSize: _fitText(value, base: 5.7, small: 5.1, tiny: 4.6),
+              lineSpacing: -0.15,
               fontWeight: pw.FontWeight.bold,
               color: _ink,
             ),
@@ -440,7 +456,7 @@ class IdCardPdfService {
         pw.Text(
           title,
           style: pw.TextStyle(
-            fontSize: 5.5,
+            fontSize: 5.0,
             fontWeight: pw.FontWeight.bold,
             color: _deepBlue,
           ),
@@ -457,12 +473,12 @@ class IdCardPdfService {
               children: [1, 2, 3]
                   .map(
                     (n) => pw.Container(
-                      height: 4.2 * _mm,
+                      height: 3.7 * _mm,
                       alignment: pw.Alignment.center,
                       child: pw.Text(
                         '$n',
                         style: pw.TextStyle(
-                          fontSize: 6.1,
+                          fontSize: 5.6,
                           fontWeight: pw.FontWeight.bold,
                           color: _ink,
                         ),
@@ -477,22 +493,89 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _signatureBlock(pw.MemoryImage? logo) {
+  static pw.Widget _signatureBlock(String logo) {
+    if (logo.isEmpty) {
+      return pw.SizedBox(
+        width: 19.6 * _mm,
+        child: pw.Column(
+          children: [
+            pw.Text(
+              'Disahkan oleh,',
+              style: pw.TextStyle(
+                fontSize: 4.2,
+                fontWeight: pw.FontWeight.bold,
+                color: _deepBlue,
+              ),
+            ),
+            pw.SizedBox(height: 0.35 * _mm),
+            pw.Container(
+              width: 13.0 * _mm,
+              height: 2.0 * _mm,
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: _deepBlue, width: 0.5),
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 0.1 * _mm),
+            pw.Row(
+              mainAxisSize: pw.MainAxisSize.min,
+              children: [
+                pw.Container(
+                  width: 3.4 * _mm,
+                  height: 4.1 * _mm,
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromInt(0xFF2AB673),
+                    borderRadius: pw.BorderRadius.circular(4),
+                  ),
+                ),
+                pw.SizedBox(width: 0.8 * _mm),
+                pw.Text(
+                  'BBE',
+                  style: pw.TextStyle(
+                    fontSize: 7.0,
+                    fontWeight: pw.FontWeight.bold,
+                    color: _ink,
+                  ),
+                ),
+              ],
+            ),
+            pw.Text(
+              'Reno Barus, S.T',
+              style: pw.TextStyle(
+                fontSize: 3.9,
+                fontWeight: pw.FontWeight.bold,
+                color: _ink,
+              ),
+            ),
+            pw.Text(
+              'Kepala Teknik Tambang',
+              style: pw.TextStyle(
+                fontSize: 3.6,
+                fontStyle: pw.FontStyle.italic,
+                color: _ink,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return pw.SizedBox(
-      width: 18.8 * _mm,
+      width: 19.6 * _mm,
       child: pw.Column(
         children: [
           pw.Text(
             'Disahkan oleh,',
             style: pw.TextStyle(
-              fontSize: 4.5,
+              fontSize: 4.2,
               fontWeight: pw.FontWeight.bold,
               color: _deepBlue,
             ),
           ),
           pw.SizedBox(height: 0.35 * _mm),
           pw.Container(
-            width: 12 * _mm,
+            width: 13.0 * _mm,
             height: 2.0 * _mm,
             decoration: const pw.BoxDecoration(
               border: pw.Border(
@@ -501,38 +584,15 @@ class IdCardPdfService {
             ),
           ),
           pw.SizedBox(height: 0.1 * _mm),
-          logo == null
-              ? pw.Row(
-                  mainAxisSize: pw.MainAxisSize.min,
-                  children: [
-                    pw.Container(
-                      width: 3.5 * _mm,
-                      height: 4.3 * _mm,
-                      decoration: pw.BoxDecoration(
-                        color: PdfColor.fromInt(0xFF2AB673),
-                        borderRadius: pw.BorderRadius.circular(4),
-                      ),
-                    ),
-                    pw.SizedBox(width: 0.8 * _mm),
-                    pw.Text(
-                      'BBE',
-                      style: pw.TextStyle(
-                        fontSize: 7.6,
-                        fontWeight: pw.FontWeight.bold,
-                        color: _ink,
-                      ),
-                    ),
-                  ],
-                )
-              : pw.SizedBox(
-                  width: 13.0 * _mm,
-                  height: 4.2 * _mm,
-                  child: pw.Image(logo, fit: pw.BoxFit.cover),
-                ),
+          pw.SizedBox(
+            width: 14.0 * _mm,
+            height: 4.4 * _mm,
+            child: pw.SvgImage(svg: logo, fit: pw.BoxFit.contain),
+          ),
           pw.Text(
             'Reno Barus, S.T',
             style: pw.TextStyle(
-              fontSize: 4.1,
+              fontSize: 3.9,
               fontWeight: pw.FontWeight.bold,
               color: _ink,
             ),
@@ -540,7 +600,7 @@ class IdCardPdfService {
           pw.Text(
             'Kepala Teknik Tambang',
             style: pw.TextStyle(
-              fontSize: 3.8,
+              fontSize: 3.6,
               fontStyle: pw.FontStyle.italic,
               color: _ink,
             ),
@@ -551,27 +611,21 @@ class IdCardPdfService {
   }
 
   static pw.Widget _qrBlock(String qrCode) {
-    return pw.Container(
-      width: 16.8 * _mm,
-      padding: const pw.EdgeInsets.all(2.2),
-      decoration: pw.BoxDecoration(
-        color: PdfColors.white,
-        border: pw.Border.all(color: PdfColor.fromInt(0xFFD5DCE6), width: 0.5),
-        borderRadius: pw.BorderRadius.circular(3),
-      ),
+    return pw.SizedBox(
+      width: 21.0 * _mm,
       child: pw.Column(
         children: [
           pw.BarcodeWidget(
             barcode: pw.Barcode.qrCode(),
             data: qrCode,
-            width: 14.0 * _mm,
-            height: 14.0 * _mm,
+            width: 18.8 * _mm,
+            height: 18.8 * _mm,
           ),
-          pw.SizedBox(height: 0.6 * _mm),
+          pw.SizedBox(height: 1.0 * _mm),
           pw.Text(
-            'SCAN PROFIL',
+            'SCAN QR PROFIL',
             style: pw.TextStyle(
-              fontSize: 3.8,
+              fontSize: 3.45,
               fontWeight: pw.FontWeight.bold,
               color: _deepBlue,
             ),
@@ -626,10 +680,10 @@ class IdCardPdfService {
     return pw.Table(
       border: pw.TableBorder.all(color: _line, width: 0.55),
       columnWidths: const {
-        0: pw.FixedColumnWidth(10.0),
+        0: pw.FixedColumnWidth(8.2),
         1: pw.FlexColumnWidth(),
-        2: pw.FixedColumnWidth(12.8),
-        3: pw.FixedColumnWidth(24.0),
+        2: pw.FixedColumnWidth(11.4),
+        3: pw.FixedColumnWidth(25.0),
       },
       children: [
         pw.TableRow(
@@ -657,32 +711,40 @@ class IdCardPdfService {
   }
 
   static pw.Widget _tableHeader(String value) {
+    final isIssuedDate = value == 'ISSUED DATE';
     return pw.Container(
-      height: 3.45 * _mm,
+      height: 3.25 * _mm,
       alignment: pw.Alignment.center,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 0.8),
+      padding: pw.EdgeInsets.symmetric(horizontal: isIssuedDate ? 0.35 : 0.8),
       child: pw.Text(
         value,
+        maxLines: 1,
         textAlign: pw.TextAlign.center,
         style: pw.TextStyle(
           color: PdfColors.white,
-          fontSize: 4.0,
+          fontSize: _tableHeaderFontSize(value),
           fontWeight: pw.FontWeight.bold,
         ),
       ),
     );
   }
 
+  static double _tableHeaderFontSize(String value) {
+    if (value == 'ISSUED DATE') return 3.2;
+    if (value == 'VEHICLE / EQUIPMENT') return 3.3;
+    return 3.8;
+  }
+
   static pw.Widget _tableCell(String value, {bool bold = false}) {
     return pw.Container(
       height: 3.25 * _mm,
       alignment: pw.Alignment.center,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 0.5),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 0.45),
       child: pw.Text(
         value,
         maxLines: 1,
         style: pw.TextStyle(
-          fontSize: 4.8,
+          fontSize: 4.5,
           fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
           color: _ink,
         ),
@@ -694,15 +756,15 @@ class IdCardPdfService {
     return pw.Row(
       children: [
         pw.Container(
-          width: 3.0 * _mm,
-          height: 3.0 * _mm,
+          width: 2.8 * _mm,
+          height: 2.8 * _mm,
           decoration: pw.BoxDecoration(border: pw.Border.all(color: _line)),
         ),
         pw.SizedBox(width: 0.7 * _mm),
         pw.Text(
           label,
           style: pw.TextStyle(
-            fontSize: 4.6,
+            fontSize: 4.4,
             fontWeight: pw.FontWeight.bold,
             color: _deepBlue,
           ),
@@ -711,14 +773,19 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _rulesBlock() {
+  static pw.Widget _rulesBlock(String? companyName) {
+    final companyText = _display(
+      companyName,
+      fallback: 'PT Bukit Baiduri Energi',
+    );
+
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
           'Keterangan:',
           style: pw.TextStyle(
-            fontSize: 4.0,
+            fontSize: 5.0,
             fontWeight: pw.FontWeight.bold,
             color: _ink,
           ),
@@ -726,17 +793,17 @@ class IdCardPdfService {
         pw.Text(
           'F = Full, P = Probation, R = Restricted, T = Training, I = Instructor',
           style: pw.TextStyle(
-            fontSize: 3.45,
+            fontSize: 4.15,
             fontStyle: pw.FontStyle.italic,
             color: _ink,
           ),
         ),
-        pw.SizedBox(height: 0.45 * _mm),
+        pw.SizedBox(height: 0.3 * _mm),
         _ruleText(
           '1. Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
         ),
         _ruleText(
-          '2. Kartu ini milik PT BBE, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku atau tidak lagi terikat kerja.',
+          '2. Kartu ini milik $companyText, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku atau tidak lagi terikat kerja.',
         ),
         _ruleText('3. Segera laporkan ke QHSE jika kehilangan kartu ini.'),
         _ruleText(
@@ -748,12 +815,12 @@ class IdCardPdfService {
 
   static pw.Widget _ruleText(String text) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 0.35),
+      padding: const pw.EdgeInsets.only(bottom: 0.25),
       child: pw.Text(
         text,
         style: pw.TextStyle(
-          fontSize: 3.1,
-          height: 0.94,
+          fontSize: 3.5,
+          height: 0.88,
           color: _ink,
         ),
       ),
@@ -775,10 +842,9 @@ class IdCardPdfService {
     }
   }
 
-  static Future<pw.MemoryImage?> _loadAssetImage(String assetPath) async {
+  static Future<String?> _loadAssetSvg(String assetPath) async {
     try {
-      final data = await rootBundle.load(assetPath);
-      return pw.MemoryImage(data.buffer.asUint8List());
+      return await rootBundle.loadString(assetPath);
     } catch (_) {
       return null;
     }
@@ -833,5 +899,19 @@ class IdCardPdfService {
     if (length > 30) return tiny;
     if (length > 20) return small;
     return base;
+  }
+
+  static String _selectCompanyLogo(
+    String? company, {
+    required String? bbeLogo,
+    required String? khotaiLogo,
+  }) {
+    final normalized = (company ?? '').trim().toLowerCase();
+    if (normalized.contains('khotai')) return khotaiLogo ?? bbeLogo ?? '';
+    if (normalized.contains('bbe') ||
+        normalized.contains('bukit baiduri energi')) {
+      return bbeLogo ?? khotaiLogo ?? '';
+    }
+    return bbeLogo ?? khotaiLogo ?? '';
   }
 }

@@ -11,6 +11,7 @@ import 'config/supabase_config.dart';
 import 'services/announcement_service.dart';
 import 'services/background_sync_service.dart';
 import 'services/idle_timeout_service.dart';
+import 'services/qr_service.dart';
 import 'services/storage_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
@@ -68,8 +69,60 @@ void main() async {
   runApp(const BBEApp());
 }
 
-class BBEApp extends StatelessWidget {
+class BBEApp extends StatefulWidget {
   const BBEApp({super.key});
+
+  @override
+  State<BBEApp> createState() => _BBEAppState();
+}
+
+class _BBEAppState extends State<BBEApp> {
+  static const MethodChannel _deepLinkChannel =
+      MethodChannel('sapahse/deep_link');
+
+  @override
+  void initState() {
+    super.initState();
+    if (!kIsWeb) {
+      _deepLinkChannel.setMethodCallHandler(_handleNativeDeepLink);
+      _loadInitialDeepLink();
+    }
+  }
+
+  Future<void> _loadInitialDeepLink() async {
+    try {
+      final link = await _deepLinkChannel.invokeMethod<String>(
+        'getInitialLink',
+      );
+      await _handleDeepLink(link);
+    } on MissingPluginException {
+      // Web/desktop builds do not register the native deep link channel.
+    }
+  }
+
+  Future<void> _handleNativeDeepLink(MethodCall call) async {
+    if (call.method != 'onDeepLink') return;
+    await _handleDeepLink(call.arguments?.toString());
+  }
+
+  Future<void> _handleDeepLink(String? link) async {
+    final qrCode = QrService.qrCodeFromDeepLink(link);
+    if (qrCode == null) return;
+
+    final loggedIn = await StorageService.isLoggedIn();
+    if (!loggedIn) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = navigatorKey.currentState;
+      if (navigator == null) return;
+
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => QrScanScreen(initialQrCode: qrCode),
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

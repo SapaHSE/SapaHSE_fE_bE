@@ -2,6 +2,42 @@ import '../models/profile_model.dart';
 import 'api_service.dart';
 
 class QrService {
+  static const String deepLinkScheme = 'sapahse';
+  static const String deepLinkHost = 'qr';
+  static const String userCodePrefix = 'SAPA-HSE-USER-';
+
+  static String userQrCodeFromEmployeeId(String employeeId) {
+    final normalizedEmployeeId = employeeId.trim().toUpperCase();
+    if (normalizedEmployeeId.isEmpty) return '';
+    return '$userCodePrefix$normalizedEmployeeId';
+  }
+
+  static String profileDeepLink(String qrCode) {
+    final code = qrCode.trim();
+    return Uri(
+      scheme: deepLinkScheme,
+      host: deepLinkHost,
+      path: '/scan',
+      queryParameters: {'qr_code': code},
+    ).toString();
+  }
+
+  static String? qrCodeFromDeepLink(String? rawLink) {
+    final value = rawLink?.trim();
+    if (value == null || value.isEmpty) return null;
+
+    final uri = Uri.tryParse(value);
+    if (uri == null ||
+        uri.scheme != deepLinkScheme ||
+        uri.host != deepLinkHost ||
+        uri.path != '/scan') {
+      return null;
+    }
+
+    final qrCode = uri.queryParameters['qr_code']?.trim();
+    return qrCode == null || qrCode.isEmpty ? null : qrCode;
+  }
+
   static Future<QrScanResult> scan(String rawCode) async {
     final endpoint = '/qr/scan?qr_code=${Uri.encodeComponent(rawCode)}';
     final response = await ApiService.get(endpoint);

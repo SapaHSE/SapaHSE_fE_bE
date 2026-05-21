@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -96,21 +95,15 @@ class User extends Authenticatable
 
     public function ensureQrCode(): string
     {
-        if ($this->qr_code) {
+        $employeeQrCode = 'SAPA-HSE-USER-' . strtoupper(trim((string) $this->employee_id));
+
+        if ($this->qr_code === $employeeQrCode) {
             return $this->qr_code;
         }
 
-        do {
-            $code = 'SAPA-HSE-USER-' . Str::upper(Str::random(16));
-        } while (
-            self::where('qr_code', $code)
-                ->where('id', '!=', $this->id)
-                ->exists()
-        );
+        $this->forceFill(['qr_code' => $employeeQrCode])->save();
 
-        $this->forceFill(['qr_code' => $code])->save();
-
-        return $code;
+        return $employeeQrCode;
     }
 
     public function hazardReports()

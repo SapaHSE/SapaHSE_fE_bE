@@ -11,7 +11,9 @@ import '../widgets/app_safe_insets.dart';
 import 'user_profile_view_screen.dart';
 
 class QrScanScreen extends StatefulWidget {
-  const QrScanScreen({super.key});
+  final String? initialQrCode;
+
+  const QrScanScreen({super.key, this.initialQrCode});
 
   @override
   State<QrScanScreen> createState() => _QrScanScreenState();
@@ -43,6 +45,12 @@ class _QrScanScreenState extends State<QrScanScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
+    final initialQrCode = widget.initialQrCode?.trim();
+    if (initialQrCode != null && initialQrCode.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _resolveExternalQr(initialQrCode);
+      });
+    }
   }
 
   @override
@@ -115,6 +123,22 @@ class _QrScanScreenState extends State<QrScanScreen>
 
     _controller.stop();
     _resolveScan(rawValue);
+  }
+
+  void _resolveExternalQr(String rawCode) {
+    if (_isResolvingScan) return;
+
+    setState(() {
+      _selectedTab = 1;
+      _hasScanned = true;
+      _isResolvingScan = true;
+      _rawScannedCode = rawCode;
+      _scanResult = null;
+      _scanError = null;
+    });
+
+    if (_controller.value.isInitialized) _controller.stop();
+    _resolveScan(rawCode);
   }
 
   Future<void> _resolveScan(String rawCode) async {
@@ -278,14 +302,14 @@ class _QrScanScreenState extends State<QrScanScreen>
     }
 
     final profile = _profile;
-    final qrCode = profile?.qrCode?.trim() ?? '';
+    final employeeId = profile?.employeeId.trim() ?? '';
+    final qrCode = QrService.userQrCodeFromEmployeeId(employeeId);
     if (profile == null || qrCode.isEmpty) {
       return _QrMessageState(
         key: const ValueKey('qr-empty'),
         icon: Icons.qr_code_2,
         title: 'QR belum tersedia',
-        message:
-            'Akun aktif dan email terverifikasi akan mendapat QR otomatis.',
+        message: 'Employee ID belum tersedia untuk membuat QR profil.',
         buttonLabel: 'Refresh',
         onPressed: _loadProfile,
       );
@@ -307,9 +331,13 @@ class _QrScanScreenState extends State<QrScanScreen>
           _MyQrCard(
             profile: profile,
             qrCode: qrCode,
+            qrPayload: QrService.profileDeepLink(qrCode),
             isExporting: _isExportingIdCard,
             onCopy: () => _copyQrCode(qrCode),
-            onExport: () => _exportIdCard(profile, qrCode),
+            onExport: () => _exportIdCard(
+              profile,
+              QrService.profileDeepLink(qrCode),
+            ),
           ),
         ],
       ),
@@ -450,6 +478,7 @@ class _QrTabButton extends StatelessWidget {
 class _MyQrCard extends StatelessWidget {
   final ProfileData profile;
   final String qrCode;
+  final String qrPayload;
   final bool isExporting;
   final VoidCallback onCopy;
   final VoidCallback onExport;
@@ -457,6 +486,7 @@ class _MyQrCard extends StatelessWidget {
   const _MyQrCard({
     required this.profile,
     required this.qrCode,
+    required this.qrPayload,
     required this.isExporting,
     required this.onCopy,
     required this.onExport,
@@ -564,7 +594,7 @@ class _MyQrCard extends StatelessWidget {
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: QrImageView(
-                  data: qrCode,
+                  data: qrPayload,
                   version: QrVersions.auto,
                   size: 220,
                   backgroundColor: Colors.white,
