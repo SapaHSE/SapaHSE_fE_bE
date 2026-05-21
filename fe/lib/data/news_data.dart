@@ -62,3 +62,8 @@ const List<String> newsCategories = [
   'Regulasi',
   'Prestasi',
 ];
+
+// Sentinel used by the news_screen category dropdown to surface scheduled
+// drafts as a status filter rather than a real backend category.
+const String kScheduledFilterValue = '__scheduled__';
+const String kScheduledFilterLabel = 'Terjadwal';

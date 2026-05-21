@@ -13,7 +13,8 @@ class _FadePageRoute<T> extends PageRouteBuilder<T> {
   final Widget Function(BuildContext) builder;
   _FadePageRoute({required this.builder})
       : super(
-          pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -40,19 +41,19 @@ class _NewsScreenState extends State<NewsScreen> {
   String _selectedCategory = 'All News';
 
   bool _isAdmin = false;
-  bool _showScheduledOnly = false;
 
   List<NewsArticle> _articles = [];
   bool _isLoading = true;
   String? _error;
 
   List<NewsArticle> get _featuredArticles =>
-      _articles.where((a) => a.isFeatured).toList();
+      _articles.where((a) => a.isFeatured && !a.isScheduled).toList();
 
   List<NewsArticle> get _allFilteredArticles {
     return _articles.where((a) {
-      final matchCat =
-          _selectedCategory == 'All News' || a.category == _selectedCategory;
+      final matchCat = _selectedCategory == 'All News' ||
+          _selectedCategory == kScheduledFilterValue ||
+          a.category == _selectedCategory;
       final matchSearch = _searchQuery.isEmpty ||
           a.title.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchCat && matchSearch;
@@ -62,8 +63,13 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   void initState() {
     super.initState();
-    _detectRole();
-    _loadNews();
+    _initializeNews();
+  }
+
+  Future<void> _initializeNews() async {
+    await _detectRole();
+    if (!mounted) return;
+    await _loadNews();
   }
 
   Future<void> _detectRole() async {
@@ -80,8 +86,11 @@ class _NewsScreenState extends State<NewsScreen> {
       _error = null;
     });
 
-    final result =
-        await NewsService.getNews(onlyScheduled: _showScheduledOnly);
+    final isScheduledFilter = _selectedCategory == kScheduledFilterValue;
+    final result = await NewsService.getNews(
+      onlyScheduled: isScheduledFilter,
+      includeScheduled: _isAdmin && !isScheduledFilter,
+    );
     if (!mounted) return;
 
     if (result.success) {
@@ -96,14 +105,6 @@ class _NewsScreenState extends State<NewsScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  void _toggleScheduled(bool value) {
-    if (_showScheduledOnly == value) return;
-    setState(() => _showScheduledOnly = value);
-    _carouselTimer?.cancel();
-    _currentCarouselPage = 0;
-    _loadNews();
   }
 
   void _startCarousel() {
@@ -136,11 +137,12 @@ class _NewsScreenState extends State<NewsScreen> {
     super.dispose();
   }
 
-  void _goToDetail(NewsArticle article) {
-    Navigator.push(
+  void _goToDetail(NewsArticle article) async {
+    final didChange = await Navigator.push<bool>(
       context,
       _FadePageRoute(builder: (_) => NewsDetailScreen(article: article)),
     );
+    if (didChange == true && mounted) _loadNews();
   }
 
   Color _categoryColor(String cat) {
@@ -190,20 +192,13 @@ class _NewsScreenState extends State<NewsScreen> {
                           onRefresh: _loadNews,
                           child: CustomScrollView(
                             slivers: [
-                              // ── Admin scheduled toggle ────────────────────
-                              if (_isAdmin)
-                                SliverToBoxAdapter(
-                                    child: _buildScheduledToggleRow()),
+                              // ── Carousel ─────────────────────────────────
+                              SliverToBoxAdapter(child: _buildCarousel()),
 
-                              // ── Carousel (hidden in scheduled view) ──────
-                              if (!_showScheduledOnly)
-                                SliverToBoxAdapter(child: _buildCarousel()),
+                              // ── Category Filter ──────────────────────────
+                              SliverToBoxAdapter(child: _buildCategoryFilter()),
 
-                              // ── Category Filter (hidden in scheduled view)
-                              if (!_showScheduledOnly)
-                                SliverToBoxAdapter(child: _buildCategoryFilter()),
-
-                              // ── Article List ──────────────────────────────
+                              // ── Article List ─────────────────────────────
                               _allFilteredArticles.isEmpty
                                   ? SliverFillRemaining(
                                       hasScrollBody: false,
@@ -219,8 +214,7 @@ class _NewsScreenState extends State<NewsScreen> {
 
                               SliverToBoxAdapter(
                                 child: SizedBox(
-                                  height:
-                                      AppSafeInsets.bottomNavScrollPadding(
+                                  height: AppSafeInsets.bottomNavScrollPadding(
                                     context,
                                   ),
                                 ),
@@ -261,7 +255,7 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Widget _buildEmptyState() {
-    final scheduled = _showScheduledOnly;
+    final scheduled = _selectedCategory == kScheduledFilterValue;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -295,127 +289,6 @@ class _NewsScreenState extends State<NewsScreen> {
         ),
       ),
     );
-  }
-
-  // ── ADMIN SCHEDULED TOGGLE ──────────────────────────────────────────────────
-  Widget _buildScheduledToggleRow() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ScheduledFilterPill(
-              active: !_showScheduledOnly,
-              label: 'Semua',
-              icon: Icons.article_outlined,
-              accent: const Color(0xFF1A56C4),
-              onTap: () => _toggleScheduled(false),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _ScheduledFilterPill(
-              active: _showScheduledOnly,
-              label: 'Terjadwal',
-              icon: Icons.schedule_outlined,
-              accent: const Color(0xFFE65100),
-              onTap: () => _toggleScheduled(true),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── ADMIN ACTION SHEET ─────────────────────────────────────────────────────
-  void _openAdminSheet(NewsArticle article) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _AdminScheduledSheet(
-        article: article,
-        onPublishNow: () async {
-          Navigator.pop(ctx);
-          await _publishNow(article);
-        },
-        onDelete: () async {
-          Navigator.pop(ctx);
-          await _confirmDelete(article);
-        },
-      ),
-    );
-  }
-
-  Future<void> _publishNow(NewsArticle article) async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Mempublikasikan...'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-    final result = await NewsService.publishNow(article.id);
-    if (!mounted) return;
-    if (result.success) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Berita "${article.title}" telah dipublikasikan.'),
-          backgroundColor: const Color(0xFF2E7D32),
-        ),
-      );
-      _loadNews();
-    } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(result.errorMessage ?? 'Gagal mempublikasikan.'),
-          backgroundColor: Colors.red.shade600,
-        ),
-      );
-    }
-  }
-
-  Future<void> _confirmDelete(NewsArticle article) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Berita'),
-        content: Text(
-            'Hapus "${article.title}"? Tindakan ini tidak dapat dibatalkan.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final res = await NewsService.deleteNews(article.id);
-    if (!mounted) return;
-    if (res.success) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Berita dihapus.')),
-      );
-      _loadNews();
-    } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(res.errorMessage ?? 'Gagal menghapus berita.'),
-          backgroundColor: Colors.red.shade600,
-        ),
-      );
-    }
   }
 
   // ── CAROUSEL ────────────────────────────────────────────────────────────────
@@ -544,6 +417,32 @@ class _NewsScreenState extends State<NewsScreen> {
 
   // ── CATEGORY FILTER ─────────────────────────────────────────────────────────
   Widget _buildCategoryFilter() {
+    final items = <DropdownMenuItem<String>>[
+      ...newsCategories.map((cat) => DropdownMenuItem(
+            value: cat,
+            child: Text(cat, style: kMinimalDropdownTextStyle),
+          )),
+      if (_isAdmin)
+        DropdownMenuItem(
+          value: kScheduledFilterValue,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.schedule_outlined, size: 16, color: Color(0xFFE65100)),
+              SizedBox(width: 6),
+              Text(
+                kScheduledFilterLabel,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFE65100),
+                ),
+              ),
+            ],
+          ),
+        ),
+    ];
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -562,16 +461,13 @@ class _NewsScreenState extends State<NewsScreen> {
           const SizedBox(height: 8),
           MinimalDropdown<String>(
             value: _selectedCategory,
-            items: newsCategories.map((cat) {
-              return DropdownMenuItem(
-                value: cat,
-                child: Text(cat, style: kMinimalDropdownTextStyle),
-              );
-            }).toList(),
+            items: items,
             onChanged: (val) {
-              if (val != null) {
-                setState(() => _selectedCategory = val);
-              }
+              if (val == null || val == _selectedCategory) return;
+              setState(() => _selectedCategory = val);
+              _carouselTimer?.cancel();
+              _currentCarouselPage = 0;
+              _loadNews();
             },
           ),
         ],
@@ -584,7 +480,6 @@ class _NewsScreenState extends State<NewsScreen> {
     final catColor = _categoryColor(article.category);
     return GestureDetector(
       onTap: () => _goToDetail(article),
-      onLongPress: _isAdmin ? () => _openAdminSheet(article) : null,
       child: Container(
         margin: const EdgeInsets.fromLTRB(12, 8, 12, 2),
         decoration: BoxDecoration(
@@ -745,8 +640,7 @@ class _NewsScreenState extends State<NewsScreen> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.schedule,
-                                size: 11, color: Colors.white),
+                            Icon(Icons.schedule, size: 11, color: Colors.white),
                             SizedBox(width: 4),
                             Text(
                               'TERJADWAL',
@@ -837,233 +731,6 @@ class _CarouselItem extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ── SCHEDULED FILTER PILL ─────────────────────────────────────────────────────
-class _ScheduledFilterPill extends StatelessWidget {
-  final bool active;
-  final String label;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback onTap;
-
-  const _ScheduledFilterPill({
-    required this.active,
-    required this.label,
-    required this.icon,
-    required this.accent,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: active ? accent : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: active ? accent : const Color(0xFFE0E4EA),
-          ),
-          boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.25),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon,
-                size: 16,
-                color: active ? Colors.white : const Color(0xFF455A64)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: active ? Colors.white : const Color(0xFF455A64),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── ADMIN SCHEDULED ACTION SHEET ──────────────────────────────────────────────
-class _AdminScheduledSheet extends StatelessWidget {
-  final NewsArticle article;
-  final VoidCallback onPublishNow;
-  final VoidCallback onDelete;
-
-  const _AdminScheduledSheet({
-    required this.article,
-    required this.onPublishNow,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        AppSafeInsets.sheetBottomPadding(context, base: 32),
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 8),
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 6),
-            child: Text(
-              'Kelola Berita Terjadwal',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Text(
-              article.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF607D8B)),
-            ),
-          ),
-          if (article.isScheduled)
-            _AdminMenuTile(
-              icon: Icons.send_rounded,
-              iconBgColor: const Color(0xFFE8F5E9),
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Publikasikan Sekarang',
-              subtitle: 'Tayangkan langsung & kirim notifikasi push',
-              onTap: onPublishNow,
-            ),
-          if (article.isScheduled)
-            Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _AdminMenuTile(
-            icon: Icons.delete_outline_rounded,
-            iconBgColor: const Color(0xFFFFEBEE),
-            iconColor: Colors.red.shade700,
-            title: 'Hapus Berita',
-            subtitle: 'Tindakan ini tidak dapat dibatalkan',
-            onTap: onDelete,
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(color: Colors.grey.shade200),
-                  ),
-                ),
-                child: const Text('Tutup'),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AdminMenuTile extends StatelessWidget {
-  final IconData icon;
-  final Color iconBgColor;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _AdminMenuTile({
-    required this.icon,
-    required this.iconBgColor,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: iconBgColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: Colors.black87)),
-                  const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
-          ],
-        ),
       ),
     );
   }
