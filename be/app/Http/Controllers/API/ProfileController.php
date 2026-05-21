@@ -357,6 +357,10 @@ class ProfileController extends Controller
         $request->validate([
             'name'           => 'required|string|max:150', 
             'license_number' => 'required|string|max:100',
+            'license_type'   => 'nullable|string|max:50',
+            'vehicle_equipment' => 'nullable|string|max:150',
+            'sim_type'       => 'nullable|string|max:10',
+            'sim_indonesia_type' => 'nullable|string|max:20',
             'issuer'         => 'nullable|string|max:100',
             'obtained_at'    => 'nullable|date',
             'expired_at'     => 'nullable|date', 
@@ -368,7 +372,19 @@ class ProfileController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        $data = $request->only('name', 'license_number', 'issuer', 'obtained_at', 'expired_at', 'status');
+        $data = $request->only(
+            'name',
+            'license_number',
+            'license_type',
+            'vehicle_equipment',
+            'sim_type',
+            'sim_indonesia_type',
+            'issuer',
+            'obtained_at',
+            'expired_at',
+            'status'
+        );
+        $data['license_type'] = $data['license_type'] ?? 'general';
         $data['approval_status'] = 'pending';
         $data['is_verified'] = false;
         $data['rejection_reason'] = null;
@@ -411,6 +427,10 @@ class ProfileController extends Controller
         $request->validate([
             'name'           => 'required|string|max:150',
             'license_number' => 'required|string|max:100',
+            'license_type'   => 'nullable|string|max:50',
+            'vehicle_equipment' => 'nullable|string|max:150',
+            'sim_type'       => 'nullable|string|max:10',
+            'sim_indonesia_type' => 'nullable|string|max:20',
             'issuer'         => 'nullable|string|max:100',
             'obtained_at'    => 'nullable|date',
             'expired_at'     => 'nullable|date',
@@ -426,6 +446,10 @@ class ProfileController extends Controller
         $updateData = $request->only(
             'name',
             'license_number',
+            'license_type',
+            'vehicle_equipment',
+            'sim_type',
+            'sim_indonesia_type',
             'issuer',
             'obtained_at',
             'expired_at',
@@ -475,6 +499,62 @@ class ProfileController extends Controller
             'status'  => 'success',
             'message' => 'License updated successfully.',
             'data'    => $license->fresh(),
+        ]);
+    }
+
+    // POST /api/profile/mine-permit/request
+    public function requestMinePermit(Request $request)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        $existing = $user->licenses()
+            ->where('license_type', 'mine_permit')
+            ->latest('expired_at')
+            ->latest('created_at')
+            ->first();
+
+        if ($existing && $existing->expired_at && $existing->expired_at->copy()->subMonth()->isFuture()) {
+            return \response()->json([
+                'status' => 'error',
+                'message' => 'Perpanjangan belum bisa dilakukan karena masih berlaku. Ajukan paling cepat 1 bulan sebelum habis masa berlaku',
+            ], 422);
+        }
+
+        if ($existing && in_array($existing->approval_status, ['pending', 'pending_changes'])) {
+            return \response()->json([
+                'status' => 'error',
+                'message' => 'Pengajuan Mine Permit masih menunggu approval.',
+            ], 422);
+        }
+
+        $payload = [
+            'name' => 'Mine Permit',
+            'license_type' => 'mine_permit',
+            'license_number' => $existing?->license_number ?: 'MP-' . strtoupper((string) $user->employee_id),
+            'issuer' => 'PT Bukit Baiduri Energi',
+            'status' => 'active',
+            'approval_status' => $existing ? 'pending_changes' : 'pending',
+            'is_verified' => false,
+            'rejection_reason' => null,
+            'reviewed_by' => null,
+            'reviewed_at' => null,
+            'submitted_at' => now(),
+        ];
+
+        if ($existing) {
+            $existing->update($payload);
+            $license = $existing->fresh();
+            $message = 'Pengajuan perpanjangan Mine Permit berhasil dikirim.';
+        } else {
+            $license = $user->licenses()->create($payload);
+            $message = 'Pengajuan Mine Permit berhasil dikirim.';
+        }
+
+        return \response()->json([
+            'status' => 'success',
+            'message' => $message,
+            'data' => $license,
         ]);
     }
 
@@ -834,6 +914,10 @@ class ProfileController extends Controller
                 'id'             => $l->id,
                 'name'           => $l->name,
                 'license_number' => $l->license_number,
+                'license_type'   => $l->license_type,
+                'vehicle_equipment' => $l->vehicle_equipment,
+                'sim_type'       => $l->sim_type,
+                'sim_indonesia_type' => $l->sim_indonesia_type,
                 'issuer'         => $l->issuer,
                 'obtained_at'    => $l->obtained_at?->format('Y-m-d'),
                 'expired_at'     => $l->expired_at?->format('Y-m-d'),

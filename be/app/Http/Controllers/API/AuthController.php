@@ -546,7 +546,7 @@ class AuthController extends Controller
     public function adminVerifyLicense(Request $request, string $id)
     {
         if ($request->boolean('is_verified', true)) {
-            return $this->adminApproveLicense($id);
+            return $this->adminApproveLicense($request, $id);
         }
 
         $license = UserLicense::findOrFail($id);
@@ -611,7 +611,7 @@ class AuthController extends Controller
     }
 
     // PUT /api/admin/licenses/{id}/approve
-    public function adminApproveLicense(string $id)
+    public function adminApproveLicense(Request $request, string $id)
     {
         $license = UserLicense::with('user')->findOrFail($id);
 
@@ -622,13 +622,35 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $license->update([
+        $rules = [
+            'obtained_at' => 'nullable|date',
+            'expired_at' => 'nullable|date|after_or_equal:obtained_at',
+        ];
+
+        if ($license->license_type === 'mine_permit') {
+            $rules['obtained_at'] = 'required|date';
+            $rules['expired_at'] = 'required|date|after_or_equal:obtained_at';
+        }
+
+        $validated = $request->validate($rules);
+
+        $updateData = [
             'approval_status' => 'approved',
             'is_verified' => true,
             'rejection_reason' => null,
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
-        ]);
+        ];
+
+        if (array_key_exists('obtained_at', $validated)) {
+            $updateData['obtained_at'] = $validated['obtained_at'];
+        }
+
+        if (array_key_exists('expired_at', $validated)) {
+            $updateData['expired_at'] = $validated['expired_at'];
+        }
+
+        $license->update($updateData);
 
         return response()->json([
             'status'  => 'success',

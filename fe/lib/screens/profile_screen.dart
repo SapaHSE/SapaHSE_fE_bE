@@ -127,6 +127,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _loadProfile();
   }
 
+  UserLicense? get _minePermitLicense {
+    final licenses = _profileData?.licenses ?? const <UserLicense>[];
+    final minePermits = licenses
+        .where((license) =>
+            license.licenseType == 'mine_permit' ||
+            license.name.toLowerCase().trim() == 'mine permit')
+        .toList()
+      ..sort((a, b) => (b.expiredAt ?? '').compareTo(a.expiredAt ?? ''));
+    return minePermits.isEmpty ? null : minePermits.first;
+  }
+
+  bool get _canRenewMinePermit {
+    final license = _minePermitLicense;
+    if (license == null) return true;
+    final expiredAt = DateTime.tryParse((license.expiredAt ?? '').trim());
+    if (expiredAt == null) return true;
+    return !expiredAt.subtract(const Duration(days: 31)).isAfter(DateTime.now());
+  }
+
+  String get _minePermitActionLabel {
+    final license = _minePermitLicense;
+    if (license == null) return 'Ajukan Mine Permit';
+    return 'Perpanjang Mine Permit';
+  }
+
+  Future<void> _requestMinePermit() async {
+    Navigator.pop(context);
+
+    if (!_canRenewMinePermit) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Perpanjangan Belum Tersedia'),
+          content: const Text(
+            'Perpanjangan belum bisa dilakukan karena masih berlaku. Ajukan paling cepat 1 bulan sebelum habis masa berlaku',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final result = await ProfileService.requestMinePermit();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.success ? Colors.green : Colors.red,
+      ),
+    );
+    if (result.success) {
+      _loadProfile();
+    }
+  }
+
   void _onTabTapped(int index) {
     if (index == 4) {
       Navigator.popUntil(context, (route) => route.isFirst);
@@ -187,6 +247,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const MyProfileScreen(initialAction: 'add_license')),
           );
         },
+        onRequestMinePermit: _requestMinePermit,
+        minePermitActionLabel: _minePermitActionLabel,
         onAddCertification: () {
           Navigator.pop(context);
           Navigator.push(
@@ -1045,6 +1107,8 @@ class _ProfileFabMenuSheet extends StatelessWidget {
   final VoidCallback onAddNews;
   final VoidCallback onEditBiodata;
   final VoidCallback onAddLicense;
+  final VoidCallback onRequestMinePermit;
+  final String minePermitActionLabel;
   final VoidCallback onAddCertification;
   final VoidCallback onEditMedical;
 
@@ -1057,6 +1121,8 @@ class _ProfileFabMenuSheet extends StatelessWidget {
     required this.onAddNews,
     required this.onEditBiodata,
     required this.onAddLicense,
+    required this.onRequestMinePermit,
+    required this.minePermitActionLabel,
     required this.onAddCertification,
     required this.onEditMedical,
   });
@@ -1138,6 +1204,15 @@ class _ProfileFabMenuSheet extends StatelessWidget {
             title: 'Edit Biodata',
             subtitle: 'Perbarui nomor telepon & email',
             onTap: onEditBiodata,
+          ),
+          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+          _ProfileFabMenuTile(
+            icon: Icons.assignment_turned_in_outlined,
+            iconBgColor: const Color(0xFFE8F5E9),
+            iconColor: const Color(0xFF2E7D32),
+            title: minePermitActionLabel,
+            subtitle: 'Izin bekerja di area tambang',
+            onTap: onRequestMinePermit,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
           _ProfileFabMenuTile(

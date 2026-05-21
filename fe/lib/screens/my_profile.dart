@@ -115,6 +115,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       TextEditingController();
   final TextEditingController _licenseIssuerController =
       TextEditingController();
+  final TextEditingController _licenseVehicleEquipmentController =
+      TextEditingController();
+  String _licenseType = 'general';
+  String? _licenseSimType;
+  String? _licenseSimIndonesiaType;
   DateTime? _licenseObtainedAt;
   DateTime? _licenseSelectedDate;
 
@@ -132,6 +137,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     _licenseNameController.dispose();
     _licenseNumberController.dispose();
     _licenseIssuerController.dispose();
+    _licenseVehicleEquipmentController.dispose();
     _certNameController.dispose();
     _certNumberController.dispose();
     _certIssuerController.dispose();
@@ -2066,6 +2072,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       _licenseNameController.text = editLicense.name;
       _licenseNumberController.text = editLicense.licenseNumber;
       _licenseIssuerController.text = editLicense.issuer ?? '';
+      _licenseVehicleEquipmentController.text =
+          editLicense.vehicleEquipment ?? '';
+      _licenseType = editLicense.licenseType;
+      _licenseSimType = editLicense.simType;
+      _licenseSimIndonesiaType = editLicense.simIndonesiaType;
       _licenseObtainedAt = editLicense.obtainedAt != null
           ? DateTime.parse(editLicense.obtainedAt!)
           : null;
@@ -2077,6 +2088,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       _licenseNameController.clear();
       _licenseNumberController.clear();
       _licenseIssuerController.clear();
+      _licenseVehicleEquipmentController.clear();
+      _licenseType = 'general';
+      _licenseSimType = null;
+      _licenseSimIndonesiaType = null;
       _licenseObtainedAt = null;
       _licenseSelectedDate = null;
       _licenseImage = null;
@@ -2118,6 +2133,32 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
+                _buildFieldLabel('Tipe Lisensi'),
+                DropdownButtonFormField<String>(
+                  value: _licenseType,
+                  decoration: _buildInputDecoration('Pilih tipe lisensi'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'general',
+                      child: Text('License Umum'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'simper',
+                      child: Text('SIMPER License'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setModalState(() {
+                      _licenseType = value;
+                      if (value == 'simper' &&
+                          _licenseNameController.text.trim().isEmpty) {
+                        _licenseNameController.text = 'SIMPER';
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
                 _buildFieldLabel('Nama Lisensi'),
                 TextField(
                   controller: _licenseNameController,
@@ -2137,6 +2178,55 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   decoration:
                       _buildInputDecoration('Contoh: Polri, Kemnaker RI...'),
                 ),
+                if (_licenseType == 'simper') ...[
+                  const SizedBox(height: 16),
+                  _buildFieldLabel('Kategori SIM Indonesia'),
+                  DropdownButtonFormField<String>(
+                    value: _licenseSimIndonesiaType,
+                    decoration: _buildInputDecoration('Contoh: B2'),
+                    items: const [
+                      'A',
+                      'B1',
+                      'B2',
+                      'C',
+                      'C1',
+                      'C2',
+                    ]
+                        .map((value) => DropdownMenuItem(
+                              value: value,
+                              child: Text(value),
+                            ))
+                        .toList(),
+                    onChanged: (value) =>
+                        setModalState(() => _licenseSimIndonesiaType = value),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildFieldLabel('Vehicle Equipment'),
+                  TextField(
+                    controller: _licenseVehicleEquipmentController,
+                    decoration: _buildInputDecoration(
+                      'Contoh: DT (Dump Truck) Lumpur',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildFieldLabel('SIM Type (LIC)'),
+                  DropdownButtonFormField<String>(
+                    value: _licenseSimType,
+                    decoration: _buildInputDecoration('Pilih F/P/R/T/I'),
+                    items: const [
+                      DropdownMenuItem(value: 'F', child: Text('F - Full')),
+                      DropdownMenuItem(
+                          value: 'P', child: Text('P - Probation')),
+                      DropdownMenuItem(
+                          value: 'R', child: Text('R - Restricted')),
+                      DropdownMenuItem(value: 'T', child: Text('T - Training')),
+                      DropdownMenuItem(
+                          value: 'I', child: Text('I - Instructor')),
+                    ],
+                    onChanged: (value) =>
+                        setModalState(() => _licenseSimType = value),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 _buildFieldLabel('Tanggal Diperoleh'),
                 InkWell(
@@ -2258,6 +2348,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       final licenseNumber =
                           _licenseNumberController.text.trim();
                       final issuer = _licenseIssuerController.text.trim();
+                      final vehicleEquipment =
+                          _licenseVehicleEquipmentController.text.trim();
                       final obtainedAt =
                           _formatDateForPayload(_licenseObtainedAt);
                       final expiredAt =
@@ -2268,6 +2360,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         _licenseNameController.clear();
                         _licenseNumberController.clear();
                         _licenseIssuerController.clear();
+                        _licenseVehicleEquipmentController.clear();
+                        _licenseType = 'general';
+                        _licenseSimType = null;
+                        _licenseSimIndonesiaType = null;
                         _licenseObtainedAt = null;
                         _licenseSelectedDate = null;
                         _licenseImage = null;
@@ -2279,6 +2375,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         if (isEdit) 'targetId': editLicense.id,
                         'name': licenseName,
                         'licenseNumber': licenseNumber,
+                        'licenseType': _licenseType,
+                        'vehicleEquipment':
+                            vehicleEquipment.isEmpty ? null : vehicleEquipment,
+                        'simType': _licenseSimType,
+                        'simIndonesiaType': _licenseSimIndonesiaType,
                         'issuer': issuer.isEmpty ? null : issuer,
                         'obtainedAt': obtainedAt.isEmpty ? null : obtainedAt,
                         'expiredAt': expiredAt.isEmpty ? null : expiredAt,
@@ -2308,6 +2409,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               name: licenseName,
                               licenseNumber: licenseNumber,
                               issuer: issuer,
+                              licenseType: _licenseType,
+                              vehicleEquipment: vehicleEquipment,
+                              simType: _licenseSimType,
+                              simIndonesiaType: _licenseSimIndonesiaType,
                               obtainedAt:
                                   obtainedAt.isEmpty ? null : obtainedAt,
                               expiredAt: expiredAt.isEmpty ? null : expiredAt,
@@ -2317,6 +2422,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               name: licenseName,
                               licenseNumber: licenseNumber,
                               issuer: issuer,
+                              licenseType: _licenseType,
+                              vehicleEquipment: vehicleEquipment,
+                              simType: _licenseSimType,
+                              simIndonesiaType: _licenseSimIndonesiaType,
                               obtainedAt:
                                   obtainedAt.isEmpty ? null : obtainedAt,
                               expiredAt: expiredAt.isEmpty ? null : expiredAt,
@@ -4695,6 +4804,36 @@ class _LicenseDetailPage extends StatelessWidget {
                           label: 'Nomor Lisensi',
                           value: _detailDisplayValue(license.licenseNumber),
                         ),
+                        if ((license.vehicleEquipment ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.local_shipping_outlined,
+                            label: 'Vehicle Equipment',
+                            value:
+                                _detailDisplayValue(license.vehicleEquipment),
+                          ),
+                        ],
+                        if ((license.simIndonesiaType ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.credit_card_outlined,
+                            label: 'SIM Indonesia',
+                            value:
+                                _detailDisplayValue(license.simIndonesiaType),
+                          ),
+                        ],
+                        if ((license.simType ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.verified_user_outlined,
+                            label: 'SIM Type (LIC)',
+                            value: _detailDisplayValue(license.simType),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                         ReportStyleDetailRow(
                           icon: Icons.business_outlined,

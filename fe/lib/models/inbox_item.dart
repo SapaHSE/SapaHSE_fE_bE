@@ -136,6 +136,10 @@ class InboxItem {
   final String? submitterPhotoUrl;
   final String? itemName;
   final String? itemNumber;
+  final String? itemLicenseType;
+  final String? itemVehicleEquipment;
+  final String? itemSimType;
+  final String? itemSimIndonesiaType;
   final String? itemIssuer;
   final String? itemFileUrl;
   final DateTime? itemObtainedAt;
@@ -192,6 +196,10 @@ class InboxItem {
     this.submitterPhotoUrl,
     this.itemName,
     this.itemNumber,
+    this.itemLicenseType,
+    this.itemVehicleEquipment,
+    this.itemSimType,
+    this.itemSimIndonesiaType,
     this.itemIssuer,
     this.itemFileUrl,
     this.itemObtainedAt,
@@ -277,6 +285,10 @@ class InboxItem {
         submitterPhotoUrl: submitterPhotoUrl,
         itemName: approvalItem['name']?.toString(),
         itemNumber: (approvalItem['license_number'] ?? approvalItem['certification_number'])?.toString(),
+        itemLicenseType: approvalItem['license_type']?.toString(),
+        itemVehicleEquipment: approvalItem['vehicle_equipment']?.toString(),
+        itemSimType: approvalItem['sim_type']?.toString(),
+        itemSimIndonesiaType: approvalItem['sim_indonesia_type']?.toString(),
         itemIssuer: approvalItem['issuer']?.toString(),
         itemFileUrl: type == InboxItemType.approvalRegistration
             ? submitterPhotoUrl

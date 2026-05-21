@@ -655,6 +655,41 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                           : 'Nomor Sertifikat',
                                       value: _displayValue(item.itemNumber),
                                     ),
+                                    if (_isLicense &&
+                                        (item.itemVehicleEquipment ?? '')
+                                            .trim()
+                                            .isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      ReportStyleDetailRow(
+                                        icon: Icons.local_shipping_outlined,
+                                        label: 'Vehicle Equipment',
+                                        value: _displayValue(
+                                            item.itemVehicleEquipment),
+                                      ),
+                                    ],
+                                    if (_isLicense &&
+                                        (item.itemSimIndonesiaType ?? '')
+                                            .trim()
+                                            .isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      ReportStyleDetailRow(
+                                        icon: Icons.credit_card_outlined,
+                                        label: 'SIM Indonesia',
+                                        value: _displayValue(
+                                            item.itemSimIndonesiaType),
+                                      ),
+                                    ],
+                                    if (_isLicense &&
+                                        (item.itemSimType ?? '')
+                                            .trim()
+                                            .isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      ReportStyleDetailRow(
+                                        icon: Icons.verified_user_outlined,
+                                        label: 'SIM Type (LIC)',
+                                        value: _displayValue(item.itemSimType),
+                                      ),
+                                    ],
                                     const SizedBox(height: 12),
                                     ReportStyleDetailRow(
                                       icon: Icons.account_balance_outlined,

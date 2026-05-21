@@ -549,7 +549,9 @@ class InboxController extends Controller
             'id'              => $license->id,
             'item_type'       => 'approval_license',
             'title'           => $license->name,
-            'description'     => 'Pengajuan input lisensi',
+            'description'     => $license->license_type === 'mine_permit'
+                ? 'Pengajuan Mine Permit'
+                : 'Pengajuan input lisensi',
             'approval_status' => $license->approval_status ?? 'pending',
             'rejection_reason' => $license->rejection_reason,
             'submitted_at'    => $submittedAt?->toIso8601String(),
@@ -570,6 +572,10 @@ class InboxController extends Controller
                 'id'             => $license->id,
                 'name'           => $license->name,
                 'license_number' => $license->license_number,
+                'license_type'   => $license->license_type,
+                'vehicle_equipment' => $license->vehicle_equipment,
+                'sim_type'       => $license->sim_type,
+                'sim_indonesia_type' => $license->sim_indonesia_type,
                 'issuer'         => $license->issuer,
                 'obtained_at'    => $license->obtained_at ? \Carbon\Carbon::parse($license->obtained_at)->format('Y-m-d') : null,
                 'expired_at'     => $license->expired_at ? \Carbon\Carbon::parse($license->expired_at)->format('Y-m-d') : null,

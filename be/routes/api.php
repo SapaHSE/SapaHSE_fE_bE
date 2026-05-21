@@ -60,6 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/profile',               [ProfileController::class, 'destroyAccount']);
     Route::post('/profile/change-password', [ProfileController::class, 'changePassword']);
     Route::get('/profile/change-requests',  [ProfileController::class, 'getProfileChangeRequests']);
+    Route::post('/profile/mine-permit/request', [ProfileController::class, 'requestMinePermit']);
     Route::post('/profile/license',         [ProfileController::class, 'storeLicense']);
     Route::put('/profile/license/{id}',      [ProfileController::class, 'updateLicense']);
     Route::delete('/profile/license/{id}',   [ProfileController::class, 'destroyLicense']);

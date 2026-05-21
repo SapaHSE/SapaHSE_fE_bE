@@ -1645,6 +1645,14 @@ class _InboxScreenState extends State<InboxScreen>
     required bool approve,
     String? reason,
   }) async {
+    Map<String, String>? minePermitDates;
+    if (approve &&
+        item.itemType == InboxItemType.approvalLicense &&
+        item.itemLicenseType == 'mine_permit') {
+      minePermitDates = await _pickMinePermitApprovalDates(item);
+      if (minePermitDates == null) return false;
+    }
+
     ApiResponse response;
     switch (item.itemType) {
       case InboxItemType.approvalRegistration:
@@ -1654,7 +1662,11 @@ class _InboxScreenState extends State<InboxScreen>
         break;
       case InboxItemType.approvalLicense:
         response = approve
-            ? await ApprovalService.approveLicense(item.id)
+            ? await ApprovalService.approveLicense(
+                item.id,
+                obtainedAt: minePermitDates?['obtained_at'],
+                expiredAt: minePermitDates?['expired_at'],
+              )
             : await ApprovalService.rejectLicense(item.id, reason ?? '');
         break;
       case InboxItemType.approvalCertification:
@@ -1689,6 +1701,84 @@ class _InboxScreenState extends State<InboxScreen>
       ),
     );
     return false;
+  }
+
+  Future<Map<String, String>?> _pickMinePermitApprovalDates(
+      InboxItem item) async {
+    DateTime? releaseDate = item.itemObtainedAt ?? DateTime.now();
+    DateTime? expiredDate =
+        item.itemExpiredAt ?? DateTime.now().add(const Duration(days: 365));
+
+    String formatPayload(DateTime date) =>
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Approval Mine Permit'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event_available_outlined),
+                title: const Text('Tanggal Rilis'),
+                subtitle: Text(_formatDate(releaseDate!)),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: releaseDate!,
+                    firstDate: DateTime.now()
+                        .subtract(const Duration(days: 365 * 5)),
+                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                  );
+                  if (picked != null) {
+                    setDialogState(() => releaseDate = picked);
+                  }
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event_busy_outlined),
+                title: const Text('Tanggal Expired'),
+                subtitle: Text(_formatDate(expiredDate!)),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: expiredDate!,
+                    firstDate: releaseDate!,
+                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                  );
+                  if (picked != null) {
+                    setDialogState(() => expiredDate = picked);
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Setujui'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || releaseDate == null || expiredDate == null) {
+      return null;
+    }
+
+    return {
+      'obtained_at': formatPayload(releaseDate!),
+      'expired_at': formatPayload(expiredDate!),
+    };
   }
 
   void _showApprovalDetail(BuildContext context, InboxItem item) {

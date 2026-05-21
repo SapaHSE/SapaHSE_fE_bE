@@ -198,6 +198,10 @@ class ProfileService {
     required String name,
     required String licenseNumber,
     String? issuer,
+    String licenseType = 'general',
+    String? vehicleEquipment,
+    String? simType,
+    String? simIndonesiaType,
     String? obtainedAt,
     String? expiredAt,
     String status = 'active',
@@ -206,6 +210,12 @@ class ProfileService {
     final body = <String, dynamic>{
       'name': name,
       'license_number': licenseNumber,
+      'license_type': licenseType,
+      if (vehicleEquipment != null && vehicleEquipment.isNotEmpty)
+        'vehicle_equipment': vehicleEquipment,
+      if (simType != null && simType.isNotEmpty) 'sim_type': simType,
+      if (simIndonesiaType != null && simIndonesiaType.isNotEmpty)
+        'sim_indonesia_type': simIndonesiaType,
       if (issuer != null && issuer.isNotEmpty) 'issuer': issuer,
       'obtained_at': obtainedAt ?? '',
       'expired_at': expiredAt ?? '',
@@ -237,6 +247,10 @@ class ProfileService {
     required String name,
     required String licenseNumber,
     String? issuer,
+    String licenseType = 'general',
+    String? vehicleEquipment,
+    String? simType,
+    String? simIndonesiaType,
     String? obtainedAt,
     String? expiredAt,
     String status = 'active',
@@ -245,6 +259,12 @@ class ProfileService {
     final body = <String, dynamic>{
       'name': name,
       'license_number': licenseNumber,
+      'license_type': licenseType,
+      if (vehicleEquipment != null && vehicleEquipment.isNotEmpty)
+        'vehicle_equipment': vehicleEquipment,
+      if (simType != null && simType.isNotEmpty) 'sim_type': simType,
+      if (simIndonesiaType != null && simIndonesiaType.isNotEmpty)
+        'sim_indonesia_type': simIndonesiaType,
       if (issuer != null && issuer.isNotEmpty) 'issuer': issuer,
       'obtained_at': obtainedAt ?? '',
       'expired_at': expiredAt ?? '',
@@ -269,6 +289,19 @@ class ProfileService {
       );
     }
     return SimpleResult.success('Lisensi berhasil diperbarui.');
+  }
+
+  static Future<SimpleResult> requestMinePermit() async {
+    final response = await ApiService.post('/profile/mine-permit/request', {});
+    if (!response.success) {
+      return SimpleResult.error(
+        response.errorMessage ?? 'Gagal mengajukan Mine Permit.',
+      );
+    }
+    return SimpleResult.success(
+      response.data['message']?.toString() ??
+          'Pengajuan Mine Permit berhasil dikirim.',
+    );
   }
 
   // ── Add Certification ───────────────────────────────────────────────────────

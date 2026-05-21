@@ -361,6 +361,11 @@ class ReportStore {
                 name: _requiredDraftString(draft, 'name'),
                 licenseNumber: _requiredDraftString(draft, 'licenseNumber'),
                 issuer: draft.data['issuer']?.toString(),
+                licenseType:
+                    draft.data['licenseType']?.toString() ?? 'general',
+                vehicleEquipment: draft.data['vehicleEquipment']?.toString(),
+                simType: draft.data['simType']?.toString(),
+                simIndonesiaType: draft.data['simIndonesiaType']?.toString(),
                 obtainedAt: draft.data['obtainedAt']?.toString(),
                 expiredAt: draft.data['expiredAt']?.toString(),
                 imageFile: imageFile,
@@ -378,6 +383,11 @@ class ReportStore {
                 name: _requiredDraftString(draft, 'name'),
                 licenseNumber: _requiredDraftString(draft, 'licenseNumber'),
                 issuer: draft.data['issuer']?.toString(),
+                licenseType:
+                    draft.data['licenseType']?.toString() ?? 'general',
+                vehicleEquipment: draft.data['vehicleEquipment']?.toString(),
+                simType: draft.data['simType']?.toString(),
+                simIndonesiaType: draft.data['simIndonesiaType']?.toString(),
                 obtainedAt: draft.data['obtainedAt']?.toString(),
                 expiredAt: draft.data['expiredAt']?.toString(),
                 imageFile: imageFile,

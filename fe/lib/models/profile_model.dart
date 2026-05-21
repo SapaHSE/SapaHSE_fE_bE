@@ -102,6 +102,10 @@ class UserLicense {
   final String id;
   final String name;
   final String licenseNumber;
+  final String licenseType;
+  final String? vehicleEquipment;
+  final String? simType;
+  final String? simIndonesiaType;
   final String? issuer;
   final String? obtainedAt;
   final String? expiredAt;
@@ -117,6 +121,10 @@ class UserLicense {
     required this.id,
     required this.name,
     required this.licenseNumber,
+    this.licenseType = 'general',
+    this.vehicleEquipment,
+    this.simType,
+    this.simIndonesiaType,
     this.issuer,
     this.obtainedAt,
     this.expiredAt,
@@ -134,6 +142,10 @@ class UserLicense {
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       licenseNumber: json['license_number']?.toString() ?? '',
+      licenseType: json['license_type']?.toString() ?? 'general',
+      vehicleEquipment: json['vehicle_equipment']?.toString(),
+      simType: json['sim_type']?.toString(),
+      simIndonesiaType: json['sim_indonesia_type']?.toString(),
       issuer: json['issuer']?.toString(),
       obtainedAt: json['obtained_at']?.toString(),
       expiredAt: json['expired_at']?.toString(),

@@ -976,7 +976,9 @@ class IdCardPdfService {
 
   static UserLicense? _simPoliceLicense(ProfileData profile) {
     final licenses = _usableLicenses(profile)
-        .where((license) => _isSimPoliceName(license.name))
+        .where((license) =>
+            _isSimPoliceName(license.name) ||
+            (license.simIndonesiaType ?? '').trim().isNotEmpty)
         .toList()
       ..sort((a, b) => _simPriority(b.name).compareTo(_simPriority(a.name)));
 
@@ -985,6 +987,8 @@ class IdCardPdfService {
 
   static String _simPoliceType(UserLicense? license) {
     if (license == null) return '';
+    final explicitType = (license.simIndonesiaType ?? '').trim();
+    if (explicitType.isNotEmpty) return 'SIM $explicitType';
     final type = _simTypeLabel(license.name);
     return type.isEmpty ? license.name : type;
   }
@@ -995,7 +999,7 @@ class IdCardPdfService {
       _SimperRowSpec('LV', ['SIM A', 'SIM A UMUM']),
       _SimperRowSpec('DT', ['SIM B1', 'SIM B2', 'DUMP TRUCK']),
       _SimperRowSpec('BD', ['BULLDOZER', 'DOZER', 'BD']),
-      _SimperRowSpec('BHL', ['BACKHOE', 'BHL']),
+      _SimperRowSpec('BL', ['BACKHOE', 'BHL', 'BL']),
       _SimperRowSpec('EX', ['EXCAVATOR', 'EX']),
       _SimperRowSpec('WT', ['SIM B1', 'SIM B2', 'WATER TRUCK']),
       _SimperRowSpec('WL', ['WHEEL LOADER', 'LOADER', 'WL']),
@@ -1006,8 +1010,8 @@ class IdCardPdfService {
           final license = _findLicenseForSpec(licenses, spec);
           return MinePermitTableRow(
               code: spec.code,
-              vehicleEquipment: '',
-              licenseNumber: license?.licenseNumber ?? '',
+              vehicleEquipment: license?.vehicleEquipment ?? '',
+              licenseNumber: license?.simType ?? '',
               issuedDate: _formatLicenseDate(license?.obtainedAt),
             );
         })
@@ -1041,6 +1045,10 @@ class IdCardPdfService {
     return [
       license.name,
       license.licenseNumber,
+      license.licenseType,
+      license.vehicleEquipment ?? '',
+      license.simType ?? '',
+      license.simIndonesiaType ?? '',
       license.issuer ?? '',
     ].join(' ').toUpperCase();
   }

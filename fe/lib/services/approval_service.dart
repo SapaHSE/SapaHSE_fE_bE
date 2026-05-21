@@ -54,6 +54,10 @@ class ApprovalService {
       ...document,
       'id': item['id']?.toString() ?? document['id']?.toString() ?? '',
       'item_type': type,
+      'license_type': document['license_type'],
+      'vehicle_equipment': document['vehicle_equipment'],
+      'sim_type': document['sim_type'],
+      'sim_indonesia_type': document['sim_indonesia_type'],
       'approval_status': item['approval_status'],
       'rejection_reason': item['rejection_reason'],
       'created_at': item['created_at'] ?? item['submitted_at'],
@@ -72,8 +76,15 @@ class ApprovalService {
     });
   }
 
-  static Future<ApiResponse> approveLicense(String id) {
-    return ApiService.put('/admin/licenses/$id/approve', {});
+  static Future<ApiResponse> approveLicense(
+    String id, {
+    String? obtainedAt,
+    String? expiredAt,
+  }) {
+    return ApiService.put('/admin/licenses/$id/approve', {
+      if (obtainedAt != null) 'obtained_at': obtainedAt,
+      if (expiredAt != null) 'expired_at': expiredAt,
+    });
   }
 
   static Future<ApiResponse> rejectLicense(String id, String reason) {
