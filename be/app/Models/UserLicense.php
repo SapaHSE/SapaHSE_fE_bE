@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -62,5 +63,20 @@ class UserLicense extends Model
     public function reviewer()
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function canBeRenewedNow(?Carbon $now = null): bool
+    {
+        if (! $this->expired_at) {
+            return true;
+        }
+        $now ??= Carbon::now();
+        return ! Carbon::parse($this->expired_at)->copy()->subMonth()->isAfter($now);
+    }
+
+    public static function renewalBlockedMessage(): string
+    {
+        return 'Perpanjangan belum bisa dilakukan karena masih berlaku. '
+            . 'Ajukan paling cepat 1 bulan sebelum habis masa berlaku';
     }
 }

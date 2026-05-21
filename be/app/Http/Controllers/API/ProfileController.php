@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\ProfileChangeRequest;
 use App\Models\User;
+use App\Models\UserLicense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -514,10 +515,10 @@ class ProfileController extends Controller
             ->latest('created_at')
             ->first();
 
-        if ($existing && $existing->expired_at && $existing->expired_at->copy()->subMonth()->isFuture()) {
+        if ($existing && ! $existing->canBeRenewedNow()) {
             return \response()->json([
                 'status' => 'error',
-                'message' => 'Perpanjangan belum bisa dilakukan karena masih berlaku. Ajukan paling cepat 1 bulan sebelum habis masa berlaku',
+                'message' => UserLicense::renewalBlockedMessage(),
             ], 422);
         }
 
