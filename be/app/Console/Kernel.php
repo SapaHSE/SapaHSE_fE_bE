@@ -24,6 +24,15 @@ class Kernel extends ConsoleKernel
             ->onSuccess(function () {
                 Log::info('notification:check-expired command executed successfully');
             });
+
+        // Fire push notifications for scheduled news whose publish_date is reached.
+        // Runs hourly so scheduling has at most ~1h lag.
+        $schedule->command('news:publish-scheduled')
+            ->hourly()
+            ->withoutOverlapping()
+            ->onFailure(function () {
+                Log::error('news:publish-scheduled command failed');
+            });
     }
 
     /**
