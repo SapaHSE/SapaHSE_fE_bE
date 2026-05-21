@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/news_model.dart';
 import '../services/api_service.dart';
 import 'dashboard_widgets.dart';
+import 'news_create_screen.dart';
 
 class DashboardNewsModule extends StatefulWidget {
   const DashboardNewsModule({super.key});
@@ -18,7 +19,6 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
   bool _isLoadingNews = false;
   int _newsTotalPages = 1;
   int _currentNewsPage = 1;
-  XFile? _newsImage;
   String _searchQuery = '';
 
   @override
@@ -82,137 +82,14 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
     }
   }
 
-  void _showCreateNewsForm() {
-    final titleCtrl = TextEditingController();
-    final catCtrl = TextEditingController();
-    final excerptCtrl = TextEditingController();
-    final contentCtrl = TextEditingController();
-    final authorCtrl = TextEditingController();
-    bool isLoading = false;
-    _newsImage = null;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => AlertDialog(
-          title: const Text('Buat Berita Baru'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                    controller: titleCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Judul Berita',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 12),
-                TextField(
-                    controller: authorCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Nama Penulis',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 12),
-                TextField(
-                    controller: catCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Kategori (e.g. Training, Safety)',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 12),
-                TextField(
-                    controller: excerptCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                        labelText: 'Ringkasan / Excerpt',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 12),
-                TextField(
-                    controller: contentCtrl,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                        labelText: 'Isi Berita Lengkap',
-                        border: OutlineInputBorder())),
-                const SizedBox(height: 16),
-                StatefulBuilder(builder: (ctx, setPickerState) {
-                  return Column(
-                    children: [
-                      if (_newsImage != null)
-                        const ClipRRect(
-                            child: Icon(Icons.check_circle,
-                                color: Colors.green, size: 40)),
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final img = await ImagePicker()
-                              .pickImage(source: ImageSource.gallery);
-                          if (img != null) {
-                            setModalState(() => _newsImage = img);
-                            setPickerState(() {});
-                          }
-                        },
-                        icon: const Icon(Icons.image_outlined),
-                        label: Text(_newsImage == null
-                            ? 'Pilih Gambar Berita'
-                            : 'Gambar Terpilih'),
-                      ),
-                    ],
-                  );
-                }),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: isLoading ? null : () => Navigator.pop(ctx),
-                child: const Text('Batal')),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      setModalState(() => isLoading = true);
-                      ApiResponse res;
-                      final payload = {
-                        'title': titleCtrl.text,
-                        'category': catCtrl.text,
-                        'excerpt': excerptCtrl.text,
-                        'content': contentCtrl.text,
-                        'author_name': authorCtrl.text,
-                      };
-                      if (_newsImage != null) {
-                        final bytes = await _newsImage!.readAsBytes();
-                        final file = http.MultipartFile.fromBytes(
-                            'image', bytes,
-                            filename: _newsImage!.name);
-                        res = await ApiService.postMultipart(
-                            '/news', payload, [file]);
-                      } else {
-                        res = await ApiService.post('/news', payload);
-                      }
-                      if (res.success && context.mounted) {
-                        Navigator.pop(ctx);
-                        _fetchNews(page: 1);
-                        showDialog(
-                          context: context,
-                          builder: (ctx) => const DashboardSuccessDialog(
-                            title: 'Berhasil!',
-                            message:
-                                'Berita baru telah berhasil dipublikasikan.',
-                          ),
-                        );
-                      } else if (context.mounted) {
-                        setModalState(() => isLoading = false);
-                      }
-                    },
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Simpan Berita'),
-            ),
-          ],
-        ),
-      ),
+  Future<void> _showCreateNewsForm() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const NewsCreateScreen()),
     );
+    if (created == true && mounted) {
+      _fetchNews(page: 1);
+    }
   }
 
   void _showEditNewsForm(NewsModel n) async {

@@ -18,6 +18,7 @@ import 'screens/profile_screen.dart';
 import 'screens/create_hazard_screen.dart';
 import 'screens/create_inspection_screen.dart';
 import 'screens/qr_scan_screen.dart';
+import 'screens/news_create_screen.dart';
 import 'widgets/app_safe_insets.dart';
 import 'widgets/fab_notched_bottom_bar.dart';
 import 'widgets/idle_detector.dart';
@@ -192,109 +193,21 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         },
         onAddNews: () {
           Navigator.pop(context);
-          _showAddNewsSheet();
+          _openCreateNewsScreen();
         },
         canAddAnnouncement: _canAddAnnouncement,
       ),
     );
   }
 
-  void _showAddNewsSheet() {
-    final titleCtrl = TextEditingController();
-    final excerptCtrl = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => Padding(
-          padding: EdgeInsets.only(
-            bottom: AppSafeInsets.keyboardOrSystemBottom(ctx),
-          ),
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(
-              16,
-              0,
-              16,
-              AppSafeInsets.defaultSheetGap,
-            ),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const Text('Tambah Berita',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: titleCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Judul Berita',
-                    hintText: 'Masukkan judul berita',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: excerptCtrl,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    labelText: 'Ringkasan',
-                    hintText: 'Masukkan ringkasan berita',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 46,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Berita berhasil ditambahkan'),
-                        behavior: SnackBarBehavior.floating,
-                      ));
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1565C0),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Tambah'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+  Future<void> _openCreateNewsScreen() async {
+    final created = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const NewsCreateScreen()),
     );
+    if (created == true && mounted) {
+      setState(() => _currentIndex = 1);
+    }
   }
 
   void _showAddAnnouncementSheet() {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../data/news_data.dart';
 import '../services/news_service.dart';
 import 'package:sapahse/main.dart';
@@ -217,10 +219,14 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                             const Icon(Icons.calendar_today_outlined,
                                 size: 12, color: Colors.white70),
                             const SizedBox(width: 4),
-                            Text(
-                              article.date,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.white70),
+                            Expanded(
+                              child: Text(
+                                article.publishDateLabel ?? article.date,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.white70),
+                              ),
                             ),
                           ],
                         ),
@@ -266,12 +272,54 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                       ],
                     )
                   else
-                    Text(
-                      article.content.isNotEmpty
+                    Html(
+                      data: article.content.isNotEmpty
                           ? article.content
                           : article.excerpt,
-                      style: const TextStyle(
-                          fontSize: 15, height: 1.7, color: Color(0xFF2D2D2D)),
+                      style: {
+                        'body': Style(
+                          fontSize: FontSize(15),
+                          lineHeight: LineHeight(1.7),
+                          color: const Color(0xFF2D2D2D),
+                          margin: Margins.zero,
+                          padding: HtmlPaddings.zero,
+                        ),
+                        'h1': Style(
+                          fontSize: FontSize(22),
+                          fontWeight: FontWeight.bold,
+                          margin: Margins.only(top: 12, bottom: 8),
+                        ),
+                        'h2': Style(
+                          fontSize: FontSize(19),
+                          fontWeight: FontWeight.bold,
+                          margin: Margins.only(top: 10, bottom: 6),
+                        ),
+                        'h3': Style(
+                          fontSize: FontSize(17),
+                          fontWeight: FontWeight.w600,
+                          margin: Margins.only(top: 8, bottom: 6),
+                        ),
+                        'p': Style(margin: Margins.only(bottom: 12)),
+                        'a': Style(
+                          color: const Color(0xFF1A56C4),
+                          textDecoration: TextDecoration.underline,
+                        ),
+                        'blockquote': Style(
+                          backgroundColor: const Color(0xFFF1F4FA),
+                          padding: HtmlPaddings.all(12),
+                          margin: Margins.symmetric(vertical: 10),
+                          border: const Border(
+                            left: BorderSide(
+                                color: Color(0xFF1A56C4), width: 3),
+                          ),
+                        ),
+                        'img': Style(width: Width(100, Unit.percent)),
+                      },
+                      onLinkTap: (url, _, __) {
+                        if (url == null) return;
+                        final uri = Uri.tryParse(url);
+                        if (uri != null) launchUrl(uri);
+                      },
                     ),
 
                   const SizedBox(height: 32),

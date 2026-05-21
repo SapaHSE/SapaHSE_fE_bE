@@ -9,6 +9,8 @@ class NewsArticle {
   final String author;
   final String date;
   final DateTime? createdAt;
+  final DateTime? publishDate;
+  final String? publishDateLabel;
   final String imageUrl;
   final bool isFeatured;
 
@@ -21,6 +23,8 @@ class NewsArticle {
     required this.author,
     required this.date,
     this.createdAt,
+    this.publishDate,
+    this.publishDateLabel,
     required this.imageUrl,
     this.isFeatured = false,
   });
@@ -35,6 +39,8 @@ class NewsArticle {
       author: json['author_name']?.toString() ?? '',
       date: json['date']?.toString() ?? '',
       createdAt: _parseDate(json['created_at']),
+      publishDate: _parseDate(json['publish_date']),
+      publishDateLabel: json['publish_date_label']?.toString(),
       imageUrl: normalizeStorageUrl(json['image_url']?.toString()) ?? '',
       isFeatured: json['is_featured'] == true,
     );

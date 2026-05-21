@@ -68,13 +68,14 @@ class NewsController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title'       => 'required|string|max:300',
-            'excerpt'     => 'nullable|string',
-            'content'     => 'required|string',
-            'category'    => 'required|string|max:50',
-            'author_name' => 'nullable|string|max:100',
-            'is_featured' => 'boolean',
-            'image'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'title'        => 'required|string|max:300',
+            'excerpt'      => 'nullable|string',
+            'content'      => 'required|string',
+            'category'     => 'required|string|max:50',
+            'author_name'  => 'nullable|string|max:100',
+            'is_featured'  => 'boolean',
+            'image'        => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'publish_date' => 'nullable|date',
         ]);
 
         $imageUrl = null;
@@ -83,15 +84,16 @@ class NewsController extends Controller
         }
 
         $news = News::create([
-            'created_by'  => Auth::id(),
-            'title'       => $request->title,
-            'excerpt'     => $request->excerpt,
-            'content'     => $request->input('content'),
-            'category'    => $request->category,
-            'author_name' => $request->author_name ?? Auth::user()->full_name,
-            'image_url'   => $imageUrl,
-            'is_featured' => $request->boolean('is_featured', false),
-            'is_active'   => true,
+            'created_by'   => Auth::id(),
+            'title'        => $request->title,
+            'excerpt'      => $request->excerpt,
+            'content'      => $request->input('content'),
+            'category'     => $request->category,
+            'author_name'  => $request->author_name ?? Auth::user()->full_name,
+            'image_url'    => $imageUrl,
+            'is_featured'  => $request->boolean('is_featured', false),
+            'is_active'    => true,
+            'publish_date' => $request->input('publish_date') ?? now()->toDateString(),
         ]);
 
         // Broadcast notification
@@ -132,16 +134,20 @@ class NewsController extends Controller
 
     private function formatNews(News $news, bool $withContent = true): array
     {
+        $publishDate = $news->publish_date ?? $news->created_at;
+
         $data = [
-            'id'          => $news->id,
-            'title'       => $news->title,
-            'excerpt'     => $news->excerpt,
-            'category'    => $news->category,
-            'author_name' => $news->author_name,
-            'image_url'   => $news->image_url,
-            'is_featured' => $news->is_featured,
-            'date'        => $news->created_at?->format('d F Y'),
-            'created_at'  => $news->created_at?->toDateTimeString(),
+            'id'                 => $news->id,
+            'title'              => $news->title,
+            'excerpt'            => $news->excerpt,
+            'category'           => $news->category,
+            'author_name'        => $news->author_name,
+            'image_url'          => $news->image_url,
+            'is_featured'        => $news->is_featured,
+            'date'               => $publishDate?->format('d F Y'),
+            'created_at'         => $news->created_at?->toDateTimeString(),
+            'publish_date'       => $news->publish_date?->format('Y-m-d'),
+            'publish_date_label' => $publishDate?->locale('id')->isoFormat('dddd, D MMMM YYYY'),
         ];
 
         if ($withContent) {

@@ -1,7 +1,41 @@
+import 'package:http/http.dart' as http;
+
 import 'api_service.dart';
 import '../data/news_data.dart';
 
 class NewsService {
+  // POST /news — create new article (multipart when image attached)
+  static Future<NewsDetailResult> createNews({
+    required Map<String, String> fields,
+    List<int>? imageBytes,
+    String? imageFilename,
+  }) async {
+    ApiResponse response;
+
+    if (imageBytes != null && imageFilename != null) {
+      final file = http.MultipartFile.fromBytes(
+        'image',
+        imageBytes,
+        filename: imageFilename,
+      );
+      response = await ApiService.postMultipart('/news', fields, [file]);
+    } else {
+      response = await ApiService.post('/news', fields);
+    }
+
+    if (!response.success) {
+      return NewsDetailResult.error(
+          response.errorMessage ?? 'Gagal menyimpan berita.');
+    }
+
+    final data = response.data['data'] as Map<String, dynamic>?;
+    if (data == null) {
+      return NewsDetailResult.error('Respons server tidak valid.');
+    }
+
+    return NewsDetailResult.success(NewsArticle.fromJson(data));
+  }
+
   // GET /news — loads all active news (client-side filtering in screen)
   static Future<NewsListResult> getNews() async {
     final response = await ApiService.get('/news?per_page=100');

@@ -20,13 +20,15 @@ class News extends Model
         'image_url',
         'is_featured',
         'is_active',
+        'publish_date',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_featured' => 'boolean',
-            'is_active'   => 'boolean',
+            'is_featured'  => 'boolean',
+            'is_active'    => 'boolean',
+            'publish_date' => 'date',
         ];
     }
 

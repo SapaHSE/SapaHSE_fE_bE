@@ -1220,7 +1220,7 @@ class _InboxScreenState extends State<InboxScreen>
           bottom: AppSafeInsets.bottomNavScrollPadding(context),
         ),
         children: [
-          if (_isSuperadmin && approvalItems.isNotEmpty) ...[
+          if (_isSuperadmin) ...[
             _buildTaskSectionHeader(
               title: 'Antrian Persetujuan',
               count: approvalItems.length,
