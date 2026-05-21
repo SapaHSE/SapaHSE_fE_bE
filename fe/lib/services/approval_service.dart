@@ -1,6 +1,25 @@
+import '../models/inbox_item.dart';
 import 'api_service.dart';
 
 class ApprovalService {
+  static Future<List<InboxItem>> getPendingApprovalItems() async {
+    final response = await ApiService.get('/inbox?type=personal&per_page=100');
+    final items = _parseApprovalItems(response);
+    return items.where((item) {
+      final status = (item.approvalStatus ?? 'pending').toLowerCase();
+      return _isDocumentApproval(item) &&
+          (status == 'pending' || status == 'pending_changes');
+    }).toList();
+  }
+
+  static Future<List<InboxItem>> getApprovalHistoryItems() async {
+    final response = await ApiService.get(
+      '/admin/document-approvals?status=history&per_page=100',
+    );
+    final items = _parseApprovalItems(response);
+    return items.where(_isDocumentApproval).toList();
+  }
+
   static Future<List<Map<String, dynamic>>> getPendingApprovals() async {
     final response = await ApiService.get('/inbox?type=personal&per_page=100');
     if (!response.success) {
@@ -72,4 +91,37 @@ class ApprovalService {
       'reason': reason.trim(),
     });
   }
+
+  static Future<ApiResponse> approveProfileChange(String id) {
+    return ApiService.put('/admin/profile-change-requests/$id/approve', {});
+  }
+
+  static Future<ApiResponse> rejectProfileChange(String id, String reason) {
+    return ApiService.post('/admin/profile-change-requests/$id/reject', {
+      'reason': reason.trim(),
+    });
+  }
+
+  static List<InboxItem> _parseApprovalItems(ApiResponse response) {
+    if (!response.success) {
+      throw Exception(response.errorMessage ?? 'Gagal memuat approval.');
+    }
+
+    final body = response.data;
+    if (body is! Map) return [];
+
+    final rawList = body['data'];
+    if (rawList is! List) return [];
+
+    return rawList
+        .whereType<Map>()
+        .map((raw) => InboxItem.fromJson(Map<String, dynamic>.from(raw)))
+        .where((item) => item.isApproval)
+        .toList();
+  }
+
+  static bool _isDocumentApproval(InboxItem item) =>
+      item.itemType == InboxItemType.approvalLicense ||
+      item.itemType == InboxItemType.approvalCertification ||
+      item.itemType == InboxItemType.approvalProfileChange;
 }

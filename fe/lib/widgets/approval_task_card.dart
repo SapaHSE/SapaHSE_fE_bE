@@ -25,10 +25,13 @@ class ApprovalTaskCard extends StatelessWidget {
   static const _regColor = Color(0xFF1A56C4);
   static const _licenseColor = Color(0xFFEF6C00);
   static const _certColor = Color(0xFF6A1B9A);
+  static const _profileColor = Color(0xFF00897B);
 
   bool get _isRegistration =>
       item.itemType == InboxItemType.approvalRegistration;
   bool get _isLicense => item.itemType == InboxItemType.approvalLicense;
+  bool get _isProfileChange =>
+      item.itemType == InboxItemType.approvalProfileChange;
 
   Color get _accent {
     switch (item.itemType) {
@@ -38,6 +41,8 @@ class ApprovalTaskCard extends StatelessWidget {
         return _licenseColor;
       case InboxItemType.approvalCertification:
         return _certColor;
+      case InboxItemType.approvalProfileChange:
+        return _profileColor;
       default:
         return _regColor;
     }
@@ -51,6 +56,8 @@ class ApprovalTaskCard extends StatelessWidget {
         return 'LISENSI';
       case InboxItemType.approvalCertification:
         return 'SERTIFIKAT';
+      case InboxItemType.approvalProfileChange:
+        return 'PROFIL';
       default:
         return 'APPROVAL';
     }
@@ -137,7 +144,7 @@ class ApprovalTaskCard extends StatelessWidget {
 
   Widget _buildImagePreview() {
     final imageUrl = (item.itemFileUrl ?? '').trim();
-    if (!_isRegistration && imageUrl.isNotEmpty) {
+    if (!_isRegistration && !_isProfileChange && imageUrl.isNotEmpty) {
       return CachedNetworkImage(
         imageUrl: imageUrl,
         width: double.infinity,
@@ -152,7 +159,7 @@ class ApprovalTaskCard extends StatelessWidget {
     }
 
     final photoUrl = (item.submitterPhotoUrl ?? '').trim();
-    if (_isRegistration && photoUrl.isNotEmpty) {
+    if ((_isRegistration || _isProfileChange) && photoUrl.isNotEmpty) {
       return CachedNetworkImage(
         imageUrl: photoUrl,
         width: double.infinity,
@@ -166,7 +173,7 @@ class ApprovalTaskCard extends StatelessWidget {
       );
     }
 
-    if (_isRegistration) {
+    if (_isRegistration || _isProfileChange) {
       return _buildRegistrationDefaultImage();
     }
 
@@ -207,8 +214,9 @@ class ApprovalTaskCard extends StatelessWidget {
     final bool isRead = item.isRead;
     final submittedAt = item.submittedAt ?? item.createdAt;
     final status = _statusStyle(item.approvalStatus);
+    final normalizedStatus = normalizeApprovalStatus(item.approvalStatus);
     final statusPending =
-        normalizeApprovalStatus(item.approvalStatus) == 'pending';
+        normalizedStatus == 'pending' || normalizedStatus == 'pending_changes';
     final showActions = showActionButtons &&
         statusPending &&
         onApprove != null &&
@@ -359,7 +367,8 @@ class ApprovalTaskCard extends StatelessWidget {
                                           vertical: chipVPad,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: status.fg.withValues(alpha: 0.1),
+                                          color:
+                                              status.fg.withValues(alpha: 0.1),
                                           borderRadius:
                                               BorderRadius.circular(4),
                                           border: Border.all(

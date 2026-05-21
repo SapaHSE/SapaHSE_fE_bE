@@ -36,6 +36,7 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
   static const _blue = Color(0xFF1A56C4);
   static const _licenseColor = Color(0xFFEF6C00);
   static const _certColor = Color(0xFF6A1B9A);
+  static const _profileColor = Color(0xFF00897B);
 
   Color get _typeColor {
     switch (widget.item.itemType) {
@@ -45,6 +46,8 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
         return _licenseColor;
       case InboxItemType.approvalCertification:
         return _certColor;
+      case InboxItemType.approvalProfileChange:
+        return _profileColor;
       default:
         return _blue;
     }
@@ -58,6 +61,8 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
         return 'Lisensi';
       case InboxItemType.approvalCertification:
         return 'Sertifikat';
+      case InboxItemType.approvalProfileChange:
+        return 'Perubahan Profil';
       default:
         return 'Approval';
     }
@@ -71,6 +76,8 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
         return Icons.badge_outlined;
       case InboxItemType.approvalCertification:
         return Icons.workspace_premium;
+      case InboxItemType.approvalProfileChange:
+        return Icons.edit_note;
       default:
         return Icons.assignment_turned_in_outlined;
     }
@@ -80,6 +87,9 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
       widget.item.itemType == InboxItemType.approvalRegistration;
 
   bool get _isLicense => widget.item.itemType == InboxItemType.approvalLicense;
+
+  bool get _isProfileChange =>
+      widget.item.itemType == InboxItemType.approvalProfileChange;
 
   ApprovalStatusStyle get _approvalStyle =>
       approvalStatusStyle(widget.item.approvalStatus);
@@ -213,6 +223,123 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
     }
   }
 
+  Widget _buildProfileChangesSection(InboxItem item) {
+    final changes = item.profileChanges;
+    if (changes.isEmpty) {
+      return const SizedBox(height: 12);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        const Divider(height: 1),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Icon(Icons.compare_arrows, size: 16, color: _profileColor),
+            const SizedBox(width: 8),
+            Text(
+              'Detail Perubahan',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: _profileColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...changes.map((change) => _buildChangeRow(change)),
+      ],
+    );
+  }
+
+  Widget _buildChangeRow(ProfileChangeItem change) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            change.label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sebelum',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.red.shade400,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      change.oldValue.isEmpty ? '-' : change.oldValue,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.red.shade700,
+                        decoration: TextDecoration.lineThrough,
+                        decorationColor: Colors.red.shade300,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.arrow_forward,
+                    size: 14, color: Colors.grey.shade400),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sesudah',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.green.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      change.newValue.isEmpty ? '-' : change.newValue,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeroArea() {
     final fileUrl = (widget.item.itemFileUrl ?? '').trim();
     final submitterPhoto = (widget.item.submitterPhotoUrl ?? '').trim();
@@ -262,6 +389,7 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
     final isCertification =
         item.itemType == InboxItemType.approvalCertification;
     final hasDocumentDetails = _isLicense || isCertification;
+    final isProfileChange = _isProfileChange;
     final submitterRole = [
       (item.submitterPosition ?? '').trim(),
       (item.submitterDept ?? '').trim(),
@@ -552,6 +680,8 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                           : '-',
                                     ),
                                   ],
+                                  if (isProfileChange)
+                                    _buildProfileChangesSection(item),
                                 ],
                               ),
                             ),

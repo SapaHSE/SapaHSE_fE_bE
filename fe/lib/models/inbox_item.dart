@@ -7,6 +7,21 @@ enum InboxItemType {
   approvalRegistration,
   approvalLicense,
   approvalCertification,
+  approvalProfileChange,
+}
+
+class ProfileChangeItem {
+  final String field;
+  final String label;
+  final String oldValue;
+  final String newValue;
+
+  const ProfileChangeItem({
+    required this.field,
+    required this.label,
+    required this.oldValue,
+    required this.newValue,
+  });
 }
 
 class InboxReporter {
@@ -129,6 +144,8 @@ class InboxItem {
   final String? rejectionReason;
   final DateTime? submittedAt;
 
+  final List<ProfileChangeItem> profileChanges;
+
   InboxItem({
     required this.id,
     required this.itemType,
@@ -182,6 +199,7 @@ class InboxItem {
     this.approvalStatus,
     this.rejectionReason,
     this.submittedAt,
+    this.profileChanges = const [],
   });
 
   factory InboxItem.fromJson(Map<String, dynamic> json) {
@@ -191,6 +209,7 @@ class InboxItem {
       'approval_registration' => InboxItemType.approvalRegistration,
       'approval_license' => InboxItemType.approvalLicense,
       'approval_certification' => InboxItemType.approvalCertification,
+      'approval_profile_change' => InboxItemType.approvalProfileChange,
       _ => InboxItemType.report,
     };
 
@@ -222,7 +241,8 @@ class InboxItem {
 
     if (type == InboxItemType.approvalRegistration ||
         type == InboxItemType.approvalLicense ||
-        type == InboxItemType.approvalCertification) {
+        type == InboxItemType.approvalCertification ||
+        type == InboxItemType.approvalProfileChange) {
       final rawSubmitter = json['submitter'];
       final submitter = rawSubmitter is Map
           ? Map<String, dynamic>.from(rawSubmitter)
@@ -263,6 +283,19 @@ class InboxItem {
             : normalizeStorageUrl(approvalItem['file_url']?.toString()),
         itemObtainedAt: _parseDateOrNull(approvalItem['obtained_at']),
         itemExpiredAt: _parseDateOrNull(approvalItem['expired_at']),
+        profileChanges: () {
+          final raw = approvalItem['changes'];
+          if (raw is! List) return const <ProfileChangeItem>[];
+          return raw
+              .whereType<Map>()
+              .map((m) => ProfileChangeItem(
+                    field: m['field']?.toString() ?? '',
+                    label: m['label']?.toString() ?? m['field']?.toString() ?? '',
+                    oldValue: m['old_value']?.toString() ?? '',
+                    newValue: m['new_value']?.toString() ?? '',
+                  ))
+              .toList();
+        }(),
       );
     }
 
@@ -338,7 +371,8 @@ class InboxItem {
   bool get isApproval =>
       itemType == InboxItemType.approvalRegistration ||
       itemType == InboxItemType.approvalLicense ||
-      itemType == InboxItemType.approvalCertification;
+      itemType == InboxItemType.approvalCertification ||
+      itemType == InboxItemType.approvalProfileChange;
 
   /// Builds a minimal [Report] for navigation into ReportDetailScreen.
   Report toReport() {

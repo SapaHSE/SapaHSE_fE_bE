@@ -377,6 +377,21 @@ class ProfileService {
     return SimpleResult.success('Sertifikasi berhasil dihapus.');
   }
 
+  // ── Profile Change Requests ────────────────────────────────────────────────
+  static Future<ApiResponse> getProfileChangeRequests() async {
+    return ApiService.get('/profile/change-requests');
+  }
+
+  static Future<ApiResponse> approveProfileChange(String id) {
+    return ApiService.put('/admin/profile-change-requests/$id/approve', {});
+  }
+
+  static Future<ApiResponse> rejectProfileChange(String id, String reason) {
+    return ApiService.post('/admin/profile-change-requests/$id/reject', {
+      'reason': reason.trim(),
+    });
+  }
+
   // ── Change password ───────────────────────────────────────────────────────
   static Future<SimpleResult> changePassword({
     required String currentPassword,

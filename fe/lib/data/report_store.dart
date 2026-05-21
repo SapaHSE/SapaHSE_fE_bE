@@ -429,6 +429,23 @@ class ReportStore {
             }
           }
           break;
+        case DraftType.profileChange:
+          await ProfileService.updateProfile(
+            fullName: draft.data['fullName']?.toString(),
+            personalEmail: draft.data['personalEmail']?.toString(),
+            workEmail: draft.data['workEmail']?.toString(),
+            phoneNumber: draft.data['phoneNumber']?.toString(),
+            department: draft.data['department']?.toString(),
+            position: draft.data['position']?.toString(),
+            jabatan: draft.data['jabatan']?.toString(),
+            address: draft.data['address']?.toString(),
+            tipeAfiliasi: draft.data['tipeAfiliasi']?.toString(),
+            company: draft.data['company']?.toString(),
+            perusahaanKontraktor: draft.data['perusahaanKontraktor']?.toString(),
+            subKontraktor: draft.data['subKontraktor']?.toString(),
+            imagePath: draft.data['imagePath']?.toString(),
+          );
+          break;
       }
       return true;
     } catch (_) {

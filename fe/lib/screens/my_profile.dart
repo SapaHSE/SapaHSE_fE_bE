@@ -1148,6 +1148,31 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF8E1),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFFFE082)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.info_outline,
+                                        color: Color(0xFFB28704), size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Perubahan data profil memerlukan persetujuan admin.',
+                                        style: TextStyle(
+                                            color: Colors.orange.shade800,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
                               _buildSheetField('NIP', nikCtrl, enabled: false),
                               const SizedBox(height: 16),
                               _buildSheetField(
@@ -1198,20 +1223,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               _buildSheetField(
                                 'Departemen',
                                 deptCtrl,
-                                enabled: _userRole == 'admin' ||
-                                    _userRole == 'superadmin',
-                                readOnly: _userRole == 'admin' ||
-                                    _userRole == 'superadmin',
-                                onTap: _userRole == 'admin' ||
-                                        _userRole == 'superadmin'
-                                    ? () => _showDepartmentPicker(
-                                        modalContext, deptCtrl, setModalState)
-                                    : null,
+                                enabled: true,
+                                readOnly: true,
+                                onTap: () => _showDepartmentPicker(
+                                    modalContext, deptCtrl, setModalState),
                                 maxLength: 25,
-                                suffixIcon: _userRole == 'admin' ||
-                                        _userRole == 'superadmin'
-                                    ? Icons.arrow_drop_down
-                                    : null,
+                                suffixIcon: Icons.arrow_drop_down,
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
                                     return 'Departemen wajib diisi';
@@ -1223,7 +1240,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               _buildSheetField(
                                 'Jabatan',
                                 jobCtrl,
-                                enabled: false,
+                                enabled: true,
                                 maxLength: 25,
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
@@ -1236,7 +1253,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               _buildSheetField(
                                 'Posisi',
                                 posCtrl,
-                                enabled: false,
+                                enabled: true,
                                 maxLength: 25,
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
@@ -1350,22 +1367,52 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               await _loadProfile();
                               _dismissLoadingDialog();
                               if (!mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text('Profil berhasil diperbarui'),
-                                    behavior: SnackBarBehavior.floating,
-                                    margin: EdgeInsets.fromLTRB(16, 16, 16, 16)),
+                              _showSuccessPopup(
+                                context,
+                                'Pengajuan perubahan profil berhasil dikirim. Menunggu persetujuan admin.',
                               );
                             } else {
-                              _dismissLoadingDialog();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(result.errorMessage ??
-                                        'Gagal memperbarui'),
-                                    behavior: SnackBarBehavior.floating,
-                                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)),
-                              );
+                              final errorMsg = result.errorMessage ?? '';
+                              final isOffline = _isNoInternetMessage(errorMsg);
+
+                              if (isOffline) {
+                                _dismissLoadingDialog();
+                                // Save as draft for offline
+                                await _saveApprovalDraft(
+                                  type: DraftType.profileChange,
+                                  title: 'Perubahan Profil',
+                                  data: {
+                                    'fullName': nameCtrl.text.trim(),
+                                    'personalEmail': emailCtrl.text.trim(),
+                                    'workEmail': workEmailCtrl.text.trim(),
+                                    'phoneNumber': '+62${phoneCtrl.text.trim()}',
+                                    'department': deptCtrl.text.trim(),
+                                    'position': posCtrl.text.trim(),
+                                    'jabatan': jobCtrl.text.trim(),
+                                    'address': addressCtrl.text.trim(),
+                                    'tipeAfiliasi': localTipeAfiliasi == 'Sub-Kont.'
+                                        ? 'Sub-Kontraktor'
+                                        : localTipeAfiliasi,
+                                    'company': localSelectedPerusahaan,
+                                    'perusahaanKontraktor':
+                                        localSelectedPerusahaanKontraktor ?? '',
+                                    'subKontraktor': localSelectedSubKontraktor ?? '',
+                                    'imagePath': localImageFile?.path,
+                                  },
+                                  successMessage:
+                                      'Tidak ada koneksi internet. Draft perubahan profil disimpan di Inbox > MyPost > Draft.',
+                                );
+                              } else {
+                                _dismissLoadingDialog();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text(errorMsg.isEmpty
+                                          ? 'Gagal memperbarui'
+                                          : errorMsg),
+                                      behavior: SnackBarBehavior.floating,
+                                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)),
+                                );
+                              }
                             }
                           },
                           style: ElevatedButton.styleFrom(

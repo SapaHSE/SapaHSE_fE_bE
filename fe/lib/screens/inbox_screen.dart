@@ -1662,6 +1662,11 @@ class _InboxScreenState extends State<InboxScreen>
             ? await ApprovalService.approveCertification(item.id)
             : await ApprovalService.rejectCertification(item.id, reason ?? '');
         break;
+      case InboxItemType.approvalProfileChange:
+        response = approve
+            ? await ApprovalService.approveProfileChange(item.id)
+            : await ApprovalService.rejectProfileChange(item.id, reason ?? '');
+        break;
       default:
         return false;
     }

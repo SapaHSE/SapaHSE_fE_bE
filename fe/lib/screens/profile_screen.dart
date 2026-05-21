@@ -820,8 +820,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.assignment_turned_in_outlined,
               iconBg: const Color(0xFFE8F5E9),
               iconColor: const Color(0xFF2E7D32),
-              title: 'Approval Dokumen',
-              subtitle: 'Lisensi & sertifikasi karyawan',
+              title: 'Approval of Submissions',
+              subtitle: 'Kelola persetujuan karyawan',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(

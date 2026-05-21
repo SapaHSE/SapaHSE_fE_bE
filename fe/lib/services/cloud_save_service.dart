@@ -11,6 +11,7 @@ enum DraftType {
   licenseUpdate,
   certificationCreate,
   certificationUpdate,
+  profileChange,
 }
 
 class ReportDraft {
