@@ -107,7 +107,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   List<String> _kontraktorList = [];
   List<String> _subkontraktorList = [];
   bool _isFetchingCompanies = false;
-  String? _userRole;
   final FocusNode _editProfilePhoneFocusNode = FocusNode();
 
   // Persistent State for License Form
@@ -214,7 +213,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     if (mounted) {
       setState(() {
         _cachedUser = cached;
-        _userRole = cached?['role']?.toString();
       });
     }
 

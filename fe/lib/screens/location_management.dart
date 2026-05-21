@@ -68,6 +68,7 @@ class _LocationManagementScreenState extends State<LocationManagementScreen>
         CompanyService.getCompanies(category: 'owner'),
         CompanyService.getAreas(),
       ]);
+
       List<_PicUserOption> users = [];
       try {
         final usersResponse = await AuthService.listUsers();
