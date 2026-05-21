@@ -184,6 +184,18 @@ class OfflineReferenceCacheService {
         'id': a.id,
         'company_id': a.companyId,
         'company_name': a.companyName,
+        'pic_user_id': a.picUserId,
+        'pic_user_ids': a.picUserIds,
+        'pic_users': a.picUsers
+            .map((u) => {
+                  'id': u.id,
+                  'full_name': u.fullName,
+                  'employee_id': u.employeeId,
+                  'department': u.department,
+                  'position': u.position,
+                  'jabatan': u.jabatan,
+                })
+            .toList(),
         'name': a.name,
         'code': a.code,
         'is_active': a.isActive,

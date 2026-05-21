@@ -27,7 +27,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   String _selectedLanguage = 'Indonesia';
-  bool _isDarkMode = false;
   bool _isPushEnabled = true;
   bool _isBiometricEnabled = false;
   bool _canAddAnnouncement = false;
@@ -629,16 +628,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 items: ['Indonesia', 'English'],
                 onChanged: (v) => setState(() => _selectedLanguage = v!),
               ),
-              /*
-              _buildDivider(),
-              _buildSwitchRow(
-                icon: Icons.dark_mode,
-                iconColor: Colors.black,
-                label: 'Tema Gelap',
-                value: _isDarkMode,
-                onChanged: (v) => setState(() => _isDarkMode = v),
-              ),
-              */
               _buildDivider(),
               _buildSwitchRow(
                 icon: Icons.notifications_active,

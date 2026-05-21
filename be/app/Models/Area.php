@@ -9,11 +9,12 @@ class Area extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['company_id', 'name', 'code', 'is_active'];
+    protected $fillable = ['company_id', 'name', 'code', 'pic_user_id', 'pic_user_ids', 'is_active'];
 
     protected function casts(): array
     {
         return [
+            'pic_user_ids' => 'array',
             'is_active' => 'boolean',
         ];
     }
@@ -24,6 +25,14 @@ class Area extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Area is managed by a user as PIC.
+     */
+    public function picUser()
+    {
+        return $this->belongsTo(User::class, 'pic_user_id');
     }
 
     /**

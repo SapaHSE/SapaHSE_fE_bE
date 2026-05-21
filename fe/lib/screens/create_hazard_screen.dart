@@ -63,6 +63,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
   int? _selectedCompanyId;
   final Set<String> _selectedDepts = {};
   final Set<UserEntry> _selectedUsers = {};
+  final Set<String> _autoTaggedPicUserIds = {};
   static const _hseKeywords = ['hse', 'k3'];
 
   bool get _hasPicSelection =>
@@ -178,6 +179,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       setState(() {
         _apiAreas = [];
         _isLoadingAreas = false;
+        _syncAreaPicTags();
       });
       return;
     }
@@ -190,6 +192,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       setState(() {
         _apiAreas = areas;
         _isLoadingAreas = false;
+        _syncAreaPicTags();
       });
       await OfflineReferenceCacheService.saveAreasForCompany(
         companyId: companyId,
@@ -202,9 +205,58 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       setState(() {
         _apiAreas = cachedAreas;
         _isLoadingAreas = false;
+        _syncAreaPicTags();
       });
       debugPrint('Gagal load area company: $e');
     }
+  }
+
+  void _syncAreaPicTags() {
+    _clearAutoTaggedPicUsers();
+    _applyAreaPicTags(_selectedLokasi, replace: false);
+  }
+
+  void _clearAutoTaggedPicUsers() {
+    if (_autoTaggedPicUserIds.isEmpty) return;
+    _selectedUsers.removeWhere((u) => _autoTaggedPicUserIds.contains(u.id));
+    _autoTaggedPicUserIds.clear();
+  }
+
+  void _applyAreaPicTags(String? areaName, {bool replace = true}) {
+    if (replace) {
+      _clearAutoTaggedPicUsers();
+    }
+    if (areaName == null || areaName.trim().isEmpty) return;
+
+    final area = _findAreaByName(areaName);
+    if (area == null) return;
+
+    final areaUsers = <UserEntry>[
+      ...area.picUsers.map((u) => UserEntry(
+            id: u.id.toString(),
+            fullName: u.fullName,
+            department: u.department,
+          )),
+    ];
+
+    if (areaUsers.isEmpty && area.picUserId != null) {
+      areaUsers.add(UserEntry(
+        id: area.picUserId.toString(),
+        fullName: area.picUserName ?? '',
+      ));
+    }
+
+    for (final user in areaUsers) {
+      _selectedUsers.add(user);
+      _autoTaggedPicUserIds.add(user.id);
+    }
+  }
+
+  AreaData? _findAreaByName(String areaName) {
+    for (final area in _apiAreas) {
+      if (area.name == areaName) return area;
+    }
+    return null;
   }
 
   Future<void> _fetchPelaporLocationSilent() async {
@@ -354,6 +406,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                     _locationCtrl.clear();
                                     _selectedDepts.clear();
                                     _selectedUsers.clear();
+                                    _autoTaggedPicUserIds.clear();
                                   });
                                   setSheetState(() {});
                                 },
@@ -380,7 +433,8 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                         ),
                         ...filteredCategories.map((cat) {
                           final isSelected = _selectedKategori.contains(cat);
-                          final catData = _apiCategories.where((c) => c.name == cat).firstOrNull;
+                          final catMatches = _apiCategories.where((c) => c.name == cat).toList();
+                          final catData = catMatches.isNotEmpty ? catMatches.first : null;
                           return ListTile(
                             leading: const Icon(Icons.category_outlined, size: 20),
                             title: Text(cat, style: const TextStyle(fontSize: 14)),
@@ -532,6 +586,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
                                     _locationCtrl.clear();
                                     _selectedDepts.clear();
                                     _selectedUsers.clear();
+                                    _autoTaggedPicUserIds.clear();
                                   });
                                   setSheetState(() {});
                                 },
@@ -628,6 +683,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       _selectedDepts.clear();
       _ensureLockedDeptsSelected();
       _selectedUsers.clear();
+      _autoTaggedPicUserIds.clear();
       _selectedLokasi = null;
       _locationCtrl.clear();
       _apiAreas = [];
@@ -821,6 +877,7 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
       _selectedDepts.clear();
       _ensureLockedDeptsSelected();
       _selectedUsers.clear();
+      _autoTaggedPicUserIds.clear();
       _selectedLokasi = null;
       _locationCtrl.clear();
       _apiAreas = [];
@@ -2160,6 +2217,7 @@ if (picked.isNotEmpty) {
                   setState(() {
                     _selectedLokasi = v;
                     _locationCtrl.text = v ?? '';
+                    _applyAreaPicTags(v);
                   });
                   _keepKeyboardDismissed();
                 },

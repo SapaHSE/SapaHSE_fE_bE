@@ -70,11 +70,20 @@ class CompanyService {
     throw Exception(response.errorMessage ?? 'Gagal mengambil data area');
   }
 
-  static Future<AreaData?> createArea(int companyId, String name, {String? code}) async {
+  static Future<AreaData?> createArea(
+    int companyId,
+    String name, {
+    String? code,
+    int? picUserId,
+    List<int>? picUserIds,
+  }) async {
+    final ids = picUserIds ?? (picUserId != null ? [picUserId] : null);
     final response = await ApiService.post('/areas', {
       'company_id': companyId,
       'name': name,
       if (code != null && code.isNotEmpty) 'code': code,
+      if (picUserId != null) 'pic_user_id': picUserId,
+      if (ids != null) 'pic_user_ids': ids,
     });
     if (response.success && response.data['data'] != null) {
       return AreaData.fromJson(response.data['data']);
@@ -82,11 +91,21 @@ class CompanyService {
     return null;
   }
 
-  static Future<AreaData?> updateArea(int id, int companyId, String name, {String? code}) async {
+  static Future<AreaData?> updateArea(
+    int id,
+    int companyId,
+    String name, {
+    String? code,
+    int? picUserId,
+    List<int>? picUserIds,
+  }) async {
+    final ids = picUserIds ?? (picUserId != null ? [picUserId] : null);
     final response = await ApiService.put('/areas/$id', {
       'company_id': companyId,
       'name': name,
       if (code != null && code.isNotEmpty) 'code': code,
+      if (picUserId != null) 'pic_user_id': picUserId,
+      if (ids != null) 'pic_user_ids': ids,
     });
     if (response.success && response.data['data'] != null) {
       return AreaData.fromJson(response.data['data']);
@@ -99,8 +118,11 @@ class CompanyService {
     return response.success;
   }
 
-  static Future<bool> toggleAreaStatus(int id) async {
+  static Future<AreaData?> toggleAreaStatus(int id) async {
     final response = await ApiService.post('/areas/$id/toggle', {});
-    return response.success;
+    if (response.success && response.data['data'] != null) {
+      return AreaData.fromJson(response.data['data']);
+    }
+    return null;
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/company_model.dart';
+import '../services/auth_service.dart';
 import '../services/company_service.dart';
 import 'company_management.dart';
 import '../services/storage_service.dart';
@@ -13,10 +14,12 @@ class LocationManagementScreen extends StatefulWidget {
   const LocationManagementScreen({super.key});
 
   @override
-  State<LocationManagementScreen> createState() => _LocationManagementScreenState();
+  State<LocationManagementScreen> createState() =>
+      _LocationManagementScreenState();
 }
 
-class _LocationManagementScreenState extends State<LocationManagementScreen> with SingleTickerProviderStateMixin {
+class _LocationManagementScreenState extends State<LocationManagementScreen>
+    with SingleTickerProviderStateMixin {
   static const _blue = Color(0xFF1A56C4);
   static const _orange = Color(0xFFF57C00);
 
@@ -29,6 +32,7 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
 
   List<CompanyData> _ownerCompanies = [];
   List<AreaData> _allAreas = [];
+  List<_PicUserOption> _picUsers = [];
   String? _userRole;
 
   @override
@@ -48,7 +52,9 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
     _loadData();
   }
 
-  bool get _isSuperAdmin => _userRole?.toLowerCase() == 'superadmin' || _userRole?.toLowerCase() == 'super admin';
+  bool get _isSuperAdmin =>
+      _userRole?.toLowerCase() == 'superadmin' ||
+      _userRole?.toLowerCase() == 'super admin';
 
   Future<void> _loadData({bool silent = false}) async {
     if (!silent) {
@@ -62,10 +68,30 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
         CompanyService.getCompanies(category: 'owner'),
         CompanyService.getAreas(),
       ]);
+      List<_PicUserOption> users = [];
+      try {
+        final usersResponse = await AuthService.listUsers();
+        if (usersResponse.success && usersResponse.data['data'] is List) {
+          users = (usersResponse.data['data'] as List)
+              .map((item) => item as Map<String, dynamic>)
+              .map((map) => _PicUserOption(
+                    id: map['id'] is int
+                        ? map['id'] as int
+                        : int.tryParse(map['id']?.toString() ?? '') ?? 0,
+                    fullName: map['full_name']?.toString() ?? '',
+                    employeeId: map['employee_id']?.toString() ?? '',
+                    department: map['department']?.toString(),
+                  ))
+              .where((user) => user.id > 0)
+              .toList();
+        }
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           _ownerCompanies = results[0] as List<CompanyData>;
           _allAreas = results[1] as List<AreaData>;
+          _picUsers = users;
           _isLoading = false;
         });
       }
@@ -100,9 +126,12 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
     }
   }
 
-  void _navigateToAreaForm({AreaData? area, CompanyData? defaultCompany}) async {
+  void _navigateToAreaForm(
+      {AreaData? area, CompanyData? defaultCompany}) async {
     if (_ownerCompanies.isEmpty) {
-      _showSnack('Belum ada perusahaan Owner. Tambahkan di Company Management terlebih dahulu.', isError: true);
+      _showSnack(
+          'Belum ada perusahaan Owner. Tambahkan di Company Management terlebih dahulu.',
+          isError: true);
       return;
     }
 
@@ -113,51 +142,385 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
           areaToEdit: area,
           defaultCompany: defaultCompany,
           ownerCompanies: _ownerCompanies,
+          picUsers: _picUsers,
         ),
       ),
     );
-    if (result == true) {
+    if (result is AreaData) {
+      _replaceAreaInList(result);
+      _showSnack(area == null
+          ? 'Lokasi berhasil ditambahkan.'
+          : 'Lokasi berhasil diperbarui.');
+    } else if (result == true) {
       _loadData();
-      _showSnack(area == null ? 'Lokasi berhasil ditambahkan.' : 'Lokasi berhasil diperbarui.');
+      _showSnack(area == null
+          ? 'Lokasi berhasil ditambahkan.'
+          : 'Lokasi berhasil diperbarui.');
     }
   }
 
-  void _confirmDeleteArea(AreaData area) {
-    showDialog(
+  void _replaceAreaInList(AreaData updated) {
+    setState(() {
+      final index = _allAreas.indexWhere((area) => area.id == updated.id);
+      if (index != -1) {
+        _allAreas[index] = updated;
+      }
+    });
+  }
+
+  void _removeAreaFromList(int areaId) {
+    setState(() {
+      _allAreas.removeWhere((area) => area.id == areaId);
+    });
+  }
+
+  Future<void> _openAreaDetail(AreaData area, CompanyData company) async {
+    AreaData currentArea = area;
+
+    await showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Lokasi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
-        content: Text('Yakin ingin menghapus ${area.name}? Semua data yang terkait mungkin akan ikut hilang.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                await CompanyService.deleteArea(area.id);
-                _showSnack('Lokasi berhasil dihapus.');
-              } catch (e) {
-                _showSnack(e.toString(), isError: true);
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        CompanyData effectiveCompany() {
+          for (final item in _ownerCompanies) {
+            if (item.id == currentArea.companyId) {
+              return item;
+            }
+          }
+          return company;
+        }
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> openEdit() async {
+              final currentCompany = effectiveCompany();
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => _AreaFormScreen(
+                    areaToEdit: currentArea,
+                    defaultCompany: currentCompany,
+                    ownerCompanies: _ownerCompanies,
+                    picUsers: _picUsers,
+                  ),
+                ),
+              );
+              if (result is AreaData) {
+                _replaceAreaInList(result);
+                setSheetState(() => currentArea = result);
+                _showSnack('Lokasi berhasil diperbarui.');
               }
-              _loadData(silent: true);
-            },
-            child: const Text('Hapus'),
+            }
+
+            Future<void> toggleStatus() async {
+              final updated =
+                  await CompanyService.toggleAreaStatus(currentArea.id);
+              if (updated != null) {
+                _replaceAreaInList(updated);
+                setSheetState(() => currentArea = updated);
+                _showSnack(
+                  updated.isActive
+                      ? 'Lokasi diaktifkan.'
+                      : 'Lokasi dinonaktifkan.',
+                );
+              } else {
+                _showSnack('Gagal mengubah status lokasi.', isError: true);
+              }
+            }
+
+            Future<void> deleteArea() async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                  title: const Text('Hapus Lokasi',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  content: Text('Yakin ingin menghapus ${currentArea.name}?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Batal'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Hapus'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true &&
+                  await CompanyService.deleteArea(currentArea.id)) {
+                _removeAreaFromList(currentArea.id);
+                _showSnack('Lokasi berhasil dihapus.');
+                if (Navigator.of(sheetContext).canPop())
+                  Navigator.pop(sheetContext);
+              } else if (confirmed == true) {
+                _showSnack('Gagal menghapus lokasi.', isError: true);
+              }
+            }
+
+            final picNames = currentArea.picUsers.isNotEmpty
+                ? currentArea.picUsers.map((u) => u.displayLabel).toList()
+                : (currentArea.picUserName?.trim().isNotEmpty == true
+                    ? [currentArea.picUserName!.trim()]
+                    : const <String>[]);
+
+            return Container(
+              margin: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                AppSafeInsets.sheetBottomPadding(context, base: 20),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: currentArea.isActive
+                                ? const Color(0xFFE8F5E9)
+                                : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.location_on_outlined,
+                            color: currentArea.isActive
+                                ? const Color(0xFF2E7D32)
+                                : Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                currentArea.name,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                effectiveCompany().name,
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _detailSectionInSheet(
+                      title: 'Detail Lokasi',
+                      children: [
+                        _detailRowInSheet(
+                            'Kode',
+                            (currentArea.code ?? '').isEmpty
+                                ? '-'
+                                : currentArea.code!),
+                        _detailRowInSheet('Status',
+                            currentArea.isActive ? 'Aktif' : 'Nonaktif'),
+                        _detailRowInSheet('PIC',
+                            picNames.isEmpty ? '-' : picNames.join(', ')),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _detailSectionInSheet(
+                      title: 'PIC Area',
+                      children: picNames.isEmpty
+                          ? [
+                              const Text(
+                                'Belum ada PIC yang ditetapkan.',
+                                style:
+                                    TextStyle(fontSize: 13, color: Colors.grey),
+                              ),
+                            ]
+                          : [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: picNames
+                                    .map((name) => Chip(
+                                          label: Text(name,
+                                              style: const TextStyle(
+                                                  fontSize: 12)),
+                                          backgroundColor:
+                                              const Color(0xFFF8F9FF),
+                                        ))
+                                    .toList(),
+                              ),
+                            ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Container(
+                    decoration: BoxDecoration(
+                      border:
+                          Border(top: BorderSide(color: Colors.grey.shade200)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _quickActionInSheet(
+                            icon: Icons.edit_outlined,
+                            label: 'Edit',
+                            color: const Color(0xFF1A56C4),
+                            onTap: () => openEdit(),
+                          ),
+                        ),
+                        Expanded(
+                          child: _quickActionInSheet(
+                            icon: Icons.power_settings_new,
+                            label: currentArea.isActive ? 'Nonaktif' : 'Aktif',
+                            color: currentArea.isActive
+                                ? const Color(0xFFF57C00)
+                                : const Color(0xFF2E7D32),
+                            onTap: () => toggleStatus(),
+                          ),
+                        ),
+                        Expanded(
+                          child: _quickActionInSheet(
+                            icon: Icons.delete_outline,
+                            label: 'Hapus',
+                            color: Colors.red,
+                            onTap: () => deleteArea(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _detailSectionInSheet({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDFDFD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRowInSheet(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+          ),
+          const Text(': ', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _toggleStatus(AreaData area) async {
-    setState(() => _isLoading = true);
-    try {
-      await CompanyService.toggleAreaStatus(area.id);
-    } catch (e) {
-      _showSnack(e.toString(), isError: true);
-    }
-    _loadData();
+  Widget _quickActionInSheet({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _onTabTapped(int index) {
@@ -196,38 +559,39 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: _isSearching 
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              onChanged: (val) => setState(() => _searchQuery = val),
-              decoration: const InputDecoration(
-                hintText: 'Cari lokasi...',
-                border: InputBorder.none,
-                hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-              style: const TextStyle(color: Colors.black87, fontSize: 16),
-            )
-          : const Text('Location Management', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: const InputDecoration(
+                  hintText: 'Cari lokasi...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+                style: const TextStyle(color: Colors.black87, fontSize: 16),
+              )
+            : const Text('Location Management',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
         leading: _isSearching
-          ? IconButton(
-              icon: const Icon(Icons.close, color: Colors.black87),
-              onPressed: () {
-                setState(() {
-                  _isSearching = false;
-                  _searchQuery = '';
-                  _searchController.clear();
-                });
-              },
-            )
-          : IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black87),
-              onPressed: () => Navigator.pop(context),
-            ),
+            ? IconButton(
+                icon: const Icon(Icons.close, color: Colors.black87),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = false;
+                    _searchQuery = '';
+                    _searchController.clear();
+                  });
+                },
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                onPressed: () => Navigator.pop(context),
+              ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -247,7 +611,8 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
           indicatorColor: _blue,
           labelColor: _blue,
           unselectedLabelColor: Colors.grey.shade400,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
             Tab(text: 'Daftar Lokasi'),
@@ -257,7 +622,9 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+              ? Center(
+                  child:
+                      Text(_error!, style: const TextStyle(color: Colors.red)))
               : TabBarView(
                   controller: _tabController,
                   children: [
@@ -278,11 +645,31 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _LocationNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
-            _LocationNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+            _LocationNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _LocationNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped),
             const SizedBox(width: 56),
-            _LocationNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
-            _LocationNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+            _LocationNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _LocationNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped),
           ],
         ),
       ),
@@ -291,12 +678,14 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
 
   Widget _buildMainListTab() {
     final searchLower = _searchQuery.toLowerCase();
-    
+
     final filteredCompanies = _ownerCompanies.where((company) {
       if (_searchQuery.isEmpty) return true;
-      final companyMatch = company.name.toLowerCase().contains(searchLower) || 
-                           (company.code?.toLowerCase().contains(searchLower) ?? false);
-      final areaMatch = _allAreas.any((a) => a.companyId == company.id && a.name.toLowerCase().contains(searchLower));
+      final companyMatch = company.name.toLowerCase().contains(searchLower) ||
+          (company.code?.toLowerCase().contains(searchLower) ?? false);
+      final areaMatch = _allAreas.any((a) =>
+          a.companyId == company.id &&
+          a.name.toLowerCase().contains(searchLower));
       return companyMatch || areaMatch;
     }).toList();
 
@@ -316,14 +705,19 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
               int idx = entry.key;
               CompanyData company = entry.value;
               Color color = idx % 2 == 0 ? _blue : _orange;
-              
-              List<AreaData> companyAreas = _allAreas.where((a) => a.companyId == company.id).toList();
-              
+
+              List<AreaData> companyAreas =
+                  _allAreas.where((a) => a.companyId == company.id).toList();
+
               // If searching and company doesn't match, only show matching areas
-              final companyMatch = company.name.toLowerCase().contains(searchLower) || 
-                                   (company.code?.toLowerCase().contains(searchLower) ?? false);
+              final companyMatch = company.name
+                      .toLowerCase()
+                      .contains(searchLower) ||
+                  (company.code?.toLowerCase().contains(searchLower) ?? false);
               if (_searchQuery.isNotEmpty && !companyMatch) {
-                companyAreas = companyAreas.where((a) => a.name.toLowerCase().contains(searchLower)).toList();
+                companyAreas = companyAreas
+                    .where((a) => a.name.toLowerCase().contains(searchLower))
+                    .toList();
               }
 
               return _buildCategoryCard(company, color, companyAreas);
@@ -343,9 +737,12 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
           children: [
             const Icon(Icons.search_off, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
-            const Text('Tidak Ada Hasil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Tidak Ada Hasil',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
-            Text('Lokasi atau perusahaan tidak ditemukan.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade500)),
+            Text('Lokasi atau perusahaan tidak ditemukan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade500)),
           ],
         ),
       ),
@@ -367,7 +764,10 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
           Expanded(
             child: Text(
               'Daftar lokasi kerja berdasarkan perusahaan owner.',
-              style: TextStyle(color: Colors.blue.shade800, fontSize: 11, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  color: Colors.blue.shade800,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -383,7 +783,8 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
           children: [
             Icon(Icons.business, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            const Text('Belum ada Perusahaan Owner', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Belum ada Perusahaan Owner',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 8),
             Text(
               'Silakan tambahkan perusahaan dengan tipe "Owner" di menu Company Management.',
@@ -396,7 +797,8 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
     );
   }
 
-  Widget _buildCategoryCard(CompanyData company, Color color, List<AreaData> areas) {
+  Widget _buildCategoryCard(
+      CompanyData company, Color color, List<AreaData> areas) {
     final bgColor = color.withValues(alpha: 0.05);
 
     return Container(
@@ -404,7 +806,12 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
+        ],
       ),
       child: Column(
         children: [
@@ -413,7 +820,8 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
@@ -423,17 +831,22 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
                     children: [
                       Text(
                         '${company.code ?? 'OWN'} — ${company.name}',
-                        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${areas.where((s) => s.isActive).length} lokasi aktif',
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 20),
+                const Icon(Icons.keyboard_arrow_down,
+                    color: Colors.grey, size: 20),
               ],
             ),
           ),
@@ -453,7 +866,8 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
                     foregroundColor: color,
                     side: BorderSide(color: color.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
               ),
@@ -467,61 +881,43 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
     return Column(
       children: [
         Divider(height: 1, color: Colors.grey.shade100),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(Icons.circle, size: 8, color: area.isActive ? Colors.green : Colors.grey.shade300),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(area.name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
-                    if (area.code != null && area.code!.isNotEmpty)
-                      Text(area.code!, style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
-                  ],
-                ),
-              ),
-              if (_isSuperAdmin) ...[
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 16),
-                  onPressed: () => _confirmDeleteArea(area),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => _navigateToAreaForm(area: area),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text('Edit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 4),
-                GestureDetector(
-                  onTap: () => _toggleStatus(area),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: area.isActive ? Colors.green.shade50 : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      area.isActive ? 'On' : 'Off',
-                      style: TextStyle(
-                        color: area.isActive ? Colors.green.shade700 : Colors.grey.shade600,
-                        fontWeight: area.isActive ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 11,
-                      ),
-                    ),
+        InkWell(
+          onTap: () => _openAreaDetail(area, company),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(Icons.circle,
+                    size: 8,
+                    color: area.isActive ? Colors.green : Colors.grey.shade300),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(area.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 13)),
+                      if (area.code != null && area.code!.isNotEmpty)
+                        Text(area.code!,
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 11)),
+                      if (area.picUsers.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            'PIC: ${area.picUsers.map((u) => u.displayLabel).join(', ')}',
+                            style: TextStyle(
+                                color: Colors.grey.shade600, fontSize: 11),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
+                Icon(Icons.chevron_right,
+                    color: Colors.grey.shade400, size: 20),
               ],
-            ],
+            ),
           ),
         ),
       ],
@@ -532,7 +928,8 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
     if (!_isSuperAdmin) return const SizedBox.shrink();
     return InkWell(
       onTap: () {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CompanyManagementScreen()));
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (_) => const CompanyManagementScreen()));
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -547,7 +944,9 @@ class _LocationManagementScreenState extends State<LocationManagementScreen> wit
           children: [
             Icon(Icons.business, color: _blue, size: 20),
             SizedBox(width: 8),
-            Text('Kelola Owner di Company Management', style: TextStyle(color: _blue, fontWeight: FontWeight.bold, fontSize: 13)),
+            Text('Kelola Owner di Company Management',
+                style: TextStyle(
+                    color: _blue, fontWeight: FontWeight.bold, fontSize: 13)),
           ],
         ),
       ),
@@ -561,8 +960,14 @@ class _AreaFormScreen extends StatefulWidget {
   final AreaData? areaToEdit;
   final CompanyData? defaultCompany;
   final List<CompanyData> ownerCompanies;
+  final List<_PicUserOption> picUsers;
 
-  const _AreaFormScreen({this.areaToEdit, this.defaultCompany, required this.ownerCompanies});
+  const _AreaFormScreen({
+    this.areaToEdit,
+    this.defaultCompany,
+    required this.ownerCompanies,
+    required this.picUsers,
+  });
 
   @override
   State<_AreaFormScreen> createState() => _AreaFormScreenState();
@@ -571,6 +976,7 @@ class _AreaFormScreen extends StatefulWidget {
 class _AreaFormScreenState extends State<_AreaFormScreen> {
   static const _blue = Color(0xFF1A56C4);
   late int _selectedCompanyId;
+  final Set<int> _selectedPicUserIds = {};
   late TextEditingController _nameCtrl;
   late TextEditingController _codeCtrl;
   bool _isLoading = false;
@@ -578,7 +984,19 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedCompanyId = widget.areaToEdit?.companyId ?? widget.defaultCompany?.id ?? widget.ownerCompanies.first.id;
+    _selectedCompanyId = widget.areaToEdit?.companyId ??
+        widget.defaultCompany?.id ??
+        widget.ownerCompanies.first.id;
+    final initialIds = widget.areaToEdit?.picUserIds.isNotEmpty == true
+        ? widget.areaToEdit!.picUserIds
+        : (widget.areaToEdit?.picUserId != null
+            ? [widget.areaToEdit!.picUserId!]
+            : <int>[]);
+    for (final id in initialIds) {
+      if (widget.picUsers.any((u) => u.id == id)) {
+        _selectedPicUserIds.add(id);
+      }
+    }
     _nameCtrl = TextEditingController(text: widget.areaToEdit?.name ?? '');
     _codeCtrl = TextEditingController(text: widget.areaToEdit?.code ?? '');
   }
@@ -602,7 +1020,7 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
       dynamic result;
       if (widget.areaToEdit != null) {
@@ -611,17 +1029,19 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
           _selectedCompanyId,
           name,
           code: code,
+          picUserIds: _selectedPicUserIds.toList(),
         );
       } else {
         result = await CompanyService.createArea(
           _selectedCompanyId,
           name,
           code: code,
+          picUserIds: _selectedPicUserIds.toList(),
         );
       }
 
       if (result != null) {
-        if (mounted) Navigator.pop(context, true);
+        if (mounted) Navigator.pop(context, result);
       } else {
         if (mounted) {
           setState(() => _isLoading = false);
@@ -647,8 +1067,8 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FE),
       appBar: AppBar(
-        title: Text(isEdit ? 'Edit Lokasi' : 'Tambah Lokasi', 
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(isEdit ? 'Edit Lokasi' : 'Tambah Lokasi',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -688,7 +1108,35 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
                   const SizedBox(height: 16),
                   _buildLabel('KODE LOKASI (OPSIONAL)'),
                   const SizedBox(height: 8),
-                  _buildTextField(_codeCtrl, hint: 'Contoh: PIT-M', maxLength: 3, capitalization: TextCapitalization.characters),
+                  _buildTextField(_codeCtrl,
+                      hint: 'Contoh: PIT-M',
+                      maxLength: 3,
+                      capitalization: TextCapitalization.characters),
+                  const SizedBox(height: 16),
+                  _buildLabel('PIC / PENANGGUNG JAWAB'),
+                  const SizedBox(height: 8),
+                  _buildPicPickerField(),
+                  if (_selectedPicUserIds.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: _selectedPicUsers
+                          .map((u) => Chip(
+                                label: Text(u.displayLabel,
+                                    style: const TextStyle(fontSize: 12)),
+                                onDeleted: () => setState(
+                                    () => _selectedPicUserIds.remove(u.id)),
+                                deleteIcon: const Icon(Icons.close, size: 14),
+                                backgroundColor: _blue.withValues(alpha: 0.1),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20)),
+                                side: BorderSide(
+                                    color: _blue.withValues(alpha: 0.2)),
+                              ))
+                          .toList(),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -701,7 +1149,12 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -4))
+            ],
           ),
           child: Row(
             children: [
@@ -709,7 +1162,9 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
                 flex: 1,
                 child: TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Batal', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+                  child: const Text('Batal',
+                      style: TextStyle(
+                          color: Colors.black87, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 16),
@@ -721,12 +1176,19 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
                     backgroundColor: _blue,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
                   child: _isLoading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Simpan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Text('Simpan',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15)),
                 ),
               ),
             ],
@@ -752,10 +1214,15 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
           Expanded(
             child: RichText(
               text: const TextSpan(
-                style: TextStyle(color: Color(0xFFF57F17), fontSize: 13, height: 1.4),
+                style: TextStyle(
+                    color: Color(0xFFF57F17), fontSize: 13, height: 1.4),
                 children: [
-                  TextSpan(text: 'Setelah disimpan, perubahan akan langsung berlaku pada data '),
-                  TextSpan(text: 'Location Management.', style: TextStyle(fontWeight: FontWeight.bold)),
+                  TextSpan(
+                      text:
+                          'Setelah disimpan, perubahan akan langsung berlaku pada data '),
+                  TextSpan(
+                      text: 'Location Management.',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -773,7 +1240,10 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -810,22 +1280,278 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
   Widget _buildDropdown() {
     return Container(
       decoration: kMinimalFieldContainerDecoration,
-        child: DropdownButtonFormField<int>(
-          initialValue: _selectedCompanyId,
+      child: DropdownButtonFormField<int>(
+        initialValue: _selectedCompanyId,
         decoration: minimalFieldDecoration(),
         icon: kMinimalDropdownChevron,
         borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
         style: kMinimalDropdownTextStyle,
-        items: widget.ownerCompanies.map((c) => DropdownMenuItem(
-          value: c.id,
-          child: Text(c.name, style: kMinimalDropdownTextStyle),
-        )).toList(),
+        items: widget.ownerCompanies
+            .map((c) => DropdownMenuItem(
+                  value: c.id,
+                  child: Text(c.name, style: kMinimalDropdownTextStyle),
+                ))
+            .toList(),
         onChanged: (v) => setState(() => _selectedCompanyId = v!),
       ),
     );
   }
 
-  Widget _buildTextField(TextEditingController ctrl, {String? hint, int? maxLength, TextCapitalization capitalization = TextCapitalization.none}) {
+  List<_PicUserOption> get _selectedPicUsers =>
+      widget.picUsers.where((u) => _selectedPicUserIds.contains(u.id)).toList();
+
+  Widget _buildPicPickerField() {
+    final hasSelection = _selectedPicUserIds.isNotEmpty;
+    return GestureDetector(
+      onTap: widget.picUsers.isEmpty ? null : _showPicPicker,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        decoration: BoxDecoration(
+          color: widget.picUsers.isEmpty
+              ? Colors.grey.shade100
+              : const Color(0xFFF8F9FF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: widget.picUsers.isEmpty
+                ? Colors.grey.shade200
+                : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.person_add_outlined,
+                size: 20,
+                color: widget.picUsers.isEmpty
+                    ? Colors.grey.shade400
+                    : Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                widget.picUsers.isEmpty
+                    ? 'Tidak ada user aktif'
+                    : (hasSelection
+                        ? '${_selectedPicUsers.length} PIC terpilih'
+                        : 'Ketuk untuk pilih PIC'),
+                style: TextStyle(
+                  color: widget.picUsers.isEmpty
+                      ? Colors.grey.shade500
+                      : (hasSelection ? Colors.black87 : Colors.grey),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios,
+                size: 14,
+                color: widget.picUsers.isEmpty
+                    ? Colors.grey.shade300
+                    : Colors.grey.shade400),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPicPicker() {
+    String query = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final q = query.toLowerCase();
+          final filteredUsers = widget.picUsers
+              .where((u) =>
+                  u.fullName.toLowerCase().contains(q) ||
+                  (u.department?.toLowerCase().contains(q) ?? false) ||
+                  u.employeeId.toLowerCase().contains(q))
+              .toList();
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.8,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    'Pilih PIC Area',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Cari nama PIC...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (v) => setSheetState(() => query = v),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      if (_selectedPicUserIds.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text(
+                            'TERPILIH',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: _selectedPicUsers.map((user) {
+                              return Chip(
+                                label: Text(user.displayLabel,
+                                    style: const TextStyle(fontSize: 12)),
+                                onDeleted: () {
+                                  setState(() =>
+                                      _selectedPicUserIds.remove(user.id));
+                                  setSheetState(() {});
+                                },
+                                deleteIcon: const Icon(Icons.close, size: 14),
+                                backgroundColor: _blue.withValues(alpha: 0.1),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                side: BorderSide(
+                                  color: _blue.withValues(alpha: 0.2),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const Divider(height: 32),
+                      ],
+                      if (filteredUsers.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
+                          child: Text(
+                            'PIC',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        ...filteredUsers.map((user) {
+                          final isSelected =
+                              _selectedPicUserIds.contains(user.id);
+                          return ListTile(
+                            leading: const Icon(Icons.person_outline, size: 20),
+                            title: Text(user.fullName,
+                                style: const TextStyle(fontSize: 14)),
+                            subtitle: Text(
+                              [
+                                if ((user.department ?? '').isNotEmpty)
+                                  user.department!,
+                                if (user.employeeId.isNotEmpty) user.employeeId,
+                              ].join(' • '),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey),
+                            ),
+                            trailing: Icon(
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.add_circle_outline,
+                              color: isSelected ? _blue : Colors.grey,
+                            ),
+                            onTap: () {
+                              setState(() {
+                                if (isSelected) {
+                                  _selectedPicUserIds.remove(user.id);
+                                } else {
+                                  _selectedPicUserIds.add(user.id);
+                                }
+                              });
+                              setSheetState(() {});
+                            },
+                          );
+                        }),
+                      ],
+                      if (filteredUsers.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Text('Tidak ditemukan',
+                                style: TextStyle(color: Colors.grey)),
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    20,
+                    20,
+                    AppSafeInsets.sheetBottomPadding(context, base: 20),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text(
+                        'Selesai',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController ctrl,
+      {String? hint,
+      int? maxLength,
+      TextCapitalization capitalization = TextCapitalization.none}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -855,6 +1581,27 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
 }
 
 // ── Nav Item ──────────────────────────────────────────────────────────────────
+class _PicUserOption {
+  final int id;
+  final String fullName;
+  final String employeeId;
+  final String? department;
+
+  const _PicUserOption({
+    required this.id,
+    required this.fullName,
+    required this.employeeId,
+    this.department,
+  });
+
+  String get displayLabel {
+    final name = fullName.trim().isEmpty ? 'Tanpa nama' : fullName.trim();
+    final nik = employeeId.trim();
+    if (nik.isEmpty) return name;
+    return '$name - $nik';
+  }
+}
+
 class _LocationNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -881,7 +1628,9 @@ class _LocationNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            Icon(icon,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                size: 24),
             const SizedBox(height: 2),
             Text(
               label,
@@ -944,7 +1693,8 @@ class _LocationMenuTile extends StatelessWidget {
                             color: Colors.black87)),
                     const SizedBox(height: 2),
                     Text(subtitle,
-                        style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),

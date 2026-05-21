@@ -1153,7 +1153,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFFF8E1),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: const Color(0xFFFFE082)),
+                                  border: Border.all(
+                                      color: const Color(0xFFFFE082)),
                                 ),
                                 child: Row(
                                   children: [
@@ -1385,18 +1386,21 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                     'fullName': nameCtrl.text.trim(),
                                     'personalEmail': emailCtrl.text.trim(),
                                     'workEmail': workEmailCtrl.text.trim(),
-                                    'phoneNumber': '+62${phoneCtrl.text.trim()}',
+                                    'phoneNumber':
+                                        '+62${phoneCtrl.text.trim()}',
                                     'department': deptCtrl.text.trim(),
                                     'position': posCtrl.text.trim(),
                                     'jabatan': jobCtrl.text.trim(),
                                     'address': addressCtrl.text.trim(),
-                                    'tipeAfiliasi': localTipeAfiliasi == 'Sub-Kont.'
-                                        ? 'Sub-Kontraktor'
-                                        : localTipeAfiliasi,
+                                    'tipeAfiliasi':
+                                        localTipeAfiliasi == 'Sub-Kont.'
+                                            ? 'Sub-Kontraktor'
+                                            : localTipeAfiliasi,
                                     'company': localSelectedPerusahaan,
                                     'perusahaanKontraktor':
                                         localSelectedPerusahaanKontraktor ?? '',
-                                    'subKontraktor': localSelectedSubKontraktor ?? '',
+                                    'subKontraktor':
+                                        localSelectedSubKontraktor ?? '',
                                     'imagePath': localImageFile?.path,
                                   },
                                   successMessage:
@@ -1410,7 +1414,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                           ? 'Gagal memperbarui'
                                           : errorMsg),
                                       behavior: SnackBarBehavior.floating,
-                                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)),
+                                      margin: const EdgeInsets.fromLTRB(
+                                          16, 16, 16, 16)),
                                 );
                               }
                             }
@@ -1953,11 +1958,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         _dismissLoadingDialog();
                       } else {
                         _dismissLoadingDialog();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(result.message),
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(result.message),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -2256,7 +2260,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       final licenseNumber =
                           _licenseNumberController.text.trim();
                       final issuer = _licenseIssuerController.text.trim();
-                      final obtainedAt = _formatDateForPayload(_licenseObtainedAt);
+                      final obtainedAt =
+                          _formatDateForPayload(_licenseObtainedAt);
                       final expiredAt =
                           _formatDateForPayload(_licenseSelectedDate);
                       final imagePath = _licenseImage?.path;
@@ -2345,11 +2350,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         );
                         clearLicenseForm();
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(result.message),
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(result.message),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -2662,11 +2666,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         );
                         clearCertificationForm();
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(result.message),
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(result.message),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -2950,8 +2953,7 @@ class _BiodataContent extends StatelessWidget {
             _buildRow(context, 'Nama Lengkap', data?.fullName ?? '-',
                 onTap: () =>
                     _copyToClipboard(context, 'Nama Lengkap', data?.fullName)),
-            _buildRow(context, 'Email', data?.personalEmail ?? '-',
-                onTap: () {
+            _buildRow(context, 'Email', data?.personalEmail ?? '-', onTap: () {
               final e = data?.personalEmail;
               if (e != null && e.isNotEmpty && e != '-') {
                 _showEmailOptions(context, e);
@@ -4252,14 +4254,15 @@ class _ApplicantDetailCard extends StatelessWidget {
           ReportStyleDetailRow(
             icon: Icons.apartment_outlined,
             label: 'Departemen',
-            value:
-                _firstDetailValue([profileData?.department, cachedUser?['department']]),
+            value: _firstDetailValue(
+                [profileData?.department, cachedUser?['department']]),
           ),
           const SizedBox(height: 12),
           ReportStyleDetailRow(
             icon: Icons.business_outlined,
             label: 'Perusahaan',
-            value: _firstDetailValue([profileData?.company, cachedUser?['company']]),
+            value: _firstDetailValue(
+                [profileData?.company, cachedUser?['company']]),
           ),
           const SizedBox(height: 12),
           ReportStyleDetailRow(
@@ -4276,8 +4279,8 @@ class _ApplicantDetailCard extends StatelessWidget {
           ReportStyleDetailRow(
             icon: Icons.badge_outlined,
             label: 'NIP',
-            value:
-                _firstDetailValue([profileData?.employeeId, cachedUser?['employee_id']]),
+            value: _firstDetailValue(
+                [profileData?.employeeId, cachedUser?['employee_id']]),
           ),
           const SizedBox(height: 12),
           ReportStyleDetailRow(
@@ -4293,8 +4296,8 @@ class _ApplicantDetailCard extends StatelessWidget {
           ReportStyleDetailRow(
             icon: Icons.phone_outlined,
             label: 'Telepon',
-            value:
-                _firstDetailValue([profileData?.phoneNumber, cachedUser?['phone_number']]),
+            value: _firstDetailValue(
+                [profileData?.phoneNumber, cachedUser?['phone_number']]),
           ),
         ],
       ),
@@ -4653,7 +4656,8 @@ class _LicenseDetailPage extends StatelessWidget {
                   label: approvalStyle.label,
                   color: approvalStyle.fg,
                 ),
-                const ReportStyleDetailBadge(label: 'Lisensi', color: typeColor),
+                const ReportStyleDetailBadge(
+                    label: 'Lisensi', color: typeColor),
                 if (!license.isActive)
                   const ReportStyleDetailBadge(
                     label: 'Expired',
@@ -4737,7 +4741,9 @@ class _LicenseDetailPage extends StatelessWidget {
                             ),
                           ),
                         ],
-                        if ((license.rejectionReason ?? '').trim().isNotEmpty) ...[
+                        if ((license.rejectionReason ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -4939,9 +4945,9 @@ class _CertificationDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final approvalStyle = approvalStatusStyle(certification.approvalStatus);
     const typeColor = Color(0xFF6A1B9A);
-    final expiry =
-        DateTime.tryParse((certification.expiredAt ?? '').replaceFirst(' ', 'T'))
-            ?.toLocal();
+    final expiry = DateTime.tryParse(
+            (certification.expiredAt ?? '').replaceFirst(' ', 'T'))
+        ?.toLocal();
     final isExpired = expiry != null && expiry.isBefore(DateTime.now());
     final imageUrl = normalizeStorageUrl(certification.fileUrl)?.trim() ?? '';
 
@@ -5008,8 +5014,8 @@ class _CertificationDetailPage extends StatelessWidget {
                           ReportStyleDetailRow(
                             icon: Icons.numbers,
                             label: 'Nomor Sertifikat',
-                            value:
-                                _detailDisplayValue(certification.certificationNumber),
+                            value: _detailDisplayValue(
+                                certification.certificationNumber),
                           ),
                           const SizedBox(height: 12),
                         ],
@@ -5034,7 +5040,9 @@ class _CertificationDetailPage extends StatelessWidget {
                               ? const Color(0xFF2E7D32)
                               : const Color(0xFFEF6C00),
                         ),
-                        if ((certification.submittedAt ?? '').trim().isNotEmpty) ...[
+                        if ((certification.submittedAt ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           const SizedBox(height: 12),
                           ReportStyleDetailRow(
                             icon: Icons.access_time,
@@ -5045,7 +5053,9 @@ class _CertificationDetailPage extends StatelessWidget {
                             ),
                           ),
                         ],
-                        if ((certification.reviewedAt ?? '').trim().isNotEmpty) ...[
+                        if ((certification.reviewedAt ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           const SizedBox(height: 12),
                           ReportStyleDetailRow(
                             icon: Icons.history,
@@ -5056,7 +5066,9 @@ class _CertificationDetailPage extends StatelessWidget {
                             ),
                           ),
                         ],
-                        if ((certification.rejectionReason ?? '').trim().isNotEmpty) ...[
+                        if ((certification.rejectionReason ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -5125,8 +5137,8 @@ class _CertificationDetailPage extends StatelessWidget {
                         ReportStyleDetailRow(
                           icon: Icons.numbers,
                           label: 'Nomor Sertifikat',
-                          value:
-                              _detailDisplayValue(certification.certificationNumber),
+                          value: _detailDisplayValue(
+                              certification.certificationNumber),
                         ),
                         const SizedBox(height: 12),
                         ReportStyleDetailRow(
@@ -5794,4 +5806,3 @@ class _DepartmentPickerSheetState extends State<_DepartmentPickerSheet> {
     );
   }
 }
-
