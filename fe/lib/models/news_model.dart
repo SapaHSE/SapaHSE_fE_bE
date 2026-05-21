@@ -7,6 +7,9 @@ class NewsModel {
   final String? imageUrl;
   final bool isFeatured;
   final String? date;
+  final String? publishDate;
+  final String? publishDateLabel;
+  final bool isScheduled;
   final String? content;
   final String? createdAt;
 
@@ -19,6 +22,9 @@ class NewsModel {
     this.imageUrl,
     this.isFeatured = false,
     this.date,
+    this.publishDate,
+    this.publishDateLabel,
+    this.isScheduled = false,
     this.content,
     this.createdAt,
   });
@@ -33,6 +39,9 @@ class NewsModel {
       imageUrl: json['image_url']?.toString(),
       isFeatured: json['is_featured'] == true || json['is_featured'] == 1,
       date: json['date']?.toString(),
+      publishDate: json['publish_date']?.toString(),
+      publishDateLabel: json['publish_date_label']?.toString(),
+      isScheduled: json['is_scheduled'] == true || json['is_scheduled'] == 1,
       content: json['content']?.toString(),
       createdAt: json['created_at']?.toString(),
     );

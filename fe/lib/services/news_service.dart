@@ -37,8 +37,17 @@ class NewsService {
   }
 
   // GET /news — loads all active news (client-side filtering in screen)
-  static Future<NewsListResult> getNews() async {
-    final response = await ApiService.get('/news?per_page=100');
+  static Future<NewsListResult> getNews({
+    bool onlyScheduled = false,
+    bool includeScheduled = false,
+  }) async {
+    final params = <String>['per_page=100'];
+    if (onlyScheduled) {
+      params.add('only_scheduled=1');
+    } else if (includeScheduled) {
+      params.add('include_scheduled=1');
+    }
+    final response = await ApiService.get('/news?${params.join('&')}');
 
     if (!response.success) {
       return NewsListResult.error(
@@ -55,6 +64,27 @@ class NewsService {
         .toList();
 
     return NewsListResult.success(articles);
+  }
+
+  // POST /news/{id}/publish-now — admin/superadmin
+  static Future<NewsDetailResult> publishNow(String id) async {
+    final response = await ApiService.post('/news/$id/publish-now', {});
+
+    if (!response.success) {
+      return NewsDetailResult.error(
+          response.errorMessage ?? 'Gagal mempublikasikan berita.');
+    }
+
+    final data = response.data['data'] as Map<String, dynamic>?;
+    if (data == null) {
+      return NewsDetailResult.error('Respons server tidak valid.');
+    }
+    return NewsDetailResult.success(NewsArticle.fromJson(data));
+  }
+
+  // DELETE /news/{id}
+  static Future<ApiResponse> deleteNews(String id) async {
+    return ApiService.delete('/news/$id');
   }
 
   // GET /news/{id} — loads full article including content

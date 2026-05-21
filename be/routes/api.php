@@ -181,6 +181,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── News (admin/supervisor manage) ────────────────────────────────────────
     Route::post('/news',        [NewsController::class, 'store'])
         ->middleware('role:admin,superadmin');
+    Route::post('/news/{id}/publish-now', [NewsController::class, 'publishNow'])
+        ->middleware('role:admin,superadmin');
     Route::delete('/news/{id}', [NewsController::class, 'destroy'])
         ->middleware('role:admin');
 

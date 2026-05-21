@@ -683,6 +683,37 @@ class _DashboardNewsCardState extends State<DashboardNewsCard> {
                                 letterSpacing: 0.8),
                           ),
                         ),
+                        if (n.isScheduled) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE65100)
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                  color: const Color(0xFFE65100)
+                                      .withValues(alpha: 0.25)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.schedule,
+                                    size: 10, color: Color(0xFFE65100)),
+                                SizedBox(width: 3),
+                                Text(
+                                  'TERJADWAL',
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFE65100),
+                                      letterSpacing: 0.8),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         Text(
                           dateStr,

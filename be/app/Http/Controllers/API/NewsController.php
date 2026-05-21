@@ -159,6 +159,34 @@ class NewsController extends Controller
         ]);
     }
 
+    // POST /api/news/{id}/publish-now (admin/superadmin)
+    // Move a scheduled article to "live" immediately and fire push.
+    public function publishNow($id)
+    {
+        $news = News::active()->findOrFail($id);
+
+        $news->update([
+            'publish_date'       => now()->toDateString(),
+            'published_notified' => true,
+        ]);
+
+        try {
+            $this->notificationService->sendPushToAll(
+                'Berita HSE Baru',
+                $news->title,
+                ['news_id' => $news->id, 'type' => 'news']
+            );
+        } catch (\Exception $e) {
+            \Log::error('publishNow push failed: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Berita berhasil dipublikasikan.',
+            'data'    => $this->formatNews($news->fresh()->load('creator'), true),
+        ]);
+    }
+
     private function formatNews(News $news, bool $withContent = true): array
     {
         $publishDate = $news->publish_date ?? $news->created_at;

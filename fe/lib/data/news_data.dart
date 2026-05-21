@@ -13,6 +13,7 @@ class NewsArticle {
   final String? publishDateLabel;
   final String imageUrl;
   final bool isFeatured;
+  final bool isScheduled;
 
   const NewsArticle({
     required this.id,
@@ -27,6 +28,7 @@ class NewsArticle {
     this.publishDateLabel,
     required this.imageUrl,
     this.isFeatured = false,
+    this.isScheduled = false,
   });
 
   factory NewsArticle.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,7 @@ class NewsArticle {
       publishDateLabel: json['publish_date_label']?.toString(),
       imageUrl: normalizeStorageUrl(json['image_url']?.toString()) ?? '',
       isFeatured: json['is_featured'] == true,
+      isScheduled: json['is_scheduled'] == true,
     );
   }
 

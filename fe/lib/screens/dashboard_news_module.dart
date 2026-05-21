@@ -39,7 +39,7 @@ class _DashboardNewsModuleState extends State<DashboardNewsModule> {
 
   Future<void> _fetchNews({int page = 1}) async {
     setState(() => _isLoadingNews = true);
-    final query = '?page=$page&search=$_searchQuery';
+    final query = '?page=$page&search=$_searchQuery&include_scheduled=1';
     final response = await ApiService.get('/news$query');
     if (response.success && mounted) {
       try {

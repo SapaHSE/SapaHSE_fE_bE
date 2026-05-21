@@ -165,11 +165,22 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
     if (result.success) {
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Berita berhasil dipublikasikan.')),
+        SnackBar(
+          content: Text(_isScheduledDate()
+              ? 'Berita dijadwalkan untuk ${DateFormat('d MMMM yyyy', 'id_ID').format(_publishDate)}.'
+              : 'Berita berhasil dipublikasikan.'),
+        ),
       );
     } else {
       _snack(result.errorMessage ?? 'Gagal menyimpan berita.');
     }
+  }
+
+  bool _isScheduledDate() {
+    final today = DateTime.now();
+    final picked = DateTime(_publishDate.year, _publishDate.month, _publishDate.day);
+    final t = DateTime(today.year, today.month, today.day);
+    return picked.isAfter(t);
   }
 
   void _snack(String msg) {
@@ -258,6 +269,28 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
                     ),
                   ),
                 ),
+                if (_isScheduledDate())
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(2, 6, 2, 0),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.schedule_outlined,
+                            size: 14, color: Color(0xFFE65100)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Berita disimpan sebagai draft terjadwal dan otomatis tayang pada tanggal di atas.',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: const Color(0xFFE65100).withValues(alpha: 0.95),
+                              fontWeight: FontWeight.w500,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 14),
                 _sectionLabel('Ringkasan'),
                 _textField(
@@ -283,6 +316,7 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
   // ── Widgets ───────────────────────────────────────────────────────────────
 
   Widget _bottomBar() {
+    final scheduled = _isScheduledDate();
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -305,9 +339,13 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
             child: ElevatedButton(
               onPressed: _submitting ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _primary,
+                backgroundColor: scheduled
+                    ? const Color(0xFFE65100)
+                    : _primary,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor: _primary.withValues(alpha: 0.5),
+                disabledBackgroundColor:
+                    (scheduled ? const Color(0xFFE65100) : _primary)
+                        .withValues(alpha: 0.5),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -320,14 +358,19 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2.4),
                     )
-                  : const Row(
+                  : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.send_rounded, size: 18),
-                        SizedBox(width: 8),
+                        Icon(
+                          scheduled
+                              ? Icons.schedule_send_rounded
+                              : Icons.send_rounded,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
                         Text(
-                          'Publikasikan',
-                          style: TextStyle(
+                          scheduled ? 'Jadwalkan' : 'Publikasikan',
+                          style: const TextStyle(
                               fontWeight: FontWeight.w700, fontSize: 15),
                         ),
                       ],
