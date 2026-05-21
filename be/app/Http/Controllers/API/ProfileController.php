@@ -29,6 +29,10 @@ class ProfileController extends Controller
             $q->orderBy('checkup_date', 'desc');
         }])->findOrFail(Auth::id());
 
+        if ($user->is_active && $user->email_verified_at) {
+            $user->ensureQrCode();
+        }
+
         return \response()->json([
             'status' => 'success',
             'data'   => $this->formatUser($user),
@@ -807,6 +811,7 @@ class ProfileController extends Controller
             'full_name'      => $user->full_name,
             'personal_email' => $user->personal_email,
             'work_email'     => $user->work_email,
+            'qr_code'        => $user->qr_code,
             'phone_number'   => $user->phone_number,
             'position'       => $user->position,
             'jabatan'        => $user->jabatan,

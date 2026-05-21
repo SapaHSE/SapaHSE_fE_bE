@@ -23,6 +23,7 @@ class RegisterProfilePhotoTest extends TestCase
             'personal_email' => $payload['personal_email'],
             'profile_photo' => null,
             'is_active' => false,
+            'qr_code' => null,
         ]);
     }
 

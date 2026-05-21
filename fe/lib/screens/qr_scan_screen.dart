@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+
+import '../models/profile_model.dart';
+import '../services/profile_service.dart';
+import '../services/qr_service.dart';
 import '../widgets/app_safe_insets.dart';
+import 'user_profile_view_screen.dart';
 
 class QrScanScreen extends StatefulWidget {
   const QrScanScreen({super.key});
@@ -17,22 +24,31 @@ class _QrScanScreenState extends State<QrScanScreen>
     torchEnabled: false,
   );
 
-  bool _hasScanned = false;
+  int _selectedTab = 0;
   bool _torchOn = false;
-  String? _scannedResult;
+  bool _hasScanned = false;
+  bool _isResolvingScan = false;
+  String? _rawScannedCode;
+  String? _scanError;
+  QrScanResult? _scanResult;
+
+  bool _isLoadingProfile = true;
+  String? _profileError;
+  ProfileData? _profile;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadProfile();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!_controller.value.isInitialized) return;
+    if (_selectedTab != 1 || !_controller.value.isInitialized) return;
     switch (state) {
       case AppLifecycleState.resumed:
-        _controller.start();
+        if (!_hasScanned) _controller.start();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
@@ -50,78 +66,246 @@ class _QrScanScreenState extends State<QrScanScreen>
     super.dispose();
   }
 
+  Future<void> _loadProfile() async {
+    setState(() {
+      _isLoadingProfile = true;
+      _profileError = null;
+    });
+
+    final result = await ProfileService.getProfile();
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingProfile = false;
+      if (result.success && result.data != null) {
+        _profile = result.data;
+      } else {
+        _profileError = result.errorMessage ?? 'Gagal memuat QR profil.';
+      }
+    });
+  }
+
+  void _selectTab(int index) {
+    if (_selectedTab == index) return;
+
+    setState(() => _selectedTab = index);
+    if (index == 0) {
+      if (_controller.value.isInitialized) _controller.stop();
+    } else {
+      _resetScan();
+    }
+  }
+
   void _onDetect(BarcodeCapture capture) {
-    if (_hasScanned) return;
-    final barcode = capture.barcodes.firstOrNull;
-    if (barcode == null || barcode.rawValue == null) return;
+    if (_hasScanned || _isResolvingScan) return;
+    if (capture.barcodes.isEmpty) return;
+
+    final rawValue = capture.barcodes.first.rawValue?.trim();
+    if (rawValue == null || rawValue.isEmpty) return;
 
     setState(() {
       _hasScanned = true;
-      _scannedResult = barcode.rawValue!;
+      _isResolvingScan = true;
+      _rawScannedCode = rawValue;
+      _scanResult = null;
+      _scanError = null;
     });
+
     _controller.stop();
+    _resolveScan(rawValue);
   }
 
-  void _reset() {
+  Future<void> _resolveScan(String rawCode) async {
+    final result = await QrService.scan(rawCode);
+    if (!mounted) return;
+
+    setState(() {
+      _isResolvingScan = false;
+      if (result.success) {
+        _scanResult = result;
+      } else {
+        _scanError = result.errorMessage ?? 'QR tidak ditemukan.';
+      }
+    });
+  }
+
+  void _resetScan() {
     setState(() {
       _hasScanned = false;
-      _scannedResult = null;
+      _isResolvingScan = false;
+      _rawScannedCode = null;
+      _scanResult = null;
+      _scanError = null;
     });
-    _controller.start();
+    if (_selectedTab == 1 && _controller.value.isInitialized) {
+      _controller.start();
+    }
   }
 
-  void _toggleTorch() async {
+  Future<void> _toggleTorch() async {
     await _controller.toggleTorch();
-    setState(() => _torchOn = !_torchOn);
+    if (mounted) setState(() => _torchOn = !_torchOn);
+  }
+
+  void _copyQrCode(String code) {
+    Clipboard.setData(ClipboardData(text: code));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kode QR disalin')),
+    );
+  }
+
+  void _openUser(ProfileData user) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => UserProfileViewScreen(
+          userId: user.id,
+          displayName: user.fullName,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFFF4F6F8),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text(
-          'Scan QR Code',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          'QR Profile',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(
-              _torchOn ? Icons.flash_on : Icons.flash_off,
-              color: _torchOn ? Colors.yellow : Colors.white,
+          if (_selectedTab == 1)
+            IconButton(
+              icon: Icon(
+                _torchOn ? Icons.flash_on : Icons.flash_off,
+                color: _torchOn ? const Color(0xFFF9A825) : Colors.black87,
+              ),
+              onPressed: _toggleTorch,
             ),
-            onPressed: _toggleTorch,
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(height: 1, color: Colors.grey.shade200),
+          _buildSegmentedTabs(),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: _selectedTab == 0 ? _buildMyQrTab() : _buildScannerTab(),
+            ),
           ),
         ],
       ),
-      body: Stack(
+    );
+  }
+
+  Widget _buildSegmentedTabs() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
         children: [
-          // ── Real Camera feed ───────────────────────────────────────────
+          _QrTabButton(
+            icon: Icons.qr_code_2,
+            label: 'QR Saya',
+            selected: _selectedTab == 0,
+            onTap: () => _selectTab(0),
+          ),
+          _QrTabButton(
+            icon: Icons.qr_code_scanner,
+            label: 'Scan User',
+            selected: _selectedTab == 1,
+            onTap: () => _selectTab(1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMyQrTab() {
+    if (_isLoadingProfile) {
+      return const Center(
+        key: ValueKey('qr-loading'),
+        child: CircularProgressIndicator(color: Color(0xFF1A56C4)),
+      );
+    }
+
+    if (_profileError != null) {
+      return _QrMessageState(
+        key: const ValueKey('qr-error'),
+        icon: Icons.error_outline,
+        title: 'QR belum bisa dimuat',
+        message: _profileError!,
+        buttonLabel: 'Coba Lagi',
+        onPressed: _loadProfile,
+      );
+    }
+
+    final profile = _profile;
+    final qrCode = profile?.qrCode?.trim() ?? '';
+    if (profile == null || qrCode.isEmpty) {
+      return _QrMessageState(
+        key: const ValueKey('qr-empty'),
+        icon: Icons.qr_code_2,
+        title: 'QR belum tersedia',
+        message:
+            'Akun aktif dan email terverifikasi akan mendapat QR otomatis.',
+        buttonLabel: 'Refresh',
+        onPressed: _loadProfile,
+      );
+    }
+
+    return RefreshIndicator(
+      key: const ValueKey('my-qr'),
+      color: const Color(0xFF1A56C4),
+      onRefresh: _loadProfile,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          8,
+          16,
+          AppSafeInsets.bottomNavScrollPadding(context, gap: 24),
+        ),
+        children: [
+          _MyQrCard(
+            profile: profile,
+            qrCode: qrCode,
+            onCopy: () => _copyQrCode(qrCode),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScannerTab() {
+    return Container(
+      key: const ValueKey('scan-tab'),
+      color: Colors.black,
+      child: Stack(
+        children: [
           if (!_hasScanned)
             MobileScanner(
               controller: _controller,
               onDetect: _onDetect,
             ),
-
-          // ── Freeze frame when scanned ──────────────────────────────────
-          if (_hasScanned)
-            Container(color: const Color(0xFF1A1A2E)),
-
-          // ── Dark overlay with scan window cutout ───────────────────────
+          if (_hasScanned) Container(color: const Color(0xFF111827)),
           if (!_hasScanned)
             CustomPaint(
               size: Size.infinite,
               painter: _ScannerOverlayPainter(),
             ),
-
-          // ── Corner brackets ────────────────────────────────────────────
           if (!_hasScanned)
             Center(
               child: SizedBox(
@@ -130,41 +314,52 @@ class _QrScanScreenState extends State<QrScanScreen>
                 child: CustomPaint(painter: _CornerPainter()),
               ),
             ),
-
-          // ── Scan instruction ───────────────────────────────────────────
           if (!_hasScanned)
             Positioned(
-              bottom: 180,
-              left: 0,
-              right: 0,
+              bottom: 150,
+              left: 24,
+              right: 24,
               child: Column(
-                children: const [
-                  Icon(Icons.qr_code_scanner, color: Colors.white54, size: 28),
-                  SizedBox(height: 10),
-                  Text(
-                    'Arahkan kamera ke QR Code',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white70, fontSize: 15),
+                children: [
+                  const Icon(
+                    Icons.qr_code_scanner,
+                    color: Colors.white70,
+                    size: 28,
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Scan otomatis saat QR terdeteksi',
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Arahkan kamera ke QR profil',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Hasil scan akan dicek otomatis',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
             ),
-
-          // ── Result bottom sheet ────────────────────────────────────────
-          if (_hasScanned && _scannedResult != null)
+          if (_hasScanned)
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
               child: _ScanResultSheet(
-                result: _scannedResult!,
-                onReset: _reset,
+                rawCode: _rawScannedCode,
+                isLoading: _isResolvingScan,
+                result: _scanResult,
+                error: _scanError,
+                onReset: _resetScan,
+                onOpenUser: _openUser,
                 onClose: () => Navigator.pop(context),
               ),
             ),
@@ -174,20 +369,319 @@ class _QrScanScreenState extends State<QrScanScreen>
   }
 }
 
-// ── RESULT SHEET ──────────────────────────────────────────────────────────────
+class _QrTabButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _QrTabButton({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          height: 42,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF1A56C4) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: selected ? Colors.white : Colors.grey.shade600,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.grey.shade700,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MyQrCard extends StatelessWidget {
+  final ProfileData profile;
+  final String qrCode;
+  final VoidCallback onCopy;
+
+  const _MyQrCard({
+    required this.profile,
+    required this.qrCode,
+    required this.onCopy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = profile.profilePhoto;
+    final hasPhoto = photo != null && photo.isNotEmpty;
+    final initials = profile.fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .take(2)
+        .map((part) => part.isNotEmpty ? part[0] : '')
+        .join()
+        .toUpperCase();
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: const Color(0xFF1A56C4),
+                backgroundImage: hasPhoto ? NetworkImage(photo) : null,
+                child: hasPhoto
+                    ? null
+                    : Text(
+                        initials.isEmpty ? '?' : initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.fullName.isEmpty ? '-' : profile.fullName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      profile.employeeId.isEmpty ? '-' : profile.employeeId,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      profile.department ?? '-',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 22),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: QrImageView(
+                  data: qrCode,
+                  version: QrVersions.auto,
+                  size: 220,
+                  backgroundColor: Colors.white,
+                  eyeStyle: const QrEyeStyle(
+                    eyeShape: QrEyeShape.square,
+                    color: Color(0xFF111827),
+                  ),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF4FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFD6E4FF)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_outline,
+                    size: 16, color: Color(0xFF1A56C4)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    qrCode,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF1A56C4),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: OutlinedButton.icon(
+              onPressed: onCopy,
+              icon: const Icon(Icons.copy, size: 18),
+              label: const Text('Salin Kode QR'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1A56C4),
+                side: const BorderSide(color: Color(0xFF1A56C4)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QrMessageState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final String buttonLabel;
+  final VoidCallback onPressed;
+
+  const _QrMessageState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.buttonLabel,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 58, color: Colors.grey.shade400),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A56C4),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(buttonLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ScanResultSheet extends StatelessWidget {
-  final String result;
+  final String? rawCode;
+  final bool isLoading;
+  final QrScanResult? result;
+  final String? error;
   final VoidCallback onReset;
+  final ValueChanged<ProfileData> onOpenUser;
   final VoidCallback onClose;
 
   const _ScanResultSheet({
+    required this.rawCode,
+    required this.isLoading,
     required this.result,
+    required this.error,
     required this.onReset,
+    required this.onOpenUser,
     required this.onClose,
   });
 
   @override
   Widget build(BuildContext context) {
+    final user = result?.user;
+    final asset = result?.asset;
+    final isSuccess = result?.success == true;
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -195,14 +689,13 @@ class _ScanResultSheet extends StatelessWidget {
       ),
       padding: EdgeInsets.fromLTRB(
         20,
-        20,
+        14,
         20,
         AppSafeInsets.sheetBottomPadding(context, base: 20),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle bar
           Container(
             width: 40,
             height: 4,
@@ -211,61 +704,84 @@ class _ScanResultSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Success icon
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEFF4FF),
-              shape: BoxShape.circle,
+          const SizedBox(height: 18),
+          if (isLoading) ...[
+            const CircularProgressIndicator(color: Color(0xFF1A56C4)),
+            const SizedBox(height: 16),
+            const Text(
+              'Mengecek QR...',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            child: const Icon(
-              Icons.check_circle,
-              color: Color(0xFF1A56C4),
-              size: 32,
+            if (rawCode != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                rawCode!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+            ],
+          ] else if (user != null) ...[
+            _ResultIcon(
+              icon: Icons.person,
+              color: const Color(0xFF1A56C4),
+              background: const Color(0xFFEFF4FF),
             ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'QR Berhasil Dipindai!',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Result card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F5),
-              borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 12),
+            Text(
+              user.fullName.isEmpty ? '-' : user.fullName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Hasil Scan:',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  result,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
+            const SizedBox(height: 4),
+            Text(
+              user.employeeId.isEmpty ? '-' : user.employeeId,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
             ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Buttons
+            const SizedBox(height: 12),
+            _ResultInfoRow(
+              label: 'Departemen',
+              value: user.department ?? '-',
+            ),
+            _ResultInfoRow(
+              label: 'Jabatan',
+              value: user.jabatan ?? user.position ?? '-',
+            ),
+          ] else if (asset != null) ...[
+            _ResultIcon(
+              icon: Icons.inventory_2_outlined,
+              color: const Color(0xFF2E7D32),
+              background: const Color(0xFFE8F5E9),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              asset.assetName.isEmpty ? '-' : asset.assetName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+            ),
+            const SizedBox(height: 12),
+            _ResultInfoRow(label: 'Tipe', value: asset.assetType),
+            _ResultInfoRow(label: 'Lokasi', value: asset.location),
+            _ResultInfoRow(label: 'Kondisi', value: asset.condition),
+          ] else ...[
+            _ResultIcon(
+              icon: Icons.error_outline,
+              color: const Color(0xFFD32F2F),
+              background: const Color(0xFFFFEBEE),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'QR tidak valid',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error ?? 'QR tidak ditemukan.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+          ],
+          const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
@@ -278,39 +794,117 @@ class _ScanResultSheet extends StatelessWidget {
                     side: const BorderSide(color: Color(0xFF1A56C4)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: onClose,
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Selesai'),
+                  onPressed: isSuccess && user != null
+                      ? () => onOpenUser(user)
+                      : onClose,
+                  icon: Icon(
+                    isSuccess && user != null
+                        ? Icons.person_search
+                        : Icons.check,
+                    size: 18,
+                  ),
+                  label: Text(
+                      isSuccess && user != null ? 'Lihat Profil' : 'Selesai'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A56C4),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );
   }
 }
 
-// ── OVERLAY PAINTER ───────────────────────────────────────────────────────────
+class _ResultIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final Color background;
+
+  const _ResultIcon({
+    required this.icon,
+    required this.color,
+    required this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+      child: Icon(icon, color: color, size: 30),
+    );
+  }
+}
+
+class _ResultInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ResultInfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value.isEmpty ? '-' : value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.black.withValues(alpha: 0.55);
+    final paint = Paint()..color = Colors.black.withValues(alpha: 0.58);
     const cutoutSize = 260.0;
     final cutoutLeft = (size.width - cutoutSize) / 2;
     final cutoutTop = (size.height - cutoutSize) / 2;
@@ -328,12 +922,11 @@ class _ScannerOverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter _) => false;
 }
 
-// ── CORNER PAINTER ────────────────────────────────────────────────────────────
 class _CornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1A56C4)
+      ..color = const Color(0xFF3B82F6)
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -341,43 +934,42 @@ class _CornerPainter extends CustomPainter {
     const len = 28.0;
     const r = 14.0;
 
-    // Top-left
     canvas.drawPath(
-        Path()
-          ..moveTo(0, len + r)
-          ..lineTo(0, r)
-          ..arcToPoint(const Offset(r, 0), radius: const Radius.circular(r))
-          ..lineTo(len + r, 0),
-        paint);
+      Path()
+        ..moveTo(0, len + r)
+        ..lineTo(0, r)
+        ..arcToPoint(const Offset(r, 0), radius: const Radius.circular(r))
+        ..lineTo(len + r, 0),
+      paint,
+    );
 
-    // Top-right
     canvas.drawPath(
-        Path()
-          ..moveTo(size.width - len - r, 0)
-          ..lineTo(size.width - r, 0)
-          ..arcToPoint(Offset(size.width, r), radius: const Radius.circular(r))
-          ..lineTo(size.width, len + r),
-        paint);
+      Path()
+        ..moveTo(size.width - len - r, 0)
+        ..lineTo(size.width - r, 0)
+        ..arcToPoint(Offset(size.width, r), radius: const Radius.circular(r))
+        ..lineTo(size.width, len + r),
+      paint,
+    );
 
-    // Bottom-left
     canvas.drawPath(
-        Path()
-          ..moveTo(0, size.height - len - r)
-          ..lineTo(0, size.height - r)
-          ..arcToPoint(Offset(r, size.height),
-              radius: const Radius.circular(r))
-          ..lineTo(len + r, size.height),
-        paint);
+      Path()
+        ..moveTo(0, size.height - len - r)
+        ..lineTo(0, size.height - r)
+        ..arcToPoint(Offset(r, size.height), radius: const Radius.circular(r))
+        ..lineTo(len + r, size.height),
+      paint,
+    );
 
-    // Bottom-right
     canvas.drawPath(
-        Path()
-          ..moveTo(size.width - len - r, size.height)
-          ..lineTo(size.width - r, size.height)
-          ..arcToPoint(Offset(size.width, size.height - r),
-              radius: const Radius.circular(r))
-          ..lineTo(size.width, size.height - len - r),
-        paint);
+      Path()
+        ..moveTo(size.width - len - r, size.height)
+        ..lineTo(size.width - r, size.height)
+        ..arcToPoint(Offset(size.width, size.height - r),
+            radius: const Radius.circular(r))
+        ..lineTo(size.width, size.height - len - r),
+      paint,
+    );
   }
 
   @override

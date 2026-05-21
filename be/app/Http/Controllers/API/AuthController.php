@@ -118,6 +118,11 @@ class AuthController extends Controller
             'email_verification_token'  => null,
         ]);
 
+        $user->refresh();
+        if ($user->is_active && $user->registration_status === 'approved') {
+            $user->ensureQrCode();
+        }
+
         return response()->view('auth.email-verify-result', [
             'success' => true,
             'message' => 'Email berhasil diverifikasi! Silakan kembali ke aplikasi SapaHSE dan login.',
@@ -200,6 +205,8 @@ class AuthController extends Controller
                 'data'    => ['personal_email' => $user->personal_email],
             ], 403);
         }
+
+        $user->ensureQrCode();
 
         $user->tokens()->delete();
         $token = $user->createToken('mobile-token')->plainTextToken;
@@ -333,6 +340,8 @@ class AuthController extends Controller
             'is_active'      => 'boolean',
         ]);
 
+        $isActive = $request->has('is_active') ? $request->boolean('is_active') : true;
+
         $user = User::create([
             'employee_id'       => $request->employee_id,
             'full_name'      => $request->full_name,
@@ -350,9 +359,14 @@ class AuthController extends Controller
             'simper'         => $request->simper,
             'role'           => $request->role,
             'password_hash'  => Hash::make($request->password),
-            'is_active'      => $request->is_active ?? true,
+            'is_active'      => $isActive,
+            'registration_status' => $isActive ? 'approved' : 'pending',
             'email_verified_at' => now(),
         ]);
+
+        if ($user->is_active && $user->email_verified_at) {
+            $user->ensureQrCode();
+        }
 
         return response()->json([
             'status'  => 'success',
@@ -728,6 +742,11 @@ class AuthController extends Controller
             'registration_status' => 'approved'
         ]);
 
+        $user->refresh();
+        if ($user->email_verified_at) {
+            $user->ensureQrCode();
+        }
+
         // Kirim notifikasi push
         try {
             $this->notificationService->createNotification(
@@ -819,6 +838,7 @@ class AuthController extends Controller
             'personal_email' => $user->personal_email,
             'work_email'     => $user->work_email,
             'email_verified' => ! is_null($user->email_verified_at),
+            'qr_code'        => $user->qr_code,
             'phone_number'   => $user->phone_number,
             'position'       => $user->position,
             'jabatan'        => $user->jabatan,

@@ -196,6 +196,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // GET /api/qr-assets/scan         → scan by qr_code (?qr_code=BBE-APAR-...)
     Route::get('/qr-assets',       [QrAssetController::class, 'index']);
     Route::get('/qr-assets/scan',  [QrAssetController::class, 'scan']);
+    Route::get('/qr/me',           [QrAssetController::class, 'myQr']);
+    Route::get('/qr/scan',         [QrAssetController::class, 'scanAny']);
 
     // ── Notifications ─────────────────────────────────────────────────────────
     // POST   /api/notifications/register-fcm    → register FCM token dari mobile

@@ -1272,7 +1272,7 @@ class _FabMenuSheet extends StatelessWidget {
             iconBgColor: const Color(0xFFEFF4FF),
             iconColor: const Color(0xFF1A56C4),
             title: 'Scan QR Code',
-            subtitle: 'Pindai QR untuk verifikasi peralatan',
+            subtitle: 'Lihat QR sendiri atau scan profil user',
             onTap: onScanQr,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),

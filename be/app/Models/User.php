@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -30,6 +31,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $registration_status
  * @property string|null $rejection_reason
  * @property string|null $email_verification_token
+ * @property string|null $qr_code
  * @property string|null $fcm_token
  * @property string|null $remember_token
  * @property \Illuminate\Support\Carbon|null $email_verified_at
@@ -49,6 +51,7 @@ class User extends Authenticatable
         'work_email',
         'email_verified_at',
         'email_verification_token',
+        'qr_code',
         'phone_number',
         'position',
         'jabatan',
@@ -89,6 +92,25 @@ class User extends Authenticatable
             'last_activity_at'          => 'datetime',
             'last_notification_sent_at' => 'datetime',
         ];
+    }
+
+    public function ensureQrCode(): string
+    {
+        if ($this->qr_code) {
+            return $this->qr_code;
+        }
+
+        do {
+            $code = 'SAPA-HSE-USER-' . Str::upper(Str::random(16));
+        } while (
+            self::where('qr_code', $code)
+                ->where('id', '!=', $this->id)
+                ->exists()
+        );
+
+        $this->forceFill(['qr_code' => $code])->save();
+
+        return $code;
     }
 
     public function hazardReports()

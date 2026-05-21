@@ -9,6 +9,7 @@ class ProfileData {
   final String fullName;
   final String personalEmail;
   final String? workEmail;
+  final String? qrCode;
   final String? phoneNumber;
   final String? position;
   final String? jabatan;
@@ -32,6 +33,7 @@ class ProfileData {
     required this.fullName,
     required this.personalEmail,
     this.workEmail,
+    this.qrCode,
     this.phoneNumber,
     this.position,
     this.jabatan,
@@ -57,6 +59,7 @@ class ProfileData {
       fullName: json['full_name']?.toString() ?? '',
       personalEmail: json['personal_email']?.toString() ?? '',
       workEmail: json['work_email']?.toString(),
+      qrCode: json['qr_code']?.toString(),
       phoneNumber: json['phone_number']?.toString(),
       position: json['position']?.toString(),
       jabatan: json['jabatan']?.toString(),
@@ -74,7 +77,8 @@ class ProfileData {
               .toList() ??
           [],
       certifications: (json['certifications'] as List<dynamic>?)
-              ?.map((c) => UserCertification.fromJson(c as Map<String, dynamic>))
+              ?.map(
+                  (c) => UserCertification.fromJson(c as Map<String, dynamic>))
               .toList() ??
           [],
       medicals: (json['medicals'] as List<dynamic>?)
@@ -268,13 +272,18 @@ class UserMedical {
   static List<MedicalChecklistItem> _parseChecklistItems(dynamic data) {
     if (data == null) return [];
     if (data is List) {
-      return data.map((i) => MedicalChecklistItem.fromJson(i as Map<String, dynamic>)).toList();
+      return data
+          .map((i) => MedicalChecklistItem.fromJson(i as Map<String, dynamic>))
+          .toList();
     }
     if (data is String && data.isNotEmpty) {
       try {
         final decoded = _jsonDecode(data);
         if (decoded is List) {
-          return decoded.map((i) => MedicalChecklistItem.fromJson(i as Map<String, dynamic>)).toList();
+          return decoded
+              .map((i) =>
+                  MedicalChecklistItem.fromJson(i as Map<String, dynamic>))
+              .toList();
         }
       } catch (_) {}
     }
