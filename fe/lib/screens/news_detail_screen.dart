@@ -348,118 +348,147 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
             // Content
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Body content
-                    if (_isLoading)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 32),
-                          child: CircularProgressIndicator(),
-                        ),
-                      )
-                    else if (_error != null)
-                      Column(
-                        children: [
-                          Text(
-                            article.excerpt,
-                            style: const TextStyle(
-                                fontSize: 15,
-                                height: 1.7,
-                                color: Color(0xFF2D2D2D)),
-                          ),
-                          const SizedBox(height: 16),
-                          TextButton.icon(
-                            onPressed: _loadDetail,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Muat ulang konten'),
-                          ),
-                        ],
-                      )
-                    else
-                      Html(
-                        data: article.content.isNotEmpty
-                            ? article.content
-                            : article.excerpt,
-                        style: {
-                          'body': Style(
-                            fontSize: FontSize(15),
-                            lineHeight: LineHeight(1.7),
-                            color: const Color(0xFF2D2D2D),
-                            margin: Margins.zero,
-                            padding: HtmlPaddings.zero,
-                          ),
-                          'h1': Style(
-                            fontSize: FontSize(22),
-                            fontWeight: FontWeight.bold,
-                            margin: Margins.only(top: 12, bottom: 8),
-                          ),
-                          'h2': Style(
-                            fontSize: FontSize(19),
-                            fontWeight: FontWeight.bold,
-                            margin: Margins.only(top: 10, bottom: 6),
-                          ),
-                          'h3': Style(
-                            fontSize: FontSize(17),
-                            fontWeight: FontWeight.w600,
-                            margin: Margins.only(top: 8, bottom: 6),
-                          ),
-                          'p': Style(margin: Margins.only(bottom: 12)),
-                          'a': Style(
-                            color: const Color(0xFF1A56C4),
-                            textDecoration: TextDecoration.underline,
-                          ),
-                          'blockquote': Style(
-                            backgroundColor: const Color(0xFFF1F4FA),
-                            padding: HtmlPaddings.all(12),
-                            margin: Margins.symmetric(vertical: 10),
-                            border: const Border(
-                              left: BorderSide(
-                                  color: Color(0xFF1A56C4), width: 3),
-                            ),
-                          ),
-                          'img': Style(width: Width(100, Unit.percent)),
-                        },
-                        onLinkTap: (url, _, __) {
-                          if (url == null) return;
-                          final uri = Uri.tryParse(url);
-                          if (uri != null) launchUrl(uri);
-                        },
+                padding: const EdgeInsets.fromLTRB(12, 16, 12, 0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 2),
                       ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Body content
+                      if (_isLoading)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_error != null)
+                        Column(
+                          children: [
+                            Text(
+                              article.excerpt,
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  height: 1.75,
+                                  color: Color(0xFF1F1F1F)),
+                            ),
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              onPressed: _loadDetail,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Muat ulang konten'),
+                            ),
+                          ],
+                        )
+                      else
+                        Html(
+                          data: article.content.isNotEmpty
+                              ? article.content
+                              : article.excerpt,
+                          style: {
+                            'body': Style(
+                              fontSize: FontSize(16),
+                              lineHeight: LineHeight(1.75),
+                              color: const Color(0xFF1F1F1F),
+                              margin: Margins.zero,
+                              padding: HtmlPaddings.zero,
+                            ),
+                            'h1': Style(
+                              fontSize: FontSize(22),
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF111111),
+                              margin: Margins.only(top: 16, bottom: 10),
+                            ),
+                            'h2': Style(
+                              fontSize: FontSize(19),
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF111111),
+                              margin: Margins.only(top: 14, bottom: 8),
+                            ),
+                            'h3': Style(
+                              fontSize: FontSize(17),
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF111111),
+                              margin: Margins.only(top: 12, bottom: 6),
+                            ),
+                            'p': Style(margin: Margins.only(bottom: 14)),
+                            'a': Style(
+                              color: const Color(0xFF1A56C4),
+                              textDecoration: TextDecoration.underline,
+                            ),
+                            'strong': Style(
+                              color: const Color(0xFF111111),
+                              fontWeight: FontWeight.w700,
+                            ),
+                            'blockquote': Style(
+                              backgroundColor: const Color(0xFFF1F4FA),
+                              color: const Color(0xFF2D2D2D),
+                              padding: HtmlPaddings.all(14),
+                              margin: Margins.symmetric(vertical: 12),
+                              border: const Border(
+                                left: BorderSide(
+                                    color: Color(0xFF1A56C4), width: 3),
+                              ),
+                            ),
+                            'li': Style(margin: Margins.only(bottom: 6)),
+                            'img': Style(width: Width(100, Unit.percent)),
+                          },
+                          onLinkTap: (url, _, __) {
+                            if (url == null) return;
+                            final uri = Uri.tryParse(url);
+                            if (uri != null) launchUrl(uri);
+                          },
+                        ),
 
-                    const SizedBox(height: 32),
+                      const SizedBox(height: 24),
+                      Divider(height: 1, color: Colors.grey.shade200),
+                      const SizedBox(height: 16),
 
-                    // Tags
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        '#BatuBara',
-                        '#BBE',
-                        '#${article.category.replaceAll(' / ', '')}',
-                        '#Energi'
-                      ]
-                          .map((tag) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(tag,
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.grey)),
-                              ))
-                          .toList(),
-                    ),
-
-                    SizedBox(
-                      height: AppSafeInsets.bottomNavScrollPadding(context),
-                    ),
-                  ],
+                      // Tags
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          '#BatuBara',
+                          '#BBE',
+                          '#${article.category.replaceAll(' / ', '')}',
+                          '#Energi'
+                        ]
+                            .map((tag) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F4FA),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(tag,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF1A56C4),
+                                        fontWeight: FontWeight.w500,
+                                      )),
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: AppSafeInsets.bottomNavScrollPadding(context) + 16,
               ),
             ),
           ],
