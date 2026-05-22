@@ -117,6 +117,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       TextEditingController();
   final TextEditingController _licenseVehicleEquipmentController =
       TextEditingController();
+  final TextEditingController _licenseCategoryController =
+      TextEditingController();
   String _licenseType = 'general';
   String? _licenseSimType;
   String? _licenseSimIndonesiaType;
@@ -138,6 +140,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     _licenseNumberController.dispose();
     _licenseIssuerController.dispose();
     _licenseVehicleEquipmentController.dispose();
+    _licenseCategoryController.dispose();
     _certNameController.dispose();
     _certNumberController.dispose();
     _certIssuerController.dispose();
@@ -1690,47 +1693,267 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   Widget _buildDropdownField(String label, String? value, List<String> items,
       Function(String?) onChanged,
       {bool required = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label + (required ? ' *' : ''),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: items.contains(value) ? value : null,
-          validator: required
-              ? (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return '$label wajib dipilih';
-                  }
-                  return null;
-                }
-              : null,
-          decoration: InputDecoration(
-            fillColor: Colors.grey.shade50,
-            filled: true,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+    final selectedValue = items.contains(value) ? value : null;
+    return FormField<String>(
+      initialValue: selectedValue,
+      validator: required
+          ? (v) {
+              if (v == null || v.trim().isEmpty) {
+                return '$label wajib dipilih';
+              }
+              return null;
+            }
+          : null,
+      builder: (state) {
+        final currentValue = state.value;
+        final hasError = state.hasError;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label + (required ? ' *' : ''),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+            const SizedBox(height: 8),
+            InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => _showCompanyPicker(
+                context,
+                title: 'Pilih $label',
+                items: items,
+                selectedValue: currentValue,
+                onSelected: (selected) {
+                  state.didChange(selected);
+                  onChanged(selected);
+                },
+              ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: hasError ? Colors.red : Colors.grey.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: currentValue == null
+                            ? Colors.white
+                            : const Color(0xFFEAF1FF),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Icon(
+                        Icons.business_rounded,
+                        color: currentValue == null
+                            ? Colors.grey.shade400
+                            : const Color(0xFF1A56C4),
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        currentValue ?? 'Pilih $label',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: currentValue == null
+                              ? Colors.grey.shade500
+                              : Colors.black87,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.keyboard_arrow_down_rounded,
+                        color: Colors.grey.shade500),
+                  ],
+                ),
+              ),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          ),
-          items: items
-              .map((e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(e, style: const TextStyle(fontSize: 13)),
-                  ))
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ],
+            if (hasError)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 4),
+                child: Text(
+                  state.errorText!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCompanyPicker(
+    BuildContext context, {
+    required String title,
+    required List<String> items,
+    required String? selectedValue,
+    required ValueChanged<String> onSelected,
+  }) {
+    var query = '';
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final filteredItems = items
+              .where((item) => item.toLowerCase().contains(query.toLowerCase()))
+              .toList();
+          return SizedBox(
+            height: MediaQuery.of(context).size.height * 0.78,
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 16, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A56C4),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: TextField(
+                    onChanged: (value) => setSheetState(() => query = value),
+                    decoration: InputDecoration(
+                      hintText: 'Cari perusahaan...',
+                      hintStyle: TextStyle(color: Colors.grey.shade400),
+                      prefixIcon:
+                          Icon(Icons.search, color: Colors.grey.shade400),
+                      filled: true,
+                      fillColor: const Color(0xFFF0F4F8),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: filteredItems.isEmpty
+                      ? Center(
+                          child: Text(
+                            'Perusahaan tidak ditemukan',
+                            style: TextStyle(color: Colors.grey.shade500),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: filteredItems.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final item = filteredItems[index];
+                            final isSelected = item == selectedValue;
+                            return InkWell(
+                              onTap: () {
+                                onSelected(item);
+                                Navigator.pop(context);
+                              },
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFFEAF1FF)
+                                      : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? const Color(0xFF1A56C4)
+                                        : Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFF1A56C4)
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                            color: Colors.grey.shade200),
+                                      ),
+                                      child: Icon(
+                                        isSelected
+                                            ? Icons.check_rounded
+                                            : Icons.business_rounded,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : const Color(0xFF1A56C4),
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        item,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                SizedBox(
+                  height: AppSafeInsets.bottomNavScrollPadding(context),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -1740,6 +1963,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
     final bloodTypeCtrl = TextEditingController(text: latest?.bloodType);
     final heightCtrl = TextEditingController(text: latest?.height);
+    final parsedHeight = int.tryParse(
+      (latest?.height ?? '').replaceAll(RegExp(r'[^0-9]'), ''),
+    );
+    double selectedHeight = (parsedHeight ?? 170).clamp(50, 300).toDouble();
+    heightCtrl.text = selectedHeight.round().toString();
     final weightCtrl = TextEditingController(text: latest?.weight);
     final allergiesCtrl = TextEditingController(text: latest?.allergies);
     final lastMedicationCtrl =
@@ -1825,35 +2053,55 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 ),
                 const SizedBox(height: 16),
                 _buildFieldLabel('Tinggi Badan (cm)'),
-                InkWell(
-                  onTap: () => _showHeightPicker(
-                      modalContext, heightCtrl, setModalState),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          heightCtrl.text.isEmpty
-                              ? 'Pilih Tinggi Badan'
-                              : '${heightCtrl.text} cm',
-                          style: TextStyle(
-                            color: heightCtrl.text.isEmpty
-                                ? Colors.grey.shade400
-                                : Colors.black,
-                            fontSize: 14,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '50 cm',
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 12),
                           ),
-                        ),
-                        const Spacer(),
-                        Icon(Icons.arrow_drop_down,
-                            color: Colors.grey.shade400),
-                      ],
-                    ),
+                          const Spacer(),
+                          Text(
+                            '${selectedHeight.round()} cm',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A56C4),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '300 cm',
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                      Slider(
+                        value: selectedHeight,
+                        min: 50,
+                        max: 300,
+                        divisions: 250,
+                        label: '${selectedHeight.round()} cm',
+                        activeColor: const Color(0xFF1A56C4),
+                        onChanged: (value) {
+                          setModalState(() {
+                            selectedHeight = value;
+                            heightCtrl.text = value.round().toString();
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1991,7 +2239,20 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   void _showBloodTypePicker(BuildContext context, TextEditingController ctrl,
       StateSetter setModalState) {
-    final types = ['A', 'B', 'AB', 'O'];
+    final types = [
+      'A',
+      'A+',
+      'A-',
+      'B',
+      'B+',
+      'B-',
+      'AB',
+      'AB+',
+      'AB-',
+      'O',
+      'O+',
+      'O-',
+    ];
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -2011,15 +2272,41 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
             const Text('Pilih Golongan Darah',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            ...types.map((type) => ListTile(
-                  title: Text(type,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  onTap: () {
-                    setModalState(() => ctrl.text = type);
-                    Navigator.pop(context);
-                  },
-                )),
+            SizedBox(
+              height: 260,
+              child: GridView.count(
+                crossAxisCount: 3,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 2.4,
+                children: types
+                    .map(
+                      (type) => InkWell(
+                        onTap: () {
+                          setModalState(() => ctrl.text = type);
+                          Navigator.pop(context);
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Text(
+                            type,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
           ],
         ),
       ),
@@ -2069,6 +2356,248 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
+  void _showLicenseCategoryPicker(
+    BuildContext context, {
+    required String title,
+    required List<String> options,
+    required String? selectedValue,
+    required ValueChanged<String> onSelected,
+    Map<String, String> descriptions = const {},
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          20,
+          24,
+          AppSafeInsets.sheetBottomPadding(context),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 4,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.25,
+              children: options.map((option) {
+                final isSelected = option == selectedValue;
+                final description = descriptions[option];
+                return InkWell(
+                  onTap: () {
+                    onSelected(option);
+                    Navigator.pop(context);
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF1A56C4)
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF1A56C4)
+                            : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Text(
+                      description == null ? option : '$option\n$description',
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontWeight: FontWeight.bold,
+                        fontSize: description == null ? 16 : 12.5,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLicenseTypePicker(
+    BuildContext context, {
+    required String selectedValue,
+    required ValueChanged<String> onSelected,
+  }) {
+    const options = [
+      {
+        'value': 'general',
+        'label': 'License Umum',
+        'description': 'Kategori bebas seperti U, SIO, K3',
+      },
+      {
+        'value': 'simper',
+        'label': 'SIMPER License',
+        'description': 'Kategori DT, BD, BL, EX, WT, WL',
+      },
+      {
+        'value': 'government',
+        'label': 'License Pemerintah',
+        'description': 'Kategori SIM Indonesia A sampai D1',
+      },
+      {
+        'value': 'mine_permit',
+        'label': 'Mine Permit',
+        'description': 'Pengajuan mine permit dari profil',
+      },
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Container(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          20,
+          24,
+          AppSafeInsets.sheetBottomPadding(context),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Pilih Tipe Lisensi',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...options.map((option) {
+              final value = option['value']!;
+              final isSelected = value == selectedValue;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: InkWell(
+                  onTap: () {
+                    onSelected(value);
+                    Navigator.pop(context);
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFFEAF1FF)
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFF1A56C4)
+                            : Colors.grey.shade200,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF1A56C4)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Icon(
+                            isSelected
+                                ? Icons.check_rounded
+                                : Icons.badge_outlined,
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xFF1A56C4),
+                            size: 19,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                option['label']!,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                option['description']!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right_rounded,
+                            color: Colors.grey.shade400),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddLicenseForm({UserLicense? editLicense}) {
     if (editLicense != null) {
       _licenseNameController.text = editLicense.name;
@@ -2079,6 +2608,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       _licenseType = editLicense.licenseType;
       _licenseSimType = editLicense.simType;
       _licenseSimIndonesiaType = editLicense.simIndonesiaType;
+      _licenseCategoryController.text = editLicense.simIndonesiaType ?? '';
       _licenseObtainedAt = editLicense.obtainedAt != null
           ? DateTime.parse(editLicense.obtainedAt!)
           : null;
@@ -2091,6 +2621,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       _licenseNumberController.clear();
       _licenseIssuerController.clear();
       _licenseVehicleEquipmentController.clear();
+      _licenseCategoryController.clear();
       _licenseType = 'general';
       _licenseSimType = null;
       _licenseSimIndonesiaType = null;
@@ -2105,6 +2636,46 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => StatefulBuilder(
         builder: (modalContext, setModalState) {
+          const governmentCategories = [
+            'A',
+            'B1',
+            'B2',
+            'C',
+            'C1',
+            'C2',
+            'D',
+            'D1',
+          ];
+          const simperCategories = ['DT', 'BD', 'BL', 'EX', 'WT', 'WL'];
+          const simTypeOptions = ['F', 'P', 'R', 'T', 'I'];
+          const simTypeDescriptions = {
+            'F': 'Full',
+            'P': 'Probation',
+            'R': 'Restricted',
+            'T': 'Training',
+            'I': 'Instructor',
+          };
+          final categoryOptions = _licenseType == 'government'
+              ? governmentCategories
+              : _licenseType == 'simper'
+                  ? simperCategories
+                  : null;
+          final selectedCategory =
+              categoryOptions?.contains(_licenseSimIndonesiaType) == true
+                  ? _licenseSimIndonesiaType
+                  : null;
+          final selectedSimType = simTypeOptions.contains(_licenseSimType)
+              ? _licenseSimType
+              : null;
+          const licenseTypeLabels = {
+            'general': 'License Umum',
+            'simper': 'SIMPER License',
+            'government': 'License Pemerintah',
+            'mine_permit': 'Mine Permit',
+          };
+          final selectedLicenseTypeLabel =
+              licenseTypeLabels[_licenseType] ?? 'Pilih tipe lisensi';
+
           // Check if mine permit confirmation view should be shown
           final showMinePermitConfirmation = 
               _licenseType == 'mine_permit' && editLicense == null;
@@ -2141,39 +2712,76 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   ),
                   const SizedBox(height: 20),
                   _buildFieldLabel('Tipe Lisensi'),
-                  DropdownButtonFormField<String>(
-                    initialValue: _licenseType,
-                    decoration: _buildInputDecoration('Pilih tipe lisensi'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'general',
-                        child: Text('License Umum'),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _showLicenseTypePicker(
+                      modalContext,
+                      selectedValue: _licenseType,
+                      onSelected: (value) {
+                        setModalState(() {
+                          _licenseType = value;
+                          if (value == 'government' &&
+                              !governmentCategories
+                                  .contains(_licenseSimIndonesiaType)) {
+                            _licenseSimIndonesiaType = null;
+                          } else if (value == 'simper' &&
+                              !simperCategories
+                                  .contains(_licenseSimIndonesiaType)) {
+                            _licenseSimIndonesiaType = null;
+                          } else if (value == 'general') {
+                            _licenseCategoryController.text =
+                                _licenseSimIndonesiaType ?? '';
+                          }
+                          if ((value == 'simper' || value == 'government') &&
+                              _licenseNameController.text.trim().isEmpty) {
+                            _licenseNameController.text =
+                                value == 'government'
+                                    ? 'License Pemerintah'
+                                    : 'SIMPER';
+                          }
+                        });
+                      },
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
-                      DropdownMenuItem(
-                        value: 'simper',
-                        child: Text('SIMPER License'),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAF1FF),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.badge_outlined,
+                              color: Color(0xFF1A56C4),
+                              size: 19,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              selectedLicenseTypeLabel,
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.keyboard_arrow_down_rounded,
+                              color: Colors.grey.shade500),
+                        ],
                       ),
-                      DropdownMenuItem(
-                        value: 'government',
-                        child: Text('License Pemerintah'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'mine_permit',
-                        child: Text('Mine Permit'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setModalState(() {
-                        _licenseType = value;
-                        if ((value == 'simper' || value == 'government') &&
-                            _licenseNameController.text.trim().isEmpty) {
-                          _licenseNameController.text = value == 'government'
-                              ? 'License Pemerintah'
-                              : 'SIMPER';
-                        }
-                      });
-                    },
+                    ),
                   ),
                   const SizedBox(height: 16),
                   
@@ -2326,28 +2934,96 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   decoration:
                       _buildInputDecoration('Contoh: Polri, Kemnaker RI...'),
                 ),
-                if (_licenseType == 'simper' || _licenseType == 'government') ...[
+                if (_licenseType != 'mine_permit') ...[
                   const SizedBox(height: 16),
-                  _buildFieldLabel('Kategori SIM Indonesia'),
-                  DropdownButtonFormField<String>(
-                    initialValue: _licenseSimIndonesiaType,
-                    decoration: _buildInputDecoration('Contoh: B2'),
-                    items: const [
-                      'A',
-                      'B1',
-                      'B2',
-                      'C',
-                      'C1',
-                      'C2',
-                    ]
-                        .map((value) => DropdownMenuItem(
-                              value: value,
-                              child: Text(value),
-                            ))
-                        .toList(),
-                    onChanged: (value) =>
-                        setModalState(() => _licenseSimIndonesiaType = value),
+                  _buildFieldLabel(
+                    _licenseType == 'government'
+                        ? 'Kategori SIM Indonesia'
+                        : _licenseType == 'simper'
+                            ? 'Kategori SIMPER'
+                            : 'Kategori Lisensi',
                   ),
+                  if (categoryOptions == null)
+                    TextField(
+                      controller: _licenseCategoryController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: _buildInputDecoration('Contoh: U, SIO, K3'),
+                      onChanged: (value) => _licenseSimIndonesiaType =
+                          value.trim().isEmpty ? null : value.trim(),
+                    )
+                  else
+                    InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => _showLicenseCategoryPicker(
+                        modalContext,
+                        title: _licenseType == 'government'
+                            ? 'Pilih Kategori SIM Indonesia'
+                            : 'Pilih Kategori SIMPER',
+                        options: categoryOptions,
+                        selectedValue: selectedCategory,
+                        onSelected: (value) {
+                          setModalState(() {
+                            _licenseSimIndonesiaType = value;
+                            _licenseCategoryController.text = value;
+                          });
+                        },
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 13),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: selectedCategory == null
+                                    ? Colors.white
+                                    : const Color(0xFF1A56C4),
+                                borderRadius: BorderRadius.circular(10),
+                                border:
+                                    Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Text(
+                                selectedCategory ?? '-',
+                                style: TextStyle(
+                                  color: selectedCategory == null
+                                      ? Colors.grey.shade400
+                                      : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                selectedCategory == null
+                                    ? (_licenseType == 'government'
+                                        ? 'Pilih A, B1, B2, C, C1, C2, D, D1'
+                                        : 'Pilih DT, BD, BL, EX, WT, WL')
+                                    : 'Kategori $selectedCategory',
+                                style: TextStyle(
+                                  color: selectedCategory == null
+                                      ? Colors.grey.shade500
+                                      : Colors.black87,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.keyboard_arrow_down_rounded,
+                                color: Colors.grey.shade500),
+                          ],
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 16),
                   _buildFieldLabel('Vehicle Equipment'),
                   TextField(
@@ -2358,21 +3034,70 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   ),
                   const SizedBox(height: 16),
                   _buildFieldLabel('SIM Type (LIC)'),
-                  DropdownButtonFormField<String>(
-                    initialValue: _licenseSimType,
-                    decoration: _buildInputDecoration('Pilih F/P/R/T/I'),
-                    items: const [
-                      DropdownMenuItem(value: 'F', child: Text('F - Full')),
-                      DropdownMenuItem(
-                          value: 'P', child: Text('P - Probation')),
-                      DropdownMenuItem(
-                          value: 'R', child: Text('R - Restricted')),
-                      DropdownMenuItem(value: 'T', child: Text('T - Training')),
-                      DropdownMenuItem(
-                          value: 'I', child: Text('I - Instructor')),
-                    ],
-                    onChanged: (value) =>
-                        setModalState(() => _licenseSimType = value),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => _showLicenseCategoryPicker(
+                      modalContext,
+                      title: 'Pilih SIM Type (LIC)',
+                      options: simTypeOptions,
+                      selectedValue: selectedSimType,
+                      descriptions: simTypeDescriptions,
+                      onSelected: (value) {
+                        setModalState(() => _licenseSimType = value);
+                      },
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: selectedSimType == null
+                                  ? Colors.white
+                                  : const Color(0xFF1A56C4),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Text(
+                              selectedSimType ?? '-',
+                              style: TextStyle(
+                                color: selectedSimType == null
+                                    ? Colors.grey.shade400
+                                    : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              selectedSimType == null
+                                  ? 'Pilih F, P, R, T, I'
+                                  : 'LIC $selectedSimType - ${simTypeDescriptions[selectedSimType]}',
+                              style: TextStyle(
+                                color: selectedSimType == null
+                                    ? Colors.grey.shade500
+                                    : Colors.black87,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.keyboard_arrow_down_rounded,
+                              color: Colors.grey.shade500),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -2498,6 +3223,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       final issuer = _licenseIssuerController.text.trim();
                       final vehicleEquipment =
                           _licenseVehicleEquipmentController.text.trim();
+                      final simIndonesiaType = _licenseType == 'general'
+                          ? _licenseCategoryController.text.trim()
+                          : (_licenseSimIndonesiaType ?? '').trim();
                       final obtainedAt =
                           _formatDateForPayload(_licenseObtainedAt);
                       final expiredAt =
@@ -2509,6 +3237,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         _licenseNumberController.clear();
                         _licenseIssuerController.clear();
                         _licenseVehicleEquipmentController.clear();
+                        _licenseCategoryController.clear();
                         _licenseType = 'general';
                         _licenseSimType = null;
                         _licenseSimIndonesiaType = null;
@@ -2527,7 +3256,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         'vehicleEquipment':
                             vehicleEquipment.isEmpty ? null : vehicleEquipment,
                         'simType': _licenseSimType,
-                        'simIndonesiaType': _licenseSimIndonesiaType,
+                        'simIndonesiaType':
+                            simIndonesiaType.isEmpty ? null : simIndonesiaType,
                         'issuer': issuer.isEmpty ? null : issuer,
                         'obtainedAt': obtainedAt.isEmpty ? null : obtainedAt,
                         'expiredAt': expiredAt.isEmpty ? null : expiredAt,
@@ -2560,7 +3290,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               licenseType: _licenseType,
                               vehicleEquipment: vehicleEquipment,
                               simType: _licenseSimType,
-                              simIndonesiaType: _licenseSimIndonesiaType,
+                              simIndonesiaType: simIndonesiaType.isEmpty
+                                  ? null
+                                  : simIndonesiaType,
                               obtainedAt:
                                   obtainedAt.isEmpty ? null : obtainedAt,
                               expiredAt: expiredAt.isEmpty ? null : expiredAt,
@@ -2573,7 +3305,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               licenseType: _licenseType,
                               vehicleEquipment: vehicleEquipment,
                               simType: _licenseSimType,
-                              simIndonesiaType: _licenseSimIndonesiaType,
+                              simIndonesiaType: simIndonesiaType.isEmpty
+                                  ? null
+                                  : simIndonesiaType,
                               obtainedAt:
                                   obtainedAt.isEmpty ? null : obtainedAt,
                               expiredAt: expiredAt.isEmpty ? null : expiredAt,

@@ -1190,7 +1190,8 @@ class IdCardPdfService {
       _SimperRowSpec('B', ['SIM B1', 'SIM B2'],
           source: _LicenseSource.government),
       _SimperRowSpec('C', ['SIM C'], source: _LicenseSource.government),
-      _SimperRowSpec('U', ['DRONE', 'SIM DRONE'], vehicleName: 'Drone'),
+      _SimperRowSpec('U', ['DRONE', 'SIM DRONE'],
+          source: _LicenseSource.general, vehicleName: 'Drone'),
       _SimperRowSpec('DT', ['DT', 'DUMP TRUCK'],
           source: _LicenseSource.simper),
       _SimperRowSpec('BD', ['BULLDOZER', 'DOZER', 'BD'],
@@ -1255,10 +1256,19 @@ class IdCardPdfService {
       return haystack.contains('DRONE') || exactValues.contains('U');
     }
 
+    if (spec.source == _LicenseSource.simper &&
+        exactValues.contains(spec.code)) {
+      return true;
+    }
+
     if (spec.source == _LicenseSource.government &&
         ['A', 'B', 'C'].contains(spec.code)) {
       if (spec.code == 'B' &&
           (exactValues.contains('B1') || exactValues.contains('B2'))) {
+        return true;
+      }
+      if (spec.code == 'C' &&
+          (exactValues.contains('C1') || exactValues.contains('C2'))) {
         return true;
       }
       return exactValues.contains(spec.code) ||
@@ -1279,6 +1289,10 @@ class IdCardPdfService {
             type.contains('pemerintah') ||
             type.contains('sim_indonesia') ||
             type.contains('sim indonesia');
+      case _LicenseSource.general:
+        return type.contains('general') ||
+            type.contains('umum') ||
+            type.contains('license umum');
       case _LicenseSource.simper:
         return type.contains('simper') || type.contains('mine');
     }
@@ -1312,7 +1326,7 @@ class IdCardPdfService {
 
 }
 
-enum _LicenseSource { any, government, simper }
+enum _LicenseSource { any, government, general, simper }
 
 class _SimperRowSpec {
   final String code;

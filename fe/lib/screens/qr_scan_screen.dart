@@ -1300,14 +1300,11 @@ class _MiniSignaturePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logoUrl = profile.companyDetail?.logoUrl?.trim() ?? '';
     final kttSignatureUrl =
         profile.companyDetail?.kttSignatureUrl?.trim() ?? '';
     final companyStampUrl = profile.companyDetail?.companyStampUrl?.trim() ?? '';
     final kttName = profile.companyDetail?.kttUser?.fullName ??
         _defaultKttNameForOwner(profile.company);
-    final companyCode = profile.companyDetail?.code ??
-        _MinePermitFrontPreview._companyShort(profile.company);
 
     return SizedBox(
       width: 92,
@@ -1321,15 +1318,7 @@ class _MiniSignaturePreview extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          Container(
-            width: 55,
-            height: 10,
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Color(0xFF245A9C), width: 1),
-              ),
-            ),
-          ),
+          const SizedBox(height: 4),
           SizedBox(
             width: 70,
             height: 14,
@@ -1338,12 +1327,7 @@ class _MiniSignaturePreview extends StatelessWidget {
                 Expanded(
                   child: _signatureImage(
                     kttSignatureUrl,
-                    fallback: logoUrl.isNotEmpty
-                        ? _signatureImage(
-                            logoUrl,
-                            fallback: _signatureCode(companyCode),
-                          )
-                        : _signatureCode(companyCode),
+                    fallback: const SizedBox.shrink(),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -1367,21 +1351,6 @@ class _MiniSignaturePreview extends StatelessWidget {
             style: TextStyle(fontSize: 5.8, fontStyle: FontStyle.italic),
           ),
         ],
-      ),
-    );
-  }
-
-  static Widget _signatureCode(String value) {
-    return Center(
-      child: Text(
-        value,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Color(0xFF303744),
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-        ),
       ),
     );
   }
