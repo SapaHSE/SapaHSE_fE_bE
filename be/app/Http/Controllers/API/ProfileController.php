@@ -311,7 +311,10 @@ class ProfileController extends Controller
 
         $user->password_hash = Hash::make($request->new_password);
         $user->save();
-        $user->tokens()->delete();
+        $user->tokens()->update([
+            'revoked_reason' => 'password_changed',
+            'expires_at' => now(),
+        ]);
 
         return \response()->json([
             'status'  => 'success',
@@ -326,7 +329,10 @@ class ProfileController extends Controller
         $user = Auth::user();
         
         // Hapus token session
-        $user->tokens()->delete();
+        $user->tokens()->update([
+            'revoked_reason' => 'account_deleted',
+            'expires_at' => now(),
+        ]);
         
         // Hapus data (Soft delete jika mau atau hard delete). Model saat ini tdk pakai softDelete
         $user->delete();

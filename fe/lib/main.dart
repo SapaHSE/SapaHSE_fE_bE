@@ -199,7 +199,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       StorageService.isLoggedIn().then((loggedIn) async {
         if (!mounted) return;
         if (!loggedIn) {
-          await showSessionExpiredDialog();
+          await showSessionExpiredDialog(reason: SessionEndReason.notLoggedIn);
           return;
         }
         final expired = await IdleTimeoutService.instance.checkOnResume();

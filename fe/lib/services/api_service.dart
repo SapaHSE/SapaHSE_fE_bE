@@ -187,7 +187,7 @@ class ApiService {
       if (hasToken) {
         await IdleTimeoutService.instance.stop();
         await StorageService.clear();
-        await showSessionExpiredDialog();
+        await showSessionExpiredDialog(message: body['message'] as String?);
       }
       return ApiResponse.error(
         body['message'] ??

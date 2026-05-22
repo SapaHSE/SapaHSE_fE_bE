@@ -91,7 +91,7 @@ class IdleTimeoutService {
   Future<void> _triggerTimeout() async {
     await stop();
     await StorageService.clear();
-    await showSessionExpiredDialog();
+    await showSessionExpiredDialog(reason: SessionEndReason.idleTimeout);
   }
 
   Future<void> _clearPersisted(SharedPreferences prefs) async {

@@ -208,7 +208,10 @@ class AuthController extends Controller
 
         $user->ensureQrCode();
 
-        $user->tokens()->delete();
+        $user->tokens()->update([
+            'revoked_reason' => 'another_login',
+            'expires_at' => now(),
+        ]);
         $token = $user->createToken('mobile-token')->plainTextToken;
 
         return response()->json([
