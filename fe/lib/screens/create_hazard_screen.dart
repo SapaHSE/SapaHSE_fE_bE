@@ -2536,8 +2536,14 @@ if (picked.isNotEmpty) {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgColor,
+    return PopScope(
+      canPop: _currentStep == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _prevStep();
+      },
+      child: Scaffold(
+        backgroundColor: _bgColor,
       appBar: AppBar(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
@@ -2641,6 +2647,7 @@ if (picked.isNotEmpty) {
           ),
         ),
         ),
+      ),
       ),
     );
   }
