@@ -177,19 +177,22 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
   }
 
   Widget _buildTab(String label, int count) {
-    return Tab(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label),
-          if (count > 0) ...[
-            const SizedBox(width: 6),
-            _buildBadge(count),
-          ],
-        ],
-      ),
-    );
-  }
+      return Tab(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label),
+              if (count > 0) ...[
+                const SizedBox(width: 6),
+                _buildBadge(count),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
 
   Widget _buildBadge(int count) {
     return Container(

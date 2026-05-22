@@ -223,20 +223,81 @@ class _QrScanScreenState extends State<QrScanScreen>
   }
 
   Future<void> _showMinePermitMissingDialog() async {
+    const primaryBlue = Color(0xFF1A56C4);
+
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Mine Permit Belum Tersedia'),
-        content: const Text(
-          'Anda belum memiliki Mine Permit yang disetujui. '
-          'Silakan ajukan Mine Permit terlebih dahulu.',
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.badge_outlined, color: primaryBlue),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Mine Permit Belum Tersedia',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
         ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Anda belum memiliki Mine Permit yang disetujui. '
+              'Silakan ajukan Mine Permit terlebih dahulu untuk dapat '
+              'mengekspor ID Card.',
+              style: TextStyle(fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF90CAF9)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: primaryBlue,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Pengajuan diproses secara otomatis dari data profil Anda.',
+                      style: TextStyle(
+                        color: Colors.blue.shade900,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actionsPadding:
+            const EdgeInsets.fromLTRB(16, 0, 16, 12),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey.shade700,
+            ),
             child: const Text('Tutup'),
           ),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: () async {
               Navigator.pop(ctx);
               final result = await ProfileService.requestMinePermit();
@@ -249,7 +310,16 @@ class _QrScanScreenState extends State<QrScanScreen>
                 await _loadProfile();
               }
             },
-            child: const Text('Ajukan Mine Permit'),
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('Ajukan Mine Permit'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryBlue,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ],
       ),
