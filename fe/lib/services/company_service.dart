@@ -105,15 +105,14 @@ class CompanyService {
     int companyId,
     String name, {
     String? code,
-    int? picUserId,
-    List<int>? picUserIds,
+    String? picUserId,
+    List<String>? picUserIds,
   }) async {
     final ids = picUserIds ?? (picUserId != null ? [picUserId] : null);
     final response = await ApiService.post('/areas', {
       'company_id': companyId,
       'name': name,
       if (code != null && code.isNotEmpty) 'code': code,
-      if (picUserId != null) 'pic_user_id': picUserId,
       if (ids != null) 'pic_user_ids': ids,
     });
     if (response.success && response.data['data'] != null) {
@@ -127,15 +126,14 @@ class CompanyService {
     int companyId,
     String name, {
     String? code,
-    int? picUserId,
-    List<int>? picUserIds,
+    String? picUserId,
+    List<String>? picUserIds,
   }) async {
     final ids = picUserIds ?? (picUserId != null ? [picUserId] : null);
     final response = await ApiService.put('/areas/$id', {
       'company_id': companyId,
       'name': name,
       if (code != null && code.isNotEmpty) 'code': code,
-      if (picUserId != null) 'pic_user_id': picUserId,
       if (ids != null) 'pic_user_ids': ids,
     });
     if (response.success && response.data['data'] != null) {

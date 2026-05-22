@@ -85,9 +85,9 @@ class AreaData {
   final int id;
   final int companyId;
   final String? companyName;
-  final int? picUserId;
+  final String? picUserId;
   final String? picUserName;
-  final List<int> picUserIds;
+  final List<String> picUserIds;
   final List<AreaPicUserData> picUsers;
   final String name;
   final String? code;
@@ -118,17 +118,17 @@ class AreaData {
     }
 
     final picUserIdsRaw = json['pic_user_ids'];
-    final parsedPicUserIds = <int>[];
+    final parsedPicUserIds = <String>[];
     if (picUserIdsRaw is List) {
       for (final raw in picUserIdsRaw) {
-        final id = int.tryParse(raw?.toString() ?? '');
-        if (id != null && id > 0) parsedPicUserIds.add(id);
+        final id = raw?.toString().trim() ?? '';
+        if (id.isNotEmpty) parsedPicUserIds.add(id);
       }
     }
 
-    final picUserId = json['pic_user_id'] is int
-        ? json['pic_user_id'] as int
-        : int.tryParse(json['pic_user_id']?.toString() ?? '');
+    final rawPicUserId = json['pic_user_id']?.toString().trim();
+    final picUserId =
+        rawPicUserId == null || rawPicUserId.isEmpty ? null : rawPicUserId;
 
     if (parsedPicUserIds.isEmpty && parsedPicUsers.isNotEmpty) {
       parsedPicUserIds.addAll(parsedPicUsers.map((u) => u.id));
@@ -165,7 +165,7 @@ class AreaData {
 }
 
 class AreaPicUserData {
-  final int id;
+  final String id;
   final String fullName;
   final String? employeeId;
   final String? department;
@@ -183,7 +183,7 @@ class AreaPicUserData {
 
   factory AreaPicUserData.fromJson(Map<String, dynamic> json) {
     return AreaPicUserData(
-      id: json['id'] is int ? json['id'] as int : int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      id: json['id']?.toString() ?? '',
       fullName: json['full_name']?.toString() ?? '',
       employeeId: json['employee_id']?.toString(),
       department: json['department']?.toString(),

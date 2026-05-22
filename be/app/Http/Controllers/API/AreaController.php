@@ -49,7 +49,7 @@ class AreaController extends Controller
             'code'         => 'nullable|string|max:50',
             'pic_user_id'  => 'nullable|exists:users,id',
             'pic_user_ids' => 'nullable|array',
-            'pic_user_ids.*' => 'integer|exists:users,id',
+            'pic_user_ids.*' => 'string|exists:users,id',
         ]);
 
         // Check uniqueness within company
@@ -70,7 +70,7 @@ class AreaController extends Controller
                 'company_id'  => $request->company_id,
                 'name'        => $request->name,
                 'code'        => $request->code,
-                'pic_user_id' => $picUserIds[0] ?? $request->pic_user_id,
+                'pic_user_id' => $this->legacyNumericPicUserId($picUserIds[0] ?? $request->pic_user_id),
                 'pic_user_ids' => $picUserIds,
             ]);
 
@@ -98,7 +98,7 @@ class AreaController extends Controller
             'code'         => 'nullable|string|max:50',
             'pic_user_id'  => 'nullable|exists:users,id',
             'pic_user_ids' => 'nullable|array',
-            'pic_user_ids.*' => 'integer|exists:users,id',
+            'pic_user_ids.*' => 'string|exists:users,id',
         ]);
 
         $companyId = $request->company_id ?? $area->company_id;
@@ -123,7 +123,7 @@ class AreaController extends Controller
                 'company_id'  => $companyId,
                 'name'        => $request->name,
                 'code'        => $request->code,
-                'pic_user_id' => $picUserIds[0] ?? null,
+                'pic_user_id' => $this->legacyNumericPicUserId($picUserIds[0] ?? null),
                 'pic_user_ids' => $picUserIds,
             ]);
 
@@ -176,9 +176,9 @@ class AreaController extends Controller
     private function formatArea(Area $area): array
     {
         $picIds = array_values(array_filter(array_map(
-            fn($id) => (int) $id,
+            fn($id) => trim((string) $id),
             $area->pic_user_ids ?? ($area->pic_user_id ? [$area->pic_user_id] : [])
-        ), fn($id) => $id > 0));
+        ), fn($id) => $id !== ''));
 
         return [
             'id'             => $area->id,
@@ -208,29 +208,28 @@ class AreaController extends Controller
         }
 
         $ids = array_values(array_unique(array_filter(array_map(
-            fn($id) => (int) $id,
+            fn($id) => trim((string) $id),
             $ids
-        ), fn($id) => $id > 0)));
+        ), fn($id) => $id !== '')));
 
         return $ids;
     }
 
     /**
-     * @return array<int, array{id:int, full_name:string, employee_id:?string, department:?string, position:?string, jabatan:?string}>
+     * @return array<int, array{id:string, full_name:string, employee_id:?string, department:?string, position:?string, jabatan:?string}>
      */
     private function resolvePicUsers(?array $ids): array
     {
         $ids = array_values(array_filter(array_map(
-            fn($id) => (int) $id,
+            fn($id) => trim((string) $id),
             $ids ?? []
-        ), fn($id) => $id > 0));
+        ), fn($id) => $id !== ''));
 
         if (empty($ids)) {
             return [];
         }
 
         return User::whereIn('id', $ids)
-            ->where('is_active', true)
             ->orderBy('full_name')
             ->get()
             ->map(fn(User $user) => [
@@ -252,5 +251,14 @@ class AreaController extends Controller
             fn(array $user) => trim(($user['full_name'] ?? '') . (($user['employee_id'] ?? '') ? ' - ' . $user['employee_id'] : '')),
             $users
         ));
+    }
+
+    private function legacyNumericPicUserId($id): ?int
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        return ctype_digit((string) $id) ? (int) $id : null;
     }
 }
