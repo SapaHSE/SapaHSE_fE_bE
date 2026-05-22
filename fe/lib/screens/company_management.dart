@@ -184,10 +184,15 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
                   name: currentCompany.name,
                   code: currentCompany.code,
                   logoUrl: currentCompany.logoUrl,
+                  kttSignatureUrl: currentCompany.kttSignatureUrl,
+                  companyStampUrl: currentCompany.companyStampUrl,
                   kttUserId: currentCompany.kttUserId,
                   kttUser: currentCompany.kttUser,
                   emergencyNumber: currentCompany.emergencyNumber,
                   ertFreq: currentCompany.ertFreq,
+                  radioLabel: currentCompany.radioLabel,
+                  radioChannel: currentCompany.radioChannel,
+                  radioFrequency: currentCompany.radioFrequency,
                   category: currentCompany.category,
                   isActive: !currentCompany.isActive,
                 );
@@ -239,6 +244,7 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
                 await CompanyService.deleteCompany(currentCompany.id);
                 _removeCompanyFromList(currentCompany.id);
                 _showSnack('Company berhasil dihapus.');
+                if (!sheetContext.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.pop(sheetContext);
                 }
@@ -557,7 +563,10 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
           (c.code?.toLowerCase().contains(searchLower) ?? false) ||
           c.kttDisplayName.toLowerCase().contains(searchLower) ||
           (c.emergencyNumber?.toLowerCase().contains(searchLower) ?? false) ||
-          (c.ertFreq?.toLowerCase().contains(searchLower) ?? false);
+          (c.ertFreq?.toLowerCase().contains(searchLower) ?? false) ||
+          (c.radioLabel?.toLowerCase().contains(searchLower) ?? false) ||
+          (c.radioChannel?.toLowerCase().contains(searchLower) ?? false) ||
+          (c.radioFrequency?.toLowerCase().contains(searchLower) ?? false);
     }).toList();
 
     // Group companies by category
@@ -937,6 +946,8 @@ class _CompanyFormScreen extends StatefulWidget {
   State<_CompanyFormScreen> createState() => _CompanyFormScreenState();
 }
 
+enum _CompanyImageType { logo, kttSignature, companyStamp }
+
 class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   static const _blue = Color(0xFF1A56C4);
   late String _category;
@@ -944,9 +955,18 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   late TextEditingController _codeCtrl;
   late TextEditingController _emergencyNumberCtrl;
   late TextEditingController _ertFreqCtrl;
+  late TextEditingController _radioLabelCtrl;
+  late TextEditingController _radioChannelCtrl;
+  late TextEditingController _radioFrequencyCtrl;
   String? _logoUrl;
+  String? _kttSignatureUrl;
+  String? _companyStampUrl;
   XFile? _logoImageFile;
+  XFile? _kttSignatureImageFile;
+  XFile? _companyStampImageFile;
   bool _clearLogo = false;
+  bool _clearKttSignature = false;
+  bool _clearCompanyStamp = false;
   String? _selectedKttUserId;
   _KttUserOption? _selectedKttUser;
   bool _isLoading = false;
@@ -969,10 +989,18 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     _nameCtrl = TextEditingController(text: widget.companyToEdit?.name ?? '');
     _codeCtrl = TextEditingController(text: widget.companyToEdit?.code ?? '');
     _logoUrl = widget.companyToEdit?.logoUrl;
+    _kttSignatureUrl = widget.companyToEdit?.kttSignatureUrl;
+    _companyStampUrl = widget.companyToEdit?.companyStampUrl;
     _emergencyNumberCtrl =
         TextEditingController(text: widget.companyToEdit?.emergencyNumber ?? '');
     _ertFreqCtrl =
         TextEditingController(text: widget.companyToEdit?.ertFreq ?? '');
+    _radioLabelCtrl =
+        TextEditingController(text: widget.companyToEdit?.radioLabel ?? '');
+    _radioChannelCtrl =
+        TextEditingController(text: widget.companyToEdit?.radioChannel ?? '');
+    _radioFrequencyCtrl =
+        TextEditingController(text: widget.companyToEdit?.radioFrequency ?? '');
     _selectedKttUserId = widget.companyToEdit?.kttUserId;
     final kttUser = widget.companyToEdit?.kttUser;
     if (kttUser != null) {
@@ -986,6 +1014,9 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     _codeCtrl.dispose();
     _emergencyNumberCtrl.dispose();
     _ertFreqCtrl.dispose();
+    _radioLabelCtrl.dispose();
+    _radioChannelCtrl.dispose();
+    _radioFrequencyCtrl.dispose();
     super.dispose();
   }
 
@@ -993,8 +1024,15 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     final name = _nameCtrl.text.trim();
     final code = _codeCtrl.text.trim();
     final logoUrl = _clearLogo ? '' : (_logoUrl ?? '');
+    final kttSignatureUrl =
+        _clearKttSignature ? '' : (_kttSignatureUrl ?? '');
+    final companyStampUrl =
+        _clearCompanyStamp ? '' : (_companyStampUrl ?? '');
     final emergencyNumber = _emergencyNumberCtrl.text.trim();
     final ertFreq = _ertFreqCtrl.text.trim();
+    final radioLabel = _radioLabelCtrl.text.trim();
+    final radioChannel = _radioChannelCtrl.text.trim();
+    final radioFrequency = _radioFrequencyCtrl.text.trim();
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1015,9 +1053,16 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           code: code,
           logoUrl: logoUrl,
           logoImagePath: _logoImageFile?.path,
+          kttSignatureUrl: kttSignatureUrl,
+          kttSignatureImagePath: _kttSignatureImageFile?.path,
+          companyStampUrl: companyStampUrl,
+          companyStampImagePath: _companyStampImageFile?.path,
           kttUserId: _selectedKttUserId,
           emergencyNumber: emergencyNumber,
           ertFreq: ertFreq,
+          radioLabel: radioLabel,
+          radioChannel: radioChannel,
+          radioFrequency: radioFrequency,
         );
       } else {
         result = await CompanyService.createCompany(
@@ -1026,9 +1071,16 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           code: code,
           logoUrl: logoUrl,
           logoImagePath: _logoImageFile?.path,
+          kttSignatureUrl: kttSignatureUrl,
+          kttSignatureImagePath: _kttSignatureImageFile?.path,
+          companyStampUrl: companyStampUrl,
+          companyStampImagePath: _companyStampImageFile?.path,
           kttUserId: _selectedKttUserId,
           emergencyNumber: emergencyNumber,
           ertFreq: ertFreq,
+          radioLabel: radioLabel,
+          radioChannel: radioChannel,
+          radioFrequency: radioFrequency,
         );
       }
 
@@ -1112,6 +1164,22 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
                   const SizedBox(height: 8),
                   _buildLogoPicker(),
                   const SizedBox(height: 16),
+                  _buildLabel('TTD KTT'),
+                  const SizedBox(height: 8),
+                  _buildImagePicker(
+                    type: _CompanyImageType.kttSignature,
+                    label: 'TTD KTT',
+                    aspectRatio: 4,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildLabel('STAMP PERUSAHAAN'),
+                  const SizedBox(height: 8),
+                  _buildImagePicker(
+                    type: _CompanyImageType.companyStamp,
+                    label: 'Stamp perusahaan',
+                    aspectRatio: 2,
+                  ),
+                  const SizedBox(height: 16),
                   _buildLabel('KEPALA TEKNIK TAMBANG'),
                   const SizedBox(height: 8),
                   _buildKttPicker(),
@@ -1134,6 +1202,19 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
                   const SizedBox(height: 8),
                   _buildTextField(_ertFreqCtrl,
                       hint: 'Contoh: CH 1 / 155.000 MHz'),
+                  const SizedBox(height: 16),
+                  _buildLabel('RADIO LABEL'),
+                  const SizedBox(height: 8),
+                  _buildTextField(_radioLabelCtrl, hint: 'Contoh: ERT'),
+                  const SizedBox(height: 16),
+                  _buildLabel('RADIO CHANNEL'),
+                  const SizedBox(height: 8),
+                  _buildTextField(_radioChannelCtrl, hint: 'Contoh: CH 1'),
+                  const SizedBox(height: 16),
+                  _buildLabel('RADIO FREKUENSI'),
+                  const SizedBox(height: 8),
+                  _buildTextField(_radioFrequencyCtrl,
+                      hint: 'Contoh: 155.000 MHz'),
                 ],
               ),
             ),
@@ -1366,6 +1447,74 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     );
   }
 
+  Widget _buildImagePicker({
+    required _CompanyImageType type,
+    required String label,
+    required double aspectRatio,
+  }) {
+    final hasImage = _imageFileFor(type) != null ||
+        (!_isImageCleared(type) && (_imageUrlFor(type) ?? '').isNotEmpty);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: aspectRatio,
+            child: InkWell(
+              onTap: _isLoading ? null : () => _showImageOptions(type, label),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF0F7),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _buildImagePreview(type, label),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed:
+                      _isLoading ? null : () => _showImageOptions(type, label),
+                  icon: const Icon(Icons.image_outlined, size: 18),
+                  label: Text(hasImage ? 'Ganti $label' : 'Pilih $label'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _blue,
+                    side: BorderSide(color: _blue.withValues(alpha: 0.4)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+              if (hasImage) ...[
+                const SizedBox(width: 10),
+                IconButton(
+                  onPressed: _isLoading ? null : () => _clearSelectedImage(type),
+                  icon: const Icon(Icons.delete_outline),
+                  color: Colors.red,
+                  tooltip: 'Hapus $label',
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLogoPreview() {
     final imageFile = _logoImageFile;
     if (imageFile != null) {
@@ -1408,6 +1557,65 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     return _emptyLogoPreview();
   }
 
+  Widget _buildImagePreview(_CompanyImageType type, String label) {
+    final imageFile = _imageFileFor(type);
+    if (imageFile != null) {
+      return FutureBuilder(
+        future: imageFile.readAsBytes(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          }
+
+          final bytes = snapshot.data!;
+          return _isSvgPath(imageFile.path)
+              ? SvgPicture.memory(bytes, fit: BoxFit.contain)
+              : Image.memory(bytes, fit: BoxFit.contain);
+        },
+      );
+    }
+
+    final imageUrl = _isImageCleared(type) ? '' : (_imageUrlFor(type) ?? '');
+    if (imageUrl.trim().isNotEmpty) {
+      return _isSvgPath(imageUrl)
+          ? SvgPicture.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              placeholderBuilder: (_) => _emptyImagePreview(label),
+            )
+          : Image.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => _emptyImagePreview(label),
+            );
+    }
+
+    return _emptyImagePreview(label);
+  }
+
+  Widget _emptyImagePreview(String label) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add_photo_alternate_outlined,
+              color: Colors.grey.shade500, size: 28),
+          const SizedBox(height: 6),
+          Text(
+            'Upload $label',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _emptyLogoPreview() {
     return Center(
       child: Column(
@@ -1430,6 +1638,30 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
       _logoImageFile = null;
       _logoUrl = null;
       _clearLogo = true;
+    });
+  }
+
+  void _clearSelectedImage(_CompanyImageType type) {
+    if (type == _CompanyImageType.logo) {
+      _clearSelectedLogo();
+      return;
+    }
+
+    setState(() {
+      switch (type) {
+        case _CompanyImageType.logo:
+          return;
+        case _CompanyImageType.kttSignature:
+          _kttSignatureImageFile = null;
+          _kttSignatureUrl = null;
+          _clearKttSignature = true;
+          return;
+        case _CompanyImageType.companyStamp:
+          _companyStampImageFile = null;
+          _companyStampUrl = null;
+          _clearCompanyStamp = true;
+          return;
+      }
     });
   }
 
@@ -1481,6 +1713,55 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     );
   }
 
+  void _showImageOptions(_CompanyImageType type, String label) {
+    if (kIsWeb) {
+      _pickImageFromSource(type, ImageSource.gallery);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.fromLTRB(
+          0,
+          20,
+          0,
+          AppSafeInsets.sheetBottomPadding(ctx, base: 20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Pilih Sumber $label',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: _blue),
+              title: const Text('Kamera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImageFromSource(type, ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: _blue),
+              title: const Text('Galeri'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImageFromSource(type, ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickLogoFromSource(ImageSource source) async {
     try {
       final picker = ImagePicker();
@@ -1497,6 +1778,73 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memilih logo: $e')),
       );
+    }
+  }
+
+  Future<void> _pickImageFromSource(
+    _CompanyImageType type,
+    ImageSource source,
+  ) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, imageQuality: 95);
+      if (picked == null) return;
+
+      if (!mounted) return;
+      setState(() {
+        switch (type) {
+          case _CompanyImageType.logo:
+            _logoImageFile = picked;
+            _clearLogo = false;
+            return;
+          case _CompanyImageType.kttSignature:
+            _kttSignatureImageFile = picked;
+            _clearKttSignature = false;
+            return;
+          case _CompanyImageType.companyStamp:
+            _companyStampImageFile = picked;
+            _clearCompanyStamp = false;
+            return;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memilih gambar: $e')),
+      );
+    }
+  }
+
+  XFile? _imageFileFor(_CompanyImageType type) {
+    switch (type) {
+      case _CompanyImageType.logo:
+        return _logoImageFile;
+      case _CompanyImageType.kttSignature:
+        return _kttSignatureImageFile;
+      case _CompanyImageType.companyStamp:
+        return _companyStampImageFile;
+    }
+  }
+
+  String? _imageUrlFor(_CompanyImageType type) {
+    switch (type) {
+      case _CompanyImageType.logo:
+        return _logoUrl;
+      case _CompanyImageType.kttSignature:
+        return _kttSignatureUrl;
+      case _CompanyImageType.companyStamp:
+        return _companyStampUrl;
+    }
+  }
+
+  bool _isImageCleared(_CompanyImageType type) {
+    switch (type) {
+      case _CompanyImageType.logo:
+        return _clearLogo;
+      case _CompanyImageType.kttSignature:
+        return _clearKttSignature;
+      case _CompanyImageType.companyStamp:
+        return _clearCompanyStamp;
     }
   }
 

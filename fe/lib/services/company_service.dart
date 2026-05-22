@@ -27,19 +27,35 @@ class CompanyService {
     String? code,
     String? logoUrl,
     String? logoImagePath,
+    String? kttSignatureUrl,
+    String? kttSignatureImagePath,
+    String? companyStampUrl,
+    String? companyStampImagePath,
     String? kttUserId,
     String? emergencyNumber,
     String? ertFreq,
+    String? radioLabel,
+    String? radioChannel,
+    String? radioFrequency,
   }) async {
-    final uploadedLogoUrl = await _uploadLogoIfNeeded(logoImagePath);
+    final uploadedLogoUrl = await _uploadCompanyImageIfNeeded(logoImagePath);
+    final uploadedKttSignatureUrl =
+        await _uploadCompanyImageIfNeeded(kttSignatureImagePath);
+    final uploadedCompanyStampUrl =
+        await _uploadCompanyImageIfNeeded(companyStampImagePath);
     final response = await ApiService.post('/companies', {
       'name': name,
       'category': _normalizeCategory(category),
       'code': code ?? '',
       'logo_url': uploadedLogoUrl ?? logoUrl ?? '',
+      'ktt_signature_url': uploadedKttSignatureUrl ?? kttSignatureUrl ?? '',
+      'company_stamp_url': uploadedCompanyStampUrl ?? companyStampUrl ?? '',
       'ktt_user_id': kttUserId ?? '',
       'emergency_number': emergencyNumber ?? '',
       'ert_freq': ertFreq ?? '',
+      'radio_label': radioLabel ?? '',
+      'radio_channel': radioChannel ?? '',
+      'radio_frequency': radioFrequency ?? '',
     });
     if (response.success && response.data['data'] != null) {
       return CompanyData.fromJson(response.data['data']);
@@ -54,19 +70,35 @@ class CompanyService {
     String? code,
     String? logoUrl,
     String? logoImagePath,
+    String? kttSignatureUrl,
+    String? kttSignatureImagePath,
+    String? companyStampUrl,
+    String? companyStampImagePath,
     String? kttUserId,
     String? emergencyNumber,
     String? ertFreq,
+    String? radioLabel,
+    String? radioChannel,
+    String? radioFrequency,
   }) async {
-    final uploadedLogoUrl = await _uploadLogoIfNeeded(logoImagePath);
+    final uploadedLogoUrl = await _uploadCompanyImageIfNeeded(logoImagePath);
+    final uploadedKttSignatureUrl =
+        await _uploadCompanyImageIfNeeded(kttSignatureImagePath);
+    final uploadedCompanyStampUrl =
+        await _uploadCompanyImageIfNeeded(companyStampImagePath);
     final response = await ApiService.put('/companies/$id', {
       'name': name,
       'category': _normalizeCategory(category),
       'code': code ?? '',
       'logo_url': uploadedLogoUrl ?? logoUrl ?? '',
+      'ktt_signature_url': uploadedKttSignatureUrl ?? kttSignatureUrl ?? '',
+      'company_stamp_url': uploadedCompanyStampUrl ?? companyStampUrl ?? '',
       'ktt_user_id': kttUserId ?? '',
       'emergency_number': emergencyNumber ?? '',
       'ert_freq': ertFreq ?? '',
+      'radio_label': radioLabel ?? '',
+      'radio_channel': radioChannel ?? '',
+      'radio_frequency': radioFrequency ?? '',
     });
     if (response.success && response.data['data'] != null) {
       return CompanyData.fromJson(response.data['data']);
@@ -155,13 +187,13 @@ class CompanyService {
     return null;
   }
 
-  static Future<String?> _uploadLogoIfNeeded(String? logoImagePath) async {
-    if (logoImagePath == null || logoImagePath.trim().isEmpty) {
+  static Future<String?> _uploadCompanyImageIfNeeded(String? imagePath) async {
+    if (imagePath == null || imagePath.trim().isEmpty) {
       return null;
     }
 
     final uploadedUrl = await SupabaseStorageService.uploadImage(
-      imagePath: logoImagePath,
+      imagePath: imagePath,
       folder: SupabaseConfig.companyLogosFolder,
     );
     if (uploadedUrl == null) {

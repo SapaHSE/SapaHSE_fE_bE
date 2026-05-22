@@ -110,10 +110,15 @@ class CompanyDetailData {
   final String name;
   final String? code;
   final String? logoUrl;
+  final String? kttSignatureUrl;
+  final String? companyStampUrl;
   final String? kttUserId;
   final CompanyKttUserData? kttUser;
   final String? emergencyNumber;
   final String? ertFreq;
+  final String? radioLabel;
+  final String? radioChannel;
+  final String? radioFrequency;
   final String category;
   final bool isActive;
 
@@ -122,10 +127,15 @@ class CompanyDetailData {
     required this.name,
     this.code,
     this.logoUrl,
+    this.kttSignatureUrl,
+    this.companyStampUrl,
     this.kttUserId,
     this.kttUser,
     this.emergencyNumber,
     this.ertFreq,
+    this.radioLabel,
+    this.radioChannel,
+    this.radioFrequency,
     required this.category,
     required this.isActive,
   });
@@ -139,12 +149,19 @@ class CompanyDetailData {
       name: json['name']?.toString() ?? '',
       code: json['code']?.toString(),
       logoUrl: normalizeStorageUrl(json['logo_url']?.toString()),
+      kttSignatureUrl:
+          normalizeStorageUrl(json['ktt_signature_url']?.toString()),
+      companyStampUrl:
+          normalizeStorageUrl(json['company_stamp_url']?.toString()),
       kttUserId: json['ktt_user_id']?.toString(),
       kttUser: kttUserRaw is Map
           ? CompanyKttUserData.fromJson(Map<String, dynamic>.from(kttUserRaw))
           : null,
       emergencyNumber: json['emergency_number']?.toString(),
       ertFreq: json['ert_freq']?.toString(),
+      radioLabel: json['radio_label']?.toString(),
+      radioChannel: json['radio_channel']?.toString(),
+      radioFrequency: json['radio_frequency']?.toString(),
       category: json['category']?.toString() ?? 'owner',
       isActive: parseFlexibleBool(json['is_active']),
     );

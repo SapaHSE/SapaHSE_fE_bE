@@ -177,6 +177,8 @@ class OfflineReferenceCacheService {
         'name': c.name,
         'code': c.code,
         'logo_url': c.logoUrl,
+        'ktt_signature_url': c.kttSignatureUrl,
+        'company_stamp_url': c.companyStampUrl,
         'ktt_user_id': c.kttUserId,
         'ktt_user': c.kttUser == null
             ? null
@@ -190,6 +192,9 @@ class OfflineReferenceCacheService {
               },
         'emergency_number': c.emergencyNumber,
         'ert_freq': c.ertFreq,
+        'radio_label': c.radioLabel,
+        'radio_channel': c.radioChannel,
+        'radio_frequency': c.radioFrequency,
         'category': c.category,
         'is_active': c.isActive,
       };

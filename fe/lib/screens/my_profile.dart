@@ -2187,7 +2187,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 const SizedBox(height: 20),
                 _buildFieldLabel('Tipe Lisensi'),
                 DropdownButtonFormField<String>(
-                  value: _licenseType,
+                  initialValue: _licenseType,
                   decoration: _buildInputDecoration('Pilih tipe lisensi'),
                   items: const [
                     DropdownMenuItem(
@@ -2199,6 +2199,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       child: Text('SIMPER License'),
                     ),
                     DropdownMenuItem(
+                      value: 'government',
+                      child: Text('License Pemerintah'),
+                    ),
+                    DropdownMenuItem(
                       value: 'mine_permit',
                       child: Text('Mine Permit'),
                     ),
@@ -2207,9 +2211,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     if (value == null) return;
                     setModalState(() {
                       _licenseType = value;
-                      if (value == 'simper' &&
+                      if ((value == 'simper' || value == 'government') &&
                           _licenseNameController.text.trim().isEmpty) {
-                        _licenseNameController.text = 'SIMPER';
+                        _licenseNameController.text = value == 'government'
+                            ? 'License Pemerintah'
+                            : 'SIMPER';
                       }
                     });
                   },
@@ -2234,11 +2240,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   decoration:
                       _buildInputDecoration('Contoh: Polri, Kemnaker RI...'),
                 ),
-                if (_licenseType == 'simper') ...[
+                if (_licenseType == 'simper' || _licenseType == 'government') ...[
                   const SizedBox(height: 16),
                   _buildFieldLabel('Kategori SIM Indonesia'),
                   DropdownButtonFormField<String>(
-                    value: _licenseSimIndonesiaType,
+                    initialValue: _licenseSimIndonesiaType,
                     decoration: _buildInputDecoration('Contoh: B2'),
                     items: const [
                       'A',
@@ -2267,7 +2273,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                   const SizedBox(height: 16),
                   _buildFieldLabel('SIM Type (LIC)'),
                   DropdownButtonFormField<String>(
-                    value: _licenseSimType,
+                    initialValue: _licenseSimType,
                     decoration: _buildInputDecoration('Pilih F/P/R/T/I'),
                     items: const [
                       DropdownMenuItem(value: 'F', child: Text('F - Full')),

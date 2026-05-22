@@ -57,6 +57,14 @@ class IdCardPdfService {
     final avatar = await _loadNetworkImage(profile.profilePhoto);
     final companyLogo = await _loadNetworkImage(profile.companyDetail?.logoUrl);
     final companyLogoSvg = await _loadNetworkSvg(profile.companyDetail?.logoUrl);
+    final kttSignatureImage =
+        await _loadNetworkImage(profile.companyDetail?.kttSignatureUrl);
+    final kttSignatureSvg =
+        await _loadNetworkSvg(profile.companyDetail?.kttSignatureUrl);
+    final companyStampImage =
+        await _loadNetworkImage(profile.companyDetail?.companyStampUrl);
+    final companyStampSvg =
+        await _loadNetworkSvg(profile.companyDetail?.companyStampUrl);
     final bbeLogo = await _loadAssetSvg(_bbeLogoPath);
     final khotaiLogo = await _loadAssetSvg(_khotaiLogoPath);
     final selectedLogo = _selectCompanyLogo(
@@ -76,6 +84,10 @@ class IdCardPdfService {
           selectedLogo,
           companyLogo,
           companyLogoSvg,
+          kttSignatureImage,
+          kttSignatureSvg,
+          companyStampImage,
+          companyStampSvg,
           minePermit,
         ),
       ),
@@ -111,12 +123,14 @@ class IdCardPdfService {
     String logo,
     pw.MemoryImage? companyLogo,
     String? companyLogoSvg,
+    pw.MemoryImage? kttSignatureImage,
+    String? kttSignatureSvg,
+    pw.MemoryImage? companyStampImage,
+    String? companyStampSvg,
     UserLicense? minePermit,
   ) {
-    final positionDepartment = [
-      _display(profile.jabatan ?? profile.position, fallback: ''),
-      _display(profile.department, fallback: ''),
-    ].where((value) => value.isNotEmpty).join(' - ');
+    final position = _display(profile.jabatan ?? profile.position);
+    final department = _display(profile.department);
 
     return _printPage(
       child: pw.Stack(
@@ -138,59 +152,71 @@ class IdCardPdfService {
                 children: [
                   _profileLine('Name', _display(profile.fullName)),
                   _profileLine(
-                    'Registration Number',
-                    _display(
-                      minePermit?.licenseNumber,
-                      fallback:
-                          _display(profile.simper, fallback: profile.employeeId),
-                    ),
+                    'Employee ID',
+                    _display(profile.employeeId),
                   ),
                   _profileLine(
-                    'Position & Department',
-                    positionDepartment.isEmpty ? '-' : positionDepartment,
+                    'Position',
+                    position,
+                  ),
+                  _profileLine(
+                    'Department',
+                    department,
                   ),
                   _profileLine(
                     'Company',
-                    _companyName(profile),
-                  ),
-                  _profileLine(
-                    'Valid Until',
-                    IdCardPdfService.formatExpiry(minePermit?.expiredAt),
+                    _affiliationCompanyName(profile),
                   ),
                 ],
               ),
             ),
           ),
           pw.Positioned(
-            left: 7.9 * _mm,
-            top: 53.2 * _mm,
+            left: 8.1 * _mm,
+            top: 51.8 * _mm,
             child: pw.SizedBox(
-              width: 15.4 * _mm,
-              child: _counterBox('VIOLATION'),
-            ),
-          ),
-          pw.Positioned(
-            left: 7.9 * _mm,
-            top: 61.3 * _mm,
-            child: pw.SizedBox(
-              width: 15.4 * _mm,
-              child: _counterBox('INCIDENT'),
+              width: 14.8 * _mm,
+              child: _accessTypeBox(),
             ),
           ),
           pw.Positioned(
             left: 5.6 * _mm,
-            top: 71.0 * _mm,
+            top: 61.4 * _mm,
             child: _signatureBlock(
               logo,
               companyLogo,
               companyLogoSvg,
+              kttSignatureImage,
+              kttSignatureSvg,
+              companyStampImage,
+              companyStampSvg,
               _kttName(profile),
             ),
           ),
           pw.Positioned(
+            left: 0,
+            right: 0,
+            top: 76.2 * _mm,
+            child: pw.Center(
+              child: pw.Row(
+                mainAxisSize: pw.MainAxisSize.min,
+                children: [
+                  pw.SizedBox(
+                      width: 15.4 * _mm, child: _counterBox('VIOLATION')),
+                  pw.SizedBox(width: 4.4 * _mm),
+                  pw.SizedBox(
+                      width: 15.4 * _mm, child: _counterBox('INCIDENT')),
+                ],
+              ),
+            ),
+          ),
+          pw.Positioned(
             right: 4.8 * _mm,
-            bottom: 7.0 * _mm,
-            child: _qrBlock(qrCode),
+            bottom: 10.3 * _mm,
+            child: _qrBlock(
+              qrCode,
+              IdCardPdfService.formatExpiry(minePermit?.expiredAt),
+            ),
           ),
         ],
       ),
@@ -201,8 +227,7 @@ class IdCardPdfService {
     ProfileData profile,
     List<MinePermitTableRow> tableRows,
   ) {
-    final simPolice = _simPoliceLicense(profile);
-    final emergencyContact = _emergencyContactText(profile);
+    final emergencyContact = _companyEmergencyContactText(profile);
 
     return _printPage(
       child: pw.Stack(
@@ -222,54 +247,8 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 1.4 * _mm,
-            top: 8.8 * _mm,
-            child: pw.SizedBox(
-              width: 23.2 * _mm,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    'SIM POLISI',
-                    style: pw.TextStyle(
-                      fontSize: 6.7,
-                      fontWeight: pw.FontWeight.bold,
-                      color: _ink,
-                    ),
-                  ),
-                  _smallLabelRow('NOMOR', simPolice?.licenseNumber ?? ''),
-                  _smallLabelRow('TIPE', _simPoliceType(simPolice)),
-                  _smallLabelRow(
-                    'EXP. DATE',
-                    _formatLicenseDate(simPolice?.expiredAt),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          pw.Positioned(
-            left: 28.4 * _mm,
-            top: 8.8 * _mm,
-            child: pw.Container(width: 0.45, height: 10.0 * _mm, color: _line),
-          ),
-          pw.Positioned(
-            left: 31.8 * _mm,
-            top: 8.9 * _mm,
-            child: pw.SizedBox(
-              width: 18.0 * _mm,
-              child: pw.Text(
-                'SIMPER\n${_display(profile.simper, fallback: '')}',
-                style: pw.TextStyle(
-                  fontSize: 6.7,
-                  fontWeight: pw.FontWeight.bold,
-                  color: _ink,
-                ),
-              ),
-            ),
-          ),
-          pw.Positioned(
             left: 1.0 * _mm,
-            top: 20.8 * _mm,
+            top: 12.0 * _mm,
             child: pw.SizedBox(
               width: 50.6 * _mm,
               child: _simperTable(tableRows),
@@ -278,42 +257,31 @@ class IdCardPdfService {
           pw.Positioned(
             left: 0.8 * _mm,
             right: 0.8 * _mm,
-            top: 50.1 * _mm,
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-              children: [
-                _checkboxLabel('PIT AREA'),
-                _checkboxLabel('PORT AREA'),
-                _checkboxLabel('HANDAK'),
-              ],
-            ),
-          ),
-          pw.Positioned(
-            left: 0.8 * _mm,
-            right: 0.8 * _mm,
-            top: 54.2 * _mm,
+            top: 51.6 * _mm,
             child: pw.Container(height: 0.45, color: _line),
           ),
           pw.Positioned(
             left: 0.8 * _mm,
             right: 0.8 * _mm,
-            top: 54.8 * _mm,
+            top: 52.2 * _mm,
             child: _rulesBlock(profile.company),
           ),
           pw.Positioned(
             left: 0,
             right: 0,
-            top: 69.4 * _mm,
+            top: 68.0 * _mm,
             child: pw.Container(
-              height: 3.2 * _mm,
+              height: 4.0 * _mm,
               alignment: pw.Alignment.center,
               color: _red,
               child: pw.Text(
-                emergencyContact,
+                emergencyContact.isEmpty
+                    ? 'EMERGENCY CONTACT'
+                    : 'EMERGENCY CONTACT: $emergencyContact',
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                   color: PdfColors.white,
-                  fontSize: emergencyContact == 'EMERGENCY CONTACT' ? 5.3 : 4.5,
+                  fontSize: 4.7,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
@@ -513,7 +481,7 @@ class IdCardPdfService {
 
   static pw.Widget _profileLine(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 1.45),
+      padding: const pw.EdgeInsets.only(bottom: 1.0),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -529,7 +497,7 @@ class IdCardPdfService {
           ),
           pw.Text(
             value,
-            maxLines: 2,
+            maxLines: 1,
             style: pw.TextStyle(
               fontSize: _fitText(value, base: 5.7, small: 5.1, tiny: 4.6),
               lineSpacing: -0.15,
@@ -585,10 +553,77 @@ class IdCardPdfService {
     );
   }
 
+  static pw.Widget _accessTypeBox() {
+    return pw.Column(
+      children: [
+        pw.Text(
+          'ACCESS TYPE',
+          style: pw.TextStyle(
+            fontSize: 4.2,
+            fontWeight: pw.FontWeight.bold,
+            color: _deepBlue,
+          ),
+        ),
+        pw.Table(
+          border: pw.TableBorder.all(color: _line, width: 0.45),
+          columnWidths: const {
+            0: pw.FlexColumnWidth(),
+            1: pw.FlexColumnWidth(),
+            2: pw.FlexColumnWidth(),
+            3: pw.FlexColumnWidth(),
+            4: pw.FlexColumnWidth(),
+          },
+          children: [
+            pw.TableRow(
+              children: ['T1', 'T2', 'T3', 'T4', 'T5']
+                  .map(
+                    (label) => pw.Container(
+                      height: 2.35 * _mm,
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(
+                        label,
+                        style: pw.TextStyle(
+                          fontSize: 3.25,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _ink,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+            pw.TableRow(
+              children: ['', '', '', '', '']
+                  .map(
+                    (label) => pw.Container(
+                      height: 2.35 * _mm,
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(
+                        label,
+                        style: pw.TextStyle(
+                          fontSize: 3.8,
+                          fontWeight: pw.FontWeight.bold,
+                          color: _ink,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
   static pw.Widget _signatureBlock(
     String logo,
     pw.MemoryImage? logoImage,
     String? logoSvg,
+    pw.MemoryImage? kttSignatureImage,
+    String? kttSignatureSvg,
+    pw.MemoryImage? companyStampImage,
+    String? companyStampSvg,
     String kttName,
   ) {
     if (logo.isEmpty && logoImage == null && (logoSvg ?? '').trim().isEmpty) {
@@ -618,21 +653,36 @@ class IdCardPdfService {
             pw.Row(
               mainAxisSize: pw.MainAxisSize.min,
               children: [
-                pw.Container(
-                  width: 3.4 * _mm,
+                pw.SizedBox(
+                  width: 5.8 * _mm,
                   height: 4.1 * _mm,
-                  decoration: pw.BoxDecoration(
-                    color: PdfColor.fromInt(0xFF2AB673),
-                    borderRadius: pw.BorderRadius.circular(4),
+                  child: _optionalLogoWidget(
+                    image: kttSignatureImage,
+                    svg: kttSignatureSvg,
+                    fallback: pw.Container(
+                      decoration: pw.BoxDecoration(
+                        color: PdfColor.fromInt(0xFF2AB673),
+                        borderRadius: pw.BorderRadius.circular(4),
+                      ),
+                    ),
                   ),
                 ),
                 pw.SizedBox(width: 0.8 * _mm),
-                pw.Text(
-                  'BBE',
-                  style: pw.TextStyle(
-                    fontSize: 7.0,
-                    fontWeight: pw.FontWeight.bold,
-                    color: _ink,
+                pw.SizedBox(
+                  width: 6.8 * _mm,
+                  height: 4.1 * _mm,
+                  child: _optionalLogoWidget(
+                    image: companyStampImage,
+                    svg: companyStampSvg,
+                    fallback: pw.Text(
+                      'BBE',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        fontSize: 7.0,
+                        fontWeight: pw.FontWeight.bold,
+                        color: _ink,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -684,10 +734,28 @@ class IdCardPdfService {
           pw.SizedBox(
             width: 14.0 * _mm,
             height: 4.4 * _mm,
-            child: _logoWidget(
-              fallbackSvg: logo,
-              image: logoImage,
-              svg: logoSvg,
+            child: pw.Row(
+              children: [
+                pw.Expanded(
+                  child: _optionalLogoWidget(
+                    image: kttSignatureImage,
+                    svg: kttSignatureSvg,
+                    fallback: _logoWidget(
+                      fallbackSvg: logo,
+                      image: logoImage,
+                      svg: logoSvg,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(width: 0.6 * _mm),
+                pw.Expanded(
+                  child: _optionalLogoWidget(
+                    image: companyStampImage,
+                    svg: companyStampSvg,
+                    fallback: pw.SizedBox(),
+                  ),
+                ),
+              ],
             ),
           ),
           pw.Text(
@@ -711,7 +779,7 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _qrBlock(String qrCode) {
+  static pw.Widget _qrBlock(String qrCode, String validUntil) {
     return pw.SizedBox(
       width: 21.0 * _mm,
       child: pw.Column(
@@ -724,46 +792,20 @@ class IdCardPdfService {
           ),
           pw.SizedBox(height: 1.0 * _mm),
           pw.Text(
-            'SCAN QR PROFIL',
+            'Valid Until',
+            style: pw.TextStyle(
+              fontSize: 3.0,
+              fontStyle: pw.FontStyle.italic,
+              fontWeight: pw.FontWeight.bold,
+              color: _blue,
+            ),
+          ),
+          pw.Text(
+            validUntil,
             style: pw.TextStyle(
               fontSize: 3.45,
               fontWeight: pw.FontWeight.bold,
               color: _deepBlue,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _smallLabelRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(top: 1.25),
-      child: pw.Row(
-        children: [
-          pw.SizedBox(
-            width: 10.2 * _mm,
-            child: pw.Text(
-              label,
-              style: pw.TextStyle(
-                fontSize: 4.6,
-                fontWeight: pw.FontWeight.bold,
-                color: _blue,
-              ),
-            ),
-          ),
-          pw.SizedBox(
-            width: 2.2 * _mm,
-            child: pw.Text(
-              ':',
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(fontSize: 4.6, color: _ink),
-            ),
-          ),
-          pw.Expanded(
-            child: pw.Text(
-              value,
-              style: pw.TextStyle(fontSize: 4.6, color: _ink),
             ),
           ),
         ],
@@ -776,8 +818,8 @@ class IdCardPdfService {
       border: pw.TableBorder.all(color: _line, width: 0.55),
       columnWidths: const {
         0: pw.FixedColumnWidth(6.4),
-        1: pw.FixedColumnWidth(22.4),
-        2: pw.FixedColumnWidth(9.8),
+        1: pw.FixedColumnWidth(26.4),
+        2: pw.FixedColumnWidth(5.8),
         3: pw.FixedColumnWidth(12.0),
       },
       children: [
@@ -787,7 +829,7 @@ class IdCardPdfService {
             _tableHeader(''),
             _tableHeader('VEHICLE / EQUIPMENT'),
             _tableHeader('LIC'),
-            _tableHeader('ISSUED DATE'),
+            _tableHeader('EXP DATE'),
           ],
         ),
         ...rows.map((row) {
@@ -805,7 +847,7 @@ class IdCardPdfService {
   }
 
   static pw.Widget _tableHeader(String value) {
-    final isIssuedDate = value == 'ISSUED DATE';
+    final isIssuedDate = value == 'EXP DATE';
     return pw.Container(
       height: 3.25 * _mm,
       alignment: pw.Alignment.center,
@@ -824,7 +866,7 @@ class IdCardPdfService {
   }
 
   static double _tableHeaderFontSize(String value) {
-    if (value == 'ISSUED DATE') return 3.2;
+    if (value == 'EXP DATE') return 3.4;
     if (value == 'VEHICLE / EQUIPMENT') return 3.3;
     return 3.8;
   }
@@ -859,27 +901,6 @@ class IdCardPdfService {
     return 4.5;
   }
 
-  static pw.Widget _checkboxLabel(String label) {
-    return pw.Row(
-      children: [
-        pw.Container(
-          width: 2.8 * _mm,
-          height: 2.8 * _mm,
-          decoration: pw.BoxDecoration(border: pw.Border.all(color: _line)),
-        ),
-        pw.SizedBox(width: 0.7 * _mm),
-        pw.Text(
-          label,
-          style: pw.TextStyle(
-            fontSize: 4.4,
-            fontWeight: pw.FontWeight.bold,
-            color: _deepBlue,
-          ),
-        ),
-      ],
-    );
-  }
-
   static pw.Widget _rulesBlock(String? companyName) {
     final companyText = _display(
       companyName,
@@ -890,22 +911,14 @@ class IdCardPdfService {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Text(
-          'Keterangan:',
+          'Catatan:',
           style: pw.TextStyle(
-            fontSize: 5.0,
+            fontSize: 6.0,
             fontWeight: pw.FontWeight.bold,
             color: _ink,
           ),
         ),
-        pw.Text(
-          'F = Full, P = Probation, R = Restricted, T = Training, I = Instructor',
-          style: pw.TextStyle(
-            fontSize: 4.15,
-            fontStyle: pw.FontStyle.italic,
-            color: _ink,
-          ),
-        ),
-        pw.SizedBox(height: 0.3 * _mm),
+        pw.SizedBox(height: 0.15 * _mm),
         _ruleText(
           '1. Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
         ),
@@ -926,8 +939,8 @@ class IdCardPdfService {
       child: pw.Text(
         text,
         style: pw.TextStyle(
-          fontSize: 3.5,
-          height: 0.88,
+          fontSize: 4.15,
+          height: 0.95,
           color: _ink,
         ),
       ),
@@ -991,11 +1004,41 @@ class IdCardPdfService {
     return pw.SvgImage(svg: fallbackSvg, fit: pw.BoxFit.contain);
   }
 
+  static pw.Widget _optionalLogoWidget({
+    required pw.MemoryImage? image,
+    required String? svg,
+    required pw.Widget fallback,
+  }) {
+    final svgValue = svg?.trim() ?? '';
+    if (svgValue.isNotEmpty) {
+      return pw.SvgImage(svg: svgValue, fit: pw.BoxFit.contain);
+    }
+    if (image != null) {
+      return pw.Image(image, fit: pw.BoxFit.contain);
+    }
+    return fallback;
+  }
+
   static String _companyName(ProfileData profile) {
     return _display(
       profile.companyDetail?.name ?? profile.company,
       fallback: 'PT Bukit Baiduri Energi',
     );
+  }
+
+  static String _affiliationCompanyName(ProfileData profile) {
+    final affiliation = (profile.tipeAfiliasi ?? '').toLowerCase();
+    final contractor = profile.perusahaanKontraktor?.trim() ?? '';
+    final subcontractor = profile.subKontraktor?.trim() ?? '';
+    final owner = _companyName(profile);
+
+    if (affiliation.contains('sub') && subcontractor.isNotEmpty) {
+      return subcontractor;
+    }
+    if (affiliation.contains('kontraktor') && contractor.isNotEmpty) {
+      return contractor;
+    }
+    return owner;
   }
 
   static String _kttName(ProfileData profile) {
@@ -1005,15 +1048,21 @@ class IdCardPdfService {
     );
   }
 
-  static String _emergencyContactText(ProfileData profile) {
+  static String _companyEmergencyContactText(ProfileData profile) {
     final emergency = profile.companyDetail?.emergencyNumber?.trim() ?? '';
-    final ert = profile.companyDetail?.ertFreq?.trim() ?? '';
-    final parts = <String>[
-      if (emergency.isNotEmpty) 'EMERGENCY: $emergency',
-      if (ert.isNotEmpty) 'ERT: $ert',
-    ];
-
-    return parts.isEmpty ? 'EMERGENCY CONTACT' : parts.join('  |  ');
+    final radio = [
+      profile.companyDetail?.radioLabel,
+      profile.companyDetail?.radioChannel,
+      profile.companyDetail?.radioFrequency ??
+          profile.companyDetail?.ertFreq,
+    ]
+        .map((value) => value?.trim() ?? '')
+        .where((value) => value.isNotEmpty)
+        .join(' ');
+    return [
+      if (emergency.isNotEmpty) emergency,
+      if (radio.isNotEmpty) radio,
+    ].join(' | ');
   }
 
   static String _display(String? value, {String fallback = '-'}) {
@@ -1106,46 +1155,38 @@ class IdCardPdfService {
     }).toList();
   }
 
-  static UserLicense? _simPoliceLicense(ProfileData profile) {
-    final licenses = _usableLicenses(profile)
-        .where((license) =>
-            _isSimPoliceName(license.name) ||
-            (license.simIndonesiaType ?? '').trim().isNotEmpty)
-        .toList()
-      ..sort((a, b) => _simPriority(b.name).compareTo(_simPriority(a.name)));
-
-    return licenses.isEmpty ? null : licenses.first;
-  }
-
-  static String _simPoliceType(UserLicense? license) {
-    if (license == null) return '';
-    final explicitType = (license.simIndonesiaType ?? '').trim();
-    if (explicitType.isNotEmpty) return 'SIM $explicitType';
-    final type = _simTypeLabel(license.name);
-    return type.isEmpty ? license.name : type;
-  }
-
   static List<MinePermitTableRow> _simperRows(ProfileData profile) {
     final licenses = _usableLicenses(profile);
     const specs = [
-      _SimperRowSpec('LV', ['SIM A', 'SIM A UMUM']),
-      _SimperRowSpec('DT', ['SIM B1', 'SIM B2', 'DUMP TRUCK']),
-      _SimperRowSpec('BD', ['BULLDOZER', 'DOZER', 'BD']),
-      _SimperRowSpec('BL', ['BACKHOE', 'BHL', 'BL']),
-      _SimperRowSpec('EX', ['EXCAVATOR', 'EX']),
-      _SimperRowSpec('WT', ['SIM B1', 'SIM B2', 'WATER TRUCK']),
-      _SimperRowSpec('WL', ['WHEEL LOADER', 'LOADER', 'WL']),
+      _SimperRowSpec('A', ['SIM A'], source: _LicenseSource.government),
+      _SimperRowSpec('B', ['SIM B1', 'SIM B2'],
+          source: _LicenseSource.government),
+      _SimperRowSpec('C', ['SIM C'], source: _LicenseSource.government),
+      _SimperRowSpec('U', ['DRONE', 'SIM DRONE'], vehicleName: 'Drone'),
+      _SimperRowSpec('DT', ['DT', 'DUMP TRUCK'],
+          source: _LicenseSource.simper),
+      _SimperRowSpec('BD', ['BULLDOZER', 'DOZER', 'BD'],
+          source: _LicenseSource.simper),
+      _SimperRowSpec('BL', ['BACKHOE', 'BHL', 'BL'],
+          source: _LicenseSource.simper),
+      _SimperRowSpec('EX', ['EXCAVATOR', 'EX'], source: _LicenseSource.simper),
+      _SimperRowSpec('WT', ['WT', 'WATER TRUCK'],
+          source: _LicenseSource.simper),
+      _SimperRowSpec('WL', ['WHEEL LOADER', 'LOADER', 'WL'],
+          source: _LicenseSource.simper),
     ];
 
     return specs
         .map((spec) {
           final license = _findLicenseForSpec(licenses, spec);
           return MinePermitTableRow(
-              code: spec.code,
-              vehicleEquipment: license?.vehicleEquipment ?? '',
-              licenseNumber: license?.simType ?? '',
-              issuedDate: _formatLicenseDate(license?.obtainedAt),
-            );
+            code: spec.code,
+            vehicleEquipment: license == null
+                ? ''
+                : (spec.vehicleName ?? license.vehicleEquipment ?? ''),
+            licenseNumber: _licenseTableType(license),
+            issuedDate: _formatLicenseDate(license?.expiredAt),
+          );
         })
         .toList();
   }
@@ -1155,8 +1196,8 @@ class IdCardPdfService {
     _SimperRowSpec spec,
   ) {
     final matched = licenses.where((license) {
-      final haystack = _licenseSearchText(license);
-      return spec.keywords.any((keyword) => haystack.contains(keyword));
+      if (!_matchesSource(license, spec.source)) return false;
+      return _matchesSpecKeyword(license, spec);
     }).toList()
       ..sort((a, b) => _licenseSpecificity(b, spec)
           .compareTo(_licenseSpecificity(a, spec)));
@@ -1173,6 +1214,62 @@ class IdCardPdfService {
     return score;
   }
 
+  static bool _matchesSpecKeyword(UserLicense license, _SimperRowSpec spec) {
+    final haystack = _licenseSearchText(license);
+    final exactValues = [
+      license.simType,
+      license.simIndonesiaType,
+      license.licenseNumber,
+      license.name,
+    ].map((value) => (value ?? '').trim().toUpperCase()).toList();
+
+    if (spec.code == 'U') {
+      return haystack.contains('DRONE') || exactValues.contains('U');
+    }
+
+    if (spec.source == _LicenseSource.government &&
+        ['A', 'B', 'C'].contains(spec.code)) {
+      if (spec.code == 'B' &&
+          (exactValues.contains('B1') || exactValues.contains('B2'))) {
+        return true;
+      }
+      return exactValues.contains(spec.code) ||
+          exactValues.contains('SIM ${spec.code}') ||
+          spec.keywords.any((keyword) => haystack.contains(keyword));
+    }
+
+    return spec.keywords.any((keyword) => haystack.contains(keyword));
+  }
+
+  static bool _matchesSource(UserLicense license, _LicenseSource source) {
+    final type = license.licenseType.trim().toLowerCase();
+    switch (source) {
+      case _LicenseSource.any:
+        return true;
+      case _LicenseSource.government:
+        return type.contains('government') ||
+            type.contains('pemerintah') ||
+            type.contains('sim_indonesia') ||
+            type.contains('sim indonesia');
+      case _LicenseSource.simper:
+        return type.contains('simper') || type.contains('mine');
+    }
+  }
+
+  static String _licenseTableType(UserLicense? license) {
+    if (license == null) return '';
+    final values = [
+      license.simType,
+      license.simIndonesiaType,
+      license.licenseNumber,
+    ];
+    for (final value in values) {
+      final trimmed = value?.trim() ?? '';
+      if (trimmed.isNotEmpty) return trimmed;
+    }
+    return '';
+  }
+
   static String _licenseSearchText(UserLicense license) {
     return [
       license.name,
@@ -1185,47 +1282,22 @@ class IdCardPdfService {
     ].join(' ').toUpperCase();
   }
 
-  static bool _isSimPoliceName(String value) {
-    final normalized = value.toUpperCase();
-    return normalized.contains('SIM A') ||
-        normalized.contains('SIM B1') ||
-        normalized.contains('SIM B2');
-  }
-
-  static int _simPriority(String value) {
-    final normalized = value.toUpperCase();
-    if (normalized.contains('SIM B2') && normalized.contains('UMUM')) return 6;
-    if (normalized.contains('SIM B2')) return 5;
-    if (normalized.contains('SIM B1') && normalized.contains('UMUM')) return 4;
-    if (normalized.contains('SIM B1')) return 3;
-    if (normalized.contains('SIM A') && normalized.contains('UMUM')) return 2;
-    if (normalized.contains('SIM A')) return 1;
-    return 0;
-  }
-
-  static String _simTypeLabel(String value) {
-    final normalized = value.toUpperCase();
-    if (normalized.contains('SIM B2') && normalized.contains('UMUM')) {
-      return 'SIM B2 UMUM';
-    }
-    if (normalized.contains('SIM B2')) return 'SIM B2';
-    if (normalized.contains('SIM B1') && normalized.contains('UMUM')) {
-      return 'SIM B1 UMUM';
-    }
-    if (normalized.contains('SIM B1')) return 'SIM B1';
-    if (normalized.contains('SIM A') && normalized.contains('UMUM')) {
-      return 'SIM A UMUM';
-    }
-    if (normalized.contains('SIM A')) return 'SIM A';
-    return '';
-  }
 }
+
+enum _LicenseSource { any, government, simper }
 
 class _SimperRowSpec {
   final String code;
   final List<String> keywords;
+  final _LicenseSource source;
+  final String? vehicleName;
 
-  const _SimperRowSpec(this.code, this.keywords);
+  const _SimperRowSpec(
+    this.code,
+    this.keywords, {
+    this.source = _LicenseSource.any,
+    this.vehicleName,
+  });
 }
 
 class MinePermitTableRow {
