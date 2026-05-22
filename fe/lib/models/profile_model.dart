@@ -213,6 +213,30 @@ class UserLicense {
   }
 
   bool get isActive => status == 'active';
+
+  bool canBeRenewedNow({DateTime? now}) {
+    final expiry = DateTime.tryParse((expiredAt ?? '').trim());
+    if (expiry == null) return true;
+    final reference = now ?? DateTime.now();
+    final renewalWindowStart =
+        DateTime(expiry.year, expiry.month - 1, expiry.day);
+    return !renewalWindowStart.isAfter(reference);
+  }
+
+  static const String renewalBlockedMessage =
+      'Perpanjangan belum bisa dilakukan karena masih berlaku. '
+      'Ajukan paling cepat 1 bulan sebelum habis masa berlaku';
+
+  static UserLicense? findApprovedMinePermit(List<UserLicense> licenses) {
+    final matches = licenses
+        .where((l) =>
+            (l.licenseType == 'mine_permit' ||
+                l.name.toLowerCase().trim() == 'mine permit') &&
+            l.approvalStatus.toLowerCase() == 'approved')
+        .toList()
+      ..sort((a, b) => (b.expiredAt ?? '').compareTo(a.expiredAt ?? ''));
+    return matches.isEmpty ? null : matches.first;
+  }
 }
 
 class UserCertification {

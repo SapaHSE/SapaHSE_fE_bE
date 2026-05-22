@@ -138,13 +138,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return minePermits.isEmpty ? null : minePermits.first;
   }
 
-  bool get _canRenewMinePermit {
-    final license = _minePermitLicense;
-    if (license == null) return true;
-    final expiredAt = DateTime.tryParse((license.expiredAt ?? '').trim());
-    if (expiredAt == null) return true;
-    return !expiredAt.subtract(const Duration(days: 31)).isAfter(DateTime.now());
-  }
+  bool get _canRenewMinePermit =>
+      _minePermitLicense?.canBeRenewedNow() ?? true;
 
   String get _minePermitActionLabel {
     final license = _minePermitLicense;
@@ -160,9 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Perpanjangan Belum Tersedia'),
-          content: const Text(
-            'Perpanjangan belum bisa dilakukan karena masih berlaku. Ajukan paling cepat 1 bulan sebelum habis masa berlaku',
-          ),
+          content: const Text(UserLicense.renewalBlockedMessage),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),

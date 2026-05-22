@@ -29,11 +29,13 @@ class IdCardPdfService {
   static Future<void> exportMinePermit({
     required ProfileData profile,
     required String qrCode,
+    UserLicense? minePermit,
     List<MinePermitTableRow>? tableRows,
   }) async {
     final bytes = await buildMinePermitPdf(
       profile: profile,
       qrCode: qrCode,
+      minePermit: minePermit,
       tableRows: tableRows,
     );
     final fileName = minePermitFileName(profile);
@@ -48,6 +50,7 @@ class IdCardPdfService {
   static Future<Uint8List> buildMinePermitPdf({
     required ProfileData profile,
     required String qrCode,
+    UserLicense? minePermit,
     List<MinePermitTableRow>? tableRows,
   }) async {
     final document = pw.Document();
@@ -73,6 +76,7 @@ class IdCardPdfService {
           selectedLogo,
           companyLogo,
           companyLogoSvg,
+          minePermit,
         ),
       ),
     );
@@ -107,6 +111,7 @@ class IdCardPdfService {
     String logo,
     pw.MemoryImage? companyLogo,
     String? companyLogoSvg,
+    UserLicense? minePermit,
   ) {
     final positionDepartment = [
       _display(profile.jabatan ?? profile.position, fallback: ''),
@@ -134,7 +139,11 @@ class IdCardPdfService {
                   _profileLine('Name', _display(profile.fullName)),
                   _profileLine(
                     'Registration Number',
-                    _display(profile.simper, fallback: profile.employeeId),
+                    _display(
+                      minePermit?.licenseNumber,
+                      fallback:
+                          _display(profile.simper, fallback: profile.employeeId),
+                    ),
                   ),
                   _profileLine(
                     'Position & Department',
@@ -144,7 +153,10 @@ class IdCardPdfService {
                     'Company',
                     _companyName(profile),
                   ),
-                  _profileLine('Valid Until', _formatDate(_validUntil())),
+                  _profileLine(
+                    'Valid Until',
+                    IdCardPdfService.formatExpiry(minePermit?.expiredAt),
+                  ),
                 ],
               ),
             ),
@@ -1009,11 +1021,6 @@ class IdCardPdfService {
     return trimmed == null || trimmed.isEmpty ? fallback : trimmed;
   }
 
-  static DateTime _validUntil() {
-    final now = DateTime.now();
-    return DateTime(now.year + 1, now.month, now.day);
-  }
-
   static String _formatDate(DateTime value) {
     const months = [
       'Januari',
@@ -1030,6 +1037,14 @@ class IdCardPdfService {
       'Desember',
     ];
     return '${value.day} ${months[value.month - 1]} ${value.year}';
+  }
+
+  static String formatExpiry(String? rawIsoDate) {
+    final raw = (rawIsoDate ?? '').trim();
+    if (raw.isEmpty) return '-';
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    return _formatDate(parsed);
   }
 
   static String _formatLicenseDate(String? value) {

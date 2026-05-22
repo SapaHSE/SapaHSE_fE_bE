@@ -249,6 +249,56 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     ]);
   }
 
+  UserLicense? get _minePermitLicense {
+    final licenses = _profileData?.licenses ?? const <UserLicense>[];
+    final minePermits = licenses
+        .where((license) =>
+            license.licenseType == 'mine_permit' ||
+            license.name.toLowerCase().trim() == 'mine permit')
+        .toList()
+      ..sort((a, b) => (b.expiredAt ?? '').compareTo(a.expiredAt ?? ''));
+    return minePermits.isEmpty ? null : minePermits.first;
+  }
+
+  bool get _canRenewMinePermit =>
+      _minePermitLicense?.canBeRenewedNow() ?? true;
+
+  String get _minePermitActionLabel =>
+      _minePermitLicense == null ? 'Ajukan Mine Permit' : 'Perpanjang Mine Permit';
+
+  Future<void> _requestMinePermit() async {
+    Navigator.pop(context);
+
+    if (!_canRenewMinePermit) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Perpanjangan Belum Tersedia'),
+          content: const Text(UserLicense.renewalBlockedMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final result = await ProfileService.requestMinePermit();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.message),
+        backgroundColor: result.success ? Colors.green : Colors.red,
+      ),
+    );
+    if (result.success) {
+      _loadProfile();
+    }
+  }
+
   String _formatDateForPayload(DateTime? value) {
     if (value == null) return '';
     final month = value.month.toString().padLeft(2, '0');
@@ -575,6 +625,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           Navigator.pop(context);
           _showEditProfileSheet();
         },
+        onRequestMinePermit: _requestMinePermit,
+        minePermitActionLabel: _minePermitActionLabel,
         onAddLicense: () {
           Navigator.pop(context);
           _showAddLicenseForm();
@@ -2145,6 +2197,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     DropdownMenuItem(
                       value: 'simper',
                       child: Text('SIMPER License'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'mine_permit',
+                      child: Text('Mine Permit'),
                     ),
                   ],
                   onChanged: (value) {
@@ -5618,12 +5674,16 @@ class _ProfileMenuTile extends StatelessWidget {
 // ── FAB BOTTOM SHEET ──────────────────────────────────────────────────────────
 class _ProfileFabMenuSheet extends StatelessWidget {
   final VoidCallback onEditBiodata;
+  final VoidCallback onRequestMinePermit;
+  final String minePermitActionLabel;
   final VoidCallback onAddLicense;
   final VoidCallback onAddCertification;
   final VoidCallback onEditMedical;
 
   const _ProfileFabMenuSheet({
     required this.onEditBiodata,
+    required this.onRequestMinePermit,
+    required this.minePermitActionLabel,
     required this.onAddLicense,
     required this.onAddCertification,
     required this.onEditMedical,
@@ -5677,6 +5737,15 @@ class _ProfileFabMenuSheet extends StatelessWidget {
             title: 'Edit Profil',
             subtitle: 'Perbarui foto, email, telepon & alamat',
             onTap: onEditBiodata,
+          ),
+          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
+          _ProfileMenuTile(
+            icon: Icons.assignment_turned_in_outlined,
+            iconBgColor: const Color(0xFFE8F5E9),
+            iconColor: const Color(0xFF2E7D32),
+            title: minePermitActionLabel,
+            subtitle: 'Izin bekerja di area tambang',
+            onTap: onRequestMinePermit,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
           _ProfileMenuTile(
