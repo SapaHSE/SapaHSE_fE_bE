@@ -295,6 +295,40 @@ class AuthController extends Controller
         ]);
     }
 
+    // GET /api/pic-users — daftar semua user untuk pilihan PIC/Penanggung Jawab.
+    public function picUsers(Request $request)
+    {
+        $search = $request->query('search');
+
+        $users = User::when($search, fn($q) => $q->where(function($sub) use ($search) {
+            $sub->where('full_name', 'like', "%{$search}%")
+                ->orWhere('employee_id', 'like', "%{$search}%")
+                ->orWhere('department', 'like', "%{$search}%");
+        }))
+        ->orderBy('full_name')
+        ->select([
+            'id', 'full_name', 'employee_id', 'department', 'position',
+            'jabatan', 'role', 'is_active', 'registration_status',
+        ])
+        ->get()
+        ->map(fn($u) => [
+            'id'                  => $u->id,
+            'full_name'           => $u->full_name,
+            'employee_id'         => $u->employee_id,
+            'department'          => $u->department,
+            'position'            => $u->position,
+            'jabatan'             => $u->jabatan,
+            'role'                => $u->role,
+            'is_active'           => (bool) $u->is_active,
+            'registration_status' => $u->registration_status,
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $users,
+        ]);
+    }
+
     private function normalizeCompanyCategory(string $category): ?string
     {
         return match ($category) {

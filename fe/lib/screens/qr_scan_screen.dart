@@ -845,12 +845,8 @@ class _MinePermitFrontPreview extends StatelessWidget {
                       profile.company ??
                       'PT Bukit Baiduri Energi',
                 ),
-<<<<<<< HEAD
                 _frontInfo('Valid Until',
                     IdCardPdfService.formatExpiry(minePermit.expiredAt)),
-=======
-                _frontInfo('Valid Until', IdCardPdfService.formatExpiry(minePermit.expiredAt)),
->>>>>>> acfd12441a42dd8c623187aea940440732a04399
               ],
             ),
           ),

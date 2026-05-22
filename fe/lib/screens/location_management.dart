@@ -1423,11 +1423,20 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
         search.trim().isEmpty ? '' : '?search=${Uri.encodeComponent(search.trim())}';
 
     try {
-      final response = await ApiService.get('/users$searchQuery');
+      final response = await ApiService.get('/pic-users$searchQuery', auth: false);
       if (response.success) {
         users = _picUsersFromRaw(response.data['data'] ?? response.data);
       }
     } catch (_) {}
+
+    if (users.isEmpty) {
+      try {
+        final response = await ApiService.get('/users$searchQuery');
+        if (response.success) {
+          users = _picUsersFromRaw(response.data['data'] ?? response.data);
+        }
+      } catch (_) {}
+    }
 
     if (users.isEmpty) {
       try {

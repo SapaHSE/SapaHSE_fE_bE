@@ -26,6 +26,7 @@ Route::post('/login',    [AuthController::class, 'login']);
 Route::get('/companies', [CompanyController::class, 'index']);
 Route::get('/departments', [DepartmentController::class, 'index']);
 Route::get('/areas',     [AreaController::class, 'index']);
+Route::get('/pic-users', [AuthController::class, 'picUsers']);
 
 // ── Email Verification ────────────────────────────────────────────────────────
 Route::get('/email/verify/{id}/{token}', [AuthController::class, 'verifyEmail']);  // dibuka via browser
