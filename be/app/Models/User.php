@@ -110,11 +110,25 @@ class User extends Authenticatable
 
     public function resolvedCompany(): ?Company
     {
-        $candidates = [
-            ['name' => $this->sub_kontraktor, 'category' => 'subkontraktor'],
-            ['name' => $this->perusahaan_kontraktor, 'category' => 'kontraktor'],
-            ['name' => $this->company, 'category' => 'owner'],
-        ];
+        $affiliation = strtolower(trim((string) $this->tipe_afiliasi));
+        $affiliation = str_replace(['-', ' ', '.'], '', $affiliation);
+
+        $candidates = match (true) {
+            str_contains($affiliation, 'sub') => [
+                ['name' => $this->sub_kontraktor, 'category' => 'subkontraktor'],
+                ['name' => $this->perusahaan_kontraktor, 'category' => 'kontraktor'],
+                ['name' => $this->company, 'category' => 'owner'],
+            ],
+            str_contains($affiliation, 'kontraktor') || str_contains($affiliation, 'contractor') => [
+                ['name' => $this->perusahaan_kontraktor, 'category' => 'kontraktor'],
+                ['name' => $this->company, 'category' => 'owner'],
+            ],
+            default => [
+                ['name' => $this->company, 'category' => 'owner'],
+                ['name' => $this->perusahaan_kontraktor, 'category' => 'kontraktor'],
+                ['name' => $this->sub_kontraktor, 'category' => 'subkontraktor'],
+            ],
+        };
 
         foreach ($candidates as $candidate) {
             $name = trim((string) ($candidate['name'] ?? ''));

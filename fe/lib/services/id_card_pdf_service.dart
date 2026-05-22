@@ -68,7 +68,7 @@ class IdCardPdfService {
     final bbeLogo = await _loadAssetSvg(_bbeLogoPath);
     final khotaiLogo = await _loadAssetSvg(_khotaiLogoPath);
     final selectedLogo = _selectCompanyLogo(
-      profile.company,
+      _affiliationCompanyName(profile),
       bbeLogo: bbeLogo,
       khotaiLogo: khotaiLogo,
     );
