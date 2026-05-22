@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/company_model.dart';
+import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/company_service.dart';
+import '../services/report_service.dart';
 import 'company_management.dart';
 import '../services/storage_service.dart';
 import 'package:sapahse/main.dart';
@@ -71,22 +73,45 @@ class _LocationManagementScreenState extends State<LocationManagementScreen>
 
       List<_PicUserOption> users = [];
       try {
-        final usersResponse = await AuthService.listUsers();
-        if (usersResponse.success && usersResponse.data['data'] is List) {
-          users = (usersResponse.data['data'] as List)
-              .map((item) => item as Map<String, dynamic>)
-              .map((map) => _PicUserOption(
-                    id: map['id'] is int
-                        ? map['id'] as int
-                        : int.tryParse(map['id']?.toString() ?? '') ?? 0,
-                    fullName: map['full_name']?.toString() ?? '',
-                    employeeId: map['employee_id']?.toString() ?? '',
-                    department: map['department']?.toString(),
-                  ))
-              .where((user) => user.id > 0)
-              .toList();
-        }
+        final reportUsers = await ReportService.getUsers();
+        users = reportUsers
+            .map((user) => _PicUserOption(
+                  id: int.tryParse(user.id) ?? 0,
+                  fullName: user.fullName,
+                  employeeId: '',
+                  department: user.department,
+                  isActive: true,
+                ))
+            .where((user) => user.id > 0 && user.fullName.trim().isNotEmpty)
+            .toList();
       } catch (_) {}
+      if (users.isEmpty) {
+        try {
+          final adminResponse =
+              await ApiService.get('/admin/users?is_active=true&per_page=100');
+          if (adminResponse.success) {
+            users = _picUsersFromRaw(adminResponse.data);
+          }
+        } catch (_) {}
+      }
+      if (users.isEmpty) {
+        try {
+          final usersResponse = await AuthService.listUsers();
+          if (usersResponse.success) {
+            users = _picUsersFromRaw(
+              usersResponse.data['data'] ?? usersResponse.data,
+            );
+          }
+        } catch (_) {}
+      }
+      if (users.isEmpty) {
+        try {
+          final adminResponse = await ApiService.get('/admin/users?per_page=100');
+          if (adminResponse.success) {
+            users = _picUsersFromRaw(adminResponse.data);
+          }
+        } catch (_) {}
+      }
 
       if (mounted) {
         setState(() {
@@ -104,6 +129,42 @@ class _LocationManagementScreenState extends State<LocationManagementScreen>
         });
       }
     }
+  }
+
+  List<_PicUserOption> _picUsersFromRaw(dynamic raw) {
+    final list = _rawList(raw);
+    return list
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .map((map) => _PicUserOption(
+              id: map['id'] is int
+                  ? map['id'] as int
+                  : int.tryParse(map['id']?.toString() ?? '') ?? 0,
+              fullName: map['full_name']?.toString() ??
+                  map['name']?.toString() ??
+                  '',
+              employeeId: map['employee_id']?.toString() ?? '',
+              department: map['department']?.toString(),
+              isActive: map['is_active'] == null ||
+                  map['is_active'] == true ||
+                  map['is_active'] == 1 ||
+                  map['is_active']?.toString() == '1',
+            ))
+        .where((user) => user.id > 0 && user.fullName.trim().isNotEmpty)
+        .toList();
+  }
+
+  List<dynamic> _rawList(dynamic raw) {
+    if (raw is List) return raw;
+    if (raw is Map) {
+      for (final key in const ['data', 'users', 'items', 'results']) {
+        final nested = raw[key];
+        if (nested is List) return nested;
+        if (nested is Map) return _rawList(nested);
+      }
+      return raw.values.whereType<Map>().toList();
+    }
+    return const [];
   }
 
   @override
@@ -978,13 +1039,16 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
   static const _blue = Color(0xFF1A56C4);
   late int _selectedCompanyId;
   final Set<int> _selectedPicUserIds = {};
+  late List<_PicUserOption> _picUsers;
   late TextEditingController _nameCtrl;
   late TextEditingController _codeCtrl;
   bool _isLoading = false;
+  bool _isLoadingPicUsers = false;
 
   @override
   void initState() {
     super.initState();
+    _picUsers = List<_PicUserOption>.from(widget.picUsers);
     _selectedCompanyId = widget.areaToEdit?.companyId ??
         widget.defaultCompany?.id ??
         widget.ownerCompanies.first.id;
@@ -994,9 +1058,7 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
             ? [widget.areaToEdit!.picUserId!]
             : <int>[]);
     for (final id in initialIds) {
-      if (widget.picUsers.any((u) => u.id == id)) {
-        _selectedPicUserIds.add(id);
-      }
+      _selectedPicUserIds.add(id);
     }
     _nameCtrl = TextEditingController(text: widget.areaToEdit?.name ?? '');
     _codeCtrl = TextEditingController(text: widget.areaToEdit?.code ?? '');
@@ -1299,61 +1361,174 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
   }
 
   List<_PicUserOption> get _selectedPicUsers =>
-      widget.picUsers.where((u) => _selectedPicUserIds.contains(u.id)).toList();
+      _picUsers.where((u) => _selectedPicUserIds.contains(u.id)).toList();
 
   Widget _buildPicPickerField() {
     final hasSelection = _selectedPicUserIds.isNotEmpty;
     return GestureDetector(
-      onTap: widget.picUsers.isEmpty ? null : _showPicPicker,
+      onTap: _isLoadingPicUsers ? null : _openPicPicker,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
         decoration: BoxDecoration(
-          color: widget.picUsers.isEmpty
-              ? Colors.grey.shade100
-              : const Color(0xFFF8F9FF),
+          color: const Color(0xFFF8F9FF),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: widget.picUsers.isEmpty
-                ? Colors.grey.shade200
-                : Colors.grey.shade300,
+            color: Colors.grey.shade300,
           ),
         ),
         child: Row(
           children: [
             Icon(Icons.person_add_outlined,
-                size: 20,
-                color: widget.picUsers.isEmpty
-                    ? Colors.grey.shade400
-                    : Colors.grey),
+                size: 20, color: Colors.grey),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                widget.picUsers.isEmpty
-                    ? 'Tidak ada user aktif'
+                _isLoadingPicUsers
+                    ? 'Memuat user...'
                     : (hasSelection
                         ? '${_selectedPicUsers.length} PIC terpilih'
                         : 'Ketuk untuk pilih PIC'),
                 style: TextStyle(
-                  color: widget.picUsers.isEmpty
-                      ? Colors.grey.shade500
-                      : (hasSelection ? Colors.black87 : Colors.grey),
+                  color: hasSelection ? Colors.black87 : Colors.grey,
                   fontSize: 13,
                 ),
               ),
             ),
             Icon(Icons.arrow_forward_ios,
-                size: 14,
-                color: widget.picUsers.isEmpty
-                    ? Colors.grey.shade300
-                    : Colors.grey.shade400),
+                size: 14, color: Colors.grey.shade400),
           ],
         ),
       ),
     );
   }
 
+  Future<void> _openPicPicker() async {
+    _showPicPicker();
+  }
+
+  Future<void> _loadPicUsers() async {
+    setState(() => _isLoadingPicUsers = true);
+    final users = await _fetchPicUsers();
+
+    if (!mounted) return;
+    setState(() {
+      _picUsers = users;
+      _isLoadingPicUsers = false;
+    });
+  }
+
+  Future<List<_PicUserOption>> _fetchPicUsers({String search = ''}) async {
+    var users = <_PicUserOption>[];
+    final searchQuery =
+        search.trim().isEmpty ? '' : '?search=${Uri.encodeComponent(search.trim())}';
+
+    try {
+      final response = await ApiService.get('/users$searchQuery');
+      if (response.success) {
+        users = _picUsersFromRaw(response.data['data'] ?? response.data);
+      }
+    } catch (_) {}
+
+    if (users.isEmpty) {
+      try {
+        final response = await AuthService.listUsers(search: search.trim());
+        if (response.success) {
+          users = _picUsersFromRaw(response.data['data'] ?? response.data);
+        }
+      } catch (_) {}
+    }
+
+    try {
+      if (users.isEmpty) {
+        final reportUsers = await ReportService.getUsers();
+        users = reportUsers
+            .map((user) => _PicUserOption(
+                  id: int.tryParse(user.id) ?? 0,
+                  fullName: user.fullName,
+                  employeeId: '',
+                  department: user.department,
+                ))
+            .where((user) => user.id > 0 && user.fullName.trim().isNotEmpty)
+            .toList();
+      }
+    } catch (_) {}
+
+    if (users.isEmpty) {
+      try {
+        final adminQuery = search.trim().isEmpty
+            ? '?per_page=100'
+            : '?per_page=100&search=${Uri.encodeComponent(search.trim())}';
+        final response = await ApiService.get('/admin/users$adminQuery');
+        if (response.success) {
+          users = _picUsersFromRaw(response.data);
+        }
+      } catch (_) {}
+    }
+
+    if (users.isEmpty) {
+      final currentUser = await StorageService.getUser();
+      if (currentUser != null) {
+        final current = _PicUserOption(
+          id: int.tryParse(currentUser['id']?.toString() ?? '') ?? 0,
+          fullName: currentUser['full_name']?.toString() ??
+              currentUser['name']?.toString() ??
+              '',
+          employeeId: currentUser['employee_id']?.toString() ?? '',
+          department: currentUser['department']?.toString(),
+        );
+        if (current.id > 0 && current.fullName.trim().isNotEmpty) {
+          users = [current];
+        }
+      }
+    }
+
+    final unique = <int, _PicUserOption>{};
+    for (final user in users) {
+      unique[user.id] = user;
+    }
+    return unique.values.toList()
+      ..sort((a, b) => a.fullName.compareTo(b.fullName));
+  }
+
+  List<_PicUserOption> _picUsersFromRaw(dynamic raw) {
+    final list = _rawList(raw);
+    return list
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .map((map) => _PicUserOption(
+              id: map['id'] is int
+                  ? map['id'] as int
+                  : int.tryParse(map['id']?.toString() ?? '') ?? 0,
+              fullName: map['full_name']?.toString() ??
+                  map['name']?.toString() ??
+                  '',
+              employeeId: map['employee_id']?.toString() ?? '',
+              department: map['department']?.toString(),
+              isActive: map['is_active'] == null ||
+                  map['is_active'] == true ||
+                  map['is_active'] == 1 ||
+                  map['is_active']?.toString() == '1',
+            ))
+        .where((user) => user.id > 0 && user.fullName.trim().isNotEmpty)
+        .toList();
+  }
+
+  List<dynamic> _rawList(dynamic raw) {
+    if (raw is List) return raw;
+    if (raw is Map) {
+      for (final key in const ['data', 'users', 'items', 'results']) {
+        final nested = raw[key];
+        if (nested is List) return nested;
+        if (nested is Map) return _rawList(nested);
+      }
+      return raw.values.whereType<Map>().toList();
+    }
+    return const [];
+  }
+
   void _showPicPicker() {
     String query = '';
+    Future<List<_PicUserOption>> usersFuture = _fetchPicUsers();
 
     showModalBottomSheet(
       context: context,
@@ -1361,14 +1536,6 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setSheetState) {
-          final q = query.toLowerCase();
-          final filteredUsers = widget.picUsers
-              .where((u) =>
-                  u.fullName.toLowerCase().contains(q) ||
-                  (u.department?.toLowerCase().contains(q) ?? false) ||
-                  u.employeeId.toLowerCase().contains(q))
-              .toList();
-
           return Container(
             height: MediaQuery.of(context).size.height * 0.8,
             decoration: const BoxDecoration(
@@ -1404,13 +1571,29 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
                       ),
                       contentPadding: EdgeInsets.zero,
                     ),
-                    onChanged: (v) => setSheetState(() => query = v),
+                    onChanged: (v) {
+                      query = v;
+                      usersFuture = _fetchPicUsers(search: query);
+                      setSheetState(() {});
+                    },
                   ),
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: ListView(
-                    children: [
+                  child: FutureBuilder<List<_PicUserOption>>(
+                    future: usersFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Center(
+                          child: CircularProgressIndicator(color: _blue),
+                        );
+                      }
+
+                      final loadedUsers = snapshot.data ?? const <_PicUserOption>[];
+                      _picUsers = loadedUsers;
+
+                      return ListView(
+                          children: [
                       if (_selectedPicUserIds.isNotEmpty) ...[
                         const Padding(
                           padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -1452,7 +1635,7 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
                         ),
                         const Divider(height: 32),
                       ],
-                      if (filteredUsers.isNotEmpty) ...[
+                      if (loadedUsers.isNotEmpty) ...[
                         const Padding(
                           padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
                           child: Text(
@@ -1465,7 +1648,7 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
                             ),
                           ),
                         ),
-                        ...filteredUsers.map((user) {
+                        ...loadedUsers.map((user) {
                           final isSelected =
                               _selectedPicUserIds.contains(user.id);
                           return ListTile(
@@ -1500,16 +1683,31 @@ class _AreaFormScreenState extends State<_AreaFormScreen> {
                           );
                         }),
                       ],
-                      if (filteredUsers.isEmpty)
-                        const Center(
+                      if (loadedUsers.isEmpty)
+                        Center(
                           child: Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Text('Tidak ditemukan',
-                                style: TextStyle(color: Colors.grey)),
+                            padding: const EdgeInsets.all(40),
+                            child: Column(
+                              children: [
+                                const Text('User belum muncul',
+                                    style: TextStyle(color: Colors.grey)),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: () async {
+                                    usersFuture = _fetchPicUsers(search: query);
+                                    setSheetState(() {});
+                                  },
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Muat ulang user'),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       const SizedBox(height: 20),
-                    ],
+                          ],
+                        );
+                    },
                   ),
                 ),
                 Padding(
@@ -1587,12 +1785,14 @@ class _PicUserOption {
   final String fullName;
   final String employeeId;
   final String? department;
+  final bool isActive;
 
   const _PicUserOption({
     required this.id,
     required this.fullName,
     required this.employeeId,
     this.department,
+    this.isActive = true,
   });
 
   String get displayLabel {

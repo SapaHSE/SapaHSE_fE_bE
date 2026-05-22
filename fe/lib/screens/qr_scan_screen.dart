@@ -191,7 +191,13 @@ class _QrScanScreenState extends State<QrScanScreen>
   Future<void> _exportIdCard(ProfileData profile, String qrCode) async {
     if (_isExportingIdCard) return;
 
-    final tableRows = await _showMinePermitReview(profile, qrCode);
+    final minePermit = UserLicense.findApprovedMinePermit(profile.licenses);
+    if (minePermit == null) {
+      await _showMinePermitMissingDialog();
+      return;
+    }
+
+    final tableRows = await _showMinePermitReview(profile, qrCode, minePermit);
     if (tableRows == null || !mounted) return;
 
     setState(() => _isExportingIdCard = true);
@@ -199,6 +205,7 @@ class _QrScanScreenState extends State<QrScanScreen>
       await IdCardPdfService.exportMinePermit(
         profile: profile,
         qrCode: qrCode,
+        minePermit: minePermit,
         tableRows: tableRows,
       );
       if (!mounted) return;
@@ -215,9 +222,44 @@ class _QrScanScreenState extends State<QrScanScreen>
     }
   }
 
+  Future<void> _showMinePermitMissingDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Mine Permit Belum Tersedia'),
+        content: const Text(
+          'Anda belum memiliki Mine Permit yang disetujui. '
+          'Silakan ajukan Mine Permit terlebih dahulu.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Tutup'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final result = await ProfileService.requestMinePermit();
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(result.message),
+                backgroundColor: result.success ? Colors.green : Colors.red,
+              ));
+              if (result.success) {
+                await _loadProfile();
+              }
+            },
+            child: const Text('Ajukan Mine Permit'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<List<MinePermitTableRow>?> _showMinePermitReview(
     ProfileData profile,
     String qrCode,
+    UserLicense minePermit,
   ) async {
     final rows = IdCardPdfService.buildMinePermitTableRows(profile);
     return showModalBottomSheet<List<MinePermitTableRow>>(
@@ -227,6 +269,7 @@ class _QrScanScreenState extends State<QrScanScreen>
       builder: (sheetContext) => _MinePermitReviewSheet(
         profile: profile,
         qrCode: qrCode,
+        minePermit: minePermit,
         initialRows: rows,
       ),
     );
@@ -456,11 +499,13 @@ class _QrScanScreenState extends State<QrScanScreen>
 class _MinePermitReviewSheet extends StatefulWidget {
   final ProfileData profile;
   final String qrCode;
+  final UserLicense minePermit;
   final List<MinePermitTableRow> initialRows;
 
   const _MinePermitReviewSheet({
     required this.profile,
     required this.qrCode,
+    required this.minePermit,
     required this.initialRows,
   });
 
@@ -569,6 +614,7 @@ class _MinePermitReviewSheetState extends State<_MinePermitReviewSheet> {
                   _MinePermitPreviewPair(
                     profile: widget.profile,
                     qrCode: widget.qrCode,
+                    minePermit: widget.minePermit,
                     rows: _editedRows,
                   ),
                   const SizedBox(height: 14),
@@ -636,11 +682,13 @@ class _MinePermitReviewSheetState extends State<_MinePermitReviewSheet> {
 class _MinePermitPreviewPair extends StatelessWidget {
   final ProfileData profile;
   final String qrCode;
+  final UserLicense minePermit;
   final List<MinePermitTableRow> rows;
 
   const _MinePermitPreviewPair({
     required this.profile,
     required this.qrCode,
+    required this.minePermit,
     required this.rows,
   });
 
@@ -650,7 +698,11 @@ class _MinePermitPreviewPair extends StatelessWidget {
       builder: (context, constraints) {
         final cardWidth = constraints.maxWidth >= 540 ? 245.0 : 260.0;
         final cards = [
-          _MinePermitFrontPreview(profile: profile, width: cardWidth),
+          _MinePermitFrontPreview(
+            profile: profile,
+            minePermit: minePermit,
+            width: cardWidth,
+          ),
           _MinePermitBackPreview(
             profile: profile,
             rows: rows,
@@ -684,10 +736,12 @@ class _MinePermitPreviewPair extends StatelessWidget {
 
 class _MinePermitFrontPreview extends StatelessWidget {
   final ProfileData profile;
+  final UserLicense minePermit;
   final double width;
 
   const _MinePermitFrontPreview({
     required this.profile,
+    required this.minePermit,
     required this.width,
   });
 
@@ -778,9 +832,11 @@ class _MinePermitFrontPreview extends StatelessWidget {
                 _frontInfo('Name', profile.fullName),
                 _frontInfo(
                   'Registration Number',
-                  (profile.simper ?? '').trim().isEmpty
-                      ? profile.employeeId
-                      : profile.simper!,
+                  minePermit.licenseNumber.trim().isNotEmpty
+                      ? minePermit.licenseNumber
+                      : ((profile.simper ?? '').trim().isEmpty
+                          ? profile.employeeId
+                          : profile.simper!),
                 ),
                 _frontInfo('Position & Department', positionDepartment),
                 _frontInfo(
@@ -789,7 +845,8 @@ class _MinePermitFrontPreview extends StatelessWidget {
                       profile.company ??
                       'PT Bukit Baiduri Energi',
                 ),
-                _frontInfo('Valid Until', '-'),
+                _frontInfo('Valid Until',
+                    IdCardPdfService.formatExpiry(minePermit.expiredAt)),
               ],
             ),
           ),
@@ -871,8 +928,9 @@ class _MinePermitFrontPreview extends StatelessWidget {
   }
 
   static Widget _companyTextHeader(ProfileData profile) {
-    final companyName =
-        profile.companyDetail?.name ?? profile.company ?? 'PT Bukit Baiduri Energi';
+    final companyName = profile.companyDetail?.name ??
+        profile.company ??
+        'PT Bukit Baiduri Energi';
     final shortText = profile.companyDetail?.code ?? _companyShort(companyName);
 
     return Column(
@@ -1257,9 +1315,10 @@ class _MiniSignaturePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final logoUrl = profile.companyDetail?.logoUrl?.trim() ?? '';
-    final kttName = profile.companyDetail?.kttUser?.fullName ?? 'Reno Barus, S.T';
-    final companyCode =
-        profile.companyDetail?.code ?? _MinePermitFrontPreview._companyShort(profile.company);
+    final kttName =
+        profile.companyDetail?.kttUser?.fullName ?? 'Reno Barus, S.T';
+    final companyCode = profile.companyDetail?.code ??
+        _MinePermitFrontPreview._companyShort(profile.company);
 
     return SizedBox(
       width: 92,

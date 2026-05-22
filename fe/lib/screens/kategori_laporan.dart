@@ -542,61 +542,41 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
       child: Column(
         children: [
           // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${cat.code} - ${cat.name}',
-                        style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${cat.subcategories.where((s) => s.isActive).length} subkategori aktif',
-                        style: TextStyle(
-                            color: Colors.grey.shade600, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_isSuperAdmin) ...[
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline,
-                        color: Colors.red, size: 18),
-                    onPressed: () => _confirmDeleteCategory(cat),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () => _showEditCategoryDialog(cat),
-                    style: TextButton.styleFrom(
-                      foregroundColor: color,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          InkWell(
+            onTap: () => _openCategoryDetail(cat),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${cat.code} - ${cat.name}',
+                          style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${cat.subcategories.where((s) => s.isActive).length} subkategori aktif',
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 11),
+                        ),
+                      ],
                     ),
-                    child: const Text('Edit',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
+                  const Icon(Icons.keyboard_arrow_right,
+                      color: Colors.grey, size: 20),
                 ],
-                const Icon(Icons.keyboard_arrow_right,
-                    color: Colors.grey, size: 20),
-              ],
+              ),
             ),
           ),
           // Subcategories
@@ -642,78 +622,305 @@ class _KategoriLaporanScreenState extends State<KategoriLaporanScreen> {
     return Column(
       children: [
         Divider(height: 1, color: Colors.grey.shade100),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(Icons.circle,
-                  size: 8,
-                  color: sub.isActive ? Colors.green : Colors.grey.shade300),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(sub.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w500, fontSize: 13)),
-                    if (sub.abbreviation != null)
-                      Text(sub.abbreviation!,
-                          style: TextStyle(
-                              color: Colors.grey.shade500, fontSize: 11)),
-                  ],
-                ),
-              ),
-              if (_isSuperAdmin) ...[
-                IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      color: Colors.red, size: 16),
-                  onPressed: () => _confirmDeleteSubcategory(cat, sub),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () => _showEditSubcategoryDialog(cat, sub),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text('Edit',
-                      style:
-                          TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 4),
-                GestureDetector(
-                  onTap: () => _toggleSubcategory(sub),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: sub.isActive
-                          ? Colors.green.shade50
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      sub.isActive ? 'On' : 'Off',
-                      style: TextStyle(
-                        color: sub.isActive
-                            ? Colors.green.shade700
-                            : Colors.grey.shade600,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
+        InkWell(
+          onTap: () => _openSubcategoryDetail(cat, sub),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(Icons.circle,
+                    size: 8,
+                    color: sub.isActive ? Colors.green : Colors.grey.shade300),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(sub.name,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w500, fontSize: 13)),
+                      if (sub.abbreviation != null)
+                        Text(sub.abbreviation!,
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 11)),
+                    ],
                   ),
                 ),
+                Icon(Icons.chevron_right,
+                    color: Colors.grey.shade400, size: 20),
               ],
-            ],
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _openCategoryDetail(HazardCategoryData cat) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _managementDetailSheet(
+        icon: Icons.folder_outlined,
+        title: cat.name,
+        subtitle: cat.code,
+        rows: [
+          _detailRowInSheet('Kode', cat.code),
+          _detailRowInSheet('Nama', cat.name),
+          _detailRowInSheet(
+            'Subkategori',
+            '${cat.subcategories.length} total, ${cat.subcategories.where((s) => s.isActive).length} aktif',
+          ),
+        ],
+        actions: _isSuperAdmin
+            ? [
+                _sheetAction(
+                  icon: Icons.edit_outlined,
+                  label: 'Edit',
+                  color: _blue,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _showEditCategoryDialog(cat);
+                  },
+                ),
+                _sheetAction(
+                  icon: Icons.delete_outline,
+                  label: 'Hapus',
+                  color: _red,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _confirmDeleteCategory(cat);
+                  },
+                ),
+              ]
+            : const [],
+      ),
+    );
+  }
+
+  Future<void> _openSubcategoryDetail(
+      HazardCategoryData cat, HazardSubcategoryData sub) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _managementDetailSheet(
+        icon: Icons.label_outline,
+        title: sub.name,
+        subtitle: cat.name,
+        rows: [
+          _detailRowInSheet('Kategori', '${cat.code} - ${cat.name}'),
+          _detailRowInSheet(
+            'Kode',
+            (sub.abbreviation ?? '').trim().isEmpty
+                ? '-'
+                : sub.abbreviation!.trim(),
+          ),
+          _detailRowInSheet('Status', sub.isActive ? 'Aktif' : 'Nonaktif'),
+          _detailRowInSheet(
+            'Deskripsi',
+            (sub.description ?? '').trim().isEmpty
+                ? '-'
+                : sub.description!.trim(),
+          ),
+        ],
+        actions: _isSuperAdmin
+            ? [
+                _sheetAction(
+                  icon: Icons.edit_outlined,
+                  label: 'Edit',
+                  color: _blue,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _showEditSubcategoryDialog(cat, sub);
+                  },
+                ),
+                _sheetAction(
+                  icon: Icons.power_settings_new,
+                  label: sub.isActive ? 'Nonaktif' : 'Aktif',
+                  color: sub.isActive ? _orange : const Color(0xFF2E7D32),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _toggleSubcategory(sub);
+                  },
+                ),
+                _sheetAction(
+                  icon: Icons.delete_outline,
+                  label: 'Hapus',
+                  color: _red,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _confirmDeleteSubcategory(cat, sub);
+                  },
+                ),
+              ]
+            : const [],
+      ),
+    );
+  }
+
+  Widget _managementDetailSheet({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required List<Widget> rows,
+    required List<Widget> actions,
+  }) {
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+        16,
+        0,
+        16,
+        AppSafeInsets.sheetBottomPadding(context, base: 20),
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF4FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: _blue),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: const TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(subtitle,
+                          style: TextStyle(
+                              color: Colors.grey.shade600, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _detailSectionInSheet(
+              title: 'Detail',
+              children: rows,
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (actions.isNotEmpty)
+            Container(
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: Row(children: actions),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailSectionInSheet({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDFDFD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1)),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRowInSheet(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+          ),
+          const Text(': ', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Expanded(
+            child: Text(value,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sheetAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(height: 4),
+              Text(label,
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

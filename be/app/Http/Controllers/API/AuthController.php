@@ -262,12 +262,12 @@ class AuthController extends Controller
                     ->orWhere($column, 'like', "%{$companyName}%");
             }
         }))
-        ->where('is_active', true)
         ->orderBy('full_name')
         ->select([
-            'id', 'full_name', 'employee_id', 'department', 'position', 
+            'id', 'full_name', 'employee_id', 'department', 'position',
             'jabatan', 'company', 'role', 'profile_photo', 'phone_number', 
-            'personal_email', 'work_email', 'tipe_afiliasi'
+            'personal_email', 'work_email', 'tipe_afiliasi', 'is_active',
+            'registration_status'
         ])
         ->get()
         ->map(fn($u) => [
@@ -284,6 +284,8 @@ class AuthController extends Controller
             'work_email'     => $u->work_email,
             'email'          => $u->personal_email ?? $u->work_email,
             'role'           => $u->role,
+            'is_active'      => (bool) $u->is_active,
+            'registration_status' => $u->registration_status,
             'photo_url'      => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
         ]);
 

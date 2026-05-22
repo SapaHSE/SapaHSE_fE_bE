@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -133,48 +131,269 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
     }
   }
 
-  void _confirmDeleteCompany(CompanyData company) {
-    showDialog(
+  void _replaceCompanyInList(CompanyData updated) {
+    setState(() {
+      final index =
+          _allCompanies.indexWhere((company) => company.id == updated.id);
+      if (index != -1) {
+        _allCompanies[index] = updated;
+      }
+    });
+  }
+
+  void _removeCompanyFromList(int companyId) {
+    setState(() {
+      _allCompanies.removeWhere((company) => company.id == companyId);
+    });
+  }
+
+  Future<void> _openCompanyDetail(CompanyData company) async {
+    CompanyData currentCompany = company;
+
+    await showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Company',
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
-        content: Text(
-            'Yakin ingin menghapus ${company.name}? Semua data yang terkait mungkin akan hilang.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () async {
-              Navigator.pop(context);
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> openEdit() async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      _CompanyFormScreen(companyToEdit: currentCompany),
+                ),
+              );
+              if (result == true) {
+                await _loadData(silent: true);
+                final updated = _allCompanies.firstWhere(
+                  (item) => item.id == currentCompany.id,
+                  orElse: () => currentCompany,
+                );
+                setSheetState(() => currentCompany = updated);
+                _showSnack('Company berhasil diperbarui.');
+              }
+            }
+
+            Future<void> toggleStatus() async {
               try {
-                await CompanyService.deleteCompany(company.id);
-                _showSnack('Company berhasil dihapus.');
+                await CompanyService.toggleCompanyStatus(currentCompany.id);
+                final updated = CompanyData(
+                  id: currentCompany.id,
+                  name: currentCompany.name,
+                  code: currentCompany.code,
+                  logoUrl: currentCompany.logoUrl,
+                  kttUserId: currentCompany.kttUserId,
+                  kttUser: currentCompany.kttUser,
+                  emergencyNumber: currentCompany.emergencyNumber,
+                  ertFreq: currentCompany.ertFreq,
+                  category: currentCompany.category,
+                  isActive: !currentCompany.isActive,
+                );
+                _replaceCompanyInList(updated);
+                setSheetState(() => currentCompany = updated);
+                _showSnack(updated.isActive
+                    ? 'Company diaktifkan.'
+                    : 'Company dinonaktifkan.');
               } catch (e) {
                 _showSnack(e.toString(), isError: true);
               }
-              _loadData(silent: true);
-            },
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
-    );
-  }
+            }
 
-  Future<void> _toggleStatus(CompanyData company) async {
-    setState(() => _isLoading = true);
-    try {
-      await CompanyService.toggleCompanyStatus(company.id);
-    } catch (e) {
-      _showSnack(e.toString(), isError: true);
-    }
-    _loadData();
+            Future<void> deleteCompany() async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: const Text(
+                    'Hapus Company',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                  content: Text('Yakin ingin menghapus ${currentCompany.name}?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Batal'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Hapus'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed != true) return;
+
+              try {
+                await CompanyService.deleteCompany(currentCompany.id);
+                _removeCompanyFromList(currentCompany.id);
+                _showSnack('Company berhasil dihapus.');
+                if (Navigator.of(sheetContext).canPop()) {
+                  Navigator.pop(sheetContext);
+                }
+              } catch (e) {
+                _showSnack(e.toString(), isError: true);
+              }
+            }
+
+            return Container(
+              margin: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                AppSafeInsets.sheetBottomPadding(context, base: 20),
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        _buildCompanyLogo(currentCompany),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                currentCompany.name,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _companyCategoryLabel(currentCompany.category),
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _detailSectionInSheet(
+                      title: 'Detail Company',
+                      children: [
+                        _detailRowInSheet(
+                          'Kode',
+                          (currentCompany.code ?? '').trim().isEmpty
+                              ? '-'
+                              : currentCompany.code!.trim(),
+                        ),
+                        _detailRowInSheet(
+                          'Status',
+                          currentCompany.isActive ? 'Aktif' : 'Nonaktif',
+                        ),
+                        _detailRowInSheet(
+                          'Kategori',
+                          _companyCategoryLabel(currentCompany.category),
+                        ),
+                        _detailRowInSheet(
+                          'KTT',
+                          currentCompany.kttDisplayName.isEmpty
+                              ? '-'
+                              : currentCompany.kttDisplayName,
+                        ),
+                        _detailRowInSheet(
+                          'Emergency',
+                          (currentCompany.emergencyNumber ?? '').trim().isEmpty
+                              ? '-'
+                              : currentCompany.emergencyNumber!.trim(),
+                        ),
+                        _detailRowInSheet(
+                          'ERT',
+                          (currentCompany.ertFreq ?? '').trim().isEmpty
+                              ? '-'
+                              : currentCompany.ertFreq!.trim(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  if (_isSuperAdmin)
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _quickActionInSheet(
+                              icon: Icons.edit_outlined,
+                              label: 'Edit',
+                              color: _blue,
+                              onTap: () => openEdit(),
+                            ),
+                          ),
+                          Expanded(
+                            child: _quickActionInSheet(
+                              icon: Icons.power_settings_new,
+                              label:
+                                  currentCompany.isActive ? 'Nonaktif' : 'Aktif',
+                              color: currentCompany.isActive
+                                  ? _orange
+                                  : const Color(0xFF2E7D32),
+                              onTap: () => toggleStatus(),
+                            ),
+                          ),
+                          Expanded(
+                            child: _quickActionInSheet(
+                              icon: Icons.delete_outline,
+                              label: 'Hapus',
+                              color: _red,
+                              onTap: () => deleteCompany(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _onTabTapped(int index) {
@@ -479,12 +698,8 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
     return Column(
       children: [
         Divider(height: 1, color: Colors.grey.shade100),
-        GestureDetector(
-          onTap: () {
-            if (_isSuperAdmin) {
-              _navigateToCompanyForm(company: sub);
-            }
-          },
+        InkWell(
+          onTap: () => _openCompanyDetail(sub),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
@@ -525,47 +740,113 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
                     ],
                   ),
                 ),
-                if (_isSuperAdmin) ...[
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline,
-                        color: Colors.red, size: 16),
-                    onPressed: () => _confirmDeleteCompany(sub),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  const SizedBox(width: 4),
-                  GestureDetector(
-                    onTap: () => _toggleStatus(sub),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: sub.isActive
-                            ? Colors.green.shade50
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        sub.isActive ? 'On' : 'Off',
-                        style: TextStyle(
-                          color: sub.isActive
-                              ? Colors.green.shade700
-                              : Colors.grey.shade600,
-                          fontWeight: sub.isActive
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                Icon(Icons.chevron_right,
+                    color: Colors.grey.shade400, size: 20),
               ],
             ),
           ),
         ),
       ],
     );
+  }
+
+  Widget _detailSectionInSheet({
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDFDFD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRowInSheet(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+          ),
+          const Text(': ', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quickActionInSheet({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _companyCategoryLabel(String category) {
+    switch (category) {
+      case 'owner':
+        return 'Owner';
+      case 'kontraktor':
+      case 'contractor':
+        return 'Contractor';
+      case 'subkontraktor':
+      case 'sub contractor':
+        return 'Sub Contractor';
+      default:
+        return category;
+    }
   }
 
   Widget _buildCompanyLogo(CompanyData company) {
@@ -1088,9 +1369,25 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   Widget _buildLogoPreview() {
     final imageFile = _logoImageFile;
     if (imageFile != null) {
-      return _isSvgPath(imageFile.path)
-          ? SvgPicture.file(File(imageFile.path), fit: BoxFit.contain)
-          : Image.file(File(imageFile.path), fit: BoxFit.contain);
+      return FutureBuilder(
+        future: imageFile.readAsBytes(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          }
+
+          final bytes = snapshot.data!;
+          return _isSvgPath(imageFile.path)
+              ? SvgPicture.memory(bytes, fit: BoxFit.contain)
+              : Image.memory(bytes, fit: BoxFit.contain);
+        },
+      );
     }
 
     final logoUrl = _clearLogo ? '' : (_logoUrl?.trim() ?? '');
