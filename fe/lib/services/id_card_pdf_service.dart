@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'dart:typed_data';
+import 'package:image/image.dart' as img;
 
 import '../models/profile_model.dart';
 import 'helper/save_helper.dart'
@@ -54,21 +55,30 @@ class IdCardPdfService {
     List<MinePermitTableRow>? tableRows,
   }) async {
     final document = pw.Document();
-    final avatar = await _loadNetworkImage(profile.profilePhoto);
-    final companyLogo = await _loadNetworkImage(profile.companyDetail?.logoUrl);
-    final companyLogoSvg = await _loadNetworkSvg(profile.companyDetail?.logoUrl);
+    final avatarOriginal = await _loadNetworkImage(profile.profilePhoto);
+    final avatar = await _removeBackground(avatarOriginal, profile.profilePhoto);
+    final detailCategory =
+        profile.companyDetail?.category.trim().toLowerCase() ?? '';
+    final headerLogoUrl =
+        detailCategory == 'owner' ? profile.companyDetail?.logoUrl : null;
+    final companyLogo = await _loadNetworkImage(headerLogoUrl);
+    final companyLogoSvg = await _loadNetworkSvg(headerLogoUrl);
+    
+    // Use owner company detail for TTD and stamp
+    final ownerDetail = profile.ownerCompanyDetail ?? profile.companyDetail;
     final kttSignatureImage =
-        await _loadNetworkImage(profile.companyDetail?.kttSignatureUrl);
+        await _loadNetworkImage(ownerDetail?.kttSignatureUrl);
     final kttSignatureSvg =
-        await _loadNetworkSvg(profile.companyDetail?.kttSignatureUrl);
+        await _loadNetworkSvg(ownerDetail?.kttSignatureUrl);
     final companyStampImage =
-        await _loadNetworkImage(profile.companyDetail?.companyStampUrl);
+        await _loadNetworkImage(ownerDetail?.companyStampUrl);
     final companyStampSvg =
-        await _loadNetworkSvg(profile.companyDetail?.companyStampUrl);
+        await _loadNetworkSvg(ownerDetail?.companyStampUrl);
+    
     final bbeLogo = await _loadAssetSvg(_bbeLogoPath);
     final khotaiLogo = await _loadAssetSvg(_khotaiLogoPath);
     final selectedLogo = _selectCompanyLogo(
-      _affiliationCompanyName(profile),
+      profile.company,
       bbeLogo: bbeLogo,
       khotaiLogo: khotaiLogo,
     );
@@ -227,8 +237,11 @@ class IdCardPdfService {
     ProfileData profile,
     List<MinePermitTableRow> tableRows,
   ) {
-    final emergencyNumber = _companyEmergencyNumberText(profile);
-    final radioContact = _companyRadioText(profile);
+    final emergencyNumber = profile.companyDetail?.emergencyNumber?.trim() ?? '';
+    final ertFreq = profile.companyDetail?.ertFreq?.trim() ?? '';
+    final radioLabel = profile.companyDetail?.radioLabel?.trim() ?? '';
+    final radioChannel = profile.companyDetail?.radioChannel?.trim() ?? '';
+    final radioFreq = profile.companyDetail?.radioFrequency?.trim() ?? '';
 
     return _printPage(
       child: pw.Stack(
@@ -265,7 +278,7 @@ class IdCardPdfService {
             left: 0.8 * _mm,
             right: 0.8 * _mm,
             top: 52.2 * _mm,
-            child: _rulesBlock(profile.company),
+            child: _rulesBlock(profile),
           ),
           pw.Positioned(
             left: 0.8 * _mm,
@@ -291,35 +304,50 @@ class IdCardPdfService {
             right: 0.8 * _mm,
             top: 71.9 * _mm,
             child: pw.Container(
-              height: 3.6 * _mm,
               alignment: pw.Alignment.center,
               color: PdfColors.white,
-              padding: const pw.EdgeInsets.symmetric(horizontal: 2.0),
+              padding: const pw.EdgeInsets.symmetric(horizontal: 2.0, vertical: 1.0),
               child: pw.Column(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
                 children: [
-                  pw.Text(
-                    emergencyNumber,
-                    maxLines: 1,
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(
-                      color: _ink,
-                      fontSize: 4.75,
-                      fontWeight: pw.FontWeight.bold,
-                      height: 0.9,
+                  if (emergencyNumber.isNotEmpty)
+                    pw.Text(
+                      emergencyNumber,
+                      maxLines: 1,
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        color: _ink,
+                        fontSize: 4.2,
+                        fontWeight: pw.FontWeight.bold,
+                        height: 1.1,
+                      ),
                     ),
-                  ),
-                  pw.Text(
-                    radioContact,
-                    maxLines: 1,
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(
-                      color: _ink,
-                      fontSize: 4.35,
-                      fontWeight: pw.FontWeight.bold,
-                      height: 0.9,
+                  if (ertFreq.isNotEmpty)
+                    pw.Text(
+                      'ERT: $ertFreq',
+                      maxLines: 1,
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        color: _ink,
+                        fontSize: 4.0,
+                        fontWeight: pw.FontWeight.bold,
+                        height: 1.1,
+                      ),
                     ),
-                  ),
+                  if (radioLabel.isNotEmpty || radioChannel.isNotEmpty || radioFreq.isNotEmpty)
+                    pw.Text(
+                      [radioLabel, radioChannel, radioFreq]
+                          .where((s) => s.isNotEmpty)
+                          .join(' '),
+                      maxLines: 1,
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        color: _ink,
+                        fontSize: 4.0,
+                        fontWeight: pw.FontWeight.bold,
+                        height: 1.1,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -663,88 +691,6 @@ class IdCardPdfService {
     String? companyStampSvg,
     String kttName,
   ) {
-    if (logo.isEmpty && logoImage == null && (logoSvg ?? '').trim().isEmpty) {
-      return pw.SizedBox(
-        width: 19.6 * _mm,
-        child: pw.Column(
-          children: [
-            pw.Text(
-              'Disahkan oleh,',
-              style: pw.TextStyle(
-                fontSize: 4.2,
-                fontWeight: pw.FontWeight.bold,
-                color: _deepBlue,
-              ),
-            ),
-            pw.SizedBox(height: 0.35 * _mm),
-            pw.Container(
-              width: 13.0 * _mm,
-              height: 2.0 * _mm,
-              decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  bottom: pw.BorderSide(color: _deepBlue, width: 0.5),
-                ),
-              ),
-            ),
-            pw.SizedBox(height: 0.1 * _mm),
-            pw.Row(
-              mainAxisSize: pw.MainAxisSize.min,
-              children: [
-                pw.SizedBox(
-                  width: 5.8 * _mm,
-                  height: 4.1 * _mm,
-                  child: _optionalLogoWidget(
-                    image: kttSignatureImage,
-                    svg: kttSignatureSvg,
-                    fallback: pw.Container(
-                      decoration: pw.BoxDecoration(
-                        color: PdfColor.fromInt(0xFF2AB673),
-                        borderRadius: pw.BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                ),
-                pw.SizedBox(width: 0.8 * _mm),
-                pw.SizedBox(
-                  width: 6.8 * _mm,
-                  height: 4.1 * _mm,
-                  child: _optionalLogoWidget(
-                    image: companyStampImage,
-                    svg: companyStampSvg,
-                    fallback: pw.Text(
-                      'BBE',
-                      textAlign: pw.TextAlign.center,
-                      style: pw.TextStyle(
-                        fontSize: 7.0,
-                        fontWeight: pw.FontWeight.bold,
-                        color: _ink,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            pw.Text(
-              kttName,
-              style: pw.TextStyle(
-                fontSize: 3.9,
-                fontWeight: pw.FontWeight.bold,
-                color: _ink,
-              ),
-            ),
-            pw.Text(
-              'Kepala Teknik Tambang',
-              style: pw.TextStyle(
-                fontSize: 3.6,
-                fontStyle: pw.FontStyle.italic,
-                color: _ink,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
     return pw.SizedBox(
       width: 19.6 * _mm,
       child: pw.Column(
@@ -757,17 +703,7 @@ class IdCardPdfService {
               color: _deepBlue,
             ),
           ),
-          pw.SizedBox(height: 0.35 * _mm),
-          pw.Container(
-            width: 13.0 * _mm,
-            height: 2.0 * _mm,
-            decoration: const pw.BoxDecoration(
-              border: pw.Border(
-                bottom: pw.BorderSide(color: _deepBlue, width: 0.5),
-              ),
-            ),
-          ),
-          pw.SizedBox(height: 0.1 * _mm),
+          pw.SizedBox(height: 1.0 * _mm),
           pw.SizedBox(
             width: 14.0 * _mm,
             height: 4.4 * _mm,
@@ -777,11 +713,7 @@ class IdCardPdfService {
                   child: _optionalLogoWidget(
                     image: kttSignatureImage,
                     svg: kttSignatureSvg,
-                    fallback: _logoWidget(
-                      fallbackSvg: logo,
-                      image: logoImage,
-                      svg: logoSvg,
-                    ),
+                    fallback: pw.SizedBox(),
                   ),
                 ),
                 pw.SizedBox(width: 0.6 * _mm),
@@ -873,7 +805,7 @@ class IdCardPdfService {
           return pw.TableRow(
             children: [
               _tableCell(row.code, bold: true),
-              _tableCell(row.vehicleEquipment),
+              _tableCell(row.vehicleEquipment, alignLeft: true),
               _tableCell(row.licenseNumber),
               _tableCell(row.issuedDate),
             ],
@@ -908,11 +840,14 @@ class IdCardPdfService {
     return 3.8;
   }
 
-  static pw.Widget _tableCell(String value, {bool bold = false}) {
+  static pw.Widget _tableCell(String value, {bool bold = false, bool alignLeft = false}) {
     return pw.Container(
       height: 3.25 * _mm,
-      alignment: pw.Alignment.center,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 0.45),
+      alignment: alignLeft ? pw.Alignment.centerLeft : pw.Alignment.center,
+      padding: pw.EdgeInsets.only(
+        left: alignLeft ? 1.2 : 0.45,
+        right: 0.45,
+      ),
       child: pw.Text(
         value,
         maxLines: 1,
@@ -938,11 +873,10 @@ class IdCardPdfService {
     return 4.5;
   }
 
-  static pw.Widget _rulesBlock(String? companyName) {
-    final companyText = _display(
-      companyName,
-      fallback: 'PT Bukit Baiduri Energi',
-    );
+  static pw.Widget _rulesBlock(ProfileData profile) {
+    final ownerDetail = profile.ownerCompanyDetail ?? profile.companyDetail;
+    final code = ownerDetail?.code?.trim();
+    final companyShort = code != null && code.isNotEmpty ? 'PT $code' : 'PT BBE';
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -956,14 +890,14 @@ class IdCardPdfService {
           ),
         ),
         pw.SizedBox(height: 0.15 * _mm),
-        _ruleText('1.',
-          'Kartu wajib dipakai selama berada di area kerja dan digunakan sebatas izin akses sesuai area yang diperbolehkan.',
+        _ruleText('1',
+          'Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
         ),
-        _ruleText('2.',
-          'Kartu ini milik $companyText, wajib dikembalikan kartu ini jika masa berlaku sudah habis atau tidak terikat kerja.',
+        _ruleText('2',
+          'Kartu ini milik $companyShort, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku atau tidak lagi terikat kerja.',
         ),
-        _ruleText('3.', 'Segera lapor ke QHSE jika kehilangan kartu ini atau perpanjangan.'),
-        _ruleText('4.',
+        _ruleText('3', 'Segera laporkan ke QHSE jika kehilangan kartu ini.'),
+        _ruleText('4',
           'Apabila menemukan kartu ini mohon untuk melaporkan ke perusahaan melalui kontak yang tersedia.',
         ),
       ],
@@ -1016,6 +950,48 @@ class IdCardPdfService {
       return pw.MemoryImage(response.bodyBytes);
     } catch (_) {
       return null;
+    }
+  }
+
+  static Future<pw.MemoryImage?> _removeBackground(
+    pw.MemoryImage? image,
+    String? imageUrl,
+  ) async {
+    if (image == null) return null;
+
+    try {
+      final imgData = img.decodeImage(image.bytes);
+      if (imgData == null) return image;
+
+      final processed = img.Image(
+        width: imgData.width,
+        height: imgData.height,
+        numChannels: 4,
+      );
+
+      for (var y = 0; y < imgData.height; y++) {
+        for (var x = 0; x < imgData.width; x++) {
+          final pixel = imgData.getPixel(x, y);
+          final r = pixel.r.toInt();
+          final g = pixel.g.toInt();
+          final b = pixel.b.toInt();
+
+          final brightness = (r + g + b) / 3;
+          final isBackground = brightness > 200 || 
+              (r > 180 && g > 180 && b > 180);
+
+          if (isBackground) {
+            processed.setPixelRgba(x, y, r, g, b, 0);
+          } else {
+            processed.setPixelRgba(x, y, r, g, b, 255);
+          }
+        }
+      }
+
+      final pngBytes = img.encodePng(processed);
+      return pw.MemoryImage(Uint8List.fromList(pngBytes));
+    } catch (_) {
+      return image;
     }
   }
 
@@ -1097,9 +1073,10 @@ class IdCardPdfService {
   }
 
   static String _kttName(ProfileData profile) {
+    final ownerDetail = profile.ownerCompanyDetail ?? profile.companyDetail;
     return _display(
-      profile.companyDetail?.kttUser?.fullName,
-      fallback: 'Reno Barus, S.T',
+      ownerDetail?.kttUser?.fullName,
+      fallback: '-',
     );
   }
 
@@ -1111,8 +1088,7 @@ class IdCardPdfService {
     return [
       profile.companyDetail?.radioLabel,
       profile.companyDetail?.radioChannel,
-      profile.companyDetail?.radioFrequency ??
-          profile.companyDetail?.ertFreq,
+      profile.companyDetail?.radioFrequency ?? profile.companyDetail?.ertFreq,
     ]
         .map((value) => value?.trim() ?? '')
         .where((value) => value.isNotEmpty)
@@ -1157,9 +1133,7 @@ class IdCardPdfService {
     final parsed = DateTime.tryParse(trimmed.replaceFirst(' ', 'T'));
     if (parsed == null) return trimmed;
 
-    final day = parsed.day.toString().padLeft(2, '0');
-    final month = parsed.month.toString().padLeft(2, '0');
-    return '$day/$month/${parsed.year}';
+    return _formatDate(parsed);
   }
 
   static String _initials(String name) {
