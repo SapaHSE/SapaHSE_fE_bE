@@ -749,7 +749,10 @@ class _MinePermitFrontPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final position = profile.jabatan ?? profile.position ?? '';
     final department = profile.department ?? '';
-    final logoUrl = profile.companyDetail?.logoUrl?.trim() ?? '';
+    final detailCategory =
+        profile.companyDetail?.category.trim().toLowerCase() ?? '';
+    final logoUrl =
+        detailCategory == 'owner' ? profile.companyDetail?.logoUrl?.trim() ?? '' : '';
 
     return _PreviewCardFrame(
       width: width,
@@ -954,10 +957,12 @@ class _MinePermitFrontPreview extends StatelessWidget {
   }
 
   static Widget _companyTextHeader(ProfileData profile) {
-    final companyName = profile.companyDetail?.name ??
-        profile.company ??
-        'PT Bukit Baiduri Energi';
-    final shortText = profile.companyDetail?.code ?? _companyShort(companyName);
+    final companyName = profile.company ?? 'PT Bukit Baiduri Energi';
+    final detailCategory =
+        profile.companyDetail?.category.trim().toLowerCase() ?? '';
+    final shortText = detailCategory == 'owner'
+        ? (profile.companyDetail?.code ?? _companyShort(companyName))
+        : _companyShort(companyName);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -999,7 +1004,8 @@ class _MinePermitBackPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final companyName =
         profile.companyDetail?.name ?? profile.company ?? 'perusahaan';
-    final emergencyContact = _companyEmergencyContactText(profile);
+    final emergencyNumber = _companyEmergencyNumberText(profile);
+    final radioContact = _companyRadioText(profile);
 
     return _PreviewCardFrame(
       width: width,
@@ -1028,13 +1034,13 @@ class _MinePermitBackPreview extends StatelessWidget {
           Positioned(
             left: 5,
             right: 5,
-            top: 240,
+            top: 229,
             child: Container(height: 1, color: Colors.grey.shade400),
           ),
           Positioned(
             left: 6,
             right: 6,
-            top: 243,
+            top: 232,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1042,37 +1048,74 @@ class _MinePermitBackPreview extends StatelessWidget {
                   'Catatan:',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                 ),
-                _rulePreview(
-                  '1. Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
+                _rulePreview('1',
+                  'Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
                 ),
-                _rulePreview(
-                  '2. Kartu ini milik $companyName, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku.',
+                _rulePreview('2',
+                  'Kartu ini milik $companyName, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku.',
                 ),
-                _rulePreview(
-                    '3. Segera laporkan ke QHSE jika kehilangan kartu ini.'),
+                _rulePreview('3',
+                    'Segera laporkan ke QHSE jika kehilangan kartu ini.'),
               ],
             ),
           ),
           Positioned(
-            left: 0,
-            right: 0,
-            top: 292,
+            left: 5,
+            right: 5,
+            top: 290,
             child: Container(
-              height: 18,
+              height: 14,
               color: const Color(0xFFE5506A),
               alignment: Alignment.center,
-              child: Text(
-                emergencyContact.isEmpty
-                    ? 'EMERGENCY CONTACT'
-                    : 'EMERGENCY CONTACT: $emergencyContact',
+              child: const Text(
+                'EMERGENCY CONTACT',
                 textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontSize: 6.4,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 5,
+            right: 5,
+            top: 303,
+            child: Container(
+              height: 24,
+              color: Colors.white,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    emergencyNumber,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF303744),
+                      fontSize: 7.8,
+                      fontWeight: FontWeight.bold,
+                      height: 0.95,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    radioContact,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF303744),
+                      fontSize: 7.4,
+                      fontWeight: FontWeight.bold,
+                      height: 0.95,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1101,9 +1144,12 @@ class _MinePermitBackPreview extends StatelessWidget {
     );
   }
 
-  static String _companyEmergencyContactText(ProfileData profile) {
-    final emergency = profile.companyDetail?.emergencyNumber?.trim() ?? '';
-    final radio = [
+  static String _companyEmergencyNumberText(ProfileData profile) {
+    return profile.companyDetail?.emergencyNumber?.trim() ?? '';
+  }
+
+  static String _companyRadioText(ProfileData profile) {
+    return [
       profile.companyDetail?.radioLabel,
       profile.companyDetail?.radioChannel,
       profile.companyDetail?.radioFrequency ??
@@ -1112,14 +1158,10 @@ class _MinePermitBackPreview extends StatelessWidget {
         .map((value) => value?.trim() ?? '')
         .where((value) => value.isNotEmpty)
         .join(' ');
-    return [
-      if (emergency.isNotEmpty) emergency,
-      if (radio.isNotEmpty) radio,
-    ].join(' | ');
   }
 
   static Widget _previewTable(List<MinePermitTableRow> rows) {
-    const border = BorderSide(color: Color(0xFF9BA7B8), width: 0.7);
+    const border = BorderSide(color: Colors.black, width: 0.7);
     return Table(
       border: TableBorder.all(color: border.color, width: border.width),
       columnWidths: const {
@@ -1142,7 +1184,7 @@ class _MinePermitBackPreview extends StatelessWidget {
           (row) => TableRow(
             children: [
               _PreviewCell(row.code, bold: true),
-              _PreviewCell(row.vehicleEquipment),
+              _PreviewCell(row.vehicleEquipment, alignLeft: true),
               _PreviewCell(row.licenseNumber),
               _PreviewCell(row.issuedDate),
             ],
@@ -1174,7 +1216,7 @@ class _PreviewCardFrame extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF4F5E70), width: 1.2),
+            border: Border.all(color: Colors.black, width: 1.2),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
@@ -1214,7 +1256,7 @@ class _MiniCounterPreview extends StatelessWidget {
           ),
           Table(
             border: TableBorder.all(
-              color: const Color(0xFF9BA7B8),
+              color: Colors.black,
               width: 0.7,
             ),
             children: const [
@@ -1244,8 +1286,8 @@ class _MiniSignaturePreview extends StatelessWidget {
     final kttSignatureUrl =
         profile.companyDetail?.kttSignatureUrl?.trim() ?? '';
     final companyStampUrl = profile.companyDetail?.companyStampUrl?.trim() ?? '';
-    final kttName =
-        profile.companyDetail?.kttUser?.fullName ?? 'Reno Barus, S.T';
+    final kttName = profile.companyDetail?.kttUser?.fullName ??
+        _defaultKttNameForOwner(profile.company);
     final companyCode = profile.companyDetail?.code ??
         _MinePermitFrontPreview._companyShort(profile.company);
 
@@ -1327,6 +1369,12 @@ class _MiniSignaturePreview extends StatelessWidget {
   }
 }
 
+String _defaultKttNameForOwner(String? ownerCompany) {
+  final value = (ownerCompany ?? '').toLowerCase();
+  if (value.contains('khotai')) return 'Agah Wahyu Nugraha, S.T';
+  return 'Reno Barus, S.T';
+}
+
 Widget _signatureImage(String url, {required Widget fallback}) {
   if (url.isEmpty) return fallback;
   return _isSvgUrl(url)
@@ -1361,7 +1409,7 @@ class _AccessTypePreview extends StatelessWidget {
           ),
           Table(
             border: TableBorder.all(
-              color: const Color(0xFF9BA7B8),
+              color: Colors.black,
               width: 0.4,
             ),
             columnWidths: const {
@@ -1424,18 +1472,36 @@ class _AccessTypeCell extends StatelessWidget {
   }
 }
 
-Widget _rulePreview(String text) {
+Widget _rulePreview(String number, String text) {
   return Padding(
     padding: const EdgeInsets.only(bottom: 0),
-    child: Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        color: Color(0xFF303744),
-        fontSize: 7.1,
-        height: 1.05,
-      ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 7,
+          child: Text(
+            '$number.',
+            style: const TextStyle(
+              color: Color(0xFF303744),
+              fontSize: 7.1,
+              height: 1.05,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF303744),
+              fontSize: 7.1,
+              height: 1.05,
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -1536,18 +1602,19 @@ class _PreviewHeader extends StatelessWidget {
 class _PreviewCell extends StatelessWidget {
   final String text;
   final bool bold;
+  final bool alignLeft;
 
-  const _PreviewCell(this.text, {this.bold = false});
+  const _PreviewCell(this.text, {this.bold = false, this.alignLeft = false});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+      padding: EdgeInsets.fromLTRB(alignLeft ? 5 : 2, 3, 2, 3),
       child: Text(
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        textAlign: TextAlign.center,
+        textAlign: alignLeft ? TextAlign.left : TextAlign.center,
         style: TextStyle(
           fontSize: text.length > 14 ? 6 : 7,
           fontWeight: bold ? FontWeight.bold : FontWeight.w500,
