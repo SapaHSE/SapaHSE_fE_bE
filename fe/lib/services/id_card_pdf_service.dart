@@ -81,31 +81,30 @@ class IdCardPdfService {
 
     document.addPage(
       pw.Page(
-        pageFormat: _cardFormat,
-        margin: pw.EdgeInsets.zero,
-        build: (_) => _frontCard(
-          profile,
-          qrCode,
-          avatar,
-          selectedLogo,
-          companyLogo,
-          companyLogoSvg,
-          kttSignatureImage,
-          kttSignatureSvg,
-          companyStampImage,
-          companyStampSvg,
-          minePermit,
-        ),
-      ),
-    );
-
-    document.addPage(
-      pw.Page(
-        pageFormat: _cardFormat,
-        margin: pw.EdgeInsets.zero,
-        build: (_) => _backCard(
-          profile,
-          tableRows ?? buildMinePermitTableRows(profile),
+        pageFormat: PdfPageFormat.a4,
+        margin: pw.EdgeInsets.all(20),
+        build: (_) => pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            _frontCard(
+              profile,
+              qrCode,
+              avatar,
+              selectedLogo,
+              companyLogo,
+              companyLogoSvg,
+              kttSignatureImage,
+              kttSignatureSvg,
+              companyStampImage,
+              companyStampSvg,
+              minePermit,
+            ),
+            pw.SizedBox(width: 20),
+            _backCard(
+              profile,
+              tableRows ?? buildMinePermitTableRows(profile),
+            ),
+          ],
         ),
       ),
     );
@@ -271,7 +270,7 @@ class IdCardPdfService {
             left: 0.8 * _mm,
             right: 0.8 * _mm,
             top: 50.0 * _mm,
-            child: _rulesBlock(profile.company),
+            child: _rulesBlock(profile),
           ),
           pw.Positioned(
             left: 0.8 * _mm,
@@ -852,11 +851,8 @@ class IdCardPdfService {
     return 4.5;
   }
 
-  static pw.Widget _rulesBlock(String? companyName) {
-    final companyText = _display(
-      companyName,
-      fallback: 'PT Bukit Baiduri Energi',
-    );
+  static pw.Widget _rulesBlock(ProfileData profile) {
+    final companyShort = _getCompanyShort(profile);
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -874,7 +870,7 @@ class IdCardPdfService {
           'Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
         ),
         _ruleText('2',
-          'Kartu ini milik $companyText, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku atau tidak lagi terikat kerja.',
+          'Kartu ini milik $companyShort, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku atau tidak lagi terikat kerja.',
         ),
         _ruleText('3', 'Segera laporkan ke QHSE jika kehilangan kartu ini.'),
         _ruleText('4',
@@ -882,6 +878,32 @@ class IdCardPdfService {
         ),
       ],
     );
+  }
+
+  static String _getCompanyShort(ProfileData profile) {
+    // If companyDetail is owner, use its code directly
+    final detailCategory = profile.companyDetail?.category.trim().toLowerCase() ?? '';
+    
+    if (detailCategory == 'owner') {
+      final code = profile.companyDetail?.code?.trim();
+      if (code != null && code.isNotEmpty) {
+        return 'PT $code';
+      }
+    }
+    
+    // For contractor/sub, detect owner code from company name
+    final ownerName = (profile.company ?? '').trim().toLowerCase();
+    
+    // Map common owner companies to their codes
+    if (ownerName.contains('khotai')) {
+      return 'PT KMIA';
+    }
+    if (ownerName.contains('bukit baiduri') || ownerName.contains('bbe')) {
+      return 'PT BBE';
+    }
+    
+    // Fallback to full company name
+    return profile.company?.trim() ?? 'PT BBE';
   }
 
   static pw.Widget _ruleText(String number, String text) {
@@ -895,7 +917,7 @@ class IdCardPdfService {
             child: pw.Text(
               '$number.',
               style: pw.TextStyle(
-                fontSize: 4.15,
+                fontSize: 4.5,
                 height: 0.95,
                 color: _ink,
               ),
@@ -905,7 +927,7 @@ class IdCardPdfService {
             child: pw.Text(
               text,
               style: pw.TextStyle(
-                fontSize: 4.15,
+                fontSize: 4.5,
                 height: 0.95,
                 color: _ink,
               ),
@@ -1119,9 +1141,7 @@ class IdCardPdfService {
     final parsed = DateTime.tryParse(trimmed.replaceFirst(' ', 'T'));
     if (parsed == null) return trimmed;
 
-    final day = parsed.day.toString().padLeft(2, '0');
-    final month = parsed.month.toString().padLeft(2, '0');
-    return '$day/$month/${parsed.year}';
+    return _formatDate(parsed);
   }
 
   static String _initials(String name) {

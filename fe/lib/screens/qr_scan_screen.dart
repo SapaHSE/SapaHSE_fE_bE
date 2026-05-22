@@ -514,45 +514,6 @@ class _MinePermitReviewSheet extends StatefulWidget {
 }
 
 class _MinePermitReviewSheetState extends State<_MinePermitReviewSheet> {
-  late final List<TextEditingController> _vehicleControllers;
-
-  @override
-  void initState() {
-    super.initState();
-    _vehicleControllers = widget.initialRows
-        .map((row) => TextEditingController(text: row.vehicleEquipment))
-        .toList();
-    for (final controller in _vehicleControllers) {
-      controller.addListener(_refreshPreview);
-    }
-  }
-
-  @override
-  void dispose() {
-    for (final controller in _vehicleControllers) {
-      controller
-        ..removeListener(_refreshPreview)
-        ..dispose();
-    }
-    super.dispose();
-  }
-
-  void _refreshPreview() {
-    if (mounted) setState(() {});
-  }
-
-  List<MinePermitTableRow> get _editedRows {
-    return [
-      for (var i = 0; i < widget.initialRows.length; i++)
-        MinePermitTableRow(
-          code: widget.initialRows[i].code,
-          vehicleEquipment: _vehicleControllers[i].text.trim(),
-          licenseNumber: widget.initialRows[i].licenseNumber,
-          issuedDate: widget.initialRows[i].issuedDate,
-        ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -608,27 +569,14 @@ class _MinePermitReviewSheetState extends State<_MinePermitReviewSheet> {
             ),
             Divider(height: 1, color: Colors.grey.shade200),
             Flexible(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                children: [
-                  _MinePermitPreviewPair(
-                    profile: widget.profile,
-                    qrCode: widget.qrCode,
-                    minePermit: widget.minePermit,
-                    rows: _editedRows,
-                  ),
-                  const SizedBox(height: 14),
-                  ...List.generate(widget.initialRows.length, (index) {
-                    final row = widget.initialRows[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _MinePermitEditRow(
-                        row: row,
-                        controller: _vehicleControllers[index],
-                      ),
-                    );
-                  }),
-                ],
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
+                child: _MinePermitPreviewPair(
+                  profile: widget.profile,
+                  qrCode: widget.qrCode,
+                  minePermit: widget.minePermit,
+                  rows: widget.initialRows,
+                ),
               ),
             ),
             Padding(
@@ -656,7 +604,7 @@ class _MinePermitReviewSheetState extends State<_MinePermitReviewSheet> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(context, _editedRows),
+                      onPressed: () => Navigator.pop(context, widget.initialRows),
                       icon: const Icon(Icons.picture_as_pdf_outlined),
                       label: const Text('Download PDF'),
                       style: ElevatedButton.styleFrom(
@@ -1515,65 +1463,6 @@ String _initials(String name) {
       .join()
       .toUpperCase();
   return chars.isEmpty ? '?' : chars;
-}
-
-class _MinePermitEditRow extends StatelessWidget {
-  final MinePermitTableRow row;
-  final TextEditingController controller;
-
-  const _MinePermitEditRow({
-    required this.row,
-    required this.controller,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF4FF),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              row.code,
-              style: const TextStyle(
-                color: Color(0xFF1A56C4),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                labelText: 'Vehicle / Equipment',
-                hintText: 'Isi manual jika perlu',
-                isDense: true,
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _PreviewHeader extends StatelessWidget {
