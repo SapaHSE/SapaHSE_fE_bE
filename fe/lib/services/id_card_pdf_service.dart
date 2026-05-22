@@ -881,25 +881,14 @@ class IdCardPdfService {
   }
 
   static String _getCompanyShort(ProfileData profile) {
-    // If companyDetail is owner, use its code directly
-    final detailCategory = profile.companyDetail?.category.trim().toLowerCase() ?? '';
+    // Use owner company detail if available
+    final ownerDetail = profile.ownerCompanyDetail ?? profile.companyDetail;
     
-    if (detailCategory == 'owner') {
-      final code = profile.companyDetail?.code?.trim();
+    if (ownerDetail?.category.trim().toLowerCase() == 'owner') {
+      final code = ownerDetail?.code?.trim();
       if (code != null && code.isNotEmpty) {
         return 'PT $code';
       }
-    }
-    
-    // For contractor/sub, detect owner code from company name
-    final ownerName = (profile.company ?? '').trim().toLowerCase();
-    
-    // Map common owner companies to their codes
-    if (ownerName.contains('khotai')) {
-      return 'PT KMIA';
-    }
-    if (ownerName.contains('bukit baiduri') || ownerName.contains('bbe')) {
-      return 'PT BBE';
     }
     
     // Fallback to full company name
@@ -1075,28 +1064,24 @@ class IdCardPdfService {
   }
 
   static String _kttName(ProfileData profile) {
+    final ownerDetail = profile.ownerCompanyDetail ?? profile.companyDetail;
     return _display(
-      profile.companyDetail?.kttUser?.fullName,
-      fallback: _defaultKttNameForOwner(profile.company),
+      ownerDetail?.kttUser?.fullName,
+      fallback: '-',
     );
   }
 
-  static String _defaultKttNameForOwner(String? ownerCompany) {
-    final value = (ownerCompany ?? '').toLowerCase();
-    if (value.contains('khotai')) return 'Agah Wahyu Nugraha, S.T';
-    return 'Reno Barus, S.T';
-  }
-
   static String _companyEmergencyNumberText(ProfileData profile) {
-    return profile.companyDetail?.emergencyNumber?.trim() ?? '';
+    final ownerDetail = profile.ownerCompanyDetail ?? profile.companyDetail;
+    return ownerDetail?.emergencyNumber?.trim() ?? '';
   }
 
   static String _companyRadioText(ProfileData profile) {
+    final ownerDetail = profile.ownerCompanyDetail ?? profile.companyDetail;
     return [
-      profile.companyDetail?.radioLabel,
-      profile.companyDetail?.radioChannel,
-      profile.companyDetail?.radioFrequency ??
-          profile.companyDetail?.ertFreq,
+      ownerDetail?.radioLabel,
+      ownerDetail?.radioChannel,
+      ownerDetail?.radioFrequency ?? ownerDetail?.ertFreq,
     ]
         .map((value) => value?.trim() ?? '')
         .where((value) => value.isNotEmpty)

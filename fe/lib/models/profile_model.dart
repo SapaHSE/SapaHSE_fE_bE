@@ -17,6 +17,7 @@ class ProfileData {
   final String? department;
   final String? company;
   final CompanyDetailData? companyDetail;
+  final CompanyDetailData? ownerCompanyDetail;
   final String? tipeAfiliasi;
   final String? perusahaanKontraktor;
   final String? subKontraktor;
@@ -43,6 +44,7 @@ class ProfileData {
     this.department,
     this.company,
     this.companyDetail,
+    this.ownerCompanyDetail,
     this.tipeAfiliasi,
     this.perusahaanKontraktor,
     this.subKontraktor,
@@ -73,6 +75,10 @@ class ProfileData {
       companyDetail: json['company_detail'] is Map
           ? CompanyDetailData.fromJson(
               Map<String, dynamic>.from(json['company_detail'] as Map))
+          : null,
+      ownerCompanyDetail: json['owner_company_detail'] is Map
+          ? CompanyDetailData.fromJson(
+              Map<String, dynamic>.from(json['owner_company_detail'] as Map))
           : null,
       tipeAfiliasi: json['tipe_afiliasi']?.toString(),
       perusahaanKontraktor: json['perusahaan_kontraktor']?.toString(),
