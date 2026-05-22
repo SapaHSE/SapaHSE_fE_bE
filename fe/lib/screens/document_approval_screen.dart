@@ -122,24 +122,16 @@ class _DocumentApprovalScreenState extends State<DocumentApprovalScreen> {
             unselectedLabelColor: Colors.grey,
             indicatorColor: _blue,
             indicatorWeight: 3,
-            isScrollable: true,
             labelStyle: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 13,
+              fontSize: 11,
             ),
+            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
             tabs: [
               _buildTab('Lisensi', _pendingLicenses.length),
-              _buildTab('Sertifikasi', _pendingCertifications.length),
+              _buildTab('Sertifikat', _pendingCertifications.length),
               _buildTab('Profil', _pendingProfileChanges.length),
-              const Tab(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('History'),
-                    Text('Pengajuan'),
-                  ],
-                ),
-              ),
+              _buildTab('Riwayat', _submissionHistory.length),
             ],
           ),
         ),
