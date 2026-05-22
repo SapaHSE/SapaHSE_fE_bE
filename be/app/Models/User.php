@@ -157,6 +157,24 @@ class User extends Authenticatable
         return $this->resolvedCompany()?->toApiArray();
     }
 
+    public function ownerCompanyDetailPayload(): ?array
+    {
+        $ownerName = trim((string) $this->company);
+        if ($ownerName === '') {
+            return null;
+        }
+
+        $ownerCompany = Company::with('kttUser')
+            ->where('category', 'owner')
+            ->get()
+            ->first(function (Company $company) use ($ownerName) {
+                return self::normalizeCompanyLookup((string) $company->name) === self::normalizeCompanyLookup($ownerName)
+                    || self::normalizeCompanyLookup((string) $company->code) === self::normalizeCompanyLookup($ownerName);
+            });
+
+        return $ownerCompany?->toApiArray();
+    }
+
     public static function normalizeCompanyLookup(string $value): string
     {
         $normalized = strtolower(trim($value));

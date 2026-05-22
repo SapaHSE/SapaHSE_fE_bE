@@ -905,6 +905,7 @@ class ProfileController extends Controller
             'department'     => $user->department,
             'company'        => $user->company,
             'company_detail' => $user->companyDetailPayload(),
+            'owner_company_detail' => $user->ownerCompanyDetailPayload(),
             'address'        => $user->address,
             'tipe_afiliasi'  => $user->tipe_afiliasi,
             'perusahaan_kontraktor' => $user->perusahaan_kontraktor,
