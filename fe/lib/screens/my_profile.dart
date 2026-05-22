@@ -249,55 +249,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     ]);
   }
 
-  UserLicense? get _minePermitLicense {
-    final licenses = _profileData?.licenses ?? const <UserLicense>[];
-    final minePermits = licenses
-        .where((license) =>
-            license.licenseType == 'mine_permit' ||
-            license.name.toLowerCase().trim() == 'mine permit')
-        .toList()
-      ..sort((a, b) => (b.expiredAt ?? '').compareTo(a.expiredAt ?? ''));
-    return minePermits.isEmpty ? null : minePermits.first;
-  }
 
-  bool get _canRenewMinePermit =>
-      _minePermitLicense?.canBeRenewedNow() ?? true;
-
-  String get _minePermitActionLabel =>
-      _minePermitLicense == null ? 'Ajukan Mine Permit' : 'Perpanjang Mine Permit';
-
-  Future<void> _requestMinePermit() async {
-    Navigator.pop(context);
-
-    if (!_canRenewMinePermit) {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Perpanjangan Belum Tersedia'),
-          content: const Text(UserLicense.renewalBlockedMessage),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Tutup'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    final result = await ProfileService.requestMinePermit();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result.message),
-        backgroundColor: result.success ? Colors.green : Colors.red,
-      ),
-    );
-    if (result.success) {
-      _loadProfile();
-    }
-  }
 
   String _formatDateForPayload(DateTime? value) {
     if (value == null) return '';
@@ -625,8 +577,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           Navigator.pop(context);
           _showEditProfileSheet();
         },
-        onRequestMinePermit: _requestMinePermit,
-        minePermitActionLabel: _minePermitActionLabel,
         onAddLicense: () {
           Navigator.pop(context);
           _showAddLicenseForm();
@@ -2154,73 +2104,209 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (modalContext, setModalState) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: AppSafeInsets.sheetBottomPadding(modalContext),
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                        editLicense != null
-                            ? 'Edit Lisensi'
-                            : 'Tambah Lisensi Baru',
-                        style: const TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    IconButton(
-                        onPressed: () => Navigator.pop(sheetContext),
-                        icon: const Icon(Icons.close)),
+        builder: (modalContext, setModalState) {
+          // Check if mine permit confirmation view should be shown
+          final showMinePermitConfirmation = 
+              _licenseType == 'mine_permit' && editLicense == null;
+
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: AppSafeInsets.sheetBottomPadding(modalContext),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                          editLicense != null
+                              ? 'Edit Lisensi'
+                              : 'Tambah Lisensi Baru',
+                          style: const TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildFieldLabel('Tipe Lisensi'),
+                  DropdownButtonFormField<String>(
+                    initialValue: _licenseType,
+                    decoration: _buildInputDecoration('Pilih tipe lisensi'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'general',
+                        child: Text('License Umum'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'simper',
+                        child: Text('SIMPER License'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'government',
+                        child: Text('License Pemerintah'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'mine_permit',
+                        child: Text('Mine Permit'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setModalState(() {
+                        _licenseType = value;
+                        if ((value == 'simper' || value == 'government') &&
+                            _licenseNameController.text.trim().isEmpty) {
+                          _licenseNameController.text = value == 'government'
+                              ? 'License Pemerintah'
+                              : 'SIMPER';
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Mine Permit Confirmation View
+                  if (showMinePermitConfirmation) ...[
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE3F2FD),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF90CAF9)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, 
+                              color: Color(0xFF1A56C4), size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Data Mine Permit akan diambil otomatis dari profil Anda',
+                              style: TextStyle(
+                                color: Colors.blue.shade900,
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Informasi Pemohon',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildReadOnlyRow('Nama', _profileData?.fullName ?? '-'),
+                          const SizedBox(height: 8),
+                          _buildReadOnlyRow('NIP', _profileData?.employeeId ?? '-'),
+                          const SizedBox(height: 8),
+                          _buildReadOnlyRow('Perusahaan', _profileData?.company ?? '-'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          // Check if can renew
+                          final licenses = _profileData?.licenses ?? [];
+                          final existingMinePermit = licenses
+                              .where((l) =>
+                                  l.licenseType == 'mine_permit' ||
+                                  l.name.toLowerCase().trim() == 'mine permit')
+                              .toList()
+                            ..sort((a, b) => (b.expiredAt ?? '').compareTo(a.expiredAt ?? ''));
+                          final existing = existingMinePermit.isNotEmpty 
+                              ? existingMinePermit.first 
+                              : null;
+
+                          if (existing != null && !existing.canBeRenewedNow()) {
+                            await showDialog<void>(
+                              context: modalContext,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Perpanjangan Belum Tersedia'),
+                                content: const Text(UserLicense.renewalBlockedMessage),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('Tutup'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            return;
+                          }
+
+                          Navigator.pop(sheetContext);
+                          _showLoadingDialog('Mengajukan Mine Permit...');
+
+                          final result = await ProfileService.requestMinePermit();
+                          
+                          if (!mounted) return;
+                          _dismissLoadingDialog();
+                          
+                          if (result.success) {
+                            await _loadProfile();
+                            if (!mounted) return;
+                            _showSuccessPopup(
+                              context,
+                              result.message,
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(result.message),
+                                behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A56C4),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: const Text('Ajukan Mine Permit',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
                   ],
-                ),
-                const SizedBox(height: 20),
-                _buildFieldLabel('Tipe Lisensi'),
-                DropdownButtonFormField<String>(
-                  initialValue: _licenseType,
-                  decoration: _buildInputDecoration('Pilih tipe lisensi'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'general',
-                      child: Text('License Umum'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'simper',
-                      child: Text('SIMPER License'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'government',
-                      child: Text('License Pemerintah'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'mine_permit',
-                      child: Text('Mine Permit'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setModalState(() {
-                      _licenseType = value;
-                      if ((value == 'simper' || value == 'government') &&
-                          _licenseNameController.text.trim().isEmpty) {
-                        _licenseNameController.text = value == 'government'
-                            ? 'License Pemerintah'
-                            : 'SIMPER';
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
+                  
+                  // Regular License Form (hidden when mine_permit is selected)
+                  if (!showMinePermitConfirmation) ...[
                 _buildFieldLabel('Nama Lisensi'),
                 TextField(
                   controller: _licenseNameController,
@@ -2539,11 +2625,36 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
-              ],
+                  ],
+                ],
+              ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildReadOnlyRow(String label, String value) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade600,
           ),
         ),
-      ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+      ],
     );
   }
 
@@ -4707,7 +4818,85 @@ class _LicenseDetailPage extends StatelessWidget {
     required this.onDelete,
   });
 
-  List<_ProfileDetailAction> _buildActions() {
+  List<_ProfileDetailAction> _buildActions(BuildContext context) {
+    // Mine Permit: always show "Perpanjang Mine Permit" action
+    if (license.licenseType == 'mine_permit') {
+      return [
+        _ProfileDetailAction(
+          icon: Icons.refresh,
+          iconBgColor: const Color(0xFFE3F2FD),
+          iconColor: const Color(0xFF1A56C4),
+          title: 'Perpanjang Mine Permit',
+          subtitle: 'Ajukan perpanjangan izin tambang',
+          onTap: () async {
+            // Pre-check renewal eligibility
+            if (!license.canBeRenewedNow()) {
+              await showDialog<void>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Perpanjangan Belum Tersedia'),
+                  content: const Text(UserLicense.renewalBlockedMessage),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Tutup'),
+                    ),
+                  ],
+                ),
+              );
+              return;
+            }
+
+            // Call API
+            final result = await ProfileService.requestMinePermit();
+            
+            if (!context.mounted) return;
+            
+            if (result.success) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(result.message),
+                  backgroundColor: Colors.green,
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                ),
+              );
+              // Close detail page and refresh
+              Navigator.pop(context);
+            } else {
+              // Check if it's a renewal blocked error from backend
+              if (result.message.contains('belum bisa dilakukan') ||
+                  result.message.contains('masih berlaku')) {
+                await showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Perpanjangan Belum Tersedia'),
+                    content: Text(result.message),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Tutup'),
+                      ),
+                    ],
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(result.message),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  ),
+                );
+              }
+            }
+          },
+        ),
+      ];
+    }
+
+    // Regular licenses: existing logic
     if (license.approvalStatus.toLowerCase() == 'rejected') {
       return [
         _ProfileDetailAction(
@@ -4810,7 +4999,7 @@ class _LicenseDetailPage extends StatelessWidget {
       title: 'Detail Lisensi',
       fabHeroTag: 'license_detail_fab_${license.id}',
       actionSheetTitle: 'Pilih Aksi Lisensi',
-      actions: _buildActions(),
+      actions: _buildActions(context),
       body: SingleChildScrollView(
         padding: EdgeInsets.zero,
         child: Column(
@@ -5072,7 +5261,7 @@ class _CertificationDetailPage extends StatelessWidget {
     required this.onDelete,
   });
 
-  List<_ProfileDetailAction> _buildActions() {
+  List<_ProfileDetailAction> _buildActions(BuildContext context) {
     if (certification.approvalStatus.toLowerCase() == 'rejected') {
       return [
         _ProfileDetailAction(
@@ -5154,7 +5343,7 @@ class _CertificationDetailPage extends StatelessWidget {
       title: 'Detail Sertifikat',
       fabHeroTag: 'certification_detail_fab_${certification.id}',
       actionSheetTitle: 'Pilih Aksi Sertifikat',
-      actions: _buildActions(),
+      actions: _buildActions(context),
       body: SingleChildScrollView(
         padding: EdgeInsets.zero,
         child: Column(
@@ -5680,16 +5869,12 @@ class _ProfileMenuTile extends StatelessWidget {
 // ── FAB BOTTOM SHEET ──────────────────────────────────────────────────────────
 class _ProfileFabMenuSheet extends StatelessWidget {
   final VoidCallback onEditBiodata;
-  final VoidCallback onRequestMinePermit;
-  final String minePermitActionLabel;
   final VoidCallback onAddLicense;
   final VoidCallback onAddCertification;
   final VoidCallback onEditMedical;
 
   const _ProfileFabMenuSheet({
     required this.onEditBiodata,
-    required this.onRequestMinePermit,
-    required this.minePermitActionLabel,
     required this.onAddLicense,
     required this.onAddCertification,
     required this.onEditMedical,
@@ -5743,15 +5928,6 @@ class _ProfileFabMenuSheet extends StatelessWidget {
             title: 'Edit Profil',
             subtitle: 'Perbarui foto, email, telepon & alamat',
             onTap: onEditBiodata,
-          ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _ProfileMenuTile(
-            icon: Icons.assignment_turned_in_outlined,
-            iconBgColor: const Color(0xFFE8F5E9),
-            iconColor: const Color(0xFF2E7D32),
-            title: minePermitActionLabel,
-            subtitle: 'Izin bekerja di area tambang',
-            onTap: onRequestMinePermit,
           ),
           Divider(height: 1, indent: 72, color: Colors.grey.shade100),
           _ProfileMenuTile(
