@@ -27,7 +27,6 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePass = true;
   bool _isLoading = false;
   bool _rememberMe = false;
-  bool _loginWithEmail = false;
 
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -162,14 +161,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  void _setLoginMode(bool useEmail) {
-    if (_loginWithEmail == useEmail) return;
-    setState(() {
-      _loginWithEmail = useEmail;
-      _employeeIdCtrl.clear();
-    });
-  }
-
   // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
@@ -264,47 +255,28 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildLoginModeSelector(),
-                          const SizedBox(height: 16),
-
                           // ── Login identifier field ─────────────────────
-                          _buildLabel(_loginWithEmail
-                              ? 'Email Pribadi / Kantor'
-                              : 'NIP / Employee ID'),
+                          _buildLabel('NIP / Email'),
                           const SizedBox(height: 6),
                           TextFormField(
-                            key: ValueKey(_loginWithEmail),
                             controller: _employeeIdCtrl,
-                            keyboardType: _loginWithEmail
-                                ? TextInputType.emailAddress
-                                : TextInputType.text,
+                            keyboardType: TextInputType.emailAddress,
                             inputFormatters: [
-                              LengthLimitingTextInputFormatter(
-                                  _loginWithEmail ? 150 : 20),
+                              LengthLimitingTextInputFormatter(150),
                             ],
                             validator: (v) {
                               final value = (v ?? '').trim();
                               if (value.isEmpty) {
                                 return 'Field ini wajib diisi';
                               }
-                              if (_loginWithEmail &&
-                                  !RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                      .hasMatch(value)) {
-                                return 'Format email tidak valid';
-                              }
                               return null;
                             },
                             decoration: _inputDecoration(
-                              hint: _loginWithEmail
-                                  ? 'Masukkan email pribadi/kantor'
-                                  : 'Masukkan NIP',
-                              prefixIcon: _loginWithEmail
-                                  ? Icons.email_outlined
-                                  : Icons.badge_outlined,
+                              hint: 'Masukkan NIP atau email',
+                              prefixIcon: Icons.person_outline,
                             ),
                           ),
-
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 6),
 
                           // ── Password field ─────────────────────────────
                           _buildLabel('Password'),
@@ -622,79 +594,6 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildLoginModeSelector() {
-    Widget item({
-      required bool selected,
-      required IconData icon,
-      required String label,
-      required VoidCallback onTap,
-    }) {
-      return Expanded(
-        child: InkWell(
-          onTap: _isLoading ? null : onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            height: 44,
-            decoration: BoxDecoration(
-              color: selected ? const Color(0xFF1A56C4) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: selected ? Colors.white : Colors.grey.shade700,
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: selected ? Colors.white : Colors.grey.shade700,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F4FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          item(
-            selected: !_loginWithEmail,
-            icon: Icons.badge_outlined,
-            label: 'NIP',
-            onTap: () => _setLoginMode(false),
-          ),
-          item(
-            selected: _loginWithEmail,
-            icon: Icons.email_outlined,
-            label: 'Email',
-            onTap: () => _setLoginMode(true),
-          ),
-        ],
       ),
     );
   }
