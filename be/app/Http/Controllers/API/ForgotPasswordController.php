@@ -14,7 +14,7 @@ use Illuminate\Support\Str;
 class ForgotPasswordController extends Controller
 {
     // POST /api/forgot-password
-    // Body: { personal_email }
+    // Body: { personal_email } value can be personal_email, work_email, or employee_id.
     public function sendResetOtp(Request $request)
     {
         $request->validate([
@@ -30,7 +30,8 @@ class ForgotPasswordController extends Controller
         if (! $user) {
             return response()->json([
                 'status'  => 'success',
-                'message' => 'Jika data terdaftar, tautan reset password akan dikirimkan ke email pribadi Anda.',            ]);
+                'message' => 'Jika data terdaftar, tautan reset password akan dikirimkan ke email pribadi Anda.',
+            ]);
         }
 
         $token = Str::random(64);

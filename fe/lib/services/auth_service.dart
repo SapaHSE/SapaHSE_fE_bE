@@ -7,7 +7,7 @@ import 'supabase_storage_service.dart';
 
 class AuthService {
   // ── Login ─────────────────────────────────────────────────────────────────
-  /// [login] With NIK
+  /// [login] accepts employee_id, personal_email, or work_email.
   static Future<AuthResult> login({
     required String login,
     required String password,
@@ -42,7 +42,6 @@ class AuthService {
 
 // ── Register ──────────────────────────────────────────────────────────────
   static Future<AuthResult> register({
-    required String nik,
     String? employeeId,
     required String fullName,
     required String personalEmail,
@@ -74,11 +73,12 @@ class AuthService {
     final response = await ApiService.post(
       '/register',
       {
-        'employee_id':
-            (employeeId != null && employeeId.isNotEmpty) ? employeeId : nik,
+        if (employeeId != null && employeeId.trim().isNotEmpty)
+          'employee_id': employeeId.trim(),
         'full_name': fullName,
         'personal_email': personalEmail,
-        if (workEmail != null && workEmail.isNotEmpty) 'work_email': workEmail,
+        if (workEmail != null && workEmail.trim().isNotEmpty)
+          'work_email': workEmail.trim(),
         'password': password,
         if (phoneNumber != null) 'phone_number': phoneNumber,
         if (position != null) 'position': position,
@@ -156,7 +156,8 @@ class AuthService {
       params['company_category'] = companyCategory;
     }
 
-    final query = params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final query =
+        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final url = '/users$query';
     return await ApiService.get(url);
   }

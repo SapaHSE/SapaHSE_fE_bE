@@ -634,6 +634,7 @@ class InboxController extends Controller
         $submitter = $request->user;
 
         $fieldLabels = [
+            'employee_id' => 'NIP / Employee ID',
             'full_name' => 'Nama Lengkap',
             'personal_email' => 'Email Pribadi',
             'work_email' => 'Email Kantor',

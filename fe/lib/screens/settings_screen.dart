@@ -45,7 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user = await StorageService.getUser();
     final role = user?['role']?.toString().toLowerCase();
     final canAdd = role == 'admin' || role == 'superadmin';
-    
+
     double storageSize = 0.45;
     if (!kIsWeb) {
       storageSize = await _calculateCacheSize();
@@ -66,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final tempDir = await getTemporaryDirectory();
       totalSize += _getDirectorySize(tempDir);
-      
+
       final docDir = await getApplicationDocumentsDirectory();
       totalSize += _getDirectorySize(docDir);
     } catch (e) {
@@ -80,7 +80,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     double totalSize = 0.0;
     try {
       if (directory.existsSync()) {
-        directory.listSync(recursive: true, followLinks: false).forEach((entity) {
+        directory
+            .listSync(recursive: true, followLinks: false)
+            .forEach((entity) {
           if (entity is File) {
             totalSize += entity.lengthSync();
           }
@@ -118,7 +120,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _toggleBiometric(bool enable) async {
     if (kIsWeb) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login Biometrik tidak didukung di platform Web.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Login Biometrik tidak didukung di platform Web.')));
       return;
     }
 
@@ -129,19 +132,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     final user = await StorageService.getUser();
-    final employeeId = user?['employee_id'] as String?;
-    if (employeeId == null) {
+    final loginId = [
+      user?['employee_id'],
+      user?['personal_email'],
+      user?['work_email'],
+    ]
+        .map((value) => value?.toString().trim() ?? '')
+        .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+    if (loginId.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sesi tidak valid.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Sesi tidak valid.')));
       return;
     }
 
     final localAuth = LocalAuthentication();
     try {
-      final canCheck = await localAuth.canCheckBiometrics || await localAuth.isDeviceSupported();
+      final canCheck = await localAuth.canCheckBiometrics ||
+          await localAuth.isDeviceSupported();
       if (!canCheck) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perangkat tidak mendukung biometrik.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Perangkat tidak mendukung biometrik.')));
         return;
       }
 
@@ -155,16 +167,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (!mounted) return;
         final password = await _showPasswordPromptDialog(context);
         if (password != null && password.isNotEmpty) {
-          await StorageService.saveBiometricCredentials(employeeId, password);
+          await StorageService.saveBiometricCredentials(loginId, password);
           await StorageService.setBiometricEnabled(true);
           setState(() => _isBiometricEnabled = true);
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Login biometrik diaktifkan.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Login biometrik diaktifkan.')));
         }
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -174,12 +188,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Konfirmasi Password', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Konfirmasi Password',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Masukkan password Anda untuk disimpan dengan aman sebagai kredensial biometrik.', style: TextStyle(fontSize: 13, color: Colors.grey)),
+            const Text(
+                'Masukkan password Anda untuk disimpan dengan aman sebagai kredensial biometrik.',
+                style: TextStyle(fontSize: 13, color: Colors.grey)),
             const SizedBox(height: 16),
             TextField(
               controller: ctrl,
@@ -187,20 +204,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               decoration: InputDecoration(
                 hintText: 'Password',
                 hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, ctrl.text),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A56C4),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Simpan'),
           ),
@@ -230,15 +251,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         currentIndex: 4,
         onScanQr: () {
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
+          Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const QrScanScreen()));
         },
         onCreateHazard: () {
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateHazardScreen()));
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CreateHazardScreen()));
         },
         onCreateInspection: () {
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateInspectionScreen()));
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const CreateInspectionScreen()));
         },
         onAddAnnouncement: () {
           Navigator.pop(context);
@@ -571,22 +597,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF43A047)),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFF43A047)),
                                 ),
                               )
                             : pendingCount > 0
                                 ? Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
                                         color: Colors.orange.shade100,
-                                        borderRadius: BorderRadius.circular(10)),
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
                                     child: Text('$pendingCount',
                                         style: const TextStyle(
                                             color: Colors.orange,
                                             fontSize: 10,
                                             fontWeight: FontWeight.bold)),
                                   )
-                                : const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                : const Icon(Icons.check_circle,
+                                    color: Colors.green, size: 20),
                         onTap: () async {
                           if (isSyncing) return;
                           if (pendingCount > 0) {
@@ -600,7 +630,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Semua draft lokal sudah tersinkronisasi.'),
+                                content: Text(
+                                    'Semua draft lokal sudah tersinkronisasi.'),
                                 behavior: SnackBarBehavior.floating,
                               ),
                             );
@@ -616,23 +647,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.storage,
                 iconColor: const Color(0xFF5C38FF),
                 label: 'Local Storage',
-                subtitle: '${(_localStorageMB ?? 0.45).toStringAsFixed(2)} MB used of 500 MB',
+                subtitle:
+                    '${(_localStorageMB ?? 0.45).toStringAsFixed(2)} MB used of 500 MB',
                 trailing: TextButton(
                   onPressed: () async {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        title: const Text('Hapus Cache', style: TextStyle(fontWeight: FontWeight.bold)),
-                        content: const Text('Apakah Anda yakin ingin menghapus data local cache? Ini akan mengosongkan gambar dan file temporer untuk membebaskan penyimpanan.'),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        title: const Text('Hapus Cache',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        content: const Text(
+                            'Apakah Anda yakin ingin menghapus data local cache? Ini akan mengosongkan gambar dan file temporer untuk membebaskan penyimpanan.'),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Batal')),
                           ElevatedButton(
                             onPressed: () => Navigator.pop(ctx, true),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF5C38FF),
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
                             child: const Text('Hapus'),
                           ),
@@ -694,17 +732,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _NavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
-            _NavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+            _NavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _NavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped),
             const SizedBox(width: 56),
-            _NavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
-            _NavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+            _NavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _NavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped),
           ],
         ),
       ),
     );
   }
-
 
   Widget _buildSectionHeader(String title) => Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
@@ -822,7 +879,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
 
-
   Widget _buildActionRow(
           {required IconData icon,
           required Color iconColor,
@@ -847,8 +903,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: const TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 14)),
                     Text(subtitle,
-                        style:
-                            TextStyle(color: Colors.grey.shade400, fontSize: 11)),
+                        style: TextStyle(
+                            color: Colors.grey.shade400, fontSize: 11)),
                   ],
                 ),
               ),
@@ -930,7 +986,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: const BoxDecoration(
                   border: Border(bottom: BorderSide(color: Color(0xFFF5F5F5))),
                 ),
@@ -940,7 +997,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const Expanded(
                       child: Text(
                         'Ubah Password',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
                     IconButton(
@@ -966,70 +1024,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                            Icon(Icons.error_outline,
+                                color: Colors.red.shade700, size: 20),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(errorMsg!,
-                                  style: TextStyle(color: Colors.red.shade800, fontSize: 13)),
+                                  style: TextStyle(
+                                      color: Colors.red.shade800,
+                                      fontSize: 13)),
                             ),
                           ],
                         ),
                       ),
                     ],
-                    
-                    _buildDialogField('Password Lama', oldCtrl, hint: 'Masukkan password lama'),
+                    _buildDialogField('Password Lama', oldCtrl,
+                        hint: 'Masukkan password lama'),
                     const SizedBox(height: 16),
-                    _buildDialogField('Password Baru', newCtrl, hint: 'Minimal 8 karakter'),
+                    _buildDialogField('Password Baru', newCtrl,
+                        hint: 'Minimal 8 karakter'),
                     const SizedBox(height: 16),
-                    _buildDialogField('Konfirmasi Password Baru', confirmCtrl, hint: 'Ulangi password baru'),
-                    
+                    _buildDialogField('Konfirmasi Password Baru', confirmCtrl,
+                        hint: 'Ulangi password baru'),
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
                       height: 54,
                       child: ElevatedButton(
-                        onPressed: isLoading ? null : () async {
-                          setModalState(() {
-                            isLoading = true;
-                            errorMsg = null;
-                          });
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                setModalState(() {
+                                  isLoading = true;
+                                  errorMsg = null;
+                                });
 
-                          final result = await ProfileService.changePassword(
-                            currentPassword: oldCtrl.text,
-                            newPassword: newCtrl.text,
-                            confirmPassword: confirmCtrl.text,
-                          );
+                                final result =
+                                    await ProfileService.changePassword(
+                                  currentPassword: oldCtrl.text,
+                                  newPassword: newCtrl.text,
+                                  confirmPassword: confirmCtrl.text,
+                                );
 
-                          if (!context.mounted) return;
+                                if (!context.mounted) return;
 
-                          if (result.success) {
-                            Navigator.pop(context);
-                            await StorageService.clear();
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Password berhasil diubah. Silakan login kembali.')),
-                            );
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(builder: (_) => const LoginScreen()),
-                              (route) => false,
-                            );
-                          } else {
-                            setModalState(() {
-                              isLoading = false;
-                              errorMsg = result.message;
-                            });
-                          }
-                        },
+                                if (result.success) {
+                                  Navigator.pop(context);
+                                  await StorageService.clear();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Password berhasil diubah. Silakan login kembali.')),
+                                  );
+                                  Navigator.pushAndRemoveUntil(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => const LoginScreen()),
+                                    (route) => false,
+                                  );
+                                } else {
+                                  setModalState(() {
+                                    isLoading = false;
+                                    errorMsg = result.message;
+                                  });
+                                }
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A56C4),
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
                         child: isLoading
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('SIMPAN PERUBAHAN', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2))
+                            : const Text('SIMPAN PERUBAHAN',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -1042,11 +1116,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildDialogField(String label, TextEditingController controller, {required String hint}) {
+  Widget _buildDialogField(String label, TextEditingController controller,
+      {required String hint}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87)),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
@@ -1057,10 +1136,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF1A56C4), width: 1.5)),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: Color(0xFF1A56C4), width: 1.5)),
           ),
         ),
       ],
@@ -1281,13 +1368,12 @@ class _MenuTile extends StatelessWidget {
                             color: Colors.black87)),
                     const SizedBox(height: 2),
                     Text(subtitle,
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.grey)),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right,
-                  color: Colors.grey.shade400, size: 20),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
             ],
           ),
         ),

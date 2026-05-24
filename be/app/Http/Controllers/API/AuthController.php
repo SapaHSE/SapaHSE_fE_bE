@@ -31,7 +31,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'employee_id'    => 'required|string|min:5|max:20|unique:users,employee_id',
+            'employee_id'    => 'nullable|string|min:5|max:20|unique:users,employee_id',
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email:rfc,dns|max:150|unique:users',
             'work_email'     => 'nullable|email:rfc,dns|max:150|unique:users',
@@ -48,9 +48,9 @@ class AuthController extends Controller
             'simper'         => 'nullable|string|max:50',
             'profile_photo_url' => 'nullable|url|max:2048',
         ], [
-            'employee_id.unique'         => 'NIK sudah terdaftar. Gunakan NIK lain.',
-            'employee_id.min'            => 'NIK minimal 5 digit.',
-            'employee_id.max'            => 'NIK maksimal 20 digit.',
+            'employee_id.unique'         => 'NIP sudah terdaftar. Gunakan NIP lain.',
+            'employee_id.min'            => 'NIP minimal 5 digit.',
+            'employee_id.max'            => 'NIP maksimal 20 digit.',
             'personal_email.email'       => 'Format email tidak valid. Pastikan email Anda benar.',
             'personal_email.unique'      => 'Email ini sudah terdaftar. Gunakan email lain atau login.',
             'work_email.email'           => 'Format email kerja tidak valid atau domain tidak ditemukan.',
@@ -61,10 +61,10 @@ class AuthController extends Controller
         $verificationToken = Str::random(64);
 
         $user = User::create([
-            'employee_id'               => $request->employee_id,
+            'employee_id'               => $request->filled('employee_id') ? trim((string) $request->employee_id) : null,
             'full_name'                 => $request->full_name,
             'personal_email'            => $request->personal_email,
-            'work_email'                => $request->work_email,
+            'work_email'                => $request->filled('work_email') ? trim((string) $request->work_email) : null,
             'password_hash'             => Hash::make($request->password),
             'phone_number'              => $request->phone_number,
             'position'                  => $request->position,
@@ -177,15 +177,17 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        $user = User::where('personal_email', $request->login)
-            ->orWhere('work_email', $request->login)
-            ->orWhere('employee_id', $request->login)
+        $login = trim((string) $request->input('login'));
+
+        $user = User::where('personal_email', $login)
+            ->orWhere('work_email', $login)
+            ->orWhere('employee_id', $login)
             ->first();
 
         if (! $user || ! Hash::check($request->password, $user->password_hash)) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Kredensial tidak valid. Periksa kembali NIK / Email dan password Anda.',
+                'message' => 'Kredensial tidak valid. Periksa kembali NIP / Email dan password Anda.',
             ], 401);
         }
 
@@ -256,7 +258,9 @@ class AuthController extends Controller
         $users = User::when($request->department, fn($q) => $q->where('department', $request->department))
         ->when($search, fn($q) => $q->where(function($sub) use ($search) {
             $sub->where('full_name', 'like', "%{$search}%")
-                ->orWhere('employee_id', 'like', "%{$search}%");
+                ->orWhere('employee_id', 'like', "%{$search}%")
+                ->orWhere('personal_email', 'like', "%{$search}%")
+                ->orWhere('work_email', 'like', "%{$search}%");
         }))
         ->when($companyName, fn($q) => $q->where(function($sub) use ($companyName, $companyColumns) {
             foreach ($companyColumns as $index => $column) {
@@ -306,6 +310,8 @@ class AuthController extends Controller
         $users = User::when($search, fn($q) => $q->where(function($sub) use ($search) {
             $sub->where('full_name', 'like', "%{$search}%")
                 ->orWhere('employee_id', 'like', "%{$search}%")
+                ->orWhere('personal_email', 'like', "%{$search}%")
+                ->orWhere('work_email', 'like', "%{$search}%")
                 ->orWhere('department', 'like', "%{$search}%");
         }))
         ->orderBy('full_name')
@@ -369,7 +375,8 @@ class AuthController extends Controller
             $q->where(function ($sub) use ($search) {
                 $sub->where('full_name', 'like', "%{$search}%")
                     ->orWhere('employee_id', 'like', "%{$search}%")
-                    ->orWhere('personal_email', 'like', "%{$search}%");
+                    ->orWhere('personal_email', 'like', "%{$search}%")
+                    ->orWhere('work_email', 'like', "%{$search}%");
             });
         })
         ->when($role, fn($q) => $q->where('role', $role))
@@ -390,7 +397,7 @@ class AuthController extends Controller
     public function adminStore(Request $request)
     {
         $request->validate([
-            'employee_id'    => 'required|string|min:5|max:20|unique:users,employee_id',
+            'employee_id'    => 'nullable|string|min:5|max:20|unique:users,employee_id',
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email|unique:users,personal_email',
             'work_email'     => 'nullable|email|unique:users,work_email',
@@ -412,10 +419,10 @@ class AuthController extends Controller
         $isActive = $request->has('is_active') ? $request->boolean('is_active') : true;
 
         $user = User::create([
-            'employee_id'       => $request->employee_id,
+            'employee_id'       => $request->filled('employee_id') ? trim((string) $request->employee_id) : null,
             'full_name'      => $request->full_name,
             'personal_email' => $request->personal_email,
-            'work_email'     => $request->work_email,
+            'work_email'     => $request->filled('work_email') ? trim((string) $request->work_email) : null,
             'phone_number'   => $request->phone_number,
             'position'       => $request->position,
             'jabatan'        => $request->jabatan,
@@ -450,7 +457,7 @@ class AuthController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'employee_id'    => 'required|string|min:5|max:20|unique:users,employee_id,' . $user->id,
+            'employee_id'    => 'nullable|string|min:5|max:20|unique:users,employee_id,' . $user->id,
             'full_name'      => 'required|string|max:100',
             'personal_email' => 'required|email|unique:users,personal_email,' . $user->id,
             'work_email'     => 'nullable|email|unique:users,work_email,' . $user->id,
@@ -470,11 +477,20 @@ class AuthController extends Controller
         ]);
 
         $data = $request->except(['password', 'profile_photo']);
+        if ($request->has('employee_id')) {
+            $data['employee_id'] = $request->filled('employee_id') ? trim((string) $request->employee_id) : null;
+        }
+        if ($request->has('work_email')) {
+            $data['work_email'] = $request->filled('work_email') ? trim((string) $request->work_email) : null;
+        }
         if ($request->filled('password')) {
             $data['password_hash'] = Hash::make($request->password);
         }
 
         $user->update($data);
+        if ($user->is_active && $user->email_verified_at) {
+            $user->ensureQrCode();
+        }
 
         return response()->json([
             'status'  => 'success',

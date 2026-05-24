@@ -67,7 +67,8 @@ class ReportStore {
   Future<Report> fetchReport(String id, ReportType type) async {
     final result = await ReportService.getReportDetails(id, type);
     if (!result.success || result.report == null) {
-      throw Exception(result.errorMessage ?? 'Gagal memuat detail laporan dari server.');
+      throw Exception(
+          result.errorMessage ?? 'Gagal memuat detail laporan dari server.');
     }
     _upsertReport(result.report!);
     return result.report!;
@@ -142,7 +143,8 @@ class ReportStore {
       imagePaths: imagePaths,
     );
     if (!response.success || response.report == null) {
-      throw Exception(response.errorMessage ?? 'Gagal mengirim laporan inspeksi.');
+      throw Exception(
+          response.errorMessage ?? 'Gagal mengirim laporan inspeksi.');
     }
     _upsertReport(response.report!, prepend: true);
     await loadTimeline(response.report!.id, force: true);
@@ -175,7 +177,8 @@ class ReportStore {
       picDepartment: picDepartment,
     );
     if (!result.success || result.report == null) {
-      throw Exception(result.errorMessage ?? 'Gagal memperbarui status laporan.');
+      throw Exception(
+          result.errorMessage ?? 'Gagal memperbarui status laporan.');
     }
 
     _upsertReport(result.report!);
@@ -191,13 +194,15 @@ class ReportStore {
     return List.unmodifiable(_logReplies[logId] ?? const <TimelineReply>[]);
   }
 
-  Future<List<TimelineReply>> loadReplies(String reportId, String logId, {bool force = false}) async {
+  Future<List<TimelineReply>> loadReplies(String reportId, String logId,
+      {bool force = false}) async {
     if (!force && _logReplies.containsKey(logId)) {
       return getReplies(logId);
     }
     final report = getById(reportId);
     if (report == null) return const <TimelineReply>[];
-    final replies = await ReportService.getLogReplies(report: report, logId: logId);
+    final replies =
+        await ReportService.getLogReplies(report: report, logId: logId);
     _logReplies[logId] = replies;
     return getReplies(logId);
   }
@@ -361,8 +366,7 @@ class ReportStore {
                 name: _requiredDraftString(draft, 'name'),
                 licenseNumber: _requiredDraftString(draft, 'licenseNumber'),
                 issuer: draft.data['issuer']?.toString(),
-                licenseType:
-                    draft.data['licenseType']?.toString() ?? 'general',
+                licenseType: draft.data['licenseType']?.toString() ?? 'general',
                 vehicleEquipment: draft.data['vehicleEquipment']?.toString(),
                 simType: draft.data['simType']?.toString(),
                 simIndonesiaType: draft.data['simIndonesiaType']?.toString(),
@@ -383,8 +387,7 @@ class ReportStore {
                 name: _requiredDraftString(draft, 'name'),
                 licenseNumber: _requiredDraftString(draft, 'licenseNumber'),
                 issuer: draft.data['issuer']?.toString(),
-                licenseType:
-                    draft.data['licenseType']?.toString() ?? 'general',
+                licenseType: draft.data['licenseType']?.toString() ?? 'general',
                 vehicleEquipment: draft.data['vehicleEquipment']?.toString(),
                 simType: draft.data['simType']?.toString(),
                 simIndonesiaType: draft.data['simIndonesiaType']?.toString(),
@@ -441,6 +444,7 @@ class ReportStore {
           break;
         case DraftType.profileChange:
           await ProfileService.updateProfile(
+            employeeId: draft.data['employeeId']?.toString(),
             fullName: draft.data['fullName']?.toString(),
             personalEmail: draft.data['personalEmail']?.toString(),
             workEmail: draft.data['workEmail']?.toString(),
@@ -451,7 +455,8 @@ class ReportStore {
             address: draft.data['address']?.toString(),
             tipeAfiliasi: draft.data['tipeAfiliasi']?.toString(),
             company: draft.data['company']?.toString(),
-            perusahaanKontraktor: draft.data['perusahaanKontraktor']?.toString(),
+            perusahaanKontraktor:
+                draft.data['perusahaanKontraktor']?.toString(),
             subKontraktor: draft.data['subKontraktor']?.toString(),
             imagePath: draft.data['imagePath']?.toString(),
           );
@@ -562,7 +567,8 @@ class ReportStore {
     DateTime timestamp,
   ) {
     return TimelineEvent(
-      timelineLogId: 'implicit-${report.id}-${subStatus.name}-${timestamp.millisecondsSinceEpoch}',
+      timelineLogId:
+          'implicit-${report.id}-${subStatus.name}-${timestamp.millisecondsSinceEpoch}',
       status: subStatus.parentStatus,
       subStatus: subStatus,
       timestamp: timestamp,
@@ -575,7 +581,8 @@ class ReportStore {
 
   String _assignmentActor(Report report) {
     final values = <String>[
-      if (report.departemen?.trim().isNotEmpty == true) report.departemen!.trim(),
+      if (report.departemen?.trim().isNotEmpty == true)
+        report.departemen!.trim(),
       if (report.picDepartment?.trim().isNotEmpty == true)
         report.picDepartment!.trim(),
       if (report.nameInspector?.trim().isNotEmpty == true)

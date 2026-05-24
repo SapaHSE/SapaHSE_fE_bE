@@ -10,7 +10,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property string $id
- * @property string $employee_id
+ * @property string|null $employee_id
  * @property string $full_name
  * @property string $personal_email
  * @property string|null $work_email
@@ -95,9 +95,18 @@ class User extends Authenticatable
         ];
     }
 
-    public function ensureQrCode(): string
+    public function ensureQrCode(): ?string
     {
-        $employeeQrCode = 'SAPA-HSE-USER-' . strtoupper(trim((string) $this->employee_id));
+        $employeeId = trim((string) $this->employee_id);
+        if ($employeeId === '') {
+            if ($this->qr_code !== null) {
+                $this->forceFill(['qr_code' => null])->save();
+            }
+
+            return null;
+        }
+
+        $employeeQrCode = 'SAPA-HSE-USER-' . strtoupper($employeeId);
 
         if ($this->qr_code === $employeeQrCode) {
             return $this->qr_code;

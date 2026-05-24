@@ -70,6 +70,7 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $request->validate([
+            'employee_id'   => 'nullable|string|min:5|max:20|unique:users,employee_id,' . $user->id,
             'full_name'     => 'nullable|string|max:100',
             'personal_email'=> 'nullable|email|max:150|unique:users,personal_email,' . $user->id,
             'work_email'    => 'nullable|email|max:150|unique:users,work_email,' . $user->id,
@@ -101,7 +102,7 @@ class ProfileController extends Controller
 
         // Collect non-photo field changes
         $approvalFields = [
-            'full_name', 'personal_email', 'work_email', 'phone_number',
+            'employee_id', 'full_name', 'personal_email', 'work_email', 'phone_number',
             'position', 'jabatan', 'department', 'company',
             'tipe_afiliasi', 'perusahaan_kontraktor', 'sub_kontraktor', 'address',
         ];
@@ -112,6 +113,9 @@ class ProfileController extends Controller
         foreach ($approvalFields as $field) {
             if ($request->has($field)) {
                 $newValue = $request->input($field);
+                if ($field === 'employee_id' || $field === 'work_email') {
+                    $newValue = filled($newValue) ? trim((string) $newValue) : null;
+                }
                 $currentValue = $user->{$field};
                 if ((string) $newValue !== (string) $currentValue) {
                     $requestedChanges[$field] = $newValue;
@@ -213,6 +217,9 @@ class ProfileController extends Controller
             $user->{$field} = $value;
         }
         $user->save();
+        if (array_key_exists('employee_id', $changeRequest->requested_changes)) {
+            $user->ensureQrCode();
+        }
 
         $changeRequest->update([
             'approval_status' => 'approved',
@@ -535,10 +542,18 @@ class ProfileController extends Controller
             ], 422);
         }
 
+        $employeeId = trim((string) $user->employee_id);
+        if ($employeeId === '') {
+            return \response()->json([
+                'status' => 'error',
+                'message' => 'Lengkapi NIP / Employee ID di My Profile sebelum mengajukan Mine Permit.',
+            ], 422);
+        }
+
         $payload = [
             'name' => 'Mine Permit',
             'license_type' => 'mine_permit',
-            'license_number' => $existing?->license_number ?: 'MP-' . strtoupper((string) $user->employee_id),
+            'license_number' => $existing?->license_number ?: 'MP-' . strtoupper($employeeId),
             'issuer' => 'PT Bukit Baiduri Energi',
             'status' => 'active',
             'approval_status' => $existing ? 'pending_changes' : 'pending',

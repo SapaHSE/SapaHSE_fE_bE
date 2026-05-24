@@ -27,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePass = true;
   bool _isLoading = false;
   bool _rememberMe = false;
+  bool _loginWithEmail = false;
 
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -63,7 +64,8 @@ class _LoginScreenState extends State<LoginScreen>
 
     final localAuth = LocalAuthentication();
     try {
-      final canCheck = await localAuth.canCheckBiometrics || await localAuth.isDeviceSupported();
+      final canCheck = await localAuth.canCheckBiometrics ||
+          await localAuth.isDeviceSupported();
       if (!canCheck) return;
 
       final authenticated = await localAuth.authenticate(
@@ -75,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (authenticated) {
         if (!mounted) return;
         setState(() => _isLoading = true);
-        
+
         final result = await AuthService.login(
           login: credentials['loginId']!,
           password: credentials['password']!,
@@ -100,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen>
       }
     } catch (e) {
       debugPrint('Biometric error: $e');
-    }    
+    }
   }
 
   @override
@@ -158,6 +160,14 @@ class _LoginScreenState extends State<LoginScreen>
         margin: const EdgeInsets.all(16),
       ),
     );
+  }
+
+  void _setLoginMode(bool useEmail) {
+    if (_loginWithEmail == useEmail) return;
+    setState(() {
+      _loginWithEmail = useEmail;
+      _employeeIdCtrl.clear();
+    });
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -254,24 +264,43 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── NIP field ────────────
-                          _buildLabel('NIP'),
+                          _buildLoginModeSelector(),
+                          const SizedBox(height: 16),
+
+                          // ── Login identifier field ─────────────────────
+                          _buildLabel(_loginWithEmail
+                              ? 'Email Pribadi / Kantor'
+                              : 'NIP / Employee ID'),
                           const SizedBox(height: 6),
                           TextFormField(
+                            key: ValueKey(_loginWithEmail),
                             controller: _employeeIdCtrl,
-                            keyboardType: TextInputType.text,
+                            keyboardType: _loginWithEmail
+                                ? TextInputType.emailAddress
+                                : TextInputType.text,
                             inputFormatters: [
-                              LengthLimitingTextInputFormatter(16),
-                              ],
+                              LengthLimitingTextInputFormatter(
+                                  _loginWithEmail ? 150 : 20),
+                            ],
                             validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
+                              final value = (v ?? '').trim();
+                              if (value.isEmpty) {
                                 return 'Field ini wajib diisi';
+                              }
+                              if (_loginWithEmail &&
+                                  !RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                      .hasMatch(value)) {
+                                return 'Format email tidak valid';
                               }
                               return null;
                             },
                             decoration: _inputDecoration(
-                              hint: 'Masukkan NIP',
-                              prefixIcon: Icons.badge_outlined,
+                              hint: _loginWithEmail
+                                  ? 'Masukkan email pribadi/kantor'
+                                  : 'Masukkan NIP',
+                              prefixIcon: _loginWithEmail
+                                  ? Icons.email_outlined
+                                  : Icons.badge_outlined,
                             ),
                           ),
 
@@ -379,45 +408,64 @@ class _LoginScreenState extends State<LoginScreen>
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF1A56C4),
                                       foregroundColor: Colors.white,
-                                      disabledBackgroundColor: const Color(0xFF1A56C4).withValues(alpha: 0.6),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      disabledBackgroundColor:
+                                          const Color(0xFF1A56C4)
+                                              .withValues(alpha: 0.6),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
                                       elevation: 0,
                                     ),
                                     child: _isLoading
                                         ? const SizedBox(
                                             width: 22,
                                             height: 22,
-                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                        : const Text('Masuk', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                            child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2))
+                                        : const Text('Masuk',
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold)),
                                   ),
                                 ),
                               ),
-                              if (!kIsWeb) FutureBuilder<bool>(
-                                future: StorageService.isBiometricEnabled(),
-                                builder: (context, snapshot) {
-                                  if (snapshot.data == true) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(left: 12),
-                                      child: SizedBox(
-                                        height: 50,
-                                        width: 50,
-                                        child: ElevatedButton(
-                                          onPressed: _isLoading ? null : _checkBiometricLogin,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(0xFFF0F4FA),
-                                            foregroundColor: const Color(0xFF1A56C4),
-                                            padding: EdgeInsets.zero,
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                            elevation: 0,
+                              if (!kIsWeb)
+                                FutureBuilder<bool>(
+                                  future: StorageService.isBiometricEnabled(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.data == true) {
+                                      return Padding(
+                                        padding:
+                                            const EdgeInsets.only(left: 12),
+                                        child: SizedBox(
+                                          height: 50,
+                                          width: 50,
+                                          child: ElevatedButton(
+                                            onPressed: _isLoading
+                                                ? null
+                                                : _checkBiometricLogin,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  const Color(0xFFF0F4FA),
+                                              foregroundColor:
+                                                  const Color(0xFF1A56C4),
+                                              padding: EdgeInsets.zero,
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          12)),
+                                              elevation: 0,
+                                            ),
+                                            child: const Icon(Icons.fingerprint,
+                                                size: 28),
                                           ),
-                                          child: const Icon(Icons.fingerprint, size: 28),
                                         ),
-                                      ),
-                                    );
-                                  }
-                                  return const SizedBox();
-                                },
-                              ),
+                                      );
+                                    }
+                                    return const SizedBox();
+                                  },
+                                ),
                             ],
                           ),
                         ],
@@ -479,7 +527,7 @@ class _LoginScreenState extends State<LoginScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Masukkan email pribadi atau NIP Anda. Tautan reset password akan dikirimkan ke email Anda.',
+                'Masukkan email pribadi, email kantor, atau NIP Anda. Tautan reset password akan dikirimkan ke email pribadi Anda.',
                 style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
               const SizedBox(height: 14),
@@ -510,7 +558,7 @@ class _LoginScreenState extends State<LoginScreen>
                 controller: identifierCtrl,
                 keyboardType: TextInputType.emailAddress,
                 decoration: _inputDecoration(
-                    hint: 'Email atau NIP',
+                    hint: 'Email pribadi/kantor atau NIP',
                     prefixIcon: Icons.person_outline),
               ),
             ],
@@ -574,6 +622,79 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoginModeSelector() {
+    Widget item({
+      required bool selected,
+      required IconData icon,
+      required String label,
+      required VoidCallback onTap,
+    }) {
+      return Expanded(
+        child: InkWell(
+          onTap: _isLoading ? null : onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 44,
+            decoration: BoxDecoration(
+              color: selected ? const Color(0xFF1A56C4) : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: selected ? Colors.white : Colors.grey.shade700,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: selected ? Colors.white : Colors.grey.shade700,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F4FA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          item(
+            selected: !_loginWithEmail,
+            icon: Icons.badge_outlined,
+            label: 'NIP',
+            onTap: () => _setLoginMode(false),
+          ),
+          item(
+            selected: _loginWithEmail,
+            icon: Icons.email_outlined,
+            label: 'Email',
+            onTap: () => _setLoginMode(true),
+          ),
+        ],
       ),
     );
   }

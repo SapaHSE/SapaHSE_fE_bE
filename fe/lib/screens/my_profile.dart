@@ -342,8 +342,6 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
-
-
   String _formatDateForPayload(DateTime? value) {
     if (value == null) return '';
     final month = value.month.toString().padLeft(2, '0');
@@ -826,7 +824,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         '-';
     final employeeId = parseNullableDisplayName(_profileData?.employeeId) ??
         parseNullableDisplayName(_cachedUser?['employee_id']) ??
-        '-';
+        'NIP belum diisi';
     final company = formatCompanyAffiliation(
       tipeAfiliasi: _profileData?.tipeAfiliasi ?? _cachedUser?['tipe_afiliasi'],
       ownerCompany: _profileData?.company ?? _cachedUser?['company'],
@@ -1043,8 +1041,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       case 1:
         return _MedicalContent(medicals: _profileData?.medicals ?? []);
       case 2:
-        final mpState =
-            _MinePermitState.resolve(_profileData?.licenses ?? []);
+        final mpState = _MinePermitState.resolve(_profileData?.licenses ?? []);
         return _LicenseContent(
           licenses: _profileData?.licenses ?? [],
           onDetail: _showLicenseDetail,
@@ -1277,7 +1274,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              _buildSheetField('NIP', nikCtrl, enabled: false),
+                              _buildSheetField(
+                                'NIP / Employee ID (Opsional)',
+                                nikCtrl,
+                                maxLength: 20,
+                                validator: (v) {
+                                  final value = (v ?? '').trim();
+                                  if (value.isNotEmpty && value.length < 5) {
+                                    return 'NIP minimal 5 karakter';
+                                  }
+                                  return null;
+                                },
+                              ),
                               const SizedBox(height: 16),
                               _buildSheetField(
                                 'Nama Lengkap',
@@ -1448,6 +1456,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                             _showLoadingDialog('Menyimpan Profil...');
 
                             final result = await ProfileService.updateProfile(
+                              employeeId: nikCtrl.text.trim(),
                               fullName: nameCtrl.text.trim(),
                               personalEmail: emailCtrl.text.trim(),
                               workEmail: workEmailCtrl.text.trim(),
@@ -1487,6 +1496,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                   title: 'Perubahan Profil',
                                   data: {
                                     'fullName': nameCtrl.text.trim(),
+                                    'employeeId': nikCtrl.text.trim(),
                                     'personalEmail': emailCtrl.text.trim(),
                                     'workEmail': workEmailCtrl.text.trim(),
                                     'phoneNumber':
@@ -2407,6 +2417,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     );
   }
 
+  // ignore: unused_element
   void _showHeightPicker(BuildContext context, TextEditingController ctrl,
       StateSetter setModalState) {
     showModalBottomSheet(
@@ -2758,9 +2769,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               categoryOptions?.contains(_licenseSimIndonesiaType) == true
                   ? _licenseSimIndonesiaType
                   : null;
-          final selectedSimType = simTypeOptions.contains(_licenseSimType)
-              ? _licenseSimType
-              : null;
+          final selectedSimType =
+              simTypeOptions.contains(_licenseSimType) ? _licenseSimType : null;
           const licenseTypeLabels = {
             'general': 'License Umum',
             'simper': 'SIMPER License',
@@ -2771,7 +2781,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
               licenseTypeLabels[_licenseType] ?? 'Pilih tipe lisensi';
 
           // Check if mine permit confirmation view should be shown
-          final showMinePermitConfirmation = 
+          final showMinePermitConfirmation =
               _licenseType == 'mine_permit' && editLicense == null;
 
           return Container(
@@ -2828,10 +2838,9 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           }
                           if ((value == 'simper' || value == 'government') &&
                               _licenseNameController.text.trim().isEmpty) {
-                            _licenseNameController.text =
-                                value == 'government'
-                                    ? 'License Pemerintah'
-                                    : 'SIMPER';
+                            _licenseNameController.text = value == 'government'
+                                ? 'License Pemerintah'
+                                : 'SIMPER';
                           }
                         });
                       },
@@ -2878,7 +2887,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Mine Permit Confirmation View
                   if (showMinePermitConfirmation) ...[
                     Container(
@@ -2890,7 +2899,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline, 
+                          const Icon(Icons.info_outline,
                               color: Color(0xFF1A56C4), size: 20),
                           const SizedBox(width: 12),
                           Expanded(
@@ -2926,11 +2935,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _buildReadOnlyRow('Nama', _profileData?.fullName ?? '-'),
+                          _buildReadOnlyRow(
+                              'Nama', _profileData?.fullName ?? '-'),
                           const SizedBox(height: 8),
-                          _buildReadOnlyRow('NIP', _profileData?.employeeId ?? '-'),
+                          _buildReadOnlyRow(
+                              'NIP', _profileData?.employeeId ?? '-'),
                           const SizedBox(height: 8),
-                          _buildReadOnlyRow('Perusahaan', _profileData?.company ?? '-'),
+                          _buildReadOnlyRow(
+                              'Perusahaan', _profileData?.company ?? '-'),
                         ],
                       ),
                     ),
@@ -2947,17 +2959,20 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                                   l.licenseType == 'mine_permit' ||
                                   l.name.toLowerCase().trim() == 'mine permit')
                               .toList()
-                            ..sort((a, b) => (b.expiredAt ?? '').compareTo(a.expiredAt ?? ''));
-                          final existing = existingMinePermit.isNotEmpty 
-                              ? existingMinePermit.first 
+                            ..sort((a, b) => (b.expiredAt ?? '')
+                                .compareTo(a.expiredAt ?? ''));
+                          final existing = existingMinePermit.isNotEmpty
+                              ? existingMinePermit.first
                               : null;
 
                           if (existing != null && !existing.canBeRenewedNow()) {
                             await showDialog<void>(
                               context: modalContext,
                               builder: (ctx) => AlertDialog(
-                                title: const Text('Perpanjangan Belum Tersedia'),
-                                content: const Text(UserLicense.renewalBlockedMessage),
+                                title:
+                                    const Text('Perpanjangan Belum Tersedia'),
+                                content: const Text(
+                                    UserLicense.renewalBlockedMessage),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(ctx),
@@ -2972,11 +2987,12 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                           Navigator.pop(sheetContext);
                           _showLoadingDialog('Mengajukan Mine Permit...');
 
-                          final result = await ProfileService.requestMinePermit();
-                          
+                          final result =
+                              await ProfileService.requestMinePermit();
+
                           if (!mounted) return;
                           _dismissLoadingDialog();
-                          
+
                           if (result.success) {
                             await _loadProfile();
                             if (!mounted) return;
@@ -2989,7 +3005,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               SnackBar(
                                 content: Text(result.message),
                                 behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                                margin:
+                                    const EdgeInsets.fromLTRB(16, 16, 16, 16),
                               ),
                             );
                           }
@@ -3006,453 +3023,465 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       ),
                     ),
                   ],
-                  
+
                   // Regular License Form (hidden when mine_permit is selected)
                   if (!showMinePermitConfirmation) ...[
-                _buildFieldLabel('Nama Lisensi'),
-                TextField(
-                  controller: _licenseNameController,
-                  decoration:
-                      _buildInputDecoration('Contoh: SIM A, SIO Excavator...'),
-                ),
-                const SizedBox(height: 16),
-                _buildFieldLabel('Nomor Lisensi'),
-                TextField(
-                  controller: _licenseNumberController,
-                  decoration: _buildInputDecoration('Contoh: SIM-2024-001234'),
-                ),
-                const SizedBox(height: 16),
-                _buildFieldLabel('Lembaga Penerbit'),
-                TextField(
-                  controller: _licenseIssuerController,
-                  decoration:
-                      _buildInputDecoration('Contoh: Polri, Kemnaker RI...'),
-                ),
-                if (_licenseType != 'mine_permit') ...[
-                  const SizedBox(height: 16),
-                  _buildFieldLabel(
-                    _licenseType == 'government'
-                        ? 'Kategori SIM Indonesia'
-                        : _licenseType == 'simper'
-                            ? 'Kategori SIMPER'
-                            : 'Kategori Lisensi',
-                  ),
-                  if (categoryOptions == null)
+                    _buildFieldLabel('Nama Lisensi'),
                     TextField(
-                      controller: _licenseCategoryController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: _buildInputDecoration('Contoh: U, SIO, K3'),
-                      onChanged: (value) => _licenseSimIndonesiaType =
-                          value.trim().isEmpty ? null : value.trim(),
-                    )
-                  else
-                    InkWell(
-                      borderRadius: BorderRadius.circular(14),
-                      onTap: () => _showLicenseCategoryPicker(
-                        modalContext,
-                        title: _licenseType == 'government'
-                            ? 'Pilih Kategori SIM Indonesia'
-                            : 'Pilih Kategori SIMPER',
-                        options: categoryOptions,
-                        selectedValue: selectedCategory,
-                        onSelected: (value) {
-                          setModalState(() {
-                            _licenseSimIndonesiaType = value;
-                            _licenseCategoryController.text = value;
-                          });
-                        },
+                      controller: _licenseNameController,
+                      decoration: _buildInputDecoration(
+                          'Contoh: SIM A, SIO Excavator...'),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFieldLabel('Nomor Lisensi'),
+                    TextField(
+                      controller: _licenseNumberController,
+                      decoration:
+                          _buildInputDecoration('Contoh: SIM-2024-001234'),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFieldLabel('Lembaga Penerbit'),
+                    TextField(
+                      controller: _licenseIssuerController,
+                      decoration: _buildInputDecoration(
+                          'Contoh: Polri, Kemnaker RI...'),
+                    ),
+                    if (_licenseType != 'mine_permit') ...[
+                      const SizedBox(height: 16),
+                      _buildFieldLabel(
+                        _licenseType == 'government'
+                            ? 'Kategori SIM Indonesia'
+                            : _licenseType == 'simper'
+                                ? 'Kategori SIMPER'
+                                : 'Kategori Lisensi',
                       ),
+                      if (categoryOptions == null)
+                        TextField(
+                          controller: _licenseCategoryController,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration:
+                              _buildInputDecoration('Contoh: U, SIO, K3'),
+                          onChanged: (value) => _licenseSimIndonesiaType =
+                              value.trim().isEmpty ? null : value.trim(),
+                        )
+                      else
+                        InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => _showLicenseCategoryPicker(
+                            modalContext,
+                            title: _licenseType == 'government'
+                                ? 'Pilih Kategori SIM Indonesia'
+                                : 'Pilih Kategori SIMPER',
+                            options: categoryOptions,
+                            selectedValue: selectedCategory,
+                            onSelected: (value) {
+                              setModalState(() {
+                                _licenseSimIndonesiaType = value;
+                                _licenseCategoryController.text = value;
+                              });
+                            },
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 13),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: selectedCategory == null
+                                        ? Colors.white
+                                        : const Color(0xFF1A56C4),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border:
+                                        Border.all(color: Colors.grey.shade200),
+                                  ),
+                                  child: Text(
+                                    selectedCategory ?? '-',
+                                    style: TextStyle(
+                                      color: selectedCategory == null
+                                          ? Colors.grey.shade400
+                                          : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    selectedCategory == null
+                                        ? (_licenseType == 'government'
+                                            ? 'Pilih A, B1, B2, C, C1, C2, D, D1'
+                                            : 'Pilih DT, BD, BL, EX, WT, WL')
+                                        : 'Kategori $selectedCategory',
+                                    style: TextStyle(
+                                      color: selectedCategory == null
+                                          ? Colors.grey.shade500
+                                          : Colors.black87,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.keyboard_arrow_down_rounded,
+                                    color: Colors.grey.shade500),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Vehicle Equipment'),
+                      TextField(
+                        controller: _licenseVehicleEquipmentController,
+                        decoration: _buildInputDecoration(
+                          'Contoh: DT (Dump Truck) Lumpur',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('SIM Type (LIC)'),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () => _showLicenseCategoryPicker(
+                          modalContext,
+                          title: 'Pilih SIM Type (LIC)',
+                          options: simTypeOptions,
+                          selectedValue: selectedSimType,
+                          descriptions: simTypeDescriptions,
+                          onSelected: (value) {
+                            setModalState(() => _licenseSimType = value);
+                          },
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 13),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: selectedSimType == null
+                                      ? Colors.white
+                                      : const Color(0xFF1A56C4),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border:
+                                      Border.all(color: Colors.grey.shade200),
+                                ),
+                                child: Text(
+                                  selectedSimType ?? '-',
+                                  style: TextStyle(
+                                    color: selectedSimType == null
+                                        ? Colors.grey.shade400
+                                        : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  selectedSimType == null
+                                      ? 'Pilih F, P, R, T, I'
+                                      : 'LIC $selectedSimType - ${simTypeDescriptions[selectedSimType]}',
+                                  style: TextStyle(
+                                    color: selectedSimType == null
+                                        ? Colors.grey.shade500
+                                        : Colors.black87,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              Icon(Icons.keyboard_arrow_down_rounded,
+                                  color: Colors.grey.shade500),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    _buildFieldLabel('Tanggal Diperoleh'),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: modalContext,
+                          initialDate: _licenseObtainedAt ?? DateTime.now(),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365 * 5)),
+                          lastDate: DateTime.now()
+                              .add(const Duration(days: 365 * 10)),
+                        );
+                        if (picked != null) {
+                          setModalState(() => _licenseObtainedAt = picked);
+                        }
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 13),
+                            horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.grey.shade200),
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              width: 34,
-                              height: 34,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: selectedCategory == null
-                                    ? Colors.white
-                                    : const Color(0xFF1A56C4),
-                                borderRadius: BorderRadius.circular(10),
-                                border:
-                                    Border.all(color: Colors.grey.shade200),
-                              ),
-                              child: Text(
-                                selectedCategory ?? '-',
-                                style: TextStyle(
-                                  color: selectedCategory == null
-                                      ? Colors.grey.shade400
-                                      : Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
+                            Icon(Icons.calendar_today,
+                                size: 18, color: Colors.grey.shade600),
                             const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                selectedCategory == null
-                                    ? (_licenseType == 'government'
-                                        ? 'Pilih A, B1, B2, C, C1, C2, D, D1'
-                                        : 'Pilih DT, BD, BL, EX, WT, WL')
-                                    : 'Kategori $selectedCategory',
-                                style: TextStyle(
-                                  color: selectedCategory == null
+                            Text(
+                              _licenseObtainedAt == null
+                                  ? 'Pilih Tanggal'
+                                  : '${_licenseObtainedAt!.day}/${_licenseObtainedAt!.month}/${_licenseObtainedAt!.year}',
+                              style: TextStyle(
+                                  color: _licenseObtainedAt == null
                                       ? Colors.grey.shade500
-                                      : Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
+                                      : Colors.black),
                             ),
-                            Icon(Icons.keyboard_arrow_down_rounded,
-                                color: Colors.grey.shade500),
                           ],
                         ),
                       ),
                     ),
-                  const SizedBox(height: 16),
-                  _buildFieldLabel('Vehicle Equipment'),
-                  TextField(
-                    controller: _licenseVehicleEquipmentController,
-                    decoration: _buildInputDecoration(
-                      'Contoh: DT (Dump Truck) Lumpur',
+                    const SizedBox(height: 16),
+                    _buildFieldLabel('Berlaku Sampai'),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: modalContext,
+                          initialDate: _licenseSelectedDate ?? DateTime.now(),
+                          firstDate: DateTime.now()
+                              .subtract(const Duration(days: 365 * 5)),
+                          lastDate: DateTime.now()
+                              .add(const Duration(days: 365 * 10)),
+                        );
+                        if (picked != null) {
+                          setModalState(() => _licenseSelectedDate = picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today,
+                                size: 18, color: Colors.grey.shade600),
+                            const SizedBox(width: 12),
+                            Text(
+                              _licenseSelectedDate == null
+                                  ? 'Pilih Tanggal'
+                                  : '${_licenseSelectedDate!.day}/${_licenseSelectedDate!.month}/${_licenseSelectedDate!.year}',
+                              style: TextStyle(
+                                  color: _licenseSelectedDate == null
+                                      ? Colors.grey.shade500
+                                      : Colors.black),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildFieldLabel('SIM Type (LIC)'),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => _showLicenseCategoryPicker(
-                      modalContext,
-                      title: 'Pilih SIM Type (LIC)',
-                      options: simTypeOptions,
-                      selectedValue: selectedSimType,
-                      descriptions: simTypeDescriptions,
-                      onSelected: (value) {
-                        setModalState(() => _licenseSimType = value);
+                    const SizedBox(height: 16),
+                    _buildFieldLabel('Foto Lisensi'),
+                    _buildImagePicker(
+                      image: _licenseImage,
+                      onTap: () async {
+                        final picker = ImagePicker();
+                        final picked = await picker.pickImage(
+                            source: ImageSource.gallery, imageQuality: 70);
+                        if (picked != null) {
+                          setModalState(() => _licenseImage = picked);
+                        }
                       },
                     ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 34,
-                            height: 34,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: selectedSimType == null
-                                  ? Colors.white
-                                  : const Color(0xFF1A56C4),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            child: Text(
-                              selectedSimType ?? '-',
-                              style: TextStyle(
-                                color: selectedSimType == null
-                                    ? Colors.grey.shade400
-                                    : Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              selectedSimType == null
-                                  ? 'Pilih F, P, R, T, I'
-                                  : 'LIC $selectedSimType - ${simTypeDescriptions[selectedSimType]}',
-                              style: TextStyle(
-                                color: selectedSimType == null
-                                    ? Colors.grey.shade500
-                                    : Colors.black87,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                          Icon(Icons.keyboard_arrow_down_rounded,
-                              color: Colors.grey.shade500),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                _buildFieldLabel('Tanggal Diperoleh'),
-                InkWell(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: modalContext,
-                      initialDate: _licenseObtainedAt ?? DateTime.now(),
-                      firstDate: DateTime.now()
-                          .subtract(const Duration(days: 365 * 5)),
-                      lastDate:
-                          DateTime.now().add(const Duration(days: 365 * 10)),
-                    );
-                    if (picked != null) {
-                      setModalState(() => _licenseObtainedAt = picked);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today,
-                            size: 18, color: Colors.grey.shade600),
-                        const SizedBox(width: 12),
-                        Text(
-                          _licenseObtainedAt == null
-                              ? 'Pilih Tanggal'
-                              : '${_licenseObtainedAt!.day}/${_licenseObtainedAt!.month}/${_licenseObtainedAt!.year}',
-                          style: TextStyle(
-                              color: _licenseObtainedAt == null
-                                  ? Colors.grey.shade500
-                                  : Colors.black),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildFieldLabel('Berlaku Sampai'),
-                InkWell(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: modalContext,
-                      initialDate: _licenseSelectedDate ?? DateTime.now(),
-                      firstDate: DateTime.now()
-                          .subtract(const Duration(days: 365 * 5)),
-                      lastDate:
-                          DateTime.now().add(const Duration(days: 365 * 10)),
-                    );
-                    if (picked != null) {
-                      setModalState(() => _licenseSelectedDate = picked);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.calendar_today,
-                            size: 18, color: Colors.grey.shade600),
-                        const SizedBox(width: 12),
-                        Text(
-                          _licenseSelectedDate == null
-                              ? 'Pilih Tanggal'
-                              : '${_licenseSelectedDate!.day}/${_licenseSelectedDate!.month}/${_licenseSelectedDate!.year}',
-                          style: TextStyle(
-                              color: _licenseSelectedDate == null
-                                  ? Colors.grey.shade500
-                                  : Colors.black),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildFieldLabel('Foto Lisensi'),
-                _buildImagePicker(
-                  image: _licenseImage,
-                  onTap: () async {
-                    final picker = ImagePicker();
-                    final picked = await picker.pickImage(
-                        source: ImageSource.gallery, imageQuality: 70);
-                    if (picked != null) {
-                      setModalState(() => _licenseImage = picked);
-                    }
-                  },
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      if (_licenseNameController.text.isEmpty ||
-                          _licenseNumberController.text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Harap lengkapi semua data'),
-                                behavior: SnackBarBehavior.floating,
-                                margin: EdgeInsets.fromLTRB(16, 16, 16, 16)));
-                        return;
-                      }
+                    const SizedBox(height: 32),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (_licenseNameController.text.isEmpty ||
+                              _licenseNumberController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Harap lengkapi semua data'),
+                                    behavior: SnackBarBehavior.floating,
+                                    margin:
+                                        EdgeInsets.fromLTRB(16, 16, 16, 16)));
+                            return;
+                          }
 
-                      Navigator.pop(sheetContext);
-                      _showLoadingDialog(editLicense != null
-                          ? 'Memperbarui Lisensi...'
-                          : 'Menyimpan Lisensi...');
+                          Navigator.pop(sheetContext);
+                          _showLoadingDialog(editLicense != null
+                              ? 'Memperbarui Lisensi...'
+                              : 'Menyimpan Lisensi...');
 
-                      final isEdit = editLicense != null;
-                      final licenseName = _licenseNameController.text.trim();
-                      final licenseNumber =
-                          _licenseNumberController.text.trim();
-                      final issuer = _licenseIssuerController.text.trim();
-                      final vehicleEquipment =
-                          _licenseVehicleEquipmentController.text.trim();
-                      final simIndonesiaType = _licenseType == 'general'
-                          ? _licenseCategoryController.text.trim()
-                          : (_licenseSimIndonesiaType ?? '').trim();
-                      final obtainedAt =
-                          _formatDateForPayload(_licenseObtainedAt);
-                      final expiredAt =
-                          _formatDateForPayload(_licenseSelectedDate);
-                      final imagePath = _licenseImage?.path;
+                          final isEdit = editLicense != null;
+                          final licenseName =
+                              _licenseNameController.text.trim();
+                          final licenseNumber =
+                              _licenseNumberController.text.trim();
+                          final issuer = _licenseIssuerController.text.trim();
+                          final vehicleEquipment =
+                              _licenseVehicleEquipmentController.text.trim();
+                          final simIndonesiaType = _licenseType == 'general'
+                              ? _licenseCategoryController.text.trim()
+                              : (_licenseSimIndonesiaType ?? '').trim();
+                          final obtainedAt =
+                              _formatDateForPayload(_licenseObtainedAt);
+                          final expiredAt =
+                              _formatDateForPayload(_licenseSelectedDate);
+                          final imagePath = _licenseImage?.path;
 
-                      void clearLicenseForm() {
-                        _licenseNameController.clear();
-                        _licenseNumberController.clear();
-                        _licenseIssuerController.clear();
-                        _licenseVehicleEquipmentController.clear();
-                        _licenseCategoryController.clear();
-                        _licenseType = 'general';
-                        _licenseSimType = null;
-                        _licenseSimIndonesiaType = null;
-                        _licenseObtainedAt = null;
-                        _licenseSelectedDate = null;
-                        _licenseImage = null;
-                      }
+                          void clearLicenseForm() {
+                            _licenseNameController.clear();
+                            _licenseNumberController.clear();
+                            _licenseIssuerController.clear();
+                            _licenseVehicleEquipmentController.clear();
+                            _licenseCategoryController.clear();
+                            _licenseType = 'general';
+                            _licenseSimType = null;
+                            _licenseSimIndonesiaType = null;
+                            _licenseObtainedAt = null;
+                            _licenseSelectedDate = null;
+                            _licenseImage = null;
+                          }
 
-                      final draftPayload = <String, dynamic>{
-                        'operation': isEdit ? 'update' : 'create',
-                        if (isEdit) 'remoteId': editLicense.id,
-                        if (isEdit) 'targetId': editLicense.id,
-                        'name': licenseName,
-                        'licenseNumber': licenseNumber,
-                        'licenseType': _licenseType,
-                        'vehicleEquipment':
-                            vehicleEquipment.isEmpty ? null : vehicleEquipment,
-                        'simType': _licenseSimType,
-                        'simIndonesiaType':
-                            simIndonesiaType.isEmpty ? null : simIndonesiaType,
-                        'issuer': issuer.isEmpty ? null : issuer,
-                        'obtainedAt': obtainedAt.isEmpty ? null : obtainedAt,
-                        'expiredAt': expiredAt.isEmpty ? null : expiredAt,
-                        'imagePath': imagePath,
-                      };
+                          final draftPayload = <String, dynamic>{
+                            'operation': isEdit ? 'update' : 'create',
+                            if (isEdit) 'remoteId': editLicense.id,
+                            if (isEdit) 'targetId': editLicense.id,
+                            'name': licenseName,
+                            'licenseNumber': licenseNumber,
+                            'licenseType': _licenseType,
+                            'vehicleEquipment': vehicleEquipment.isEmpty
+                                ? null
+                                : vehicleEquipment,
+                            'simType': _licenseSimType,
+                            'simIndonesiaType': simIndonesiaType.isEmpty
+                                ? null
+                                : simIndonesiaType,
+                            'issuer': issuer.isEmpty ? null : issuer,
+                            'obtainedAt':
+                                obtainedAt.isEmpty ? null : obtainedAt,
+                            'expiredAt': expiredAt.isEmpty ? null : expiredAt,
+                            'imagePath': imagePath,
+                          };
 
-                      final online = await CloudSaveService.isOnline();
-                      if (!online) {
-                        if (!mounted) return;
-                        _dismissLoadingDialog();
-                        await _saveApprovalDraft(
-                          type: isEdit
-                              ? DraftType.licenseUpdate
-                              : DraftType.licenseCreate,
-                          title: licenseName,
-                          data: draftPayload,
-                          successMessage:
-                              'Tidak ada koneksi internet. Draft lisensi disimpan di Inbox > MyPost > Draft.',
-                        );
-                        clearLicenseForm();
-                        return;
-                      }
-
-                      final result = isEdit
-                          ? await ProfileService.updateLicense(
-                              id: editLicense.id.toString(),
-                              name: licenseName,
-                              licenseNumber: licenseNumber,
-                              issuer: issuer,
-                              licenseType: _licenseType,
-                              vehicleEquipment: vehicleEquipment,
-                              simType: _licenseSimType,
-                              simIndonesiaType: simIndonesiaType.isEmpty
-                                  ? null
-                                  : simIndonesiaType,
-                              obtainedAt:
-                                  obtainedAt.isEmpty ? null : obtainedAt,
-                              expiredAt: expiredAt.isEmpty ? null : expiredAt,
-                              imageFile: _licenseImage,
-                            )
-                          : await ProfileService.addLicense(
-                              name: licenseName,
-                              licenseNumber: licenseNumber,
-                              issuer: issuer,
-                              licenseType: _licenseType,
-                              vehicleEquipment: vehicleEquipment,
-                              simType: _licenseSimType,
-                              simIndonesiaType: simIndonesiaType.isEmpty
-                                  ? null
-                                  : simIndonesiaType,
-                              obtainedAt:
-                                  obtainedAt.isEmpty ? null : obtainedAt,
-                              expiredAt: expiredAt.isEmpty ? null : expiredAt,
-                              imageFile: _licenseImage,
+                          final online = await CloudSaveService.isOnline();
+                          if (!online) {
+                            if (!mounted) return;
+                            _dismissLoadingDialog();
+                            await _saveApprovalDraft(
+                              type: isEdit
+                                  ? DraftType.licenseUpdate
+                                  : DraftType.licenseCreate,
+                              title: licenseName,
+                              data: draftPayload,
+                              successMessage:
+                                  'Tidak ada koneksi internet. Draft lisensi disimpan di Inbox > MyPost > Draft.',
                             );
+                            clearLicenseForm();
+                            return;
+                          }
 
-                      if (!mounted) return;
-                      _dismissLoadingDialog();
-                      if (result.success) {
-                        clearLicenseForm();
-                        await _loadProfile();
-                        if (mounted) {
-                          _showSuccessPopup(
-                            context,
-                            isEdit
-                                ? 'Lisensi berhasil diperbarui'
-                                : 'Lisensi berhasil ditambahkan',
-                          );
-                        }
-                      } else if (_isNoInternetMessage(result.message)) {
-                        await _saveApprovalDraft(
-                          type: isEdit
-                              ? DraftType.licenseUpdate
-                              : DraftType.licenseCreate,
-                          title: licenseName,
-                          data: draftPayload,
-                          successMessage:
-                              'Koneksi internet terputus. Draft lisensi disimpan di Inbox > MyPost > Draft.',
-                        );
-                        clearLicenseForm();
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(result.message),
-                            behavior: SnackBarBehavior.floating,
-                            margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)));
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1A56C4),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
+                          final result = isEdit
+                              ? await ProfileService.updateLicense(
+                                  id: editLicense.id.toString(),
+                                  name: licenseName,
+                                  licenseNumber: licenseNumber,
+                                  issuer: issuer,
+                                  licenseType: _licenseType,
+                                  vehicleEquipment: vehicleEquipment,
+                                  simType: _licenseSimType,
+                                  simIndonesiaType: simIndonesiaType.isEmpty
+                                      ? null
+                                      : simIndonesiaType,
+                                  obtainedAt:
+                                      obtainedAt.isEmpty ? null : obtainedAt,
+                                  expiredAt:
+                                      expiredAt.isEmpty ? null : expiredAt,
+                                  imageFile: _licenseImage,
+                                )
+                              : await ProfileService.addLicense(
+                                  name: licenseName,
+                                  licenseNumber: licenseNumber,
+                                  issuer: issuer,
+                                  licenseType: _licenseType,
+                                  vehicleEquipment: vehicleEquipment,
+                                  simType: _licenseSimType,
+                                  simIndonesiaType: simIndonesiaType.isEmpty
+                                      ? null
+                                      : simIndonesiaType,
+                                  obtainedAt:
+                                      obtainedAt.isEmpty ? null : obtainedAt,
+                                  expiredAt:
+                                      expiredAt.isEmpty ? null : expiredAt,
+                                  imageFile: _licenseImage,
+                                );
+
+                          if (!mounted) return;
+                          _dismissLoadingDialog();
+                          if (result.success) {
+                            clearLicenseForm();
+                            await _loadProfile();
+                            if (mounted) {
+                              _showSuccessPopup(
+                                context,
+                                isEdit
+                                    ? 'Lisensi berhasil diperbarui'
+                                    : 'Lisensi berhasil ditambahkan',
+                              );
+                            }
+                          } else if (_isNoInternetMessage(result.message)) {
+                            await _saveApprovalDraft(
+                              type: isEdit
+                                  ? DraftType.licenseUpdate
+                                  : DraftType.licenseCreate,
+                              title: licenseName,
+                              data: draftPayload,
+                              successMessage:
+                                  'Koneksi internet terputus. Draft lisensi disimpan di Inbox > MyPost > Draft.',
+                            );
+                            clearLicenseForm();
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(result.message),
+                                behavior: SnackBarBehavior.floating,
+                                margin:
+                                    const EdgeInsets.fromLTRB(16, 16, 16, 16)));
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A56C4),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                            editLicense != null
+                                ? 'Simpan Perubahan'
+                                : 'Simpan Lisensi',
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
                     ),
-                    child: Text(
-                        editLicense != null
-                            ? 'Simpan Perubahan'
-                            : 'Simpan Lisensi',
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
                   ],
                 ],
               ),
@@ -4326,8 +4355,7 @@ class _MinePermitState {
       l.licenseType == 'mine_permit' ||
       l.name.toLowerCase().trim() == 'mine permit';
 
-  static _MinePermitState resolve(List<UserLicense> licenses,
-      {DateTime? now}) {
+  static _MinePermitState resolve(List<UserLicense> licenses, {DateTime? now}) {
     final ref = now ?? DateTime.now();
     final all = licenses.where(_isMinePermit).toList();
     if (all.isEmpty) {
@@ -4348,8 +4376,7 @@ class _MinePermitState {
     }
     if (status == 'pending_changes') {
       return _MinePermitState(
-          key: _MinePermitStateKey.pendingChanges,
-          license: approved ?? latest);
+          key: _MinePermitStateKey.pendingChanges, license: approved ?? latest);
     }
     if (status == 'rejected') {
       return _MinePermitState(
@@ -4368,8 +4395,7 @@ class _MinePermitState {
       return _MinePermitState(
           key: _MinePermitStateKey.approvedLocked, license: approved);
     }
-    return _MinePermitState(
-        key: _MinePermitStateKey.none, license: latest);
+    return _MinePermitState(key: _MinePermitStateKey.none, license: latest);
   }
 }
 
@@ -4477,8 +4503,8 @@ class _MinePermitCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Mine Permit',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 15)),
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                   const SizedBox(height: 4),
                   if (isNone)
                     Text('Tap untuk ajukan',
@@ -4504,13 +4530,12 @@ class _MinePermitCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: colors.bg,
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                        color: colors.fg.withValues(alpha: 0.3)),
+                    border: Border.all(color: colors.fg.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     colors.badge,
@@ -4524,14 +4549,14 @@ class _MinePermitCard extends StatelessWidget {
                 if (isExpired) ...[
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFEBEE),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                          color: const Color(0xFFD32F2F)
-                              .withValues(alpha: 0.3)),
+                          color:
+                              const Color(0xFFD32F2F).withValues(alpha: 0.3)),
                     ),
                     child: const Text(
                       'Expired',
@@ -4573,15 +4598,13 @@ class _LicenseContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nonMinePermit = licenses
-        .where((l) => !_MinePermitState._isMinePermit(l))
-        .toList();
+    final nonMinePermit =
+        licenses.where((l) => !_MinePermitState._isMinePermit(l)).toList();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          _MinePermitCard(
-              state: minePermitState, onTap: onMinePermitTap),
+          _MinePermitCard(state: minePermitState, onTap: onMinePermitTap),
           ...nonMinePermit.map((l) {
             final isAktif = l.isActive;
             final approvalStatus = l.approvalStatus.toLowerCase();
@@ -6372,8 +6395,8 @@ class _MinePermitDetailPage extends StatelessWidget {
                     const SizedBox(height: 16),
                     const Text(
                       'Belum Ada Mine Permit',
-                      style: TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -6420,8 +6443,7 @@ class _MinePermitDetailPage extends StatelessWidget {
       renewalHint = 'Sisa $daysLeft hari sebelum berakhir';
     } else if (state.key == _MinePermitStateKey.approvedLocked &&
         expiry != null) {
-      final renewalOpen =
-          DateTime(expiry.year, expiry.month - 1, expiry.day);
+      final renewalOpen = DateTime(expiry.year, expiry.month - 1, expiry.day);
       final daysToOpen = renewalOpen.difference(now).inDays;
       renewalHint = 'Perpanjangan tersedia dalam $daysToOpen hari';
     }
@@ -6454,8 +6476,7 @@ class _MinePermitDetailPage extends StatelessWidget {
                   label: approvalStyle.label,
                   color: approvalStyle.fg,
                 ),
-                const ReportStyleDetailBadge(
-                    label: 'SIMPER', color: typeColor),
+                const ReportStyleDetailBadge(label: 'SIMPER', color: typeColor),
                 if (isExpired)
                   const ReportStyleDetailBadge(
                     label: 'Expired',

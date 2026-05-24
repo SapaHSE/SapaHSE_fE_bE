@@ -161,7 +161,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       context,
       title: 'Tolak Pendaftaran',
       description: 'Berikan alasan penolakan:',
-      hintText: 'Contoh: NIK tidak ditemukan atau data tidak valid...',
+      hintText: 'Contoh: NIP tidak ditemukan atau data tidak valid...',
       confirmLabel: 'Tolak Pendaftaran',
       requireReason: false,
     );
@@ -783,7 +783,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               ),
                             ),
                             Text(
-                              'NIK: ${user['employee_id'] ?? '-'}',
+                              'NIP: ${user['employee_id'] ?? '-'}',
                               style: TextStyle(
                                 color: Colors.grey.shade600,
                                 fontSize: 13,
@@ -928,7 +928,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 children: [
                   const SizedBox(height: 4),
                   Text(
-                    'NIK: $nik • ${log['company'] ?? '-'}',
+                    'NIP: $nik • ${log['company'] ?? '-'}',
                     style: const TextStyle(fontSize: 12),
                   ),
                   if (log['rejection_reason'] != null) ...[
@@ -1419,7 +1419,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                       children: [
                         _buildDetailItem(
                           Icons.badge_outlined,
-                          'NIK / Employee ID',
+                          'NIP / Employee ID',
                           widget.user['employee_id'] ?? '-',
                         ),
                         _buildDetailDivider(),
@@ -2064,7 +2064,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildField('Nama Lengkap', _nameCtrl, required: true),
-              _buildField('NIK / Employee ID', _nikCtrl, required: true),
+              _buildField(
+                'NIP / Employee ID (Opsional)',
+                _nikCtrl,
+                isEmployeeId: true,
+              ),
               _buildField('Nomor HP', _hpCtrl, required: true, isPhone: true),
               _buildField(
                 'Email Pribadi',
@@ -2194,6 +2198,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
     bool required = false,
     bool isEmail = false,
     bool isPhone = false,
+    bool isEmployeeId = false,
     bool obscure = false,
   }) {
     return Padding(
@@ -2233,6 +2238,11 @@ class _UserFormScreenState extends State<UserFormScreen> {
               if (isPhone && v != null && v.trim().isNotEmpty) {
                 if (!RegExp(r'^\+62[0-9]{8,13}$').hasMatch(v.trim())) {
                   return 'Gunakan format +62 (10-13 digit)';
+                }
+              }
+              if (isEmployeeId && v != null && v.trim().isNotEmpty) {
+                if (v.trim().length < 5) {
+                  return 'Minimal 5 karakter';
                 }
               }
               return null;
@@ -2531,7 +2541,7 @@ class _UserFabMenuSheet extends StatelessWidget {
             iconBgColor: const Color(0xFFFFF3E0),
             iconColor: const Color(0xFFFF9800),
             title: 'Cari Pengguna',
-            subtitle: 'Cari berdasarkan nama atau NIK',
+            subtitle: 'Cari berdasarkan nama atau NIP',
             onTap: onSearch,
           ),
           const SizedBox(height: 8),

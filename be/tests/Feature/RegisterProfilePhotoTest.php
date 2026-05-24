@@ -27,6 +27,23 @@ class RegisterProfilePhotoTest extends TestCase
         ]);
     }
 
+    public function test_register_allows_missing_employee_id(): void
+    {
+        $payload = $this->validPayload();
+        unset($payload['employee_id']);
+
+        $this->postJson('/api/register', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.personal_email', $payload['personal_email']);
+
+        $this->assertDatabaseHas('users', [
+            'employee_id' => null,
+            'personal_email' => $payload['personal_email'],
+            'is_active' => false,
+            'qr_code' => null,
+        ]);
+    }
+
     public function test_register_with_profile_photo_url_stores_the_avatar_url(): void
     {
         $photoUrl = 'https://gwzlqpukshwgmphsynkv.supabase.co/storage/v1/object/public/images/avatars/register-avatar.jpg';

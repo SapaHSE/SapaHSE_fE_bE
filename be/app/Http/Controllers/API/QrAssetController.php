@@ -99,7 +99,12 @@ class QrAssetController extends Controller
             ], 409);
         }
 
-        $user->ensureQrCode();
+        if (! $user->ensureQrCode()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Lengkapi NIP / Employee ID di My Profile untuk membuat QR profil.',
+            ], 409);
+        }
 
         return response()->json([
             'status' => 'success',

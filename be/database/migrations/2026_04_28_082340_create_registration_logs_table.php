@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('registration_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('full_name');
-            $table->string('employee_id');
+            $table->string('employee_id')->nullable();
             $table->string('personal_email');
             $table->string('phone_number', 20)->nullable();
             $table->string('company')->nullable();

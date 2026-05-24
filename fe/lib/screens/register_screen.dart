@@ -163,7 +163,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final response = await AuthService.register(
-        nik: _empIdCtrl.text,
+        employeeId: _empIdCtrl.text.trim(),
         fullName: _namaCtrl.text,
         personalEmail: _emailCtrl.text,
         workEmail: _emailKantorCtrl.text,
@@ -656,13 +656,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     maxLength: 25),
                 const SizedBox(height: 16),
                 _buildTextField(
-                    label: 'EMPLOYEE ID *',
-                    hint: 'Min. 5 karakter',
+                    label: 'EMPLOYEE ID (OPSIONAL)',
+                    hint: 'Bisa dilengkapi nanti di My Profile',
                     controller: _empIdCtrl,
                     maxLength: 20,
                     validator: (v) {
-                      if (v == null || v.isEmpty) return 'Wajib diisi';
-                      if (v.length < 5) return 'Minimal 5 karakter';
+                      final value = (v ?? '').trim();
+                      if (value.isNotEmpty && value.length < 5) {
+                        return 'Minimal 5 karakter';
+                      }
                       return null;
                     }),
                 const SizedBox(height: 16),
@@ -855,7 +857,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     hint: 'email@perusahaan.com (opsional)',
                     controller: _emailKantorCtrl,
                     isRequired: false,
-                    maxLength: 100),
+                    keyboardType: TextInputType.emailAddress,
+                    maxLength: 100,
+                    validator: (v) {
+                      final value = (v ?? '').trim();
+                      if (value.isEmpty) return null;
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                          .hasMatch(value)) {
+                        return 'Format email kantor tidak valid';
+                      }
+                      return null;
+                    }),
                 const Padding(
                   padding: EdgeInsets.only(top: 4),
                   child: Text('Tidak semua karyawan memiliki email perusahaan',
@@ -943,7 +955,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const Divider(),
               _buildReviewRow('Nama', _namaCtrl.text),
               const Divider(),
-              _buildReviewRow('Employee ID', _empIdCtrl.text),
+              _buildReviewRow(
+                'Employee ID',
+                _empIdCtrl.text.trim().isEmpty
+                    ? 'Belum diisi'
+                    : _empIdCtrl.text.trim(),
+                isGrey: _empIdCtrl.text.trim().isEmpty,
+              ),
               const Divider(),
               _buildReviewRow('Nomor HP', '+62${_hpCtrl.text}'),
               const Divider(),
@@ -1038,8 +1056,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ],
               ),
               const SizedBox(height: 8),
+              _buildBullet('Email pribadi (${_emailCtrl.text.trim()})'),
+              if (_emailKantorCtrl.text.trim().isNotEmpty)
+                _buildBullet('Email kantor (${_emailKantorCtrl.text.trim()})'),
               _buildBullet(
-                  'Employee ID (${_empIdCtrl.text.isEmpty ? "..." : _empIdCtrl.text})')
+                _empIdCtrl.text.trim().isEmpty
+                    ? 'Employee ID setelah dilengkapi di My Profile'
+                    : 'Employee ID (${_empIdCtrl.text.trim()})',
+              ),
             ],
           ),
         ),
