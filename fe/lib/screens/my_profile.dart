@@ -13,8 +13,10 @@ import 'package:sapahse/services/company_service.dart';
 import 'package:sapahse/services/background_sync_service.dart';
 import 'package:sapahse/services/cloud_save_service.dart';
 import 'package:sapahse/services/department_service.dart';
+import 'package:sapahse/services/id_card_pdf_service.dart';
 import 'package:sapahse/services/profile_service.dart';
 import 'package:sapahse/services/storage_service.dart';
+import 'package:sapahse/widgets/mine_permit_preview.dart';
 import 'package:sapahse/utils/approval_status_ui.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/utils/url_helper.dart';
@@ -250,6 +252,94 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       _loadProfile(),
       _fetchCompanyData(),
     ]);
+  }
+
+  Future<bool> _handleMinePermitAction() async {
+    final licenses = _profileData?.licenses ?? [];
+    final state = _MinePermitState.resolve(licenses);
+
+    if (state.key == _MinePermitStateKey.pending ||
+        state.key == _MinePermitStateKey.pendingChanges) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Pengajuan Mine Permit masih menunggu approval.'),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        ),
+      );
+      return false;
+    }
+
+    if (state.key == _MinePermitStateKey.approvedLocked) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Perpanjangan Belum Tersedia'),
+          content: const Text(UserLicense.renewalBlockedMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+
+    _showLoadingDialog('Mengajukan Mine Permit...');
+    final result = await ProfileService.requestMinePermit();
+    if (!mounted) return false;
+    _dismissLoadingDialog();
+
+    if (result.success) {
+      await _loadProfile();
+      if (!mounted) return true;
+      _showSuccessPopup(context, result.message);
+      return true;
+    }
+
+    final msg = result.message;
+    if (msg.contains('belum bisa dilakukan') || msg.contains('masih berlaku')) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Perpanjangan Belum Tersedia'),
+          content: Text(msg),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      ),
+    );
+    return false;
+  }
+
+  void _showMinePermitDetail(_MinePermitState state) {
+    Navigator.push(
+      context,
+      _FadePageRoute(
+        builder: (_) => _MinePermitDetailPage(
+          state: state,
+          profileData: _profileData,
+          cachedUser: _cachedUser,
+          onAction: _handleMinePermitAction,
+        ),
+      ),
+    );
   }
 
 
@@ -953,6 +1043,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       case 1:
         return _MedicalContent(medicals: _profileData?.medicals ?? []);
       case 2:
+        final mpState =
+            _MinePermitState.resolve(_profileData?.licenses ?? []);
         return _LicenseContent(
           licenses: _profileData?.licenses ?? [],
           onDetail: _showLicenseDetail,
@@ -963,6 +1055,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           onDelete: (license) {
             _showDeleteLicenseConfirm(license);
           },
+          minePermitState: mpState,
+          onMinePermitTap: () => _showMinePermitDetail(mpState),
         );
       case 3:
         return _ViolationContent(
@@ -4213,12 +4307,259 @@ class _BiodataContent extends StatelessWidget {
   }
 }
 
+enum _MinePermitStateKey {
+  none,
+  pending,
+  pendingChanges,
+  approvedLocked,
+  approvedRenewable,
+  expired,
+  rejected,
+}
+
+class _MinePermitState {
+  final _MinePermitStateKey key;
+  final UserLicense? license;
+  const _MinePermitState({required this.key, this.license});
+
+  static bool _isMinePermit(UserLicense l) =>
+      l.licenseType == 'mine_permit' ||
+      l.name.toLowerCase().trim() == 'mine permit';
+
+  static _MinePermitState resolve(List<UserLicense> licenses,
+      {DateTime? now}) {
+    final ref = now ?? DateTime.now();
+    final all = licenses.where(_isMinePermit).toList();
+    if (all.isEmpty) {
+      return const _MinePermitState(key: _MinePermitStateKey.none);
+    }
+    all.sort((a, b) {
+      final sa = (a.submittedAt ?? a.expiredAt ?? '');
+      final sb = (b.submittedAt ?? b.expiredAt ?? '');
+      return sb.compareTo(sa);
+    });
+    final latest = all.first;
+    final approved = UserLicense.findApprovedMinePermit(licenses);
+    final status = latest.approvalStatus.toLowerCase();
+
+    if (status == 'pending') {
+      return _MinePermitState(
+          key: _MinePermitStateKey.pending, license: latest);
+    }
+    if (status == 'pending_changes') {
+      return _MinePermitState(
+          key: _MinePermitStateKey.pendingChanges,
+          license: approved ?? latest);
+    }
+    if (status == 'rejected') {
+      return _MinePermitState(
+          key: _MinePermitStateKey.rejected, license: latest);
+    }
+    if (status == 'approved' && approved != null) {
+      final expiry = DateTime.tryParse((approved.expiredAt ?? '').trim());
+      if (expiry != null && expiry.isBefore(ref)) {
+        return _MinePermitState(
+            key: _MinePermitStateKey.expired, license: approved);
+      }
+      if (approved.canBeRenewedNow(now: ref)) {
+        return _MinePermitState(
+            key: _MinePermitStateKey.approvedRenewable, license: approved);
+      }
+      return _MinePermitState(
+          key: _MinePermitStateKey.approvedLocked, license: approved);
+    }
+    return _MinePermitState(
+        key: _MinePermitStateKey.none, license: latest);
+  }
+}
+
+class _MinePermitCard extends StatelessWidget {
+  final _MinePermitState state;
+  final VoidCallback onTap;
+
+  const _MinePermitCard({required this.state, required this.onTap});
+
+  ({Color bg, Color fg, Color border, String badge}) _statusColors() {
+    switch (state.key) {
+      case _MinePermitStateKey.approvedLocked:
+        return (
+          bg: const Color(0xFFE8F5E9),
+          fg: const Color(0xFF2E7D32),
+          border: const Color(0xFFC8E6C9),
+          badge: 'Aktif',
+        );
+      case _MinePermitStateKey.approvedRenewable:
+        return (
+          bg: const Color(0xFFFFF8E1),
+          fg: const Color(0xFFE65100),
+          border: const Color(0xFFFFE082),
+          badge: 'Akan Berakhir',
+        );
+      case _MinePermitStateKey.pending:
+        return (
+          bg: const Color(0xFFE3F2FD),
+          fg: const Color(0xFF1565C0),
+          border: const Color(0xFF90CAF9),
+          badge: 'Menunggu',
+        );
+      case _MinePermitStateKey.pendingChanges:
+        return (
+          bg: const Color(0xFFFFF8E1),
+          fg: const Color(0xFFE65100),
+          border: const Color(0xFFFFE082),
+          badge: 'Perpanjangan',
+        );
+      case _MinePermitStateKey.expired:
+        return (
+          bg: const Color(0xFFFFEBEE),
+          fg: const Color(0xFFD32F2F),
+          border: const Color(0xFFFFCDD2),
+          badge: 'Kedaluwarsa',
+        );
+      case _MinePermitStateKey.rejected:
+        return (
+          bg: const Color(0xFFFFEBEE),
+          fg: const Color(0xFFC62828),
+          border: const Color(0xFFFFCDD2),
+          badge: 'Ditolak',
+        );
+      case _MinePermitStateKey.none:
+        return (
+          bg: const Color(0xFFF5F5F5),
+          fg: const Color(0xFF616161),
+          border: const Color(0xFFE0E0E0),
+          badge: 'Belum Ada',
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _statusColors();
+    final lic = state.license;
+    final isNone = state.key == _MinePermitStateKey.none;
+    final isExpired = state.key == _MinePermitStateKey.expired;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: isExpired ? Colors.red.shade100 : Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE3F2FD),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade100),
+              ),
+              child: const Icon(Icons.badge_outlined,
+                  color: Color(0xFF1E88E5), size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Mine Permit',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 4),
+                  if (isNone)
+                    Text('Tap untuk ajukan',
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 13))
+                  else ...[
+                    Text('No. ${lic?.licenseNumber ?? '-'}',
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 13)),
+                    if ((lic?.issuer ?? '').isNotEmpty)
+                      Text('Penerbit: ${lic!.issuer}',
+                          style: TextStyle(
+                              color: Colors.grey.shade500, fontSize: 13)),
+                    if ((lic?.expiredAt ?? '').isNotEmpty)
+                      Text('Berlaku s/d: ${_formatDetailDate(lic!.expiredAt)}',
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 12)),
+                  ],
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: colors.bg,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                        color: colors.fg.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    colors.badge,
+                    style: TextStyle(
+                      color: colors.fg,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 9,
+                    ),
+                  ),
+                ),
+                if (isExpired) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                          color: const Color(0xFFD32F2F)
+                              .withValues(alpha: 0.3)),
+                    ),
+                    child: const Text(
+                      'Expired',
+                      style: TextStyle(
+                        color: Color(0xFFD32F2F),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LicenseContent extends StatelessWidget {
   final List<UserLicense> licenses;
   final Function(UserLicense) onDetail;
   final VoidCallback onAdd;
   final Function(UserLicense) onEdit;
   final Function(UserLicense) onDelete;
+  final _MinePermitState minePermitState;
+  final VoidCallback onMinePermitTap;
 
   const _LicenseContent({
     required this.licenses,
@@ -4226,15 +4567,22 @@ class _LicenseContent extends StatelessWidget {
     required this.onAdd,
     required this.onEdit,
     required this.onDelete,
+    required this.minePermitState,
+    required this.onMinePermitTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final nonMinePermit = licenses
+        .where((l) => !_MinePermitState._isMinePermit(l))
+        .toList();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          ...licenses.map((l) {
+          _MinePermitCard(
+              state: minePermitState, onTap: onMinePermitTap),
+          ...nonMinePermit.map((l) {
             final isAktif = l.isActive;
             final approvalStatus = l.approvalStatus.toLowerCase();
             final approvalStyle = approvalStatusStyle(approvalStatus);
@@ -5553,81 +5901,9 @@ class _LicenseDetailPage extends StatelessWidget {
   });
 
   List<_ProfileDetailAction> _buildActions(BuildContext context) {
-    // Mine Permit: always show "Perpanjang Mine Permit" action
+    // Mine Permit actions live on the profile screen card, not here.
     if (license.licenseType == 'mine_permit') {
-      return [
-        _ProfileDetailAction(
-          icon: Icons.refresh,
-          iconBgColor: const Color(0xFFE3F2FD),
-          iconColor: const Color(0xFF1A56C4),
-          title: 'Perpanjang Mine Permit',
-          subtitle: 'Ajukan perpanjangan izin tambang',
-          onTap: () async {
-            // Pre-check renewal eligibility
-            if (!license.canBeRenewedNow()) {
-              await showDialog<void>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Perpanjangan Belum Tersedia'),
-                  content: const Text(UserLicense.renewalBlockedMessage),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Tutup'),
-                    ),
-                  ],
-                ),
-              );
-              return;
-            }
-
-            // Call API
-            final result = await ProfileService.requestMinePermit();
-            
-            if (!context.mounted) return;
-            
-            if (result.success) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(result.message),
-                  backgroundColor: Colors.green,
-                  behavior: SnackBarBehavior.floating,
-                  margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                ),
-              );
-              // Close detail page and refresh
-              Navigator.pop(context);
-            } else {
-              // Check if it's a renewal blocked error from backend
-              if (result.message.contains('belum bisa dilakukan') ||
-                  result.message.contains('masih berlaku')) {
-                await showDialog<void>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Perpanjangan Belum Tersedia'),
-                    content: Text(result.message),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Tutup'),
-                      ),
-                    ],
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(result.message),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-                  ),
-                );
-              }
-            }
-          },
-        ),
-      ];
+      return const [];
     }
 
     // Regular licenses: existing logic
@@ -5956,6 +6232,420 @@ class _LicenseDetailPage extends StatelessWidget {
                           valueColor:
                               isExpired ? const Color(0xFFF44336) : null,
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _ApplicantDetailCard(
+                    profileData: profileData,
+                    cachedUser: cachedUser,
+                  ),
+                  SizedBox(
+                    height: AppSafeInsets.bottomNavScrollPadding(
+                      context,
+                      gap: 24,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MinePermitDetailPage extends StatelessWidget {
+  final _MinePermitState state;
+  final ProfileData? profileData;
+  final Map<String, dynamic>? cachedUser;
+  final Future<bool> Function() onAction;
+
+  const _MinePermitDetailPage({
+    required this.state,
+    this.profileData,
+    this.cachedUser,
+    required this.onAction,
+  });
+
+  Future<void> _runAction(BuildContext context) async {
+    final changed = await onAction();
+    if (changed && context.mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  List<_ProfileDetailAction> _buildActions(BuildContext context) {
+    switch (state.key) {
+      case _MinePermitStateKey.none:
+        return [
+          _ProfileDetailAction(
+            icon: Icons.add_card,
+            iconBgColor: const Color(0xFFE3F2FD),
+            iconColor: const Color(0xFF1A56C4),
+            title: 'Ajukan Mine Permit',
+            subtitle: 'Data diambil otomatis dari profil Anda',
+            onTap: () => _runAction(context),
+          ),
+        ];
+      case _MinePermitStateKey.pending:
+      case _MinePermitStateKey.pendingChanges:
+        return const [];
+      case _MinePermitStateKey.approvedLocked:
+        return [
+          _ProfileDetailAction(
+            icon: Icons.lock_clock,
+            iconBgColor: const Color(0xFFE8F5E9),
+            iconColor: const Color(0xFF2E7D32),
+            title: 'Perpanjang Mine Permit',
+            subtitle: 'Belum tersedia — masih dalam masa berlaku',
+            onTap: () => _runAction(context),
+          ),
+        ];
+      case _MinePermitStateKey.approvedRenewable:
+        return [
+          _ProfileDetailAction(
+            icon: Icons.refresh,
+            iconBgColor: const Color(0xFFFFF8E1),
+            iconColor: const Color(0xFFE65100),
+            title: 'Perpanjang Mine Permit',
+            subtitle: 'Masa berlaku akan segera habis',
+            onTap: () => _runAction(context),
+          ),
+        ];
+      case _MinePermitStateKey.expired:
+        return [
+          _ProfileDetailAction(
+            icon: Icons.add_card,
+            iconBgColor: const Color(0xFFFFEBEE),
+            iconColor: const Color(0xFFD32F2F),
+            title: 'Ajukan Mine Permit Baru',
+            subtitle: 'Masa berlaku telah habis',
+            onTap: () => _runAction(context),
+          ),
+        ];
+      case _MinePermitStateKey.rejected:
+        return [
+          _ProfileDetailAction(
+            icon: Icons.refresh,
+            iconBgColor: const Color(0xFFE3F2FD),
+            iconColor: const Color(0xFF1A56C4),
+            title: 'Ajukan Ulang',
+            subtitle: 'Submit ulang pengajuan Mine Permit',
+            onTap: () => _runAction(context),
+          ),
+        ];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lic = state.license;
+
+    if (state.key == _MinePermitStateKey.none || lic == null) {
+      return _ProfileDetailRouteScaffold(
+        title: 'Detail Mine Permit',
+        fabHeroTag: 'mine_permit_detail_fab_none',
+        actionSheetTitle: 'Pilih Aksi Mine Permit',
+        actions: _buildActions(context),
+        body: SingleChildScrollView(
+          padding: AppSafeInsets.pagePadding(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 24),
+              ReportStyleDetailCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE3F2FD),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.shield_outlined,
+                          color: Color(0xFF1A56C4), size: 40),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Belum Ada Mine Permit',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Mine Permit dibutuhkan untuk ekspor ID Card dan akses area tambang. Pengajuan diproses otomatis dari data profil Anda.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _ApplicantDetailCard(
+                profileData: profileData,
+                cachedUser: cachedUser,
+              ),
+              SizedBox(
+                height: AppSafeInsets.bottomNavScrollPadding(
+                  context,
+                  gap: 24,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final approvalStyle = approvalStatusStyle(lic.approvalStatus);
+    const typeColor = Color(0xFF1A56C4);
+    final expiry =
+        DateTime.tryParse((lic.expiredAt ?? '').replaceFirst(' ', 'T'))
+            ?.toLocal();
+    final now = DateTime.now();
+    final isExpired = expiry != null && expiry.isBefore(now);
+    final imageUrl = normalizeStorageUrl(lic.fileUrl)?.trim() ?? '';
+
+    String? renewalHint;
+    if (state.key == _MinePermitStateKey.approvedRenewable && expiry != null) {
+      final daysLeft = expiry.difference(now).inDays;
+      renewalHint = 'Sisa $daysLeft hari sebelum berakhir';
+    } else if (state.key == _MinePermitStateKey.approvedLocked &&
+        expiry != null) {
+      final renewalOpen =
+          DateTime(expiry.year, expiry.month - 1, expiry.day);
+      final daysToOpen = renewalOpen.difference(now).inDays;
+      renewalHint = 'Perpanjangan tersedia dalam $daysToOpen hari';
+    }
+
+    final showPreview = profileData != null &&
+        (state.key == _MinePermitStateKey.approvedLocked ||
+            state.key == _MinePermitStateKey.approvedRenewable ||
+            state.key == _MinePermitStateKey.pendingChanges ||
+            state.key == _MinePermitStateKey.expired);
+    final previewRows = showPreview
+        ? IdCardPdfService.buildMinePermitTableRows(profileData!)
+        : const <MinePermitTableRow>[];
+
+    return _ProfileDetailRouteScaffold(
+      title: 'Detail Mine Permit',
+      fabHeroTag: 'mine_permit_detail_fab_${lic.id}',
+      actionSheetTitle: 'Pilih Aksi Mine Permit',
+      actions: _buildActions(context),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ReportStyleDetailHero(
+              imageUrl: imageUrl,
+              accentColor: typeColor,
+              fallbackIcon: Icons.shield_outlined,
+              badges: [
+                ReportStyleDetailBadge(
+                  label: approvalStyle.label,
+                  color: approvalStyle.fg,
+                ),
+                const ReportStyleDetailBadge(
+                    label: 'SIMPER', color: typeColor),
+                if (isExpired)
+                  const ReportStyleDetailBadge(
+                    label: 'Expired',
+                    color: Color(0xFFD32F2F),
+                    backgroundColor: Color(0xFFFFEBEE),
+                  ),
+              ],
+            ),
+            Padding(
+              padding: AppSafeInsets.pagePadding(context),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showPreview) ...[
+                    ReportStyleDetailCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const ReportStyleSectionHeader(
+                            icon: Icons.image_search_outlined,
+                            title: 'Preview Mine Permit',
+                          ),
+                          const SizedBox(height: 14),
+                          Center(
+                            child: MinePermitPreviewPair(
+                              profile: profileData!,
+                              minePermit: lic,
+                              rows: previewRows,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  ReportStyleDetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Mine Permit',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Izin Tambang (SIMPER)',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: typeColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const Divider(height: 24),
+                        ReportStyleDetailRow(
+                          icon: Icons.numbers,
+                          label: 'Nomor Permit',
+                          value: _detailDisplayValue(lic.licenseNumber),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.business_outlined,
+                          label: 'Lembaga Penerbit',
+                          value: _detailDisplayValue(lic.issuer),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.info_outline,
+                          label: 'Status Approval',
+                          value: approvalStyle.label,
+                          valueColor: approvalStyle.fg,
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.flag_outlined,
+                          label: 'Status Dokumen',
+                          value: lic.isActive ? 'Aktif' : 'Expired',
+                          valueColor: lic.isActive
+                              ? const Color(0xFF2E7D32)
+                              : const Color(0xFFD32F2F),
+                        ),
+                        if ((lic.submittedAt ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.access_time,
+                            label: 'Tanggal Pengajuan',
+                            value: _formatDetailDate(
+                              lic.submittedAt,
+                              includeTime: true,
+                            ),
+                          ),
+                        ],
+                        if ((lic.reviewedAt ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.history,
+                            label: 'Tanggal Review',
+                            value: _formatDetailDate(
+                              lic.reviewedAt,
+                              includeTime: true,
+                            ),
+                          ),
+                        ],
+                        if ((lic.rejectionReason ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEBEE),
+                              borderRadius: BorderRadius.circular(10),
+                              border:
+                                  Border.all(color: const Color(0xFFFFCDD2)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: Color(0xFFC62828),
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Alasan Penolakan',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: Color(0xFFC62828),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        lic.rejectionReason!.trim(),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFFC62828),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ReportStyleDetailCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const ReportStyleSectionHeader(
+                          icon: Icons.shield_outlined,
+                          title: 'Detail Izin',
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.event_outlined,
+                          label: 'Tanggal Diperoleh',
+                          value: _formatDetailDate(lic.obtainedAt),
+                        ),
+                        const SizedBox(height: 12),
+                        ReportStyleDetailRow(
+                          icon: Icons.event_busy_outlined,
+                          label: 'Berlaku Sampai',
+                          value: _formatDetailDate(lic.expiredAt),
+                          valueColor:
+                              isExpired ? const Color(0xFFF44336) : null,
+                        ),
+                        if (renewalHint != null) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.timer_outlined,
+                            label: 'Perpanjangan',
+                            value: renewalHint,
+                            valueColor: state.key ==
+                                    _MinePermitStateKey.approvedRenewable
+                                ? const Color(0xFFE65100)
+                                : null,
+                          ),
+                        ],
                       ],
                     ),
                   ),

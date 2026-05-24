@@ -1686,12 +1686,17 @@ class _InboxScreenState extends State<InboxScreen>
     if (!mounted) return false;
 
     if (response.success) {
-      await UiUtils.showSuccessPopup(
-        context,
-        approve
-            ? 'Pengajuan berhasil disetujui.'
-            : 'Pengajuan berhasil ditolak.',
-      );
+      final isMinePermit =
+          item.itemType == InboxItemType.approvalLicense &&
+              item.itemLicenseType == 'mine_permit';
+      final successMessage = approve
+          ? (isMinePermit
+              ? 'Mine Permit berhasil disetujui dan diaktifkan.'
+              : 'Pengajuan berhasil disetujui.')
+          : (isMinePermit
+              ? 'Pengajuan Mine Permit berhasil ditolak.'
+              : 'Pengajuan berhasil ditolak.');
+      await UiUtils.showSuccessPopup(context, successMessage);
       return true;
     }
 
@@ -1712,43 +1717,152 @@ class _InboxScreenState extends State<InboxScreen>
     String formatPayload(DateTime date) =>
         '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
+    Widget buildFieldLabel(String label) => Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: Colors.black87,
+            ),
+          ),
+        );
+
+    Widget buildDateField({
+      required IconData leadingIcon,
+      required DateTime value,
+      required VoidCallback onTap,
+    }) =>
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+            ),
+            child: Row(
+              children: [
+                Icon(leadingIcon,
+                    size: 20, color: const Color(0xFF1A56C4)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _formatDate(value),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Icon(Icons.calendar_month_outlined,
+                    size: 18, color: Colors.grey.shade500),
+              ],
+            ),
+          ),
+        );
+
+    Future<DateTime?> pickDate({
+      required BuildContext ctx,
+      required DateTime initialDate,
+      required DateTime firstDate,
+      required DateTime lastDate,
+    }) =>
+        showDatePicker(
+          context: ctx,
+          initialDate: initialDate,
+          firstDate: firstDate,
+          lastDate: lastDate,
+          builder: (themeCtx, child) => Theme(
+            data: Theme.of(themeCtx).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: Color(0xFF1A56C4),
+                onPrimary: Colors.white,
+                surface: Colors.white,
+                onSurface: Colors.black87,
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF1A56C4),
+                ),
+              ),
+            ),
+            child: child!,
+          ),
+        );
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Approval Mine Permit'),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          title: const Row(
+            children: [
+              Icon(Icons.verified_user_outlined,
+                  color: Color(0xFF1A56C4), size: 22),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Approval Mine Permit',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event_available_outlined),
-                title: const Text('Tanggal Rilis'),
-                subtitle: Text(_formatDate(releaseDate!)),
+              buildFieldLabel('Tanggal Rilis'),
+              buildDateField(
+                leadingIcon: Icons.event_available_outlined,
+                value: releaseDate!,
                 onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
+                  final picked = await pickDate(
+                    ctx: context,
                     initialDate: releaseDate!,
                     firstDate: DateTime.now()
                         .subtract(const Duration(days: 365 * 5)),
-                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 10)),
                   );
                   if (picked != null) {
-                    setDialogState(() => releaseDate = picked);
+                    setDialogState(() {
+                      releaseDate = picked;
+                      if (expiredDate!.isBefore(picked)) {
+                        expiredDate = picked.add(const Duration(days: 365));
+                      }
+                    });
                   }
                 },
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.event_busy_outlined),
-                title: const Text('Tanggal Expired'),
-                subtitle: Text(_formatDate(expiredDate!)),
+              const SizedBox(height: 14),
+              buildFieldLabel('Tanggal Expired'),
+              buildDateField(
+                leadingIcon: Icons.event_busy_outlined,
+                value: expiredDate!,
                 onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
+                  final picked = await pickDate(
+                    ctx: context,
                     initialDate: expiredDate!,
                     firstDate: releaseDate!,
-                    lastDate: DateTime.now().add(const Duration(days: 365 * 10)),
+                    lastDate:
+                        DateTime.now().add(const Duration(days: 365 * 10)),
                   );
                   if (picked != null) {
                     setDialogState(() => expiredDate = picked);
@@ -1760,11 +1874,27 @@ class _InboxScreenState extends State<InboxScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey.shade700,
+              ),
               child: const Text('Batal'),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Setujui'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A56C4),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 12),
+              ),
+              child: const Text(
+                'Setujui',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
