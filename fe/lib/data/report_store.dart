@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/report.dart';
+import '../services/api_service.dart';
 import '../services/cloud_save_service.dart';
 import '../services/profile_service.dart';
 import '../services/report_service.dart';
@@ -54,6 +55,14 @@ class ReportStore {
     if (_isRefreshing) return;
     _isRefreshing = true;
     try {
+      final cached = await ReportService.getReports(
+        perPage: 100,
+        cachePolicy: ApiCachePolicy.cacheOnly,
+      );
+      if (cached.success && cached.reports.isNotEmpty) {
+        reports.value = cached.reports;
+      }
+
       final result = await ReportService.getReports(perPage: 100);
       if (!result.success) {
         throw Exception(result.errorMessage ?? 'Gagal memuat laporan.');

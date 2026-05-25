@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/announcement.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
 
 class AnnouncementRefreshNotifier extends ChangeNotifier {
   void refresh() {
@@ -16,10 +17,17 @@ class AnnouncementService {
   static final AnnouncementRefreshNotifier refreshNotifier =
       AnnouncementRefreshNotifier();
 
-  static Future<List<Announcement>> getAnnouncements({int page = 1}) async {
+  static Future<List<Announcement>> getAnnouncements({
+    int page = 1,
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkFirst,
+  }) async {
     try {
       final response =
-          await ApiService.get('/announcements?per_page=100&page=$page');
+          await ApiService.get(
+        '/announcements?per_page=100&page=$page',
+        cachePolicy: cachePolicy,
+        cacheGroup: OfflineCacheGroups.announcements,
+      );
       if (!response.success || response.data is! Map) {
         return [];
       }
@@ -60,6 +68,8 @@ class AnnouncementService {
         files,
       );
       if (response.success) {
+        await OfflineCacheService.clearGroup(OfflineCacheGroups.announcements);
+        await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
         refreshNotifier.refresh();
       }
       return response.success;

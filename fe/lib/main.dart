@@ -10,7 +10,9 @@ import 'app_globals.dart';
 import 'config/supabase_config.dart';
 import 'services/announcement_service.dart';
 import 'services/background_sync_service.dart';
+import 'services/cache_refresh_service.dart';
 import 'services/idle_timeout_service.dart';
+import 'services/offline_cache_service.dart';
 import 'services/qr_service.dart';
 import 'services/storage_service.dart';
 import 'screens/splash_screen.dart';
@@ -60,11 +62,13 @@ void main() async {
     systemNavigationBarDividerColor: Colors.black,
   ));
   await SharedPreferences.getInstance();
+  await OfflineCacheService.init();
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
   );
   await BackgroundSyncService.instance.start();
+  await CacheRefreshService.instance.start();
 
   runApp(const BBEApp());
 }

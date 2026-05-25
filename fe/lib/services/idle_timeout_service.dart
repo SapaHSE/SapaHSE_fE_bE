@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/session_expired_dialog.dart';
+import 'offline_cache_service.dart';
 import 'storage_service.dart';
 
 class IdleTimeoutService {
@@ -90,6 +91,7 @@ class IdleTimeoutService {
 
   Future<void> _triggerTimeout() async {
     await stop();
+    await OfflineCacheService.clearCurrentUserCache();
     await StorageService.clear();
     await showSessionExpiredDialog(reason: SessionEndReason.idleTimeout);
   }

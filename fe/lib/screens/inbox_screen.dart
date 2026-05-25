@@ -226,6 +226,15 @@ class _InboxScreenState extends State<InboxScreen>
       _loadingReports = true;
       _errorReports = null;
     });
+    final cached = await InboxService.fetchInbox(
+      type: 'personal',
+      search: _searchQuery.isEmpty ? null : _searchQuery,
+      perPage: 100,
+      cachePolicy: ApiCachePolicy.cacheOnly,
+    );
+    if (mounted && cached.success && cached.items.isNotEmpty) {
+      setState(() => _reports = cached.items);
+    }
     final result = await InboxService.fetchInbox(
       type: 'personal',
       search: _searchQuery.isEmpty ? null : _searchQuery,
@@ -247,6 +256,15 @@ class _InboxScreenState extends State<InboxScreen>
       _loadingAnnouncements = true;
       _errorAnnouncements = null;
     });
+    final cached = await InboxService.fetchInbox(
+      type: 'announcement',
+      search: _searchQuery.isEmpty ? null : _searchQuery,
+      perPage: 100,
+      cachePolicy: ApiCachePolicy.cacheOnly,
+    );
+    if (mounted && cached.success && cached.items.isNotEmpty) {
+      setState(() => _announcements = cached.items);
+    }
     final result = await InboxService.fetchInbox(
       type: 'announcement',
       search: _searchQuery.isEmpty ? null : _searchQuery,
@@ -269,6 +287,39 @@ class _InboxScreenState extends State<InboxScreen>
       _loadingMyReports = true;
       _errorMyReports = null;
     });
+
+    final cachedResults = await Future.wait([
+      ReportService.getReports(cachePolicy: ApiCachePolicy.cacheOnly),
+      CloudSaveService.instance.getDrafts(),
+      ProfileService.getLicenses(cachePolicy: ApiCachePolicy.cacheOnly),
+      ProfileService.getCertifications(cachePolicy: ApiCachePolicy.cacheOnly),
+    ]);
+    if (mounted) {
+      final reportResult = cachedResults[0] as ReportListResult;
+      final drafts = cachedResults[1] as List<ReportDraft>;
+      final licensesResult = cachedResults[2] as LicensesResult;
+      final certificationsResult = cachedResults[3] as CertificationsResult;
+      if (reportResult.success ||
+          drafts.isNotEmpty ||
+          licensesResult.success ||
+          certificationsResult.success) {
+        setState(() {
+          _myDrafts = drafts;
+          _draftById
+            ..clear()
+            ..addEntries(drafts.map((d) => MapEntry(d.id, d)));
+          if (reportResult.success) {
+            _myRawReports = reportResult.reports
+                .where((r) => r.reporterId == _currentUserId)
+                .toList();
+          }
+          if (licensesResult.success) _myLicenses = licensesResult.licenses;
+          if (certificationsResult.success) {
+            _myCertifications = certificationsResult.certifications;
+          }
+        });
+      }
+    }
 
     final results = await Future.wait([
       ReportService.getReports(),

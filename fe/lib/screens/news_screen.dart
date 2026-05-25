@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:async';
 import '../data/news_data.dart';
+import '../services/api_service.dart';
 import '../services/news_service.dart';
 import '../services/storage_service.dart';
 import 'news_detail_screen.dart';
@@ -87,6 +88,19 @@ class _NewsScreenState extends State<NewsScreen> {
     });
 
     final isScheduledFilter = _selectedCategory == kScheduledFilterValue;
+    final cached = await NewsService.getNews(
+      onlyScheduled: isScheduledFilter,
+      includeScheduled: _isAdmin && !isScheduledFilter,
+      cachePolicy: ApiCachePolicy.cacheOnly,
+    );
+    if (mounted && cached.success && cached.articles.isNotEmpty) {
+      setState(() {
+        _articles = cached.articles;
+        _isLoading = false;
+      });
+      _startCarousel();
+    }
+
     final result = await NewsService.getNews(
       onlyScheduled: isScheduledFilter,
       includeScheduled: _isAdmin && !isScheduledFilter,

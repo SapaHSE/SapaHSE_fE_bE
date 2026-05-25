@@ -2,6 +2,7 @@ import '../config/supabase_config.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
 import 'idle_timeout_service.dart';
+import 'offline_cache_service.dart';
 import 'storage_service.dart';
 import 'supabase_storage_service.dart';
 
@@ -112,6 +113,7 @@ class AuthService {
       await ApiService.post('/logout', {}).timeout(const Duration(seconds: 5));
     } catch (_) {}
     await IdleTimeoutService.instance.stop();
+    await OfflineCacheService.clearCurrentUserCache();
     await StorageService.clear();
   }
 

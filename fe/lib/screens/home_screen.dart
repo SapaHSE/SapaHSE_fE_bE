@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../models/report.dart';
 import '../data/news_data.dart';
+import '../services/api_service.dart';
 import '../services/news_service.dart';
 import '../models/announcement.dart';
 import '../services/announcement_service.dart';
@@ -116,10 +117,32 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
   }
 
   Future<void> _loadCarouselData() async {
+    final cachedNews =
+        await NewsService.getNews(cachePolicy: ApiCachePolicy.cacheOnly);
+    final cachedAnnouncements = await AnnouncementService.getAnnouncements(
+      cachePolicy: ApiCachePolicy.cacheOnly,
+    );
+    if (mounted &&
+        (cachedNews.success || cachedAnnouncements.isNotEmpty)) {
+      _applyCarouselData(cachedNews, cachedAnnouncements);
+    }
+
     final newsResult = await NewsService.getNews();
     final announcements = await AnnouncementService.getAnnouncements();
     if (!mounted) return;
 
+    _applyCarouselData(newsResult, announcements);
+    await _checkUrgentAnnouncement(announcements);
+
+    if (_carouselItems.isNotEmpty) {
+      _startCarousel();
+    }
+  }
+
+  void _applyCarouselData(
+    NewsListResult newsResult,
+    List<Announcement> announcements,
+  ) {
     final merged = <Object>[];
     if (newsResult.success) {
       merged.addAll(newsResult.articles);
@@ -131,12 +154,6 @@ class _HomeScreenState extends State<HomeScreen> with RouteAware {
       _currentPage = 0;
       _carouselItems = merged.take(3).toList();
     });
-
-    await _checkUrgentAnnouncement(announcements);
-
-    if (_carouselItems.isNotEmpty) {
-      _startCarousel();
-    }
   }
 
   DateTime _carouselDate(Object item) {

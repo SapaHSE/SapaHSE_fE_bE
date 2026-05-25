@@ -1,9 +1,14 @@
 import '../models/inbox_item.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
 
 class ApprovalService {
   static Future<List<InboxItem>> getPendingApprovalItems() async {
-    final response = await ApiService.get('/inbox?type=personal&per_page=100');
+    final response = await ApiService.get(
+      '/inbox?type=personal&per_page=100',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.inbox,
+    );
     final items = _parseApprovalItems(response);
     return items.where((item) {
       final status = (item.approvalStatus ?? 'pending').toLowerCase();
@@ -15,13 +20,19 @@ class ApprovalService {
   static Future<List<InboxItem>> getApprovalHistoryItems() async {
     final response = await ApiService.get(
       '/admin/document-approvals?status=history&per_page=100',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.inbox,
     );
     final items = _parseApprovalItems(response);
     return items.where(_isDocumentApproval).toList();
   }
 
   static Future<List<Map<String, dynamic>>> getPendingApprovals() async {
-    final response = await ApiService.get('/inbox?type=personal&per_page=100');
+    final response = await ApiService.get(
+      '/inbox?type=personal&per_page=100',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.inbox,
+    );
     if (!response.success) {
       throw Exception(response.errorMessage ?? 'Gagal memuat approval.');
     }
@@ -66,51 +77,76 @@ class ApprovalService {
     };
   }
 
-  static Future<ApiResponse> approveRegistration(String id) {
-    return ApiService.put('/admin/users/$id/approve', {});
+  static Future<ApiResponse> approveRegistration(String id) async {
+    final response = await ApiService.put('/admin/users/$id/approve', {});
+    await _clearApprovalCachesIfSuccess(response);
+    return response;
   }
 
-  static Future<ApiResponse> rejectRegistration(String id, String reason) {
-    return ApiService.post('/admin/users/$id/reject', {
+  static Future<ApiResponse> rejectRegistration(String id, String reason) async {
+    final response = await ApiService.post('/admin/users/$id/reject', {
       'reason': reason.trim(),
     });
+    await _clearApprovalCachesIfSuccess(response);
+    return response;
   }
 
   static Future<ApiResponse> approveLicense(
     String id, {
     String? obtainedAt,
     String? expiredAt,
-  }) {
-    return ApiService.put('/admin/licenses/$id/approve', {
+  }) async {
+    final response = await ApiService.put('/admin/licenses/$id/approve', {
       if (obtainedAt != null) 'obtained_at': obtainedAt,
       if (expiredAt != null) 'expired_at': expiredAt,
     });
+    await _clearApprovalCachesIfSuccess(response);
+    return response;
   }
 
-  static Future<ApiResponse> rejectLicense(String id, String reason) {
-    return ApiService.post('/admin/licenses/$id/reject', {
+  static Future<ApiResponse> rejectLicense(String id, String reason) async {
+    final response = await ApiService.post('/admin/licenses/$id/reject', {
       'reason': reason.trim(),
     });
+    await _clearApprovalCachesIfSuccess(response);
+    return response;
   }
 
-  static Future<ApiResponse> approveCertification(String id) {
-    return ApiService.put('/admin/certifications/$id/approve', {});
+  static Future<ApiResponse> approveCertification(String id) async {
+    final response = await ApiService.put('/admin/certifications/$id/approve', {});
+    await _clearApprovalCachesIfSuccess(response);
+    return response;
   }
 
-  static Future<ApiResponse> rejectCertification(String id, String reason) {
-    return ApiService.post('/admin/certifications/$id/reject', {
+  static Future<ApiResponse> rejectCertification(String id, String reason) async {
+    final response = await ApiService.post('/admin/certifications/$id/reject', {
       'reason': reason.trim(),
     });
+    await _clearApprovalCachesIfSuccess(response);
+    return response;
   }
 
-  static Future<ApiResponse> approveProfileChange(String id) {
-    return ApiService.put('/admin/profile-change-requests/$id/approve', {});
+  static Future<ApiResponse> approveProfileChange(String id) async {
+    final response =
+        await ApiService.put('/admin/profile-change-requests/$id/approve', {});
+    await _clearApprovalCachesIfSuccess(response);
+    return response;
   }
 
-  static Future<ApiResponse> rejectProfileChange(String id, String reason) {
-    return ApiService.post('/admin/profile-change-requests/$id/reject', {
+  static Future<ApiResponse> rejectProfileChange(String id, String reason) async {
+    final response = await ApiService.post('/admin/profile-change-requests/$id/reject', {
       'reason': reason.trim(),
     });
+    await _clearApprovalCachesIfSuccess(response);
+    return response;
+  }
+
+  static Future<void> _clearApprovalCachesIfSuccess(ApiResponse response) async {
+    if (!response.success) return;
+    await Future.wait([
+      OfflineCacheService.clearGroup(OfflineCacheGroups.inbox),
+      OfflineCacheService.clearGroup(OfflineCacheGroups.profile),
+    ]);
   }
 
   static List<InboxItem> _parseApprovalItems(ApiResponse response) {

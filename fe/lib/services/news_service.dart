@@ -1,6 +1,7 @@
 import 'package:http/http.dart' as http;
 
 import 'api_service.dart';
+import 'offline_cache_service.dart';
 import '../data/news_data.dart';
 
 class NewsService {
@@ -27,6 +28,7 @@ class NewsService {
       return NewsDetailResult.error(
           response.errorMessage ?? 'Gagal menyimpan berita.');
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.news);
 
     final data = response.data['data'] as Map<String, dynamic>?;
     if (data == null) {
@@ -40,6 +42,7 @@ class NewsService {
   static Future<NewsListResult> getNews({
     bool onlyScheduled = false,
     bool includeScheduled = false,
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkFirst,
   }) async {
     final params = <String>['per_page=100'];
     if (onlyScheduled) {
@@ -47,7 +50,11 @@ class NewsService {
     } else if (includeScheduled) {
       params.add('include_scheduled=1');
     }
-    final response = await ApiService.get('/news?${params.join('&')}');
+    final response = await ApiService.get(
+      '/news?${params.join('&')}',
+      cachePolicy: cachePolicy,
+      cacheGroup: OfflineCacheGroups.news,
+    );
 
     if (!response.success) {
       return NewsListResult.error(
@@ -79,17 +86,26 @@ class NewsService {
     if (data == null) {
       return NewsDetailResult.error('Respons server tidak valid.');
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.news);
     return NewsDetailResult.success(NewsArticle.fromJson(data));
   }
 
   // DELETE /news/{id}
   static Future<ApiResponse> deleteNews(String id) async {
-    return ApiService.delete('/news/$id');
+    final response = await ApiService.delete('/news/$id');
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.news);
+    }
+    return response;
   }
 
   // GET /news/{id} — loads full article including content
   static Future<NewsDetailResult> getNewsDetail(String id) async {
-    final response = await ApiService.get('/news/$id');
+    final response = await ApiService.get(
+      '/news/$id',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.news,
+    );
 
     if (!response.success) {
       return NewsDetailResult.error(

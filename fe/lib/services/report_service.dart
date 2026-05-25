@@ -4,6 +4,7 @@ import '../config/supabase_config.dart';
 import '../models/report.dart';
 import '../utils/url_helper.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
 import 'supabase_storage_service.dart';
 
 class TaggedUser {
@@ -89,10 +90,21 @@ class ReportService {
   static const String _placeholderImage =
       'https://placehold.co/600x400?text=No+Image';
 
-  static Future<ReportListResult> getReports({int perPage = 50}) async {
+  static Future<ReportListResult> getReports({
+    int perPage = 50,
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkFirst,
+  }) async {
     final responses = await Future.wait([
-      ApiService.get('/hazard-reports?per_page=$perPage&sort=newest'),
-      ApiService.get('/inspection-reports?per_page=$perPage&sort=newest'),
+      ApiService.get(
+        '/hazard-reports?per_page=$perPage&sort=newest',
+        cachePolicy: cachePolicy,
+        cacheGroup: OfflineCacheGroups.reports,
+      ),
+      ApiService.get(
+        '/inspection-reports?per_page=$perPage&sort=newest',
+        cachePolicy: cachePolicy,
+        cacheGroup: OfflineCacheGroups.reports,
+      ),
     ]);
     final hazardRes = responses[0];
     final inspectionRes = responses[1];
@@ -196,6 +208,11 @@ class ReportService {
       return ReportActionResult.error('Respons server tidak valid.');
     }
 
+    await Future.wait([
+      OfflineCacheService.clearGroup(OfflineCacheGroups.reports),
+      OfflineCacheService.clearGroup(OfflineCacheGroups.inbox),
+    ]);
+
     return ReportActionResult.success(_mapHazardReport(rawData));
   }
 
@@ -257,6 +274,11 @@ class ReportService {
     if (rawData is! Map<String, dynamic>) {
       return ReportActionResult.error('Respons server tidak valid.');
     }
+
+    await Future.wait([
+      OfflineCacheService.clearGroup(OfflineCacheGroups.reports),
+      OfflineCacheService.clearGroup(OfflineCacheGroups.inbox),
+    ]);
 
     return ReportActionResult.success(_mapInspectionReport(rawData));
   }
@@ -331,6 +353,12 @@ class ReportService {
       return ReportActionResult.error('Respons server tidak valid.');
     }
 
+    await Future.wait([
+      OfflineCacheService.clearGroup(OfflineCacheGroups.reports),
+      OfflineCacheService.clearGroup(OfflineCacheGroups.inbox),
+      OfflineCacheService.clearGroup(OfflineCacheGroups.reportDetail),
+    ]);
+
     return ReportActionResult.success(
       report.type == ReportType.hazard
           ? _mapHazardReport(rawData)
@@ -344,7 +372,11 @@ class ReportService {
         : '/inspection-reports/$id';
     
     debugPrint('Fetching report details: $endpoint');
-    final response = await ApiService.get(endpoint);
+    final response = await ApiService.get(
+      endpoint,
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.reportDetail,
+    );
 
     if (!response.success) {
       return ReportActionResult.error(
@@ -369,7 +401,11 @@ class ReportService {
         ? '/hazard-reports/${report.id}/logs'
         : '/inspection-reports/${report.id}/logs';
 
-    final response = await ApiService.get(endpoint);
+    final response = await ApiService.get(
+      endpoint,
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.reportDetail,
+    );
 
     if (!response.success) {
       return ReportLogsResult.error(
@@ -393,7 +429,13 @@ class ReportService {
     final query = (search != null && search.trim().isNotEmpty)
         ? '?search=${Uri.encodeQueryComponent(search.trim())}'
         : '';
-    final response = await ApiService.get('/users$query');
+    final response = await ApiService.get(
+      '/users$query',
+      cachePolicy: search == null || search.trim().isEmpty
+          ? ApiCachePolicy.networkFirst
+          : ApiCachePolicy.networkOnly,
+      cacheGroup: OfflineCacheGroups.references,
+    );
     if (!response.success) return const [];
     final raw = _asList(response.data['data']);
     return raw.map((e) {
@@ -414,7 +456,11 @@ class ReportService {
     final endpoint = report.type == ReportType.hazard
         ? '/hazard-reports/${report.id}/logs/$logId/replies'
         : '/inspection-reports/${report.id}/logs/$logId/replies';
-    final response = await ApiService.get(endpoint);
+    final response = await ApiService.get(
+      endpoint,
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.reportDetail,
+    );
     if (!response.success) return const [];
     final rawList = _asList(response.data['data']);
     return rawList.map((e) => _mapTimelineReply(Map<String, dynamic>.from(e))).toList()
@@ -439,13 +485,18 @@ class ReportService {
       if (attachmentUrls.isNotEmpty) 'attachment_urls': attachmentUrls,
     });
     if (!response.success) return null;
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.reportDetail);
     final raw = response.data['data'];
     if (raw is! Map<String, dynamic>) return null;
     return _mapTimelineReply(raw);
   }
 
   static Future<List<String>> getDepartments() async {
-    final response = await ApiService.get('/departments');
+    final response = await ApiService.get(
+      '/departments',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.references,
+    );
     if (!response.success) return const [];
     final raw = _asList(response.data['data']);
     final seen = <String>{};
@@ -469,7 +520,11 @@ class ReportService {
     if (category != null && category.trim().isNotEmpty) {
       query.write('&category=${Uri.encodeQueryComponent(category.trim())}');
     }
-    final response = await ApiService.get('/companies$query');
+    final response = await ApiService.get(
+      '/companies$query',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.references,
+    );
     if (!response.success) return const [];
     final raw = _asList(response.data['data']);
     return raw
@@ -479,7 +534,11 @@ class ReportService {
   }
 
   static Future<List<HazardCategoryData>> getHazardCategories() async {
-    final response = await ApiService.get('/hazard-categories');
+    final response = await ApiService.get(
+      '/hazard-categories',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.references,
+    );
     if (!response.success) return const [];
     final raw = _asList(response.data['data']);
     return raw
@@ -528,6 +587,7 @@ class ReportService {
       if (code != null) 'code': code,
     });
     if (!response.success) return null;
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
     return _mapCategoryData(response.data['data']);
   }
 
@@ -541,17 +601,24 @@ class ReportService {
       if (code != null) 'code': code,
     });
     if (!response.success) return null;
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
     return _mapCategoryData(response.data['data']);
   }
 
   static Future<bool> deleteCategory(String id) async {
     final response = await ApiService.delete('/hazard-categories/$id');
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
+    }
     return response.success;
   }
 
   static Future<List<HazardSubcategoryData>> getPendingSubcategories() async {
-    final response =
-        await ApiService.get('/hazard-categories/subcategories/pending');
+    final response = await ApiService.get(
+      '/hazard-categories/subcategories/pending',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.references,
+    );
     if (!response.success) return const [];
     final raw = _asList(response.data['data']);
     return raw.map((e) => _mapSubcategoryData(e)).toList();
@@ -572,6 +639,7 @@ class ReportService {
       },
     );
     if (!response.success) return null;
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
     return _mapSubcategoryData(response.data['data']);
   }
 
@@ -580,6 +648,9 @@ class ReportService {
       '/hazard-categories/subcategories/$subId/approve',
       {},
     );
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
+    }
     return response.success;
   }
 
@@ -588,6 +659,9 @@ class ReportService {
       '/hazard-categories/subcategories/$subId/reject',
       {},
     );
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
+    }
     return response.success;
   }
 
@@ -609,6 +683,7 @@ class ReportService {
       },
     );
     if (!response.success) return null;
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
     return _mapSubcategoryData(response.data['data']);
   }
 
@@ -616,6 +691,9 @@ class ReportService {
     final response = await ApiService.delete(
       '/hazard-categories/$categoryId/subcategories/$subId',
     );
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
+    }
     return response.success;
   }
 
@@ -624,6 +702,9 @@ class ReportService {
       '/hazard-categories/subcategories/$subId/toggle',
       {},
     );
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
+    }
     return response.success;
   }
 

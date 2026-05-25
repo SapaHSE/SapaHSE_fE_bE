@@ -1,6 +1,7 @@
 import '../models/company_model.dart';
 import '../config/supabase_config.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
 import 'supabase_storage_service.dart';
 
 class CompanyService {
@@ -13,7 +14,12 @@ class CompanyService {
     if (category != null) params.add('category=${_normalizeCategory(category)}');
     if (params.isNotEmpty) query = '?${params.join('&')}';
 
-    final response = await ApiService.get('/companies$query', auth: false);
+    final response = await ApiService.get(
+      '/companies$query',
+      auth: false,
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.references,
+    );
     if (response.success && response.data['data'] != null) {
       final list = response.data['data'] as List;
       return list.map((e) => CompanyData.fromJson(e)).toList();
@@ -56,6 +62,7 @@ class CompanyService {
       'radio_frequency': radioFrequency ?? '',
     });
     if (response.success && response.data['data'] != null) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
       return CompanyData.fromJson(response.data['data']);
     }
     return null;
@@ -97,6 +104,7 @@ class CompanyService {
       'radio_frequency': radioFrequency ?? '',
     });
     if (response.success && response.data['data'] != null) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
       return CompanyData.fromJson(response.data['data']);
     }
     return null;
@@ -104,11 +112,17 @@ class CompanyService {
 
   static Future<bool> deleteCompany(int id) async {
     final response = await ApiService.delete('/companies/$id');
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
+    }
     return response.success;
   }
 
   static Future<bool> toggleCompanyStatus(int id) async {
     final response = await ApiService.post('/companies/$id/toggle', {});
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
+    }
     return response.success;
   }
 
@@ -121,7 +135,12 @@ class CompanyService {
     if (active != null) params.add('active=$active');
     if (params.isNotEmpty) query = '?${params.join('&')}';
 
-    final response = await ApiService.get('/areas$query', auth: false);
+    final response = await ApiService.get(
+      '/areas$query',
+      auth: false,
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.references,
+    );
     if (response.success && response.data['data'] != null) {
       final list = response.data['data'] as List;
       return list.map((e) => AreaData.fromJson(e)).toList();
@@ -144,6 +163,7 @@ class CompanyService {
       if (ids != null) 'pic_user_ids': ids,
     });
     if (response.success && response.data['data'] != null) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
       return AreaData.fromJson(response.data['data']);
     }
     return null;
@@ -165,6 +185,7 @@ class CompanyService {
       if (ids != null) 'pic_user_ids': ids,
     });
     if (response.success && response.data['data'] != null) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
       return AreaData.fromJson(response.data['data']);
     }
     return null;
@@ -172,12 +193,16 @@ class CompanyService {
 
   static Future<bool> deleteArea(int id) async {
     final response = await ApiService.delete('/areas/$id');
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
+    }
     return response.success;
   }
 
   static Future<AreaData?> toggleAreaStatus(int id) async {
     final response = await ApiService.post('/areas/$id/toggle', {});
     if (response.success && response.data['data'] != null) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
       return AreaData.fromJson(response.data['data']);
     }
     return null;

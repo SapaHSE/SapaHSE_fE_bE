@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sapahse/models/profile_model.dart';
 import 'package:sapahse/models/department_model.dart';
 import 'package:sapahse/services/company_service.dart';
+import 'package:sapahse/services/api_service.dart';
 import 'package:sapahse/services/background_sync_service.dart';
 import 'package:sapahse/services/cloud_save_service.dart';
 import 'package:sapahse/services/department_service.dart';
@@ -224,6 +225,16 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     if (mounted) {
       setState(() {
         _cachedUser = cached;
+      });
+    }
+
+    final cachedProfile = await ProfileService.getProfile(
+      cachePolicy: ApiCachePolicy.cacheOnly,
+    );
+    if (mounted && cachedProfile.success) {
+      setState(() {
+        _profileData = cachedProfile.data;
+        _isLoading = false;
       });
     }
 

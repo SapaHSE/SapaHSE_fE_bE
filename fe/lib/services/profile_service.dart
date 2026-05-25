@@ -1,14 +1,21 @@
 import '../config/supabase_config.dart';
 import 'package:image_picker/image_picker.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
 import 'storage_service.dart';
 import 'supabase_storage_service.dart';
 import '../models/profile_model.dart';
 
 class ProfileService {
-  // ── Get profile from API (always fresh) ──────────────────────────────────
-  static Future<ProfileResult> getProfile() async {
-    final response = await ApiService.get('/profile');
+  // ── Get profile from API/cache ────────────────────────────────────────────
+  static Future<ProfileResult> getProfile({
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkFirst,
+  }) async {
+    final response = await ApiService.get(
+      '/profile',
+      cachePolicy: cachePolicy,
+      cacheGroup: OfflineCacheGroups.profile,
+    );
 
     if (!response.success) {
       return ProfileResult.error(
@@ -27,7 +34,11 @@ class ProfileService {
 
   // ── Get another user's full profile by ID (read-only) ────────────────────
   static Future<ProfileResult> getUserProfileById(String userId) async {
-    final response = await ApiService.get('/users/$userId/profile');
+    final response = await ApiService.get(
+      '/users/$userId/profile',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.profile,
+    );
 
     if (!response.success) {
       return ProfileResult.error(
@@ -44,8 +55,14 @@ class ProfileService {
   }
 
   // ── Get licenses from profile ────────────────────────────────────────────────────────
-  static Future<LicensesResult> getLicenses() async {
-    final response = await ApiService.get('/profile');
+  static Future<LicensesResult> getLicenses({
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkFirst,
+  }) async {
+    final response = await ApiService.get(
+      '/profile',
+      cachePolicy: cachePolicy,
+      cacheGroup: OfflineCacheGroups.profile,
+    );
     if (!response.success) {
       return LicensesResult.error(
           response.errorMessage ?? 'Gagal memuat lisensi.');
@@ -62,8 +79,14 @@ class ProfileService {
   }
 
   // ── Get certifications from profile ──────────────────────────────────────────────
-  static Future<CertificationsResult> getCertifications() async {
-    final response = await ApiService.get('/profile');
+  static Future<CertificationsResult> getCertifications({
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkFirst,
+  }) async {
+    final response = await ApiService.get(
+      '/profile',
+      cachePolicy: cachePolicy,
+      cacheGroup: OfflineCacheGroups.profile,
+    );
     if (!response.success) {
       return CertificationsResult.error(
           response.errorMessage ?? 'Gagal memuat sertifikasi.');
@@ -80,8 +103,14 @@ class ProfileService {
   }
 
   // ── Get medicals from profile ──────────────────────────────────────────────────────
-  static Future<MedicalsResult> getMedicals() async {
-    final response = await ApiService.get('/profile');
+  static Future<MedicalsResult> getMedicals({
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkFirst,
+  }) async {
+    final response = await ApiService.get(
+      '/profile',
+      cachePolicy: cachePolicy,
+      cacheGroup: OfflineCacheGroups.profile,
+    );
     if (!response.success) {
       return MedicalsResult.error(
           response.errorMessage ?? 'Gagal memuat data medis.');
@@ -159,6 +188,8 @@ class ProfileService {
     }
 
     await StorageService.saveUser(userData);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
     return ProfileResult.success(ProfileData.fromJson(userData));
   }
 
@@ -194,6 +225,7 @@ class ProfileService {
         response.errorMessage ?? 'Gagal menyimpan data medis.',
       );
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
     return SimpleResult.success('Data medis berhasil disimpan.');
   }
 
@@ -243,6 +275,8 @@ class ProfileService {
         response.errorMessage ?? 'Gagal menambah lisensi.',
       );
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
     return SimpleResult.success('Lisensi berhasil ditambahkan.');
   }
 
@@ -292,6 +326,8 @@ class ProfileService {
         response.errorMessage ?? 'Gagal memperbarui lisensi.',
       );
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
     return SimpleResult.success('Lisensi berhasil diperbarui.');
   }
 
@@ -302,6 +338,8 @@ class ProfileService {
         response.errorMessage ?? 'Gagal mengajukan Mine Permit.',
       );
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
     return SimpleResult.success(
       response.data['message']?.toString() ??
           'Pengajuan Mine Permit berhasil dikirim.',
@@ -347,6 +385,8 @@ class ProfileService {
         response.errorMessage ?? 'Gagal menambah sertifikasi.',
       );
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
     return SimpleResult.success('Sertifikasi berhasil ditambahkan.');
   }
 
@@ -389,6 +429,8 @@ class ProfileService {
         response.errorMessage ?? 'Gagal memperbarui sertifikasi.',
       );
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
     return SimpleResult.success('Sertifikasi berhasil diperbarui.');
   }
 
@@ -400,6 +442,8 @@ class ProfileService {
         response.errorMessage ?? 'Gagal menghapus lisensi.',
       );
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
     return SimpleResult.success('Lisensi berhasil dihapus.');
   }
 
@@ -411,12 +455,18 @@ class ProfileService {
         response.errorMessage ?? 'Gagal menghapus sertifikasi.',
       );
     }
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.profile);
+    await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
     return SimpleResult.success('Sertifikasi berhasil dihapus.');
   }
 
   // ── Profile Change Requests ────────────────────────────────────────────────
   static Future<ApiResponse> getProfileChangeRequests() async {
-    return ApiService.get('/profile/change-requests');
+    return ApiService.get(
+      '/profile/change-requests',
+      cachePolicy: ApiCachePolicy.networkFirst,
+      cacheGroup: OfflineCacheGroups.profile,
+    );
   }
 
   static Future<ApiResponse> approveProfileChange(String id) {

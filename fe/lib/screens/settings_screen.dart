@@ -7,6 +7,7 @@ import '../services/profile_service.dart';
 import '../services/storage_service.dart';
 import '../services/announcement_service.dart';
 import '../services/background_sync_service.dart';
+import '../services/offline_cache_service.dart';
 import '../services/push_notification_service.dart';
 import 'login_screen.dart';
 import '../main.dart';
@@ -95,7 +96,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _clearLocalStorage() async {
-    if (kIsWeb) return;
+    await OfflineCacheService.clearAll();
+    if (kIsWeb) {
+      await _loadSettings();
+      return;
+    }
     try {
       final tempDir = await getTemporaryDirectory();
       if (tempDir.existsSync()) {
@@ -1069,6 +1074,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                                 if (result.success) {
                                   Navigator.pop(context);
+                                  await OfflineCacheService
+                                      .clearCurrentUserCache();
                                   await StorageService.clear();
                                   if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1168,6 +1175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text('Batal')),
           ElevatedButton(
             onPressed: () async {
+              await OfflineCacheService.clearCurrentUserCache();
               await StorageService.clear();
               if (!context.mounted) return;
               Navigator.pushAndRemoveUntil(

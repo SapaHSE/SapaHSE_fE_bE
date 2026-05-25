@@ -1,9 +1,17 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../widgets/session_expired_dialog.dart';
 import 'idle_timeout_service.dart';
+import 'offline_cache_service.dart';
 import 'storage_service.dart';
+
+enum ApiCachePolicy {
+  networkOnly,
+  cacheOnly,
+  networkFirst,
+}
 
 class ApiService {
   // ── Base URL ─────────────────────────────────────────────────────────────
@@ -25,7 +33,16 @@ class ApiService {
   }
 
   // ── GET ───────────────────────────────────────────────────────────────────
-  static Future<ApiResponse> get(String endpoint, {bool auth = true}) async {
+  static Future<ApiResponse> get(
+    String endpoint, {
+    bool auth = true,
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkOnly,
+    String? cacheGroup,
+  }) async {
+    if (cachePolicy == ApiCachePolicy.cacheOnly) {
+      return _cachedGetResponse(endpoint);
+    }
+
     try {
       final response = await http
           .get(
@@ -33,14 +50,67 @@ class ApiService {
             headers: await _headers(auth: auth),
           )
           .timeout(const Duration(seconds: 30));
-      return await _handleResponse(response);
+      final handled = await _handleResponse(response);
+      if (handled.success &&
+          cachePolicy == ApiCachePolicy.networkFirst &&
+          cacheGroup != null) {
+        await OfflineCacheService.saveGet(
+          endpoint: endpoint,
+          payload: handled.data,
+          group: cacheGroup,
+        );
+      }
+      return handled;
     } on SocketException {
+      if (cachePolicy == ApiCachePolicy.networkFirst) {
+        return _cachedGetResponse(
+          endpoint,
+          fallbackMessage: 'No internet connection',
+        );
+      }
       return ApiResponse.error('No internet connection');
+    } on TimeoutException {
+      if (cachePolicy == ApiCachePolicy.networkFirst) {
+        return _cachedGetResponse(
+          endpoint,
+          fallbackMessage: 'Connection timed out',
+        );
+      }
+      return ApiResponse.error('Connection timed out');
     } on HttpException {
+      if (cachePolicy == ApiCachePolicy.networkFirst) {
+        return _cachedGetResponse(
+          endpoint,
+          fallbackMessage: 'Server error. Please try again.',
+        );
+      }
       return ApiResponse.error('Server error. Please try again.');
     } catch (e) {
+      if (cachePolicy == ApiCachePolicy.networkFirst) {
+        return _cachedGetResponse(
+          endpoint,
+          fallbackMessage: 'Unexpected error: $e',
+        );
+      }
       return ApiResponse.error('Unexpected error: $e');
     }
+  }
+
+  static Future<ApiResponse> _cachedGetResponse(
+    String endpoint, {
+    String? fallbackMessage,
+  }) async {
+    final cached = await OfflineCacheService.loadGet(endpoint);
+    if (cached == null) {
+      return ApiResponse.error(
+        fallbackMessage ?? 'Data cache tidak tersedia.',
+      );
+    }
+    return ApiResponse.success(
+      cached.payload,
+      fromCache: true,
+      cachedAt: cached.savedAt,
+    );
   }
 
   // ── POST ──────────────────────────────────────────────────────────────────
@@ -186,6 +256,7 @@ class ApiService {
       final hasToken = await StorageService.hasStoredToken();
       if (hasToken) {
         await IdleTimeoutService.instance.stop();
+        await OfflineCacheService.clearCurrentUserCache();
         await StorageService.clear();
         await showSessionExpiredDialog(message: body['message'] as String?);
       }
@@ -222,16 +293,29 @@ class ApiResponse {
   final dynamic data;
   final String? errorMessage;
   final int? statusCode;
+  final bool fromCache;
+  final DateTime? cachedAt;
 
   ApiResponse._({
     required this.success,
     this.data,
     this.errorMessage,
     this.statusCode,
+    this.fromCache = false,
+    this.cachedAt,
   });
 
-  factory ApiResponse.success(dynamic data) =>
-      ApiResponse._(success: true, data: data);
+  factory ApiResponse.success(
+    dynamic data, {
+    bool fromCache = false,
+    DateTime? cachedAt,
+  }) =>
+      ApiResponse._(
+        success: true,
+        data: data,
+        fromCache: fromCache,
+        cachedAt: cachedAt,
+      );
 
   factory ApiResponse.error(String message, {int? statusCode}) => ApiResponse._(
       success: false, errorMessage: message, statusCode: statusCode);

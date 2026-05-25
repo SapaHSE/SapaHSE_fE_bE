@@ -1,5 +1,6 @@
 import '../models/inbox_item.dart';
 import 'api_service.dart';
+import 'offline_cache_service.dart';
 
 class InboxListResult {
   final bool success;
@@ -57,6 +58,7 @@ class InboxService {
     String? search,
     int perPage = 50,
     int page = 1,
+    ApiCachePolicy cachePolicy = ApiCachePolicy.networkFirst,
   }) async {
     final params = <String, String>{
       'type': type,
@@ -73,7 +75,25 @@ class InboxService {
             '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
         .join('&');
 
-    final response = await ApiService.get('/inbox?$query');
+    var response = await ApiService.get(
+      '/inbox?$query',
+      cachePolicy: cachePolicy,
+      cacheGroup: OfflineCacheGroups.inbox,
+    );
+    final localSearch = !response.success &&
+        search != null &&
+        search.trim().isNotEmpty;
+    if (localSearch) {
+      final fallbackParams = Map<String, String>.from(params)..remove('search');
+      final fallbackQuery = fallbackParams.entries
+          .map((e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+          .join('&');
+      response = await ApiService.get(
+        '/inbox?$fallbackQuery',
+        cachePolicy: ApiCachePolicy.cacheOnly,
+      );
+    }
     if (!response.success) {
       return InboxListResult.error(
         response.errorMessage ?? 'Gagal memuat inbox.',
@@ -93,6 +113,13 @@ class InboxService {
     final items = itemsList
         .whereType<Map>()
         .map((m) => InboxItem.fromJson(Map<String, dynamic>.from(m)))
+        .where((item) {
+          if (!localSearch) return true;
+          final q = search.trim().toLowerCase();
+          return item.title.toLowerCase().contains(q) ||
+              (item.description ?? '').toLowerCase().contains(q) ||
+              (item.location ?? '').toLowerCase().contains(q);
+        })
         .toList();
 
     int asInt(dynamic v, [int fallback = 0]) {
@@ -119,13 +146,21 @@ class InboxService {
     required String itemId,
     required String itemType,
   }) async {
-    return ApiService.post('/inbox/read', {
+    final response = await ApiService.post('/inbox/read', {
       'item_id': itemId,
       'item_type': itemType,
     });
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
+    }
+    return response;
   }
 
   static Future<ApiResponse> markAllRead() async {
-    return ApiService.post('/inbox/read-all', {});
+    final response = await ApiService.post('/inbox/read-all', {});
+    if (response.success) {
+      await OfflineCacheService.clearGroup(OfflineCacheGroups.inbox);
+    }
+    return response;
   }
 }
