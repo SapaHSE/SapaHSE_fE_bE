@@ -121,7 +121,6 @@ class CompanyDetailData {
   final String? kttUserId;
   final CompanyKttUserData? kttUser;
   final String? emergencyNumber;
-  final String? ertFreq;
   final String? radioLabel;
   final String? radioChannel;
   final String? radioFrequency;
@@ -138,7 +137,6 @@ class CompanyDetailData {
     this.kttUserId,
     this.kttUser,
     this.emergencyNumber,
-    this.ertFreq,
     this.radioLabel,
     this.radioChannel,
     this.radioFrequency,
@@ -164,7 +162,6 @@ class CompanyDetailData {
           ? CompanyKttUserData.fromJson(Map<String, dynamic>.from(kttUserRaw))
           : null,
       emergencyNumber: json['emergency_number']?.toString(),
-      ertFreq: json['ert_freq']?.toString(),
       radioLabel: json['radio_label']?.toString(),
       radioChannel: json['radio_channel']?.toString(),
       radioFrequency: json['radio_frequency']?.toString(),

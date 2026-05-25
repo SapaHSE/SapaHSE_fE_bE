@@ -126,14 +126,15 @@ class _MinePermitFrontPreview extends StatelessWidget {
                 'MINE PERMIT',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
+                  letterSpacing: 1.4,
                 ),
               ),
             ),
           ),
           Positioned(
-            left: 24,
+            left: 18,
             top: 103,
             child: Container(
               width: 98,
@@ -154,9 +155,9 @@ class _MinePermitFrontPreview extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 130,
+            left: 124,
             top: 104,
-            right: 16,
+            right: 14,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -175,13 +176,13 @@ class _MinePermitFrontPreview extends StatelessWidget {
             ),
           ),
           const Positioned(
-            left: 38,
-            top: 254,
+            left: 28,
+            top: 248,
             child: _AccessTypePreview(),
           ),
           Positioned(
             left: 22,
-            bottom: 22,
+            bottom: 25,
             child: _MiniSignaturePreview(profile: profile),
           ),
           const Positioned(
@@ -193,7 +194,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _MiniCounterPreview('VIOLATION'),
-                  SizedBox(width: 20),
+                  SizedBox(width: 34),
                   _MiniCounterPreview('INCIDENT'),
                 ],
               ),
@@ -218,7 +219,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
                 Text(
                   IdCardPdfService.formatExpiry(minePermit.expiredAt),
                   style: const TextStyle(
-                    color: Color(0xFF245A9C),
+                    color: Color(0xFF2F73C8),
                     fontSize: 7,
                     fontWeight: FontWeight.bold,
                   ),
@@ -233,7 +234,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
 
   static Widget _frontInfo(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
+      padding: const EdgeInsets.only(bottom: 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -249,11 +250,11 @@ class _MinePermitFrontPreview extends StatelessWidget {
           ),
           Text(
             value.trim().isEmpty ? '-' : value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            softWrap: true,
             style: const TextStyle(
               color: Color(0xFF303744),
-              fontSize: 7.7,
+              fontSize: 7.4,
               fontWeight: FontWeight.bold,
               height: 1.05,
             ),
@@ -336,6 +337,8 @@ class _MinePermitBackPreview extends StatelessWidget {
         profile.companyDetail?.name ?? profile.company ?? 'perusahaan';
     final emergencyNumber = _companyEmergencyNumberText(profile);
     final radioContact = _companyRadioText(profile);
+    final simperLicenseNumber =
+        IdCardPdfService.firstActiveSimperLicenseNumber(profile);
 
     return _PreviewCardFrame(
       width: width,
@@ -356,21 +359,37 @@ class _MinePermitBackPreview extends StatelessWidget {
             ),
           ),
           Positioned(
+            left: 12,
+            right: 12,
+            top: 30,
+            child: Text(
+              simperLicenseNumber,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF303744),
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Positioned(
             left: 5,
             right: 5,
-            top: 68,
+            top: 62,
             child: _previewTable(rows),
           ),
           Positioned(
             left: 5,
             right: 5,
-            top: 229,
-            child: Container(height: 1, color: Colors.grey.shade400),
+            top: 219,
+            child: Container(height: 1, color: Colors.black),
           ),
           Positioned(
             left: 6,
             right: 6,
-            top: 232,
+            top: 220,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -427,12 +446,12 @@ class _MinePermitBackPreview extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF303744),
-                      fontSize: 7.8,
+                      fontSize: 9.8,
                       fontWeight: FontWeight.bold,
                       height: 0.95,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 6),
                   Text(
                     radioContact,
                     textAlign: TextAlign.center,
@@ -440,7 +459,7 @@ class _MinePermitBackPreview extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF303744),
-                      fontSize: 7.4,
+                      fontSize: 9.4,
                       fontWeight: FontWeight.bold,
                       height: 0.95,
                     ),
@@ -482,12 +501,11 @@ class _MinePermitBackPreview extends StatelessWidget {
     return [
       profile.companyDetail?.radioLabel,
       profile.companyDetail?.radioChannel,
-      profile.companyDetail?.radioFrequency ??
-          profile.companyDetail?.ertFreq,
+      profile.companyDetail?.radioFrequency,
     ]
         .map((value) => value?.trim() ?? '')
         .where((value) => value.isNotEmpty)
-        .join(' ');
+        .join('-');
   }
 
   static Widget _previewTable(List<MinePermitTableRow> rows) {
@@ -504,7 +522,7 @@ class _MinePermitBackPreview extends StatelessWidget {
         const TableRow(
           decoration: BoxDecoration(color: Color(0xFF2F73C8)),
           children: [
-            _PreviewHeader(''),
+            _PreviewHeader('TYPE'),
             _PreviewHeader('VEHICLE / EQUIPMENT'),
             _PreviewHeader('LIC'),
             _PreviewHeader('EXP DATE'),
@@ -578,7 +596,7 @@ class _MiniCounterPreview extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              color: Color(0xFF245A9C),
+              color: Color(0xFF2F73C8),
               fontSize: 8,
               fontWeight: FontWeight.bold,
             ),
@@ -618,21 +636,21 @@ class _MiniSignaturePreview extends StatelessWidget {
         _defaultKttNameForOwner(profile.company);
 
     return SizedBox(
-      width: 92,
+      width: 98,
       child: Column(
         children: [
           const Text(
             'Disahkan oleh,',
             style: TextStyle(
-              color: Color(0xFF245A9C),
-              fontSize: 7,
+              color: Color(0xFF2F73C8),
+              fontSize: 8,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
           SizedBox(
             width: 70,
-            height: 14,
+            height: 13,
             child: Row(
               children: [
                 Expanded(
@@ -651,15 +669,21 @@ class _MiniSignaturePreview extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 14),
           Text(
             kttName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 6.2, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 1),
           const Text(
             'Kepala Teknik Tambang',
-            style: TextStyle(fontSize: 5.8, fontStyle: FontStyle.italic),
+            style: TextStyle(
+              color: Color(0xFF2F73C8),
+              fontSize: 6,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -694,17 +718,18 @@ class _AccessTypePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 70,
+      width: 90,
       child: Column(
         children: [
           const Text(
             'ACCESS TYPE',
             style: TextStyle(
-              color: Color(0xFF245A9C),
-              fontSize: 5.6,
+              color: Color(0xFF2F73C8),
+              fontSize: 6.8,
               fontWeight: FontWeight.bold,
             ),
           ),
+          const SizedBox(height: 2),
           Table(
             border: TableBorder.all(
               color: Colors.black,
@@ -752,7 +777,7 @@ class _AccessTypeCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 7.2,
+      height: 7.4,
       child: Center(
         child: Text(
           text,
@@ -760,7 +785,7 @@ class _AccessTypeCell extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: const TextStyle(
-            fontSize: 5.2,
+            fontSize: 6.2,
             fontWeight: FontWeight.bold,
             height: 1,
           ),
@@ -782,7 +807,7 @@ Widget _rulePreview(String number, String text) {
             '$number.',
             style: const TextStyle(
               color: Color(0xFF303744),
-              fontSize: 7.1,
+              fontSize: 7.8,
               height: 1.05,
             ),
           ),
@@ -794,7 +819,7 @@ Widget _rulePreview(String number, String text) {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF303744),
-              fontSize: 7.1,
+              fontSize: 7.8,
               height: 1.05,
             ),
           ),
@@ -830,7 +855,7 @@ class _PreviewHeader extends StatelessWidget {
         textAlign: TextAlign.center,
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 5.8,
+          fontSize: 5.6,
           fontWeight: FontWeight.bold,
         ),
       ),

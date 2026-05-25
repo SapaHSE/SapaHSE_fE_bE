@@ -189,7 +189,6 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
                   kttUserId: currentCompany.kttUserId,
                   kttUser: currentCompany.kttUser,
                   emergencyNumber: currentCompany.emergencyNumber,
-                  ertFreq: currentCompany.ertFreq,
                   radioLabel: currentCompany.radioLabel,
                   radioChannel: currentCompany.radioChannel,
                   radioFrequency: currentCompany.radioFrequency,
@@ -343,12 +342,6 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
                           (currentCompany.emergencyNumber ?? '').trim().isEmpty
                               ? '-'
                               : currentCompany.emergencyNumber!.trim(),
-                        ),
-                        _detailRowInSheet(
-                          'ERT',
-                          (currentCompany.ertFreq ?? '').trim().isEmpty
-                              ? '-'
-                              : currentCompany.ertFreq!.trim(),
                         ),
                       ],
                     ),
@@ -563,7 +556,6 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
           (c.code?.toLowerCase().contains(searchLower) ?? false) ||
           c.kttDisplayName.toLowerCase().contains(searchLower) ||
           (c.emergencyNumber?.toLowerCase().contains(searchLower) ?? false) ||
-          (c.ertFreq?.toLowerCase().contains(searchLower) ?? false) ||
           (c.radioLabel?.toLowerCase().contains(searchLower) ?? false) ||
           (c.radioChannel?.toLowerCase().contains(searchLower) ?? false) ||
           (c.radioFrequency?.toLowerCase().contains(searchLower) ?? false);
@@ -732,14 +724,11 @@ class _CompanyManagementScreenState extends State<CompanyManagementScreen>
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                                 color: Colors.grey.shade600, fontSize: 11)),
-                      if ((sub.emergencyNumber ?? '').trim().isNotEmpty ||
-                          (sub.ertFreq ?? '').trim().isNotEmpty)
+                      if ((sub.emergencyNumber ?? '').trim().isNotEmpty)
                         Text(
                           [
                             if ((sub.emergencyNumber ?? '').trim().isNotEmpty)
                               'Emergency: ${sub.emergencyNumber!.trim()}',
-                            if ((sub.ertFreq ?? '').trim().isNotEmpty)
-                              'ERT: ${sub.ertFreq!.trim()}',
                           ].join('  •  '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -954,7 +943,6 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
   late TextEditingController _nameCtrl;
   late TextEditingController _codeCtrl;
   late TextEditingController _emergencyNumberCtrl;
-  late TextEditingController _ertFreqCtrl;
   late TextEditingController _radioLabelCtrl;
   late TextEditingController _radioChannelCtrl;
   late TextEditingController _radioFrequencyCtrl;
@@ -993,8 +981,6 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     _companyStampUrl = widget.companyToEdit?.companyStampUrl;
     _emergencyNumberCtrl =
         TextEditingController(text: widget.companyToEdit?.emergencyNumber ?? '');
-    _ertFreqCtrl =
-        TextEditingController(text: widget.companyToEdit?.ertFreq ?? '');
     _radioLabelCtrl =
         TextEditingController(text: widget.companyToEdit?.radioLabel ?? '');
     _radioChannelCtrl =
@@ -1013,7 +999,6 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     _nameCtrl.dispose();
     _codeCtrl.dispose();
     _emergencyNumberCtrl.dispose();
-    _ertFreqCtrl.dispose();
     _radioLabelCtrl.dispose();
     _radioChannelCtrl.dispose();
     _radioFrequencyCtrl.dispose();
@@ -1029,7 +1014,6 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
     final companyStampUrl =
         _clearCompanyStamp ? '' : (_companyStampUrl ?? '');
     final emergencyNumber = _emergencyNumberCtrl.text.trim();
-    final ertFreq = _ertFreqCtrl.text.trim();
     final radioLabel = _radioLabelCtrl.text.trim();
     final radioChannel = _radioChannelCtrl.text.trim();
     final radioFrequency = _radioFrequencyCtrl.text.trim();
@@ -1059,7 +1043,6 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           companyStampImagePath: _companyStampImageFile?.path,
           kttUserId: _selectedKttUserId,
           emergencyNumber: emergencyNumber,
-          ertFreq: ertFreq,
           radioLabel: radioLabel,
           radioChannel: radioChannel,
           radioFrequency: radioFrequency,
@@ -1077,7 +1060,6 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
           companyStampImagePath: _companyStampImageFile?.path,
           kttUserId: _selectedKttUserId,
           emergencyNumber: emergencyNumber,
-          ertFreq: ertFreq,
           radioLabel: radioLabel,
           radioChannel: radioChannel,
           radioFrequency: radioFrequency,
@@ -1198,14 +1180,9 @@ class _CompanyFormScreenState extends State<_CompanyFormScreen> {
                       hint: 'Contoh: 0541-123456',
                       keyboardType: TextInputType.phone),
                   const SizedBox(height: 16),
-                  _buildLabel('ERT FREQ'),
-                  const SizedBox(height: 8),
-                  _buildTextField(_ertFreqCtrl,
-                      hint: 'Contoh: CH 1 / 155.000 MHz'),
-                  const SizedBox(height: 16),
                   _buildLabel('RADIO LABEL'),
                   const SizedBox(height: 8),
-                  _buildTextField(_radioLabelCtrl, hint: 'Contoh: ERT'),
+                  _buildTextField(_radioLabelCtrl, hint: 'Contoh: Radio Ops'),
                   const SizedBox(height: 16),
                   _buildLabel('RADIO CHANNEL'),
                   const SizedBox(height: 8),
