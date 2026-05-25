@@ -225,9 +225,6 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
         if (mounted) {
           final loc = '${pos.latitude}, ${pos.longitude}';
           _pelaporLocationCtrl.text = loc;
-          if (_kejadianLocationCtrl.text.isEmpty) {
-            _kejadianLocationCtrl.text = loc;
-          }
         }
       }
     } catch (e) {
@@ -864,6 +861,12 @@ class _CreateHazardScreenState extends State<CreateHazardScreen> {
     } else if (_currentStep == 1) {
       final isFormValid = _formKey2.currentState!.validate();
       if (!isFormValid) return;
+      final hasPinpoint = _kejadianLocationCtrl.text.trim().isNotEmpty;
+      if (!hasPinpoint) {
+        setState(() => _currentStep++);
+        _scrollToTop();
+        return;
+      }
       _showPinpointConfirmationDialog(() {
         setState(() => _currentStep++);
         _scrollToTop();
@@ -1087,6 +1090,9 @@ if (picked.isNotEmpty) {
         ? _selectedPelaku.map((u) => u.fullName).join(', ')
         : null;
     final severity = _selectedSeverity?.name ?? 'medium';
+    final kejadianLocation = _kejadianLocationCtrl.text.trim().isEmpty
+        ? '-'
+        : _kejadianLocationCtrl.text.trim();
 
     final data = {
       'title': _titleCtrl.text.trim(),
@@ -1095,7 +1101,7 @@ if (picked.isNotEmpty) {
       'location': _locationCtrl.text.trim(),
       'area': _selectedLokasi,
       'pelaporLocation': _pelaporLocationCtrl.text.trim(),
-      'kejadianLocation': _kejadianLocationCtrl.text.trim(),
+      'kejadianLocation': kejadianLocation,
       'perusahaan': _selectedPerusahaan,
       'department': department,
       'pic': picDepartment,
@@ -1142,7 +1148,7 @@ if (picked.isNotEmpty) {
           suggestion: _saranCtrl.text.trim(),
           pelakuPelanggaran: pelakuStr,
           pelaporLocation: _pelaporLocationCtrl.text.trim(),
-          kejadianLocation: _kejadianLocationCtrl.text.trim(),
+          kejadianLocation: kejadianLocation,
           imagePaths: _photoFiles.map((f) => f.path).toList(),
           isPublic: _isPublic,
         );
@@ -2169,12 +2175,11 @@ if (picked.isNotEmpty) {
             ),
           ),
           const SizedBox(height: 14),
-          _label('Pinpoint Lokasi Kejadian *'),
+          _label('Pinpoint Lokasi Kejadian (Opsional)'),
           TextFormField(
             controller: _kejadianLocationCtrl,
             readOnly: true,
             onTap: () => _pickLocationFromMap(_kejadianLocationCtrl),
-            validator: (v) => v!.trim().isEmpty ? 'Wajib diisi' : null,
             decoration: _inputDeco(
               hint: 'Koordinat Kejadian',
               icon: Icons.place,

@@ -319,7 +319,8 @@ class ReportStore {
             suggestion: draft.data['saran']?.toString(),
             pelakuPelanggaran: draft.data['pelakuPelanggaran']?.toString(),
             pelaporLocation: draft.data['pelaporLocation']?.toString(),
-            kejadianLocation: draft.data['kejadianLocation']?.toString(),
+            kejadianLocation:
+                _optionalCoordinateOrDash(draft.data['kejadianLocation']),
             imagePaths: _draftPhotoPaths(draft),
             isPublic: isPublic,
           );
@@ -644,6 +645,11 @@ class ReportStore {
       if (raw != null && raw.isNotEmpty) return raw;
     }
     return null;
+  }
+
+  String _optionalCoordinateOrDash(Object? value) {
+    final raw = value?.toString().trim();
+    return raw == null || raw.isEmpty ? '-' : raw;
   }
 
   String? _inspectionResultUiToApi(String? uiValue) {

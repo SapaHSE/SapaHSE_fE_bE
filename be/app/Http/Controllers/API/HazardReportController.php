@@ -154,6 +154,10 @@ class HazardReportController extends Controller
 
         $normalizedHazardCategory = $this->normalizeHazardCategoryCodes($request->hazard_category);
         $normalizedHazardSubcategory = $this->normalizeHazardSubcategories($request->hazard_subcategory);
+        $kejadianLocation = trim((string) $request->input('kejadian_location', ''));
+        if ($kejadianLocation === '') {
+            $kejadianLocation = '-';
+        }
 
         $report = HazardReport::create([
             'user_id'             => Auth::id(),
@@ -163,7 +167,7 @@ class HazardReportController extends Controller
             'sub_status'          => 'validating',
             'location'            => $request->location,
             'pelapor_location'    => $request->pelapor_location,
-            'kejadian_location'   => $request->kejadian_location,
+            'kejadian_location'   => $kejadianLocation,
             'image_url'           => $imageUrl,
             'image_urls'          => !empty($imageUrls) ? $imageUrls : null,
             'severity'            => $request->severity,

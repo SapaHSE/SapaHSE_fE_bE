@@ -236,6 +236,11 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
         .any((part) => part == normalizedNeedle);
   }
 
+  bool _hasDisplayCoordinate(String? value) {
+    final raw = value?.trim();
+    return raw != null && raw.isNotEmpty && raw != '-';
+  }
+
   bool get _isApprovedOrLater {
     final sub = _report.subStatus;
     if (sub == null) {
@@ -1178,8 +1183,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                               label: 'Perusahaan',
                               value: _report.company!),
                         ],
-                        if (_report.pelaporLocation != null &&
-                            _report.pelaporLocation!.isNotEmpty) ...[
+                        if (_hasDisplayCoordinate(
+                            _report.pelaporLocation)) ...[
                           const SizedBox(height: 12),
                           _DetailRow(
                             icon: Icons.my_location_outlined,
@@ -1331,8 +1336,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                             icon: Icons.location_on_outlined,
                             label: 'Lokasi Penugasan',
                             value: _report.location),
-                        if (_report.kejadianLocation != null &&
-                            _report.kejadianLocation!.isNotEmpty) ...[
+                        if (_hasDisplayCoordinate(
+                            _report.kejadianLocation)) ...[
                           const SizedBox(height: 12),
                           _DetailRow(
                             icon: Icons.my_location_outlined,

@@ -93,6 +93,39 @@ class ReportStatusAndHazardCategoryTest extends TestCase
         ]);
     }
 
+    public function test_store_hazard_allows_missing_pinpoint_but_requires_location(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->postJson('/api/hazard-reports', [
+            'title' => 'Unsafe access road',
+            'description' => 'Road berm is damaged.',
+            'location' => 'Hauling Road',
+            'severity' => 'medium',
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.location', 'Hauling Road')
+            ->assertJsonPath('data.kejadian_location', '-');
+
+        $this->assertDatabaseHas('hazard_reports', [
+            'id' => $response->json('data.id'),
+            'location' => 'Hauling Road',
+            'kejadian_location' => '-',
+        ]);
+
+        $this->postJson('/api/hazard-reports', [
+            'title' => 'Missing location',
+            'description' => 'Location dropdown is still required.',
+            'severity' => 'medium',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['location']);
+    }
+
     public function test_hazard_show_and_inbox_include_category_codes_and_names(): void
     {
         $admin = User::factory()->create([
