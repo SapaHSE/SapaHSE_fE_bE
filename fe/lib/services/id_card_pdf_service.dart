@@ -22,10 +22,10 @@ class IdCardPdfService {
 
   static const PdfColor _blue = PdfColor.fromInt(0xFF2F73C8);
   static const PdfColor _deepBlue = PdfColor.fromInt(0xFF245A9C);
-  static const PdfColor _green = PdfColor.fromInt(0xFF28B463);
-  static const PdfColor _red = PdfColor.fromInt(0xFFE5506A);
+  static const PdfColor _green = PdfColor.fromInt(0xFF00A651);
+  static const PdfColor _red = PdfColor.fromInt(0xFFE31B23);
   static const PdfColor _ink = PdfColor.fromInt(0xFF303744);
-  static const PdfColor _line = PdfColor.fromInt(0xFF9BA7B8);
+  static const PdfColor _line = PdfColors.black;
 
   static Future<void> exportMinePermit({
     required ProfileData profile,
@@ -148,41 +148,44 @@ class IdCardPdfService {
           _bbeHeader(logo, companyLogo, companyLogoSvg),
           _blueTitleBar('MINE PERMIT'),
           pw.Positioned(
-            left: 4.2 * _mm,
+            left: 2.0 * _mm,
             top: 21.8 * _mm,
             child: _avatarBox(avatar, profile.fullName),
           ),
           pw.Positioned(
-            left: 26.2 * _mm,
+            left: 23.8 * _mm,
             top: 22.0 * _mm,
             child: pw.SizedBox(
-              width: 22.2 * _mm,
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  _profileLine('Name', _display(profile.fullName)),
-                  _profileLine(
-                    'Employee ID',
-                    _display(profile.employeeId),
-                  ),
-                  _profileLine(
-                    'Position',
-                    position,
-                  ),
-                  _profileLine(
-                    'Department',
-                    department,
-                  ),
-                  _profileLine(
-                    'Company',
-                    _affiliationCompanyName(profile),
-                  ),
-                ],
+              width: 26.2 * _mm,
+              child: pw.Padding(
+                padding: pw.EdgeInsets.only(left: 0.7 * _mm),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    _profileLine('Name', _display(profile.fullName)),
+                    _profileLine(
+                      'Employee ID',
+                      _display(profile.employeeId),
+                    ),
+                    _profileLine(
+                      'Position',
+                      position,
+                    ),
+                    _profileLine(
+                      'Department',
+                      department,
+                    ),
+                    _profileLine(
+                      'Company',
+                      _affiliationCompanyName(profile),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
           pw.Positioned(
-            left: 5.9 * _mm,
+            left: 3.05 * _mm,
             top: 50.4 * _mm,
             child: pw.SizedBox(
               width: 18.7 * _mm,
@@ -190,7 +193,7 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 5.6 * _mm,
+            left: 3.2 * _mm,
             top: 60.32 * _mm,
             child: _signatureBlock(
               logo,
@@ -204,20 +207,19 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 0,
-            right: 0,
+            left: 5.3 * _mm,
             top: 76.2 * _mm,
-            child: pw.Center(
-              child: pw.Row(
-                mainAxisSize: pw.MainAxisSize.min,
-                children: [
-                  pw.SizedBox(
-                      width: 15.4 * _mm, child: _counterBox('VIOLATION')),
-                  pw.SizedBox(width: 7.2 * _mm),
-                  pw.SizedBox(
-                      width: 15.4 * _mm, child: _counterBox('INCIDENT')),
-                ],
-              ),
+            child: pw.SizedBox(
+              width: 15.4 * _mm,
+              child: _counterBox('VIOLATION'),
+            ),
+          ),
+          pw.Positioned(
+            right: 7.6 * _mm,
+            top: 76.2 * _mm,
+            child: pw.SizedBox(
+              width: 15.4 * _mm,
+              child: _counterBox('INCIDENT'),
             ),
           ),
           pw.Positioned(
@@ -266,7 +268,7 @@ class IdCardPdfService {
           pw.Positioned(
             left: 2.0 * _mm,
             right: 2.0 * _mm,
-            top: 7.0 * _mm,
+            top: 6.4 * _mm,
             child: pw.Text(
               simperLicenseNumber,
               maxLines: 1,
@@ -280,7 +282,7 @@ class IdCardPdfService {
           ),
           pw.Positioned(
             left: 1.0 * _mm,
-            top: 10.8 * _mm,
+            top: 9.7 * _mm,
             child: pw.SizedBox(
               width: 50.6 * _mm,
               child: _simperTable(tableRows),
@@ -289,13 +291,32 @@ class IdCardPdfService {
           pw.Positioned(
             left: 0.8 * _mm,
             right: 0.8 * _mm,
-            top: 49.3 * _mm,
+            top: 47.3 * _mm,
+            child: pw.FittedBox(
+              fit: pw.BoxFit.fitWidth,
+              child: pw.Text(
+                'F: Full   P: Probation   R: Restricted   T: Training   I: Instructor',
+                maxLines: 1,
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  color: PdfColors.black,
+                  fontSize: 4.1,
+                  fontStyle: pw.FontStyle.italic,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          pw.Positioned(
+            left: 0.8 * _mm,
+            right: 0.8 * _mm,
+            top: 50.8 * _mm,
             child: pw.Container(height: 0.45, color: PdfColors.black),
           ),
           pw.Positioned(
             left: 0.8 * _mm,
             right: 0.8 * _mm,
-            top: 49.6 * _mm,
+            top: 51.4 * _mm,
             child: _rulesBlock(profile),
           ),
           pw.Positioned(
@@ -334,7 +355,7 @@ class IdCardPdfService {
                       maxLines: 1,
                       textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(
-                        color: _ink,
+                        color: PdfColors.black,
                         fontSize: 5.55,
                         fontWeight: pw.FontWeight.bold,
                         height: 1.1,
@@ -348,7 +369,7 @@ class IdCardPdfService {
                       maxLines: 1,
                       textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(
-                        color: _ink,
+                        color: PdfColors.black,
                         fontSize: 5.35,
                         fontWeight: pw.FontWeight.bold,
                         height: 1.1,
@@ -552,7 +573,7 @@ class IdCardPdfService {
 
   static pw.Widget _profileLine(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 1.45),
+      padding: const pw.EdgeInsets.only(bottom: 1.65),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -566,6 +587,7 @@ class IdCardPdfService {
               color: _blue,
             ),
           ),
+          pw.SizedBox(height: 0.35 * _mm),
           pw.Text(
             value,
             maxLines: 2,
@@ -573,7 +595,7 @@ class IdCardPdfService {
               fontSize: _fitText(value, base: 5.35, small: 4.85, tiny: 4.35),
               lineSpacing: -0.05,
               fontWeight: pw.FontWeight.bold,
-              color: _ink,
+              color: PdfColors.black,
             ),
           ),
         ],
@@ -740,7 +762,7 @@ class IdCardPdfService {
             style: pw.TextStyle(
               fontSize: 3.9,
               fontWeight: pw.FontWeight.bold,
-              color: _ink,
+              color: PdfColors.black,
             ),
           ),
           pw.SizedBox(height: 0.2 * _mm),
@@ -772,7 +794,7 @@ class IdCardPdfService {
           pw.Text(
             'Valid Until',
             style: pw.TextStyle(
-              fontSize: 3.0,
+              fontSize: 3.35,
               fontStyle: pw.FontStyle.italic,
               fontWeight: pw.FontWeight.bold,
               color: _blue,
@@ -781,7 +803,8 @@ class IdCardPdfService {
           pw.Text(
             validUntil,
             style: pw.TextStyle(
-              fontSize: 3.45,
+              fontSize: 3.35,
+              fontStyle: pw.FontStyle.italic,
               fontWeight: pw.FontWeight.bold,
               color: _blue,
             ),
@@ -838,6 +861,7 @@ class IdCardPdfService {
           color: PdfColors.white,
           fontSize: _tableHeaderFontSize(value),
           fontWeight: pw.FontWeight.bold,
+          fontStyle: pw.FontStyle.italic,
         ),
       ),
     );
@@ -863,7 +887,7 @@ class IdCardPdfService {
         style: pw.TextStyle(
           fontSize: _tableCellFontSize(value),
           fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: _ink,
+          color: PdfColors.black,
         ),
       ),
     );
@@ -905,7 +929,7 @@ class IdCardPdfService {
           style: pw.TextStyle(
             fontSize: 6.0,
             fontWeight: pw.FontWeight.bold,
-            color: _ink,
+            color: PdfColors.black,
           ),
         ),
         pw.SizedBox(height: 0.15 * _mm),
@@ -936,7 +960,7 @@ class IdCardPdfService {
               style: pw.TextStyle(
                 fontSize: 4.45,
                 height: 0.95,
-                color: _ink,
+                color: PdfColors.black,
               ),
             ),
           ),
@@ -946,7 +970,7 @@ class IdCardPdfService {
               style: pw.TextStyle(
                 fontSize: 4.45,
                 height: 0.95,
-                color: _ink,
+                color: PdfColors.black,
               ),
             ),
           ),

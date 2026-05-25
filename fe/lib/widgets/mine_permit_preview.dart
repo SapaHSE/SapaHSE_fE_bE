@@ -134,7 +134,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 18,
+            left: 10,
             top: 103,
             child: Container(
               width: 98,
@@ -142,12 +142,12 @@ class _MinePermitFrontPreview extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: const Color(0xFFEAF0F7),
-                border: Border.all(color: const Color(0xFF9BA7B8)),
+                border: Border.all(color: Colors.black),
               ),
               child: Text(
                 _initials(profile.fullName),
                 style: const TextStyle(
-                  color: Color(0xFF245A9C),
+                  color: Colors.black,
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                 ),
@@ -155,50 +155,48 @@ class _MinePermitFrontPreview extends StatelessWidget {
             ),
           ),
           Positioned(
-            left: 124,
+            left: 116,
             top: 104,
-            right: 14,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _frontInfo('Name', profile.fullName),
-                _frontInfo(
-                  'Employee ID',
-                  profile.employeeId,
-                ),
-                _frontInfo('Position', position),
-                _frontInfo('Department', department),
-                _frontInfo(
-                  'Company',
-                  _affiliationCompanyName(profile),
-                ),
-              ],
+            right: 6,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 3),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _frontInfo('Name', profile.fullName),
+                  _frontInfo(
+                    'Employee ID',
+                    profile.employeeId,
+                  ),
+                  _frontInfo('Position', position),
+                  _frontInfo('Department', department),
+                  _frontInfo(
+                    'Company',
+                    _affiliationCompanyName(profile),
+                  ),
+                ],
+              ),
             ),
           ),
           const Positioned(
-            left: 28,
+            left: 14,
             top: 248,
             child: _AccessTypePreview(),
           ),
           Positioned(
-            left: 22,
+            left: 15,
             bottom: 25,
             child: _MiniSignaturePreview(profile: profile),
           ),
-          const Positioned(
-            left: 0,
-            right: 0,
+          Positioned(
+            left: 29,
             bottom: 1,
-            child: Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _MiniCounterPreview('VIOLATION'),
-                  SizedBox(width: 34),
-                  _MiniCounterPreview('INCIDENT'),
-                ],
-              ),
-            ),
+            child: const _MiniCounterPreview('VIOLATION'),
+          ),
+          Positioned(
+            right: 19,
+            bottom: 1,
+            child: const _MiniCounterPreview('INCIDENT'),
           ),
           Positioned(
             right: 18,
@@ -211,7 +209,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
                   'Valid Until',
                   style: TextStyle(
                     color: Color(0xFF2F73C8),
-                    fontSize: 6,
+                    fontSize: 6.8,
                     fontWeight: FontWeight.bold,
                     fontStyle: FontStyle.italic,
                   ),
@@ -220,8 +218,9 @@ class _MinePermitFrontPreview extends StatelessWidget {
                   IdCardPdfService.formatExpiry(minePermit.expiredAt),
                   style: const TextStyle(
                     color: Color(0xFF2F73C8),
-                    fontSize: 7,
+                    fontSize: 6.8,
                     fontWeight: FontWeight.bold,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
@@ -234,7 +233,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
 
   static Widget _frontInfo(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 5),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -248,6 +247,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
               fontStyle: FontStyle.italic,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             value.trim().isEmpty ? '-' : value,
             maxLines: 2,
@@ -361,7 +361,7 @@ class _MinePermitBackPreview extends StatelessWidget {
           Positioned(
             left: 12,
             right: 12,
-            top: 30,
+            top: 26,
             child: Text(
               simperLicenseNumber,
               textAlign: TextAlign.center,
@@ -377,19 +377,41 @@ class _MinePermitBackPreview extends StatelessWidget {
           Positioned(
             left: 5,
             right: 5,
-            top: 62,
+            top: 56,
             child: _previewTable(rows),
+          ),
+          const Positioned(
+            left: 5,
+            right: 5,
+            top: 212,
+            child: SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.fitWidth,
+                child: Text(
+                  'F: Full   P: Probation   R: Restricted   T: Training   I: Instructor',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 8.2,
+                    fontWeight: FontWeight.bold,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ),
           ),
           Positioned(
             left: 5,
             right: 5,
-            top: 219,
+            top: 226,
             child: Container(height: 1, color: Colors.black),
           ),
           Positioned(
             left: 6,
             right: 6,
-            top: 220,
+            top: 229,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -414,7 +436,7 @@ class _MinePermitBackPreview extends StatelessWidget {
             top: 290,
             child: Container(
               height: 14,
-              color: const Color(0xFFE5506A),
+              color: const Color(0xFFE31B23),
               alignment: Alignment.center,
               child: const Text(
                 'EMERGENCY CONTACT',
@@ -445,7 +467,7 @@ class _MinePermitBackPreview extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF303744),
+                      color: Colors.black,
                       fontSize: 9.8,
                       fontWeight: FontWeight.bold,
                       height: 0.95,
@@ -458,7 +480,7 @@ class _MinePermitBackPreview extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF303744),
+                      color: Colors.black,
                       fontSize: 9.4,
                       fontWeight: FontWeight.bold,
                       height: 0.95,
@@ -474,7 +496,7 @@ class _MinePermitBackPreview extends StatelessWidget {
             bottom: 0,
             child: Container(
               height: 23,
-              color: const Color(0xFF28B463),
+              color: const Color(0xFF00A651),
               alignment: Alignment.center,
               child: const Text(
                 'WAJIB MEMATUHI PERATURAN K3LH\nSELAMA BERADA DI JOB SITE',
@@ -806,7 +828,7 @@ Widget _rulePreview(String number, String text) {
           child: Text(
             '$number.',
             style: const TextStyle(
-              color: Color(0xFF303744),
+              color: Colors.black,
               fontSize: 7.8,
               height: 1.05,
             ),
@@ -818,7 +840,7 @@ Widget _rulePreview(String number, String text) {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF303744),
+              color: Colors.black,
               fontSize: 7.8,
               height: 1.05,
             ),
