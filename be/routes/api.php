@@ -6,6 +6,7 @@ use App\Http\Controllers\API\ProfileController;
 use App\Http\Controllers\API\HazardReportController;
 use App\Http\Controllers\API\InspectionReportController;
 use App\Http\Controllers\API\DashboardController;
+use App\Http\Controllers\API\StatisticsController;
 use App\Http\Controllers\API\NewsController;
 use App\Http\Controllers\API\AnnouncementController;
 use App\Http\Controllers\API\QrAssetController;
@@ -56,6 +57,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // ── Profile ───────────────────────────────────────────────────────────────
+    Route::get('/profile/statistics',       [StatisticsController::class, 'personalStatistics']);
     Route::get('/profile',                  [ProfileController::class, 'getProfile']);
     Route::post('/profile',                 [ProfileController::class, 'updateProfile']);
     Route::delete('/profile',               [ProfileController::class, 'destroyAccount']);
