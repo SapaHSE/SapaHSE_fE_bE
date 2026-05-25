@@ -191,7 +191,6 @@ class OfflineReferenceCacheService {
                 'jabatan': c.kttUser!.jabatan,
               },
         'emergency_number': c.emergencyNumber,
-        'ert_freq': c.ertFreq,
         'radio_label': c.radioLabel,
         'radio_channel': c.radioChannel,
         'radio_frequency': c.radioFrequency,

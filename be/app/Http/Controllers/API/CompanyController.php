@@ -49,7 +49,6 @@ class CompanyController extends Controller
             'company_stamp_url'=> 'nullable|url|max:2048',
             'ktt_user_id'      => 'nullable|exists:users,id',
             'emergency_number' => 'nullable|string|max:50',
-            'ert_freq'         => 'nullable|string|max:100',
             'radio_label'      => 'nullable|string|max:100',
             'radio_channel'    => 'nullable|string|max:100',
             'radio_frequency'  => 'nullable|string|max:100',
@@ -69,7 +68,6 @@ class CompanyController extends Controller
                 'company_stamp_url'=> $this->nullableValue($request->input('company_stamp_url')),
                 'ktt_user_id'      => $kttUserId,
                 'emergency_number' => $this->nullableValue($request->input('emergency_number')),
-                'ert_freq'         => $this->nullableValue($request->input('ert_freq')),
                 'radio_label'      => $this->nullableValue($request->input('radio_label')),
                 'radio_channel'    => $this->nullableValue($request->input('radio_channel')),
                 'radio_frequency'  => $this->nullableValue($request->input('radio_frequency')),
@@ -104,7 +102,6 @@ class CompanyController extends Controller
             'company_stamp_url'=> 'nullable|url|max:2048',
             'ktt_user_id'      => 'nullable|exists:users,id',
             'emergency_number' => 'nullable|string|max:50',
-            'ert_freq'         => 'nullable|string|max:100',
             'radio_label'      => 'nullable|string|max:100',
             'radio_channel'    => 'nullable|string|max:100',
             'radio_frequency'  => 'nullable|string|max:100',
@@ -124,7 +121,7 @@ class CompanyController extends Controller
                 'category' => $category,
             ];
 
-            foreach (['logo_url', 'ktt_signature_url', 'company_stamp_url', 'ktt_user_id', 'emergency_number', 'ert_freq', 'radio_label', 'radio_channel', 'radio_frequency'] as $field) {
+            foreach (['logo_url', 'ktt_signature_url', 'company_stamp_url', 'ktt_user_id', 'emergency_number', 'radio_label', 'radio_channel', 'radio_frequency'] as $field) {
                 if ($request->has($field)) {
                     $payload[$field] = $this->nullableValue($request->input($field));
                 }

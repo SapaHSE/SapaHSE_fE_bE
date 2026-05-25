@@ -148,15 +148,15 @@ class IdCardPdfService {
           _bbeHeader(logo, companyLogo, companyLogoSvg),
           _blueTitleBar('MINE PERMIT'),
           pw.Positioned(
-            left: 5.2 * _mm,
+            left: 4.2 * _mm,
             top: 21.8 * _mm,
             child: _avatarBox(avatar, profile.fullName),
           ),
           pw.Positioned(
-            left: 27.4 * _mm,
+            left: 26.2 * _mm,
             top: 22.0 * _mm,
             child: pw.SizedBox(
-              width: 21.0 * _mm,
+              width: 22.2 * _mm,
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -182,16 +182,16 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 8.1 * _mm,
-            top: 51.8 * _mm,
+            left: 5.9 * _mm,
+            top: 50.4 * _mm,
             child: pw.SizedBox(
-              width: 14.8 * _mm,
+              width: 18.7 * _mm,
               child: _accessTypeBox(),
             ),
           ),
           pw.Positioned(
             left: 5.6 * _mm,
-            top: 61.4 * _mm,
+            top: 60.32 * _mm,
             child: _signatureBlock(
               logo,
               companyLogo,
@@ -213,7 +213,7 @@ class IdCardPdfService {
                 children: [
                   pw.SizedBox(
                       width: 15.4 * _mm, child: _counterBox('VIOLATION')),
-                  pw.SizedBox(width: 4.4 * _mm),
+                  pw.SizedBox(width: 7.2 * _mm),
                   pw.SizedBox(
                       width: 15.4 * _mm, child: _counterBox('INCIDENT')),
                 ],
@@ -238,10 +238,13 @@ class IdCardPdfService {
     List<MinePermitTableRow> tableRows,
   ) {
     final emergencyNumber = profile.companyDetail?.emergencyNumber?.trim() ?? '';
-    final ertFreq = profile.companyDetail?.ertFreq?.trim() ?? '';
     final radioLabel = profile.companyDetail?.radioLabel?.trim() ?? '';
     final radioChannel = profile.companyDetail?.radioChannel?.trim() ?? '';
     final radioFreq = profile.companyDetail?.radioFrequency?.trim() ?? '';
+    final radioContact = [radioLabel, radioChannel, radioFreq]
+        .where((s) => s.isNotEmpty)
+        .join('-');
+    final simperLicenseNumber = firstActiveSimperLicenseNumber(profile);
 
     return _printPage(
       child: pw.Stack(
@@ -261,8 +264,23 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
+            left: 2.0 * _mm,
+            right: 2.0 * _mm,
+            top: 7.0 * _mm,
+            child: pw.Text(
+              simperLicenseNumber,
+              maxLines: 1,
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(
+                color: _ink,
+                fontSize: 6.0,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.Positioned(
             left: 1.0 * _mm,
-            top: 12.0 * _mm,
+            top: 10.8 * _mm,
             child: pw.SizedBox(
               width: 50.6 * _mm,
               child: _simperTable(tableRows),
@@ -271,13 +289,13 @@ class IdCardPdfService {
           pw.Positioned(
             left: 0.8 * _mm,
             right: 0.8 * _mm,
-            top: 51.6 * _mm,
-            child: pw.Container(height: 0.45, color: _line),
+            top: 49.3 * _mm,
+            child: pw.Container(height: 0.45, color: PdfColors.black),
           ),
           pw.Positioned(
             left: 0.8 * _mm,
             right: 0.8 * _mm,
-            top: 52.2 * _mm,
+            top: 49.6 * _mm,
             child: _rulesBlock(profile),
           ),
           pw.Positioned(
@@ -317,33 +335,21 @@ class IdCardPdfService {
                       textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(
                         color: _ink,
-                        fontSize: 4.2,
+                        fontSize: 5.55,
                         fontWeight: pw.FontWeight.bold,
                         height: 1.1,
                       ),
                     ),
-                  if (ertFreq.isNotEmpty)
+                  if (emergencyNumber.isNotEmpty && radioContact.isNotEmpty)
+                    pw.SizedBox(height: 0.75 * _mm),
+                  if (radioContact.isNotEmpty)
                     pw.Text(
-                      'ERT: $ertFreq',
+                      radioContact,
                       maxLines: 1,
                       textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(
                         color: _ink,
-                        fontSize: 4.0,
-                        fontWeight: pw.FontWeight.bold,
-                        height: 1.1,
-                      ),
-                    ),
-                  if (radioLabel.isNotEmpty || radioChannel.isNotEmpty || radioFreq.isNotEmpty)
-                    pw.Text(
-                      [radioLabel, radioChannel, radioFreq]
-                          .where((s) => s.isNotEmpty)
-                          .join(' '),
-                      maxLines: 1,
-                      textAlign: pw.TextAlign.center,
-                      style: pw.TextStyle(
-                        color: _ink,
-                        fontSize: 4.0,
+                        fontSize: 5.35,
                         fontWeight: pw.FontWeight.bold,
                         height: 1.1,
                       ),
@@ -384,8 +390,7 @@ class IdCardPdfService {
       padding: pw.EdgeInsets.all(_cardInsetMm * _mm),
       child: pw.Container(
         decoration: pw.BoxDecoration(
-          border:
-              pw.Border.all(color: PdfColor.fromInt(0xFF4F5E70), width: 0.8),
+          border: pw.Border.all(color: PdfColors.black, width: 0.8),
           borderRadius: pw.BorderRadius.circular(7),
         ),
         child: pw.ClipRRect(
@@ -514,7 +519,8 @@ class IdCardPdfService {
           style: pw.TextStyle(
             color: PdfColors.white,
             fontWeight: pw.FontWeight.bold,
-            fontSize: 11.2,
+            fontSize: 12.2,
+            letterSpacing: 0.8,
           ),
         ),
       ),
@@ -546,7 +552,7 @@ class IdCardPdfService {
 
   static pw.Widget _profileLine(String label, String value) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 1.0),
+      padding: const pw.EdgeInsets.only(bottom: 1.45),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -562,10 +568,10 @@ class IdCardPdfService {
           ),
           pw.Text(
             value,
-            maxLines: 1,
+            maxLines: 2,
             style: pw.TextStyle(
-              fontSize: _fitText(value, base: 5.7, small: 5.1, tiny: 4.6),
-              lineSpacing: -0.15,
+              fontSize: _fitText(value, base: 5.35, small: 4.85, tiny: 4.35),
+              lineSpacing: -0.05,
               fontWeight: pw.FontWeight.bold,
               color: _ink,
             ),
@@ -583,7 +589,7 @@ class IdCardPdfService {
           style: pw.TextStyle(
             fontSize: 5.0,
             fontWeight: pw.FontWeight.bold,
-            color: _deepBlue,
+            color: _blue,
           ),
         ),
         pw.Table(
@@ -624,11 +630,12 @@ class IdCardPdfService {
         pw.Text(
           'ACCESS TYPE',
           style: pw.TextStyle(
-            fontSize: 4.2,
+            fontSize: 4.8,
             fontWeight: pw.FontWeight.bold,
-            color: _deepBlue,
+            color: _blue,
           ),
         ),
+        pw.SizedBox(height: 0.4 * _mm),
         pw.Table(
           border: pw.TableBorder.all(color: _line, width: 0.45),
           columnWidths: const {
@@ -643,12 +650,12 @@ class IdCardPdfService {
               children: ['T1', 'T2', 'T3', 'T4', 'T5']
                   .map(
                     (label) => pw.Container(
-                      height: 2.35 * _mm,
+                      height: 2.6 * _mm,
                       alignment: pw.Alignment.center,
                       child: pw.Text(
                         label,
                         style: pw.TextStyle(
-                          fontSize: 3.25,
+                          fontSize: 3.9,
                           fontWeight: pw.FontWeight.bold,
                           color: _ink,
                         ),
@@ -661,7 +668,7 @@ class IdCardPdfService {
               children: ['', '', '', '', '']
                   .map(
                     (label) => pw.Container(
-                      height: 2.35 * _mm,
+                      height: 2.6 * _mm,
                       alignment: pw.Alignment.center,
                       child: pw.Text(
                         label,
@@ -698,9 +705,9 @@ class IdCardPdfService {
           pw.Text(
             'Disahkan oleh,',
             style: pw.TextStyle(
-              fontSize: 4.2,
+              fontSize: 4.8,
               fontWeight: pw.FontWeight.bold,
-              color: _deepBlue,
+              color: _blue,
             ),
           ),
           pw.SizedBox(height: 1.0 * _mm),
@@ -727,6 +734,7 @@ class IdCardPdfService {
               ],
             ),
           ),
+          pw.SizedBox(height: 2.55 * _mm),
           pw.Text(
             kttName,
             style: pw.TextStyle(
@@ -735,12 +743,13 @@ class IdCardPdfService {
               color: _ink,
             ),
           ),
+          pw.SizedBox(height: 0.2 * _mm),
           pw.Text(
             'Kepala Teknik Tambang',
             style: pw.TextStyle(
-              fontSize: 3.6,
-              fontStyle: pw.FontStyle.italic,
-              color: _ink,
+              fontSize: 3.65,
+              fontWeight: pw.FontWeight.bold,
+              color: _blue,
             ),
           ),
         ],
@@ -774,7 +783,7 @@ class IdCardPdfService {
             style: pw.TextStyle(
               fontSize: 3.45,
               fontWeight: pw.FontWeight.bold,
-              color: _deepBlue,
+              color: _blue,
             ),
           ),
         ],
@@ -784,7 +793,7 @@ class IdCardPdfService {
 
   static pw.Widget _simperTable(List<MinePermitTableRow> rows) {
     return pw.Table(
-      border: pw.TableBorder.all(color: _line, width: 0.55),
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.55),
       columnWidths: const {
         0: pw.FixedColumnWidth(6.4),
         1: pw.FixedColumnWidth(26.4),
@@ -795,7 +804,7 @@ class IdCardPdfService {
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: _blue),
           children: [
-            _tableHeader(''),
+            _tableHeader('TYPE'),
             _tableHeader('VEHICLE / EQUIPMENT'),
             _tableHeader('LIC'),
             _tableHeader('EXP DATE'),
@@ -866,6 +875,16 @@ class IdCardPdfService {
     return _simperRows(profile);
   }
 
+  static String firstActiveSimperLicenseNumber(ProfileData profile) {
+    for (final license in _usableLicenses(profile)) {
+      final type = license.licenseType.trim().toLowerCase();
+      if (!type.contains('simper')) continue;
+      final number = license.licenseNumber.trim();
+      if (number.isNotEmpty) return number;
+    }
+    return '';
+  }
+
   static double _tableCellFontSize(String value) {
     final length = value.trim().length;
     if (length > 18) return 3.25;
@@ -891,12 +910,12 @@ class IdCardPdfService {
         ),
         pw.SizedBox(height: 0.15 * _mm),
         _ruleText('1',
-          'Kartu ini harus dipakai selama berada di area kerja dan digunakan sebatas izin akses ke area pertambangan.',
+          'Kartu wajib dipakai selama berada di area kerja dan digunakan sebatas izin akses sesuai area yang diperbolehkan.',
         ),
         _ruleText('2',
-          'Kartu ini milik $companyShort, pemegang kartu wajib mengembalikan kartu ini jika habis masa berlaku atau tidak lagi terikat kerja.',
+          'Kartu ini milik $companyShort, wajib dikembalikan jika habis masa berlaku atau tidak lagi terikat kerja.',
         ),
-        _ruleText('3', 'Segera laporkan ke QHSE jika kehilangan kartu ini.'),
+        _ruleText('3', 'Segera lapor ke QHSE jika kehilangan kartu atau perpanjangan.'),
         _ruleText('4',
           'Apabila menemukan kartu ini mohon untuk melaporkan ke perusahaan melalui kontak yang tersedia.',
         ),
@@ -915,7 +934,7 @@ class IdCardPdfService {
             child: pw.Text(
               '$number.',
               style: pw.TextStyle(
-                fontSize: 4.15,
+                fontSize: 4.45,
                 height: 0.95,
                 color: _ink,
               ),
@@ -925,7 +944,7 @@ class IdCardPdfService {
             child: pw.Text(
               text,
               style: pw.TextStyle(
-                fontSize: 4.15,
+                fontSize: 4.45,
                 height: 0.95,
                 color: _ink,
               ),
@@ -1088,11 +1107,11 @@ class IdCardPdfService {
     return [
       profile.companyDetail?.radioLabel,
       profile.companyDetail?.radioChannel,
-      profile.companyDetail?.radioFrequency ?? profile.companyDetail?.ertFreq,
+      profile.companyDetail?.radioFrequency,
     ]
         .map((value) => value?.trim() ?? '')
         .where((value) => value.isNotEmpty)
-        .join(' ');
+        .join('-');
   }
 
   static String _display(String? value, {String fallback = '-'}) {
