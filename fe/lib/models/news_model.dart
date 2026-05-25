@@ -12,6 +12,7 @@ class NewsModel {
   final bool isScheduled;
   final String? content;
   final String? createdAt;
+  final List<String> hashtags;
 
   const NewsModel({
     required this.id,
@@ -27,6 +28,7 @@ class NewsModel {
     this.isScheduled = false,
     this.content,
     this.createdAt,
+    this.hashtags = const [],
   });
 
   factory NewsModel.fromJson(Map<String, dynamic> json) {
@@ -44,6 +46,18 @@ class NewsModel {
       isScheduled: json['is_scheduled'] == true || json['is_scheduled'] == 1,
       content: json['content']?.toString(),
       createdAt: json['created_at']?.toString(),
+      hashtags: _parseHashtags(json['hashtags']),
     );
+  }
+
+  static List<String> _parseHashtags(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .map((e) => e?.toString().trim().toLowerCase() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+    }
+    return const [];
   }
 }

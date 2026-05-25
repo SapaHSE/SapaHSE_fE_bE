@@ -92,6 +92,7 @@ class NewsController extends Controller
             'excerpt'      => 'nullable|string',
             'content'      => 'required|string',
             'category'     => 'required|string|max:50',
+            'hashtags'     => 'nullable|string',
             'author_name'  => 'nullable|string|max:100',
             'is_featured'  => 'boolean',
             'image'        => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
@@ -105,6 +106,7 @@ class NewsController extends Controller
 
         $publishDate = $request->input('publish_date') ?? now()->toDateString();
         $isScheduled = $publishDate > now()->toDateString();
+        $hashtags = $this->normalizeHashtags($request->input('hashtags'));
 
         $news = News::create([
             'created_by'         => Auth::id(),
@@ -112,6 +114,7 @@ class NewsController extends Controller
             'excerpt'            => $request->excerpt,
             'content'            => $request->input('content'),
             'category'           => $request->category,
+            'hashtags'           => $hashtags,
             'author_name'        => $request->author_name ?? Auth::user()->full_name,
             'image_url'          => $imageUrl,
             'is_featured'        => $request->boolean('is_featured', false),
@@ -197,6 +200,7 @@ class NewsController extends Controller
             'title'              => $news->title,
             'excerpt'            => $news->excerpt,
             'category'           => $news->category,
+            'hashtags'           => $news->hashtags ?? [],
             'author_name'        => $news->author_name,
             'image_url'          => $news->image_url,
             'is_featured'        => $news->is_featured,
@@ -213,5 +217,39 @@ class NewsController extends Controller
         }
 
         return $data;
+    }
+
+    private function normalizeHashtags(?string $raw): array
+    {
+        if ($raw === null || trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($decoded as $item) {
+            if (!is_scalar($item)) {
+                continue;
+            }
+            $tag = strtolower(trim((string) $item));
+            $tag = ltrim($tag, '#');
+            $tag = preg_replace('/\s+/', '', $tag) ?? '';
+            if ($tag === '') {
+                continue;
+            }
+            if (mb_strlen($tag) > 24) {
+                $tag = mb_substr($tag, 0, 24);
+            }
+            $result[$tag] = true;
+            if (count($result) >= 10) {
+                break;
+            }
+        }
+
+        return array_keys($result);
     }
 }

@@ -16,6 +16,7 @@ class News extends Model
         'excerpt',
         'content',
         'category',
+        'hashtags',
         'author_name',
         'image_url',
         'is_featured',
@@ -31,6 +32,7 @@ class News extends Model
             'is_active'          => 'boolean',
             'publish_date'       => 'date',
             'published_notified' => 'boolean',
+            'hashtags'           => 'array',
         ];
     }
 

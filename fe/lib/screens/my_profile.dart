@@ -393,16 +393,14 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   Future<void> _pickImage() async {
-    _showPhotoOptions();
+    final picked = await _pickAndCropProfileImage();
+    if (picked == null) return;
+    await _uploadProfilePhoto(picked);
   }
 
-  Future<XFile?> _pickImageForForm() async {
-    if (kIsWeb) {
-      final picker = ImagePicker();
-      return picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-    }
-
-    final source = await showModalBottomSheet<ImageSource>(
+  Future<ImageSource?> _pickProfileImageSource() async {
+    if (kIsWeb) return ImageSource.gallery;
+    return showModalBottomSheet<ImageSource>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
@@ -437,65 +435,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         ),
       ),
     );
+  }
 
+  Future<XFile?> _pickAndCropProfileImage() async {
+    final source = await _pickProfileImageSource();
     if (source == null) return null;
-    final picker = ImagePicker();
-    return picker.pickImage(source: source, imageQuality: 90);
-  }
-
-  void _showPhotoOptions() {
-    if (kIsWeb) {
-      _pickImageFromSource(ImageSource.gallery);
-      return;
-    }
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: EdgeInsets.fromLTRB(
-          0,
-          20,
-          0,
-          AppSafeInsets.sheetBottomPadding(ctx, base: 20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Pilih Sumber Foto',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF1A56C4)),
-              title: const Text('Kamera'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickImageFromSource(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.photo_library, color: Color(0xFF1A56C4)),
-              title: const Text('Galeri'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _pickImageFromSource(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _pickImageFromSource(ImageSource source) async {
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: source, imageQuality: 95);
-      if (picked == null) return;
+      if (picked == null) return null;
+
+      if (kIsWeb) return picked;
 
       final croppedFile = await ImageCropper().cropImage(
         sourcePath: picked.path,
@@ -517,44 +467,10 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           ),
         ],
       );
-      if (croppedFile == null) return;
-
-      _showLoadingDialog('Mengunggah Foto...');
-      setState(() {
-        _avatarFile = XFile(croppedFile.path);
-      });
-
-      final result = await ProfileService.updateProfile(
-        imagePath: croppedFile.path,
-      );
-
-      if (!mounted) return;
-      _dismissLoadingDialog();
-      if (!result.success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text(result.errorMessage ?? 'Gagal mengunggah foto profil'),
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 16)),
-        );
-        return;
-      }
-
-      await _loadProfile();
-      _dismissLoadingDialog();
-      if (!mounted) return;
-      setState(() => _avatarFile = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Foto profil berhasil diperbarui'),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
-        ),
-      );
+      if (croppedFile == null) return null;
+      return XFile(croppedFile.path);
     } catch (_) {
-      if (!mounted) return;
-      _dismissLoadingDialog();
+      if (!mounted) return null;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Terjadi masalah saat memilih atau crop foto.'),
@@ -562,7 +478,43 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
         ),
       );
+      return null;
     }
+  }
+
+  Future<void> _uploadProfilePhoto(XFile pickedImage) async {
+    _showLoadingDialog('Mengunggah Foto...');
+    setState(() {
+      _avatarFile = pickedImage;
+    });
+
+    final result = await ProfileService.updateProfile(
+      imagePath: pickedImage.path,
+    );
+
+    if (!mounted) return;
+    _dismissLoadingDialog();
+    if (!result.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.errorMessage ?? 'Gagal mengunggah foto profil'),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        ),
+      );
+      return;
+    }
+
+    await _loadProfile();
+    if (!mounted) return;
+    setState(() => _avatarFile = null);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Foto profil berhasil diperbarui'),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
+      ),
+    );
   }
 
   void _showFullScreenProfileImage() {
@@ -1225,7 +1177,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                               right: 0,
                               child: GestureDetector(
                                 onTap: () async {
-                                  final picked = await _pickImageForForm();
+                                  final picked =
+                                      await _pickAndCropProfileImage();
                                   if (picked != null) {
                                     setModalState(
                                         () => localImageFile = picked);
@@ -2596,121 +2549,140 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Container(
-        padding: EdgeInsets.fromLTRB(
-          24,
-          20,
-          24,
-          AppSafeInsets.sheetBottomPadding(context),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      builder: (context) {
+        final maxHeight = MediaQuery.of(context).size.height * 0.75;
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              24,
+              20,
+              24,
+              AppSafeInsets.sheetBottomPadding(context),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Expanded(
-                  child: Text(
-                    'Pilih Tipe Lisensi',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Pilih Tipe Lisensi',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: options.map((option) {
+                        final value = option['value']!;
+                        final isSelected = value == selectedValue;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: InkWell(
+                            onTap: () {
+                              onSelected(value);
+                              Navigator.pop(context);
+                            },
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFFEAF1FF)
+                                    : Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF1A56C4)
+                                      : Colors.grey.shade200,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? const Color(0xFF1A56C4)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: Colors.grey.shade200,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      isSelected
+                                          ? Icons.check_rounded
+                                          : Icons.badge_outlined,
+                                      color: isSelected
+                                          ? Colors.white
+                                          : const Color(0xFF1A56C4),
+                                      size: 19,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          option['label']!,
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          option['description']!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            ...options.map((option) {
-              final value = option['value']!;
-              final isSelected = value == selectedValue;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: InkWell(
-                  onTap: () {
-                    onSelected(value);
-                    Navigator.pop(context);
-                  },
-                  borderRadius: BorderRadius.circular(14),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? const Color(0xFFEAF1FF)
-                          : Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isSelected
-                            ? const Color(0xFF1A56C4)
-                            : Colors.grey.shade200,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF1A56C4)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Icon(
-                            isSelected
-                                ? Icons.check_rounded
-                                : Icons.badge_outlined,
-                            color: isSelected
-                                ? Colors.white
-                                : const Color(0xFF1A56C4),
-                            size: 19,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                option['label']!,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                option['description']!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.chevron_right_rounded,
-                            color: Colors.grey.shade400),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

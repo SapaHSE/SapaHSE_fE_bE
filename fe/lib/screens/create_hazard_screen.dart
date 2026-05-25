@@ -1259,6 +1259,17 @@ if (picked.isNotEmpty) {
 
   // ── Tag field widgets ─────────────────────────────────────────────────────────
 
+  String get _picDisplayText {
+    final parts = <String>[];
+    if (_selectedDepts.isNotEmpty) {
+      parts.add(_selectedDepts.join(', '));
+    }
+    if (_selectedUsers.isNotEmpty) {
+      parts.add(_selectedUsers.map((u) => u.fullName).join(', '));
+    }
+    return parts.join('  •  ');
+  }
+
   Widget _picTagField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1283,15 +1294,20 @@ if (picked.isNotEmpty) {
               children: [
                 Icon(Icons.person_add_outlined,
                     size: 20,
-                    color:
-                        _canOpenTagPicker ? Colors.grey : Colors.grey.shade400),
+                    color: _canOpenTagPicker
+                        ? Colors.grey
+                        : Colors.grey.shade400),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Ketuk untuk tag orang atau departemen',
+                    _hasPicSelection
+                        ? _picDisplayText
+                        : 'Ketuk untuk tag orang atau departemen',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: _canOpenTagPicker
-                          ? Colors.grey
+                          ? (_hasPicSelection ? Colors.black87 : Colors.grey)
                           : Colors.grey.shade500,
                       fontSize: 13,
                     ),
@@ -1313,40 +1329,6 @@ if (picked.isNotEmpty) {
             ),
           ),
         ),
-        if (_canOpenTagPicker && _hasPicSelection) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              ..._selectedDepts.map((dept) => Chip(
-                    label: Text(dept, style: const TextStyle(fontSize: 12)),
-                    onDeleted: _isLockedDept(dept)
-                        ? null
-                        : () => setState(() => _selectedDepts.remove(dept)),
-                    deleteIcon: _isLockedDept(dept)
-                        ? null
-                        : const Icon(Icons.close, size: 14),
-                    backgroundColor: _blue.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                    side: BorderSide(color: _blue.withValues(alpha: 0.2)),
-                  )),
-              ..._selectedUsers.map((user) => Chip(
-                    label: Text(user.fullName,
-                        style: const TextStyle(fontSize: 12)),
-                    onDeleted: () => setState(() => _selectedUsers
-                        .removeWhere((u) => u.fullName == user.fullName)),
-                    deleteIcon: const Icon(Icons.close, size: 14),
-                    backgroundColor: Colors.orange.withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                    side:
-                        BorderSide(color: Colors.orange.withValues(alpha: 0.2)),
-                  )),
-            ],
-          ),
-        ],
       ],
     );
   }
@@ -2418,10 +2400,16 @@ if (picked.isNotEmpty) {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Ketuk untuk tag orang atau departemen',
+                            _hasPicSelection
+                                ? _picDisplayText
+                                : 'Ketuk untuk tag orang atau departemen',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                                 color: _canOpenTagPicker
-                                    ? Colors.grey
+                                    ? (_hasPicSelection
+                                        ? Colors.black87
+                                        : Colors.grey)
                                     : Colors.grey.shade500,
                                 fontSize: 13),
                           ),
@@ -2435,45 +2423,6 @@ if (picked.isNotEmpty) {
                     ),
                   ),
                 ),
-                if (_canOpenTagPicker && _hasPicSelection) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      ..._selectedDepts.map((dept) => Chip(
-                            label: Text(dept,
-                                style: const TextStyle(fontSize: 12)),
-                            onDeleted: _isLockedDept(dept)
-                                ? null
-                                : () =>
-                                    setState(() => _selectedDepts.remove(dept)),
-                            deleteIcon: _isLockedDept(dept)
-                                ? null
-                                : const Icon(Icons.close, size: 14),
-                            backgroundColor: _blue.withValues(alpha: 0.1),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20)),
-                            side:
-                                BorderSide(color: _blue.withValues(alpha: 0.2)),
-                          )),
-                      ..._selectedUsers.map((user) => Chip(
-                            label: Text(user.fullName,
-                                style: const TextStyle(fontSize: 12)),
-                            onDeleted: () => setState(() =>
-                                _selectedUsers.removeWhere(
-                                    (u) => u.fullName == user.fullName)),
-                            deleteIcon: const Icon(Icons.close, size: 14),
-                            backgroundColor:
-                                Colors.orange.withValues(alpha: 0.1),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20)),
-                            side: BorderSide(
-                                color: Colors.orange.withValues(alpha: 0.2)),
-                          )),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),

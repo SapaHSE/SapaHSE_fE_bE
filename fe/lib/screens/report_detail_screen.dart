@@ -4151,6 +4151,17 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     );
   }
 
+  String get _picDisplayText {
+    final parts = <String>[];
+    if (_selectedDepts.isNotEmpty) {
+      parts.add(_selectedDepts.join(', '));
+    }
+    if (_selectedUsers.isNotEmpty) {
+      parts.add(_selectedUsers.map((u) => u.fullName).join(', '));
+    }
+    return parts.join('  •  ');
+  }
+
   Future<void> _handleSave() async {
     if (!_canSelectMainStatus(_selectedStatus)) {
       widget.onShowSnackBar(
@@ -4426,71 +4437,34 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                 onTap: _showUnifiedPicker,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 13),
                   decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: const Color(0xFFF8F9FF),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey.shade300)),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 13),
-                          decoration: BoxDecoration(
-                              color: const Color(0xFFF8F9FF),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300)),
-                          child: Row(children: [
-                            const Icon(Icons.person_add_outlined,
-                                size: 20, color: Colors.grey),
-                            const SizedBox(width: 12),
-                            const Expanded(
-                                child: Text(
-                                    'Ketuk untuk tag orang atau departemen',
-                                    style: TextStyle(
-                                        color: Colors.grey, fontSize: 13))),
-                            Icon(Icons.arrow_forward_ios,
-                                size: 14, color: Colors.grey.shade400),
-                          ]),
-                        ),
-                        if (_selectedDepts.isNotEmpty ||
-                            _selectedUsers.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: [
-                              ..._selectedDepts.map((dept) => Chip(
-                                    label: Text(dept,
-                                        style: const TextStyle(fontSize: 11)),
-                                    onDeleted: _isLockedDept(dept)
-                                        ? null
-                                        : () => setState(
-                                            () => _selectedDepts.remove(dept)),
-                                    backgroundColor:
-                                        _blue.withValues(alpha: 0.1),
-                                    side: BorderSide.none,
-                                    padding: EdgeInsets.zero,
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  )),
-                              ..._selectedUsers.map((user) => Chip(
-                                    label: Text('${user.fullName} (PJA)',
-                                        style: const TextStyle(fontSize: 11)),
-                                    onDeleted: () => setState(
-                                        () => _selectedUsers.remove(user)),
-                                    backgroundColor:
-                                        _blue.withValues(alpha: 0.1),
-                                    side: BorderSide.none,
-                                    padding: EdgeInsets.zero,
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  )),
-                            ],
-                          ),
-                        ],
-                      ]),
+                  child: Row(children: [
+                    const Icon(Icons.person_add_outlined,
+                        size: 20, color: Colors.grey),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Text(
+                      _selectedDepts.isNotEmpty ||
+                              _selectedUsers.isNotEmpty
+                          ? _picDisplayText
+                          : 'Ketuk untuk tag orang atau departemen',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: _selectedDepts.isNotEmpty ||
+                                  _selectedUsers.isNotEmpty
+                              ? Colors.black87
+                              : Colors.grey,
+                          fontSize: 13),
+                    )),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 14, color: Colors.grey.shade400),
+                  ]),
                 ),
               ),
               const SizedBox(height: 24),

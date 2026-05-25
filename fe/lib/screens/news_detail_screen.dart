@@ -200,6 +200,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
   Widget build(BuildContext context) {
     final article = _fullArticle ?? widget.article;
     final catColor = _categoryColor(article.category);
+    final categoryTag = article.category.replaceAll(RegExp(r'[\s/]+'), '');
+    final tags =
+        article.hashtags.isNotEmpty ? article.hashtags : [categoryTag.toLowerCase()];
 
     return PopScope(
       canPop: false,
@@ -323,9 +326,6 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                       color: Colors.white38,
                                       shape: BoxShape.circle)),
                               const SizedBox(width: 8),
-                              const Icon(Icons.calendar_today_outlined,
-                                  size: 12, color: Colors.white70),
-                              const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
                                   article.publishDateLabel ?? article.date,
@@ -459,12 +459,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: [
-                          '#BatuBara',
-                          '#BBE',
-                          '#${article.category.replaceAll(' / ', '')}',
-                          '#Energi'
-                        ]
+                        children: tags
                             .map((tag) => Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 6),
@@ -472,7 +467,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
                                     color: const Color(0xFFF1F4FA),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(tag,
+                                  child: Text('#$tag',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: Color(0xFF1A56C4),

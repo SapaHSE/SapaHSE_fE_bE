@@ -696,8 +696,24 @@ class _CarouselItem extends StatelessWidget {
   final VoidCallback onTap;
   const _CarouselItem({required this.article, required this.onTap});
 
+  Color _categoryColor(String cat) {
+    switch (cat) {
+      case 'K3 / HSE':
+        return const Color(0xFF1A56C4);
+      case 'Operasional':
+        return const Color(0xFF1565C0);
+      case 'Regulasi':
+        return const Color(0xFFE65100);
+      case 'Prestasi':
+        return const Color(0xFF6A1B9A);
+      default:
+        return const Color(0xFF37474F);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final catColor = _categoryColor(article.category);
     return GestureDetector(
       onTap: onTap,
       child: Stack(
@@ -729,7 +745,7 @@ class _CarouselItem extends StatelessWidget {
           // Title
           Positioned(
             left: 16,
-            right: 52,
+            right: 112,
             bottom: 38,
             child: Text(
               article.title,
@@ -741,6 +757,35 @@ class _CarouselItem extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 height: 1.35,
                 shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+              ),
+            ),
+          ),
+
+          // Category badge
+          Positioned(
+            bottom: 10,
+            right: 10,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.35,
+              ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: catColor.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  article.category,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ),

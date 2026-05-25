@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
@@ -54,6 +55,7 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
   final _titleCtrl = TextEditingController();
   final _authorCtrl = TextEditingController();
   final _excerptCtrl = TextEditingController();
+  final _hashtagCtrl = TextEditingController();
   final _quillCtrl = quill.QuillController.basic();
 
   String? _category;
@@ -62,6 +64,7 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
   XFile? _image;
   bool _submitting = false;
   bool _localeReady = false;
+  final List<String> _hashtags = [];
 
   @override
   void initState() {
@@ -85,6 +88,7 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
     _titleCtrl.dispose();
     _authorCtrl.dispose();
     _excerptCtrl.dispose();
+    _hashtagCtrl.dispose();
     _quillCtrl.dispose();
     super.dispose();
   }
@@ -122,8 +126,40 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
     return plain.isEmpty;
   }
 
+  String _normalizeTag(String raw) {
+    var tag = raw.trim().toLowerCase();
+    if (tag.startsWith('#')) tag = tag.substring(1);
+    tag = tag.replaceAll(RegExp(r'\s+'), '');
+    if (tag.length > 24) tag = tag.substring(0, 24);
+    return tag;
+  }
+
+  void _addHashtag(String raw) {
+    final normalized = _normalizeTag(raw);
+    if (normalized.isEmpty) return;
+    if (_hashtags.contains(normalized)) return;
+    if (_hashtags.length >= 10) {
+      _snack('Maksimal 10 tagar.');
+      return;
+    }
+    setState(() {
+      _hashtags.add(normalized);
+    });
+  }
+
+  void _commitHashtagInput() {
+    final text = _hashtagCtrl.text;
+    if (text.trim().isEmpty) return;
+    final parts = text.split(RegExp(r'[\s,]+'));
+    for (final part in parts) {
+      _addHashtag(part);
+    }
+    _hashtagCtrl.clear();
+  }
+
   Future<void> _submit() async {
     if (_submitting) return;
+    _commitHashtagInput();
     if (!_formKey.currentState!.validate()) return;
     if (_category == null) {
       _snack('Pilih kategori terlebih dahulu.');
@@ -141,6 +177,7 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
       'category': _category!,
       'excerpt': _excerptCtrl.text.trim(),
       'content': _quillToHtml(),
+      'hashtags': jsonEncode(_hashtags),
       'author_name': _authorCtrl.text.trim(),
       'publish_date': DateFormat('yyyy-MM-dd').format(_publishDate),
       'is_featured': _isFeatured ? '1' : '0',
@@ -298,6 +335,9 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
                   hint: 'Ringkasan singkat berita (1-2 kalimat)',
                   maxLines: 3,
                 ),
+                const SizedBox(height: 14),
+                _sectionLabel('Tagar'),
+                _hashtagInputCard(),
                 const SizedBox(height: 18),
                 _sectionLabel('Isi Berita'),
                 _quillCard(),
@@ -433,6 +473,85 @@ class _NewsCreateScreenState extends State<NewsCreateScreen> {
       maxLines: maxLines,
       validator: validator,
       decoration: _inputDecoration(hint),
+    );
+  }
+
+  Widget _hashtagInputCard() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE0E4EA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _hashtagCtrl,
+                  decoration: _inputDecoration('Contoh: #hse, safety, operasional')
+                      .copyWith(contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                  onSubmitted: (_) => _commitHashtagInput(),
+                  onChanged: (value) {
+                    final last = value.isNotEmpty ? value[value.length - 1] : '';
+                    if (last == ',' || last == ' ') {
+                      _commitHashtagInput();
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                height: 42,
+                child: ElevatedButton(
+                  onPressed: _commitHashtagInput,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                  ),
+                  child: const Text('Tambah'),
+                ),
+              ),
+            ],
+          ),
+          if (_hashtags.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _hashtags
+                  .map(
+                    (tag) => Chip(
+                      label: Text('#$tag'),
+                      deleteIcon: const Icon(Icons.close, size: 16),
+                      onDeleted: () => setState(() => _hashtags.remove(tag)),
+                      backgroundColor: const Color(0xFFF1F4FA),
+                      labelStyle: const TextStyle(
+                        color: Color(0xFF1A56C4),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                      side: BorderSide.none,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
+          const SizedBox(height: 4),
+          const Text(
+            'Maksimal 10 tagar. Format akan dinormalisasi otomatis.',
+            style: TextStyle(fontSize: 11, color: Color(0xFF90A4AE)),
+          ),
+        ],
+      ),
     );
   }
 

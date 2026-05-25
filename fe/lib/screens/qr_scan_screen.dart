@@ -358,8 +358,11 @@ class _QrScanScreenState extends State<QrScanScreen>
       backgroundColor: const Color(0xFFF4F6F8),
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.transparent,
         title: const Text(
           'QR Profile',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),

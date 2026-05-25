@@ -191,46 +191,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final ctrl = TextEditingController();
     return showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Konfirmasi Password',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-                'Masukkan password Anda untuk disimpan dengan aman sebagai kredensial biometrik.',
-                style: TextStyle(fontSize: 13, color: Colors.grey)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: ctrl,
-              obscureText: true,
-              decoration: InputDecoration(
-                hintText: 'Password',
-                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          bool obscureBio = true;
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16)),
+            title: const Text('Konfirmasi Password',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                    'Masukkan password Anda untuk disimpan dengan aman sebagai kredensial biometrik.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: ctrl,
+                  obscureText: obscureBio,
+                  decoration: InputDecoration(
+                    hintText: 'Password',
+                    hintStyle:
+                        const TextStyle(color: Colors.grey, fontSize: 13),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureBio
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.grey,
+                        size: 20),
+                      onPressed: () =>
+                          setDialogState(() => obscureBio = !obscureBio),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Batal')),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, ctrl.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A56C4),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Simpan'),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, ctrl.text),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A56C4),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Simpan'),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -972,6 +990,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmCtrl = TextEditingController();
     bool isLoading = false;
     String? errorMsg;
+    bool obscureOld = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
 
     showModalBottomSheet(
       context: context,
@@ -1043,13 +1064,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                     _buildDialogField('Password Lama', oldCtrl,
-                        hint: 'Masukkan password lama'),
+                        hint: 'Masukkan password lama',
+                        obscureText: obscureOld,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureOld
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: Colors.grey,
+                            size: 20),
+                          onPressed: () =>
+                              setModalState(() => obscureOld = !obscureOld),
+                        )),
                     const SizedBox(height: 16),
                     _buildDialogField('Password Baru', newCtrl,
-                        hint: 'Minimal 8 karakter'),
+                        hint: 'Minimal 8 karakter',
+                        obscureText: obscureNew,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureNew
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: Colors.grey,
+                            size: 20),
+                          onPressed: () =>
+                              setModalState(() => obscureNew = !obscureNew),
+                        )),
                     const SizedBox(height: 16),
                     _buildDialogField('Konfirmasi Password Baru', confirmCtrl,
-                        hint: 'Ulangi password baru'),
+                        hint: 'Ulangi password baru',
+                        obscureText: obscureConfirm,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureConfirm
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: Colors.grey,
+                            size: 20),
+                          onPressed: () => setModalState(
+                              () => obscureConfirm = !obscureConfirm),
+                        )),
                     const SizedBox(height: 32),
                     SizedBox(
                       width: double.infinity,
@@ -1124,7 +1178,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildDialogField(String label, TextEditingController controller,
-      {required String hint}) {
+      {required String hint, bool obscureText = true, Widget? suffixIcon}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1136,7 +1190,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          obscureText: true,
+          obscureText: obscureText,
           style: const TextStyle(fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,
@@ -1155,6 +1209,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide:
                     const BorderSide(color: Color(0xFF1A56C4), width: 1.5)),
+            suffixIcon: suffixIcon,
           ),
         ),
       ],

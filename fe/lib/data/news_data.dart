@@ -14,6 +14,7 @@ class NewsArticle {
   final String imageUrl;
   final bool isFeatured;
   final bool isScheduled;
+  final List<String> hashtags;
 
   const NewsArticle({
     required this.id,
@@ -29,6 +30,7 @@ class NewsArticle {
     required this.imageUrl,
     this.isFeatured = false,
     this.isScheduled = false,
+    this.hashtags = const [],
   });
 
   factory NewsArticle.fromJson(Map<String, dynamic> json) {
@@ -46,12 +48,24 @@ class NewsArticle {
       imageUrl: normalizeStorageUrl(json['image_url']?.toString()) ?? '',
       isFeatured: json['is_featured'] == true,
       isScheduled: json['is_scheduled'] == true,
+      hashtags: _parseHashtags(json['hashtags']),
     );
   }
 
   static DateTime? _parseDate(dynamic raw) {
     if (raw == null) return null;
     return DateTime.tryParse(raw.toString().replaceFirst(' ', 'T'))?.toLocal();
+  }
+
+  static List<String> _parseHashtags(dynamic raw) {
+    if (raw is List) {
+      return raw
+          .map((e) => e?.toString().trim().toLowerCase() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+    }
+    return const [];
   }
 }
 
