@@ -4,7 +4,7 @@ import 'api_service.dart';
 class QrService {
   static const String deepLinkScheme = 'sapahse';
   static const String deepLinkHost = 'qr';
-  static const String userCodePrefix = 'SAPA-HSE-USER-';
+  static const String userCodePrefix = 'SapaHSE-USER-';
 
   static String userQrCodeFromEmployeeId(String employeeId) {
     final normalizedEmployeeId = employeeId.trim().toUpperCase();
