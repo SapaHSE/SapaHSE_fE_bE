@@ -14,10 +14,8 @@ import 'package:sapahse/services/api_service.dart';
 import 'package:sapahse/services/background_sync_service.dart';
 import 'package:sapahse/services/cloud_save_service.dart';
 import 'package:sapahse/services/department_service.dart';
-import 'package:sapahse/services/id_card_pdf_service.dart';
 import 'package:sapahse/services/profile_service.dart';
 import 'package:sapahse/services/storage_service.dart';
-import 'package:sapahse/widgets/mine_permit_preview.dart';
 import 'package:sapahse/utils/approval_status_ui.dart';
 import 'package:sapahse/utils/value_parser.dart';
 import 'package:sapahse/utils/url_helper.dart';
@@ -6431,15 +6429,6 @@ class _MinePermitDetailPage extends StatelessWidget {
       renewalHint = 'Perpanjangan tersedia dalam $daysToOpen hari';
     }
 
-    final showPreview = profileData != null &&
-        (state.key == _MinePermitStateKey.approvedLocked ||
-            state.key == _MinePermitStateKey.approvedRenewable ||
-            state.key == _MinePermitStateKey.pendingChanges ||
-            state.key == _MinePermitStateKey.expired);
-    final previewRows = showPreview
-        ? IdCardPdfService.buildMinePermitTableRows(profileData!)
-        : const <MinePermitTableRow>[];
-
     return _ProfileDetailRouteScaffold(
       title: 'Detail Mine Permit',
       fabHeroTag: 'mine_permit_detail_fab_${lic.id}',
@@ -6473,28 +6462,6 @@ class _MinePermitDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (showPreview) ...[
-                    ReportStyleDetailCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const ReportStyleSectionHeader(
-                            icon: Icons.image_search_outlined,
-                            title: 'Preview Mine Permit',
-                          ),
-                          const SizedBox(height: 14),
-                          Center(
-                            child: MinePermitPreviewPair(
-                              profile: profileData!,
-                              minePermit: lic,
-                              rows: previewRows,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
                   ReportStyleDetailCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
