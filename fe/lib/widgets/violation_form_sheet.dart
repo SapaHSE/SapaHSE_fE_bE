@@ -46,7 +46,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   Timer? _debounce;
   String _status = 'Aktif';
   String _type = 'Violation';
-  int _level = 1;
+  int? _level;
   ViolationCategoryData? _selectedCategory;
   ViolationSubcategoryData? _selectedSubcategory;
   List<ViolationCategoryData> _categories = [];
@@ -146,10 +146,17 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   Future<void> _save() async {
     setState(() => _hasTriedSubmit = true);
 
-    if (!_formKey.currentState!.validate() || _selectedUser == null) {
+    if (!_formKey.currentState!.validate() ||
+        _selectedUser == null ||
+        _level == null) {
       if (_selectedUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Silakan pilih user terlebih dahulu')),
+        );
+      }
+      if (_level == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Silakan pilih level terlebih dahulu')),
         );
       }
       return;
@@ -522,10 +529,12 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   }
 
   Widget _buildLevelPicker() {
+    final showLevelError = _hasTriedSubmit && _level == null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel('Level'),
+        _buildLabel('Level', isRequired: true),
         const SizedBox(height: 8),
         Row(
           children: [1, 2, 3].map((level) {
@@ -565,6 +574,14 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             );
           }).toList(),
         ),
+        if (showLevelError)
+          const Padding(
+            padding: EdgeInsets.only(left: 12, top: 6),
+            child: Text(
+              'Wajib dipilih',
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -575,6 +592,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
       value: _selectedCategory,
       items: _categories,
       itemLabel: (item) => item.code == null ? item.name : '${item.code} - ${item.name}',
+      isRequired: true,
       onChanged: (value) => setState(() {
         _selectedCategory = value;
         _selectedSubcategory = null;
@@ -592,6 +610,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
       value: _selectedSubcategory,
       items: items,
       itemLabel: (item) => item.name,
+      isRequired: true,
       onChanged: _selectedCategory == null
           ? null
           : (value) => setState(() => _selectedSubcategory = value),
@@ -604,11 +623,12 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     required List<T> items,
     required String Function(T) itemLabel,
     required ValueChanged<T>? onChanged,
+    bool isRequired = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel(label),
+        _buildLabel(label, isRequired: isRequired),
         const SizedBox(height: 8),
         Container(
           decoration: kMinimalFieldContainerDecoration,
@@ -618,6 +638,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
             style: kMinimalDropdownTextStyle,
             decoration: minimalFieldDecoration(hintText: 'Pilih $label'),
+            validator:
+                isRequired ? (value) => value == null ? 'Wajib dipilih' : null : null,
             items: items
                 .map((item) => DropdownMenuItem<T>(
                       value: item,
