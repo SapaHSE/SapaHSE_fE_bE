@@ -94,6 +94,8 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
   ApprovalStatusStyle get _approvalStyle =>
       approvalStatusStyle(widget.item.approvalStatus);
 
+  bool get _isPending => normalizeApprovalStatus(widget.item.approvalStatus) == 'pending';
+
   String _formatDate(DateTime dt) {
     final m = [
       'Jan',
@@ -607,6 +609,38 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                 ],
                               ),
                             ),
+                            const SizedBox(height: 12),
+                            if (!_isPending &&
+                                (item.reviewerName ?? '').trim().isNotEmpty)
+                              ReportStyleDetailCard(
+                                margin: EdgeInsets.zero,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const ReportStyleSectionHeader(
+                                      icon: Icons.verified_user_outlined,
+                                      title: 'Informasi Reviewer',
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ReportStyleDetailRow(
+                                      icon: Icons.person_outline,
+                                      label: 'Nama Reviewer',
+                                      value: _displayValue(item.reviewerName),
+                                    ),
+                                    if ((item.reviewerEmployeeId ?? '')
+                                        .trim()
+                                        .isNotEmpty) ...[
+                                      const SizedBox(height: 12),
+                                      ReportStyleDetailRow(
+                                        icon: Icons.badge_outlined,
+                                        label: 'NIP Reviewer',
+                                        value: _displayValue(
+                                            item.reviewerEmployeeId),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
                             const SizedBox(height: 12),
                             ReportStyleDetailCard(
                               margin: EdgeInsets.zero,

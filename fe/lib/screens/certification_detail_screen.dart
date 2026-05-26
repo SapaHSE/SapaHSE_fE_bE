@@ -639,6 +639,14 @@ class _CertificationDetailScreenState extends State<CertificationDetailScreen> {
                       value: _formatDateText(_certification.reviewedAt),
                     ),
                   ],
+                  if ((_certification.reviewedByName ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    ReportStyleDetailRow(
+                      icon: Icons.verified_user_outlined,
+                      label: 'Direview oleh',
+                      value: _displayValue(_certification.reviewedByName),
+                    ),
+                  ],
                   if ((_certification.rejectionReason ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Container(

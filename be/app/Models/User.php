@@ -68,6 +68,7 @@ class User extends Authenticatable
         'role',
         'registration_status',
         'rejection_reason',
+        'reviewed_by',
         'fcm_token',
         'last_activity_at',
         'last_notification_sent_at',
@@ -245,5 +246,10 @@ class User extends Authenticatable
     public function violations()
     {
         return $this->hasMany(UserViolation::class, 'user_id');
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

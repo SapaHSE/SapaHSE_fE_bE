@@ -188,6 +188,8 @@ class UserLicense {
   final String? rejectionReason;
   final String? submittedAt;
   final String? reviewedAt;
+  final String? reviewedByName;
+  final String? reviewedByPhoto;
   final String? fileUrl;
 
   UserLicense({
@@ -207,6 +209,8 @@ class UserLicense {
     this.rejectionReason,
     this.submittedAt,
     this.reviewedAt,
+    this.reviewedByName,
+    this.reviewedByPhoto,
     this.fileUrl,
   });
 
@@ -228,6 +232,8 @@ class UserLicense {
       rejectionReason: json['rejection_reason']?.toString(),
       submittedAt: json['submitted_at']?.toString(),
       reviewedAt: json['reviewed_at']?.toString(),
+      reviewedByName: json['reviewed_by_name']?.toString(),
+      reviewedByPhoto: normalizeStorageUrl(json['reviewed_by_photo']?.toString()),
       fileUrl: normalizeStorageUrl(json['file_url']?.toString()),
     );
   }
@@ -272,6 +278,8 @@ class UserCertification {
   final String? rejectionReason;
   final String? submittedAt;
   final String? reviewedAt;
+  final String? reviewedByName;
+  final String? reviewedByPhoto;
   final String? fileUrl;
 
   UserCertification({
@@ -287,6 +295,8 @@ class UserCertification {
     this.rejectionReason,
     this.submittedAt,
     this.reviewedAt,
+    this.reviewedByName,
+    this.reviewedByPhoto,
     this.fileUrl,
   });
 
@@ -304,6 +314,8 @@ class UserCertification {
       rejectionReason: json['rejection_reason']?.toString(),
       submittedAt: json['submitted_at']?.toString(),
       reviewedAt: json['reviewed_at']?.toString(),
+      reviewedByName: json['reviewed_by_name']?.toString(),
+      reviewedByPhoto: normalizeStorageUrl(json['reviewed_by_photo']?.toString()),
       fileUrl: normalizeStorageUrl(json['file_url']?.toString()),
     );
   }

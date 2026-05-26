@@ -636,6 +636,14 @@ class _LicenseDetailScreenState extends State<LicenseDetailScreen> {
                       value: _formatDateText(_license.reviewedAt),
                     ),
                   ],
+                  if ((_license.reviewedByName ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    ReportStyleDetailRow(
+                      icon: Icons.verified_user_outlined,
+                      label: 'Direview oleh',
+                      value: _displayValue(_license.reviewedByName),
+                    ),
+                  ],
                   if ((_license.rejectionReason ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Container(
