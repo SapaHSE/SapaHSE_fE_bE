@@ -32,10 +32,12 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
   final Set<String> _selectedIds = {};
   Timer? _searchDebounce;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String? _userRole;
   String? _userDept;
   String _selectedStatus = 'Semua';
   String _selectedType = 'Semua';
+  bool _isSearching = false;
 
   bool get _hasFullAccess {
     if (_userRole == 'superadmin') return true;
@@ -57,6 +59,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
   void dispose() {
     _searchDebounce?.cancel();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -93,6 +96,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
     showViolationTypePicker(
       context: context,
       onSelected: (type) => _showViolationForm(initialType: type),
+      onDeleteMode: () => setState(() => _isSelectionMode = true),
     );
   }
 
@@ -145,14 +149,57 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Manajemen Pelanggaran',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                autofocus: true,
+                onChanged: _onSearchChanged,
+                decoration: const InputDecoration(
+                  hintText: 'Cari violation atau user...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+                style: const TextStyle(color: Colors.black87, fontSize: 16),
+              )
+            : const Text(
+                'Violation & Incident',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
+        leading: _isSearching
+            ? IconButton(
+                icon: const Icon(Icons.close, color: Colors.black87),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = false;
+                    _searchController.clear();
+                  });
+                  _fetchViolations(refresh: true);
+                },
+              )
+            : null,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              setState(() => _isSearching = !_isSearching);
+              if (_isSearching) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _searchFocusNode.requestFocus();
+                });
+              } else {
+                _searchController.clear();
+                _fetchViolations(refresh: true);
+              }
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -185,14 +232,21 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
               ),
             )
           else ...[
-            _buildSearchBar(),
             _buildFilterRow(),
           ],
           Expanded(
             child: _isLoading && _violations.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null && _violations.isEmpty
-                    ? Center(child: Text(_error!))
+                    ? _buildMessageState(
+                        icon: Icons.error_outline,
+                        message: _error!,
+                      )
+                    : _violations.isEmpty
+                        ? _buildMessageState(
+                            icon: Icons.fact_check_outlined,
+                            message: 'Tidak ada data violation atau incident',
+                          )
                     : RefreshIndicator(
                         onRefresh: () => _fetchViolations(refresh: true),
                         child: ListView.builder(
@@ -260,117 +314,98 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildFilterRow() {
+    final filters = ['Semua', 'Violation', 'Incident', 'Aktif', 'Selesai'];
     return Container(
-      padding: const EdgeInsets.all(16),
+      height: 56,
       color: Colors.white,
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'Cari nama user atau pelanggaran...',
-          prefixIcon: const Icon(Icons.search),
-          filled: true,
-          fillColor: const Color(0xFFF5F5F5),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-        ),
-        onChanged: _onSearchChanged,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        itemCount: filters.length,
+        itemBuilder: (context, index) {
+          final filter = filters[index];
+          final isSelected = _activeFilter == filter;
+          final color = _filterColor(filter);
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(filter),
+              selected: isSelected,
+              selectedColor: color,
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: isSelected ? color : Colors.grey.shade300,
+                ),
+              ),
+              labelStyle: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade700,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 13,
+              ),
+              showCheckmark: false,
+              onSelected: (selected) {
+                if (!selected) return;
+                _applyFilter(filter);
+              },
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildFilterRow() {
-    final statuses = ['Semua', 'Aktif', 'Selesai'];
-    final types = ['Semua', 'Violation', 'Incident'];
-    return Container(
-      height: 96,
-      color: Colors.white,
-      child: Column(
-        children: [
-          SizedBox(
-            height: 48,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: types.length,
-              itemBuilder: (context, index) {
-                final type = types[index];
-                final isSelected = _selectedType == type;
-                final color = type == 'Incident'
-                    ? Colors.orange
-                    : type == 'Violation'
-                        ? Colors.red
-                        : Colors.blue;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
-                  child: ChoiceChip(
-                    label: Text(
-                      type,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedColor: color,
-                    backgroundColor: color.withValues(alpha: 0.05),
-                    side: BorderSide(
-                      color: isSelected ? color : color.withValues(alpha: 0.2),
-                    ),
-                    onSelected: (selected) {
-                      if (!selected) return;
-                      setState(() => _selectedType = type);
-                      _fetchViolations(refresh: true);
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-          SizedBox(
-            height: 48,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: statuses.length,
-              itemBuilder: (context, index) {
-                final status = statuses[index];
-                final isSelected = _selectedStatus == status;
+  String get _activeFilter {
+    if (_selectedType != 'Semua') return _selectedType;
+    if (_selectedStatus != 'Semua') return _selectedStatus;
+    return 'Semua';
+  }
 
-                Color color = Colors.blue;
-                if (status == 'Aktif') color = Colors.red;
-                if (status == 'Selesai') color = Colors.green;
+  Color _filterColor(String filter) {
+    if (filter == 'Violation' || filter == 'Aktif') return Colors.red;
+    if (filter == 'Incident') return Colors.orange;
+    if (filter == 'Selesai') return Colors.green;
+    return const Color(0xFF1A56C4);
+  }
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
-                  child: ChoiceChip(
-                    label: Text(
-                      status,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    selected: isSelected,
-                    selectedColor: color,
-                    backgroundColor: color.withValues(alpha: 0.05),
-                    side: BorderSide(
-                        color: isSelected ? color : color.withValues(alpha: 0.2)),
-                    onSelected: (selected) {
-                      if (!selected) return;
-                      setState(() => _selectedStatus = status);
-                      _fetchViolations(refresh: true);
-                    },
-                  ),
-                );
-              },
+  void _applyFilter(String filter) {
+    setState(() {
+      if (filter == 'Violation' || filter == 'Incident') {
+        _selectedType = filter;
+        _selectedStatus = 'Semua';
+      } else if (filter == 'Aktif' || filter == 'Selesai') {
+        _selectedStatus = filter;
+        _selectedType = 'Semua';
+      } else {
+        _selectedType = 'Semua';
+        _selectedStatus = 'Semua';
+      }
+    });
+    _fetchViolations(refresh: true);
+  }
+
+  Widget _buildMessageState({
+    required IconData icon,
+    required String message,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -378,6 +413,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
   Widget _buildViolationCard(ViolationItem item) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -404,12 +440,13 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
           }
         },
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              if (_isSelectionMode)
-                Checkbox(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isSelectionMode)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Checkbox(
                   value: _selectedIds.contains(item.id),
                   onChanged: (v) {
                     setState(() {
@@ -421,162 +458,154 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                     });
                   },
                 ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: const Color(0xFFE3F2FD),
-                          child: Text(
-                            _userInitial(item.user['full_name']),
-                            style: const TextStyle(
-                                color: Color(0xFF1A56C4),
-                                fontWeight: FontWeight.bold),
+              ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: const Color(0xFFE3F2FD),
+                        child: Text(
+                          _userInitial(item.user['full_name']),
+                          style: const TextStyle(
+                            color: Color(0xFF1A56C4),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.user['full_name'] ?? 'Unknown User',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 15),
-                              ),
-                              Text(
-                                'ID: ${item.user['employee_id'] ?? '-'}',
-                                style: TextStyle(
-                                    color: Colors.grey.shade500, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          alignment: WrapAlignment.end,
-                          children: [
-                            _buildTypeBadge(item.type),
-                            _buildLevelBadge(item.level),
-                            _buildStatusBadge(item.status),
-                          ],
-                        ),
-                        if (!_isSelectionMode && _hasFullAccess) ...[
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline,
-                                size: 20, color: Colors.red),
-                            onPressed: () => _confirmDelete(item),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      child: Divider(),
-                    ),
-                    Text(
-                      item.title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14),
-                    ),
-                    if ((item.violationCategory ?? '').isNotEmpty ||
-                        (item.violationSubcategory ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        [
-                          item.violationCategory,
-                          item.violationSubcategory,
-                        ].where((v) => (v ?? '').isNotEmpty).join(' - '),
-                        style: TextStyle(
-                            color: Colors.grey.shade500, fontSize: 12),
                       ),
-                    ],
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.location_on_outlined,
-                            size: 14, color: Colors.grey.shade400),
-                        const SizedBox(width: 4),
-                        Text(
-                          item.location ?? 'Lokasi tidak disebutkan',
-                          style: TextStyle(
-                              color: Colors.grey.shade600, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Icon(Icons.calendar_today_outlined,
-                                    size: 12, color: Colors.grey.shade400),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Dibuat: ${_formatDate(item.dateOfViolation)}',
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 11),
-                                ),
-                              ],
-                            ),
-                            if (item.expiredAt != null) ...[
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Icon(Icons.event_available_outlined,
-                                      size: 12, color: Colors.blue.shade300),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Berlaku S/D: ${_formatDate(item.expiredAt!)}',
-                                    style: TextStyle(
-                                        color: Colors.blue.shade700,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500),
-                                  ),
-                                ],
+                            Text(
+                              item.user['full_name'] ?? 'Unknown User',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
                               ),
-                            ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'ID: ${item.user['employee_id'] ?? '-'}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
-                        if (item.sanction != null)
-                          Flexible(
-                            child: Container(
-                              margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                item.sanction!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    color: Colors.red.shade700,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildStatusBadge(item.status),
+                          if (!_isSelectionMode && _hasFullAccess) ...[
+                            const SizedBox(height: 6),
+                            InkWell(
+                              onTap: () => _confirmDelete(item),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Icon(
+                                  Icons.delete_outline,
+                                  size: 20,
+                                  color: Colors.red.shade400,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _buildTypeBadge(item.type),
+                      _buildLevelBadge(item.level),
+                      if ((item.violationCategory ?? '').trim().isNotEmpty)
+                        _buildNeutralBadge(item.violationCategory!.trim()),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  if ((item.violationSubcategory ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      item.violationSubcategory!.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 6,
+                    children: [
+                      _buildMetaItem(
+                        Icons.location_on_outlined,
+                        item.location ?? 'Lokasi tidak disebutkan',
+                      ),
+                      _buildMetaItem(
+                        Icons.calendar_today_outlined,
+                        _formatDate(item.dateOfViolation),
+                      ),
+                      if ((item.expiredAt ?? '').isNotEmpty)
+                        _buildMetaItem(
+                          Icons.event_available_outlined,
+                          'S/D ${_formatDate(item.expiredAt!)}',
+                          color: Colors.blue.shade700,
+                        ),
+                    ],
+                  ),
+                  if ((item.sanction ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item.sanction!.trim(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -711,6 +740,48 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
         'L$level',
         style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
       ),
+    );
+  }
+
+  Widget _buildNeutralBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.shade50,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: Colors.blueGrey.shade700,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetaItem(IconData icon, String text, {Color? color}) {
+    final effectiveColor = color ?? Colors.grey.shade600;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: effectiveColor.withValues(alpha: 0.75)),
+        const SizedBox(width: 4),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 180),
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: effectiveColor,
+              fontSize: 11,
+              fontWeight: color == null ? FontWeight.normal : FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

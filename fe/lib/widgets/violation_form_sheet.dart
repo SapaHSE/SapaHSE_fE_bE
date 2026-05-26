@@ -10,6 +10,7 @@ import '../services/auth_service.dart';
 import '../services/supabase_storage_service.dart';
 import '../services/violation_service.dart';
 import 'app_safe_insets.dart';
+import 'minimal_dropdown.dart';
 
 String _userInitial(dynamic value) {
   final text = value?.toString().trim() ?? '';
@@ -54,6 +55,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   List<Map<String, dynamic>> _userResults = [];
   bool _isSearchingUser = false;
   bool _isSaving = false;
+  bool _hasTriedSubmit = false;
 
   @override
   void initState() {
@@ -142,6 +144,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   }
 
   Future<void> _save() async {
+    setState(() => _hasTriedSubmit = true);
+
     if (!_formKey.currentState!.validate() || _selectedUser == null) {
       if (_selectedUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -245,133 +249,164 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: AppSafeInsets.keyboardOrSystemBottom(context),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildHeader(),
-          Flexible(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildUserPicker(),
-                    const SizedBox(height: 20),
-                    _buildTypePicker(),
-                    const SizedBox(height: 16),
-                    _buildLevelPicker(),
-                    const SizedBox(height: 16),
-                    _buildCategoryPicker(),
-                    const SizedBox(height: 16),
-                    _buildSubcategoryPicker(),
-                    const SizedBox(height: 16),
-                    _buildField(
-                      _type == 'Incident' ? 'Judul Incident' : 'Judul Pelanggaran',
-                      _titleController,
-                      hint: 'Contoh: Tidak memakai helm',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildField(
-                      'Deskripsi',
-                      _descriptionController,
-                      hint: 'Tuliskan deskripsi kronologi...',
-                      maxLines: 3,
-                      isRequired: false,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildField(
-                      'Lokasi',
-                      _locationController,
-                      hint: 'Contoh: Pit A / Area Workshop',
-                      isRequired: false,
-                    ),
-                    const SizedBox(height: 16),
-                    InkWell(
-                      onTap: _selectExpiredDate,
-                      child: IgnorePointer(
-                        child: _buildField(
-                          'Masa Berlaku',
-                          _expiredDateController,
-                          hint: 'YYYY-MM-DD',
-                          icon: Icons.event_available,
+    final maxHeight = MediaQuery.of(context).size.height * 0.86;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: EdgeInsets.only(
+          bottom: AppSafeInsets.keyboardOrSystemBottom(context),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHeader(),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildUserPicker(),
+                        const SizedBox(height: 12),
+                        _buildTypeLevelRow(),
+                        const SizedBox(height: 12),
+                        _buildCategoryPicker(),
+                        const SizedBox(height: 12),
+                        _buildSubcategoryPicker(),
+                        const SizedBox(height: 12),
+                        _buildField(
+                          _type == 'Incident'
+                              ? 'Judul Incident'
+                              : 'Judul Pelanggaran',
+                          _titleController,
+                          hint: 'Contoh: Tidak memakai helm',
+                        ),
+                        const SizedBox(height: 12),
+                        _buildField(
+                          'Deskripsi',
+                          _descriptionController,
+                          hint: 'Tuliskan deskripsi kronologi...',
+                          maxLines: 3,
                           isRequired: false,
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        _buildField(
+                          'Lokasi',
+                          _locationController,
+                          hint: 'Contoh: Pit A / Area Workshop',
+                          isRequired: false,
+                        ),
+                        const SizedBox(height: 12),
+                        InkWell(
+                          onTap: _selectExpiredDate,
+                          child: IgnorePointer(
+                            child: _buildField(
+                              'Masa Berlaku',
+                              _expiredDateController,
+                              hint: 'YYYY-MM-DD',
+                              icon: Icons.event_available,
+                              isRequired: false,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildStatusPicker(),
+                        const SizedBox(height: 12),
+                        _buildField(
+                          'Sanksi / Tindakan',
+                          _sanctionController,
+                          hint: 'Contoh: SP1 / Teguran Lisan',
+                          isRequired: false,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildImagePicker(),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    _buildStatusPicker(),
-                    const SizedBox(height: 16),
-                    _buildField(
-                      'Sanksi / Tindakan',
-                      _sanctionController,
-                      hint: 'Contoh: SP1 / Teguran Lisan',
-                      isRequired: false,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildImagePicker(),
-                    const SizedBox(height: 32),
-                    _buildFooterButtons(),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              Divider(height: 1, color: Colors.grey.shade100),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                child: _buildFooterButtons(),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF5F5F5))),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              widget.item == null ? 'Tambah $_type' : 'Edit $_type',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 4),
+          child: Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 4, 12, 10),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFF5F5F5))),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  widget.item == null ? 'Tambah $_type' : 'Edit $_type',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildUserPicker() {
+    final showUserError = _hasTriedSubmit && _selectedUser == null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'User / Karyawan',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-        ),
+        _buildLabel('User / Karyawan', isRequired: true),
         const SizedBox(height: 8),
         if (_selectedUser != null)
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFF8F9FA),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
               border: Border.all(
-                color: const Color(0xFF1A56C4).withValues(alpha: 0.3),
+                color: showUserError
+                    ? Colors.red
+                    : const Color(0xFF1A56C4).withValues(alpha: 0.3),
               ),
             ),
             child: Row(
@@ -405,18 +440,20 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
           Column(
             children: [
               TextField(
-                decoration: InputDecoration(
-                  hintText: 'Cari nama atau ID karyawan...',
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  fillColor: const Color(0xFFF8F9FA),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+                decoration: _userSearchDecoration(showUserError),
                 onChanged: _searchUsers,
               ),
+              if (showUserError)
+                const Padding(
+                  padding: EdgeInsets.only(left: 12, top: 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Wajib dipilih',
+                      style: TextStyle(color: Colors.red, fontSize: 12),
+                    ),
+                  ),
+                ),
               if (_isSearchingUser)
                 const Padding(
                   padding: EdgeInsets.all(8),
@@ -428,7 +465,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                   margin: const EdgeInsets.only(top: 4),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
                     border: Border.all(color: Colors.grey.shade200),
                   ),
                   child: ListView.builder(
@@ -473,14 +510,22 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     );
   }
 
+  Widget _buildTypeLevelRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _buildTypePicker()),
+        const SizedBox(width: 12),
+        Expanded(child: _buildLevelPicker()),
+      ],
+    );
+  }
+
   Widget _buildLevelPicker() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Level',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-        ),
+        _buildLabel('Level'),
         const SizedBox(height: 8),
         Row(
           children: [1, 2, 3].map((level) {
@@ -494,13 +539,25 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
               child: Padding(
                 padding: EdgeInsets.only(right: level == 3 ? 0 : 8),
                 child: ChoiceChip(
-                  label: Text('Level $level'),
+                  label: Text(level.toString()),
                   selected: selected,
                   selectedColor: color,
                   backgroundColor: color.withValues(alpha: 0.08),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(kMinimalDropdownRadius),
+                    side: BorderSide(
+                      color:
+                          selected ? color : color.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  showCheckmark: false,
                   labelStyle: TextStyle(
                     color: selected ? Colors.white : color,
                     fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
                   onSelected: (_) => setState(() => _level = level),
                 ),
@@ -551,31 +608,31 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        _buildLabel(label),
         const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<T>(
-              value: value,
-              isExpanded: true,
-              hint: Text('Pilih $label', style: const TextStyle(fontSize: 14)),
-              items: items
-                  .map((item) => DropdownMenuItem<T>(
-                        value: item,
-                        child: Text(
-                          itemLabel(item),
-                          style: const TextStyle(fontSize: 14),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ))
-                  .toList(),
-              onChanged: onChanged == null ? null : (value) => onChanged(value as T),
-            ),
+          decoration: kMinimalFieldContainerDecoration,
+          child: DropdownButtonFormField<T>(
+            initialValue: value,
+            icon: kMinimalDropdownChevron,
+            borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+            style: kMinimalDropdownTextStyle,
+            decoration: minimalFieldDecoration(hintText: 'Pilih $label'),
+            items: items
+                .map((item) => DropdownMenuItem<T>(
+                      value: item,
+                      child: Text(
+                        itemLabel(item),
+                        style: kMinimalDropdownTextStyle,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ))
+                .toList(),
+            onChanged: onChanged == null
+                ? null
+                : (selectedValue) {
+                    if (selectedValue != null) onChanged(selectedValue);
+                  },
           ),
         ),
       ],
@@ -605,21 +662,22 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             }
           },
           child: Container(
-            height: 140,
+            height: 112,
             width: double.infinity,
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
               border: Border.all(color: Colors.grey.shade300),
             ),
             child: _violationImage != null
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
                     child: Image.file(File(_violationImage!.path), fit: BoxFit.cover),
                   )
                 : (hasRemoteUrl
                     ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius:
+                            BorderRadius.circular(kMinimalDropdownRadius),
                         child: Image.network(widget.item!.fileUrl!, fit: BoxFit.cover),
                       )
                     : Column(
@@ -651,7 +709,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+        _buildLabel(label, isRequired: isRequired),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
@@ -659,16 +717,9 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
           validator:
               isRequired ? (v) => v == null || v.isEmpty ? 'Wajib diisi' : null : null,
           style: const TextStyle(fontSize: 14),
-          decoration: InputDecoration(
+          decoration: minimalFieldDecoration(
             hintText: hint,
-            prefixIcon: icon != null ? Icon(icon, size: 20) : null,
-            filled: true,
-            fillColor: const Color(0xFFF8F9FA),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
+            prefixIcon: icon,
           ),
         ),
       ],
@@ -695,20 +746,24 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             style: IconButton.styleFrom(
               backgroundColor: Colors.red.shade50,
               padding: const EdgeInsets.all(14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+              ),
             ),
           ),
           const SizedBox(width: 12),
         ],
         Expanded(
           child: SizedBox(
-            height: 54,
+            height: 50,
             child: ElevatedButton(
               onPressed: _isSaving ? null : _save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A56C4),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                ),
                 elevation: 0,
               ),
               child: _isSaving
@@ -721,6 +776,48 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLabel(String label, {bool isRequired = false}) {
+    if (!isRequired) {
+      return Text(
+        label,
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+      );
+    }
+
+    return RichText(
+      text: TextSpan(
+        text: label,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
+        children: const [
+          TextSpan(text: ' *'),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _userSearchDecoration(bool showError) {
+    final decoration = minimalFieldDecoration(
+      hintText: 'Cari nama atau ID karyawan...',
+      prefixIcon: Icons.search,
+    );
+
+    if (!showError) return decoration;
+
+    final errorBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+      borderSide: const BorderSide(color: Colors.red),
+    );
+
+    return decoration.copyWith(
+      enabledBorder: errorBorder,
+      focusedBorder: errorBorder,
     );
   }
 }
