@@ -242,10 +242,12 @@ class IdCardPdfService {
     final emergencyNumber = profile.companyDetail?.emergencyNumber?.trim() ?? '';
     final radioLabel = profile.companyDetail?.radioLabel?.trim() ?? '';
     final radioChannel = profile.companyDetail?.radioChannel?.trim() ?? '';
-    final radioFreq = profile.companyDetail?.radioFrequency?.trim() ?? '';
-    final radioContact = [radioLabel, radioChannel, radioFreq]
+    final radioContact = [
+      radioLabel,
+      if (radioChannel.isNotEmpty) 'Channel $radioChannel',
+    ]
         .where((s) => s.isNotEmpty)
-        .join('-');
+        .join(' ');
     final simperLicenseNumber = firstActiveSimperLicenseNumber(profile);
 
     return _printPage(
@@ -803,7 +805,7 @@ class IdCardPdfService {
           pw.Text(
             validUntil,
             style: pw.TextStyle(
-              fontSize: 3.65,
+              fontSize: 4.35,
               fontWeight: pw.FontWeight.bold,
               color: PdfColors.black,
             ),
@@ -885,7 +887,7 @@ class IdCardPdfService {
         maxLines: 1,
         style: pw.TextStyle(
           fontSize: _tableCellFontSize(value),
-          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          fontWeight: pw.FontWeight.bold,
           color: PdfColors.black,
         ),
       ),
@@ -1127,14 +1129,14 @@ class IdCardPdfService {
   }
 
   static String _companyRadioText(ProfileData profile) {
+    final channel = profile.companyDetail?.radioChannel?.trim() ?? '';
     return [
       profile.companyDetail?.radioLabel,
-      profile.companyDetail?.radioChannel,
-      profile.companyDetail?.radioFrequency,
+      channel.isEmpty ? null : 'Channel $channel',
     ]
         .map((value) => value?.trim() ?? '')
         .where((value) => value.isNotEmpty)
-        .join('-');
+        .join(' ');
   }
 
   static String _display(String? value, {String fallback = '-'}) {

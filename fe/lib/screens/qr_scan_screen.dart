@@ -10,7 +10,6 @@ import '../services/id_card_pdf_service.dart';
 import '../services/profile_service.dart';
 import '../services/qr_service.dart';
 import '../widgets/app_safe_insets.dart';
-import '../widgets/mine_permit_preview.dart';
 import 'user_profile_view_screen.dart';
 
 class QrScanScreen extends StatefulWidget {
@@ -23,20 +22,22 @@ class QrScanScreen extends StatefulWidget {
 }
 
 class _QrScanScreenState extends State<QrScanScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
     facing: CameraFacing.back,
     torchEnabled: false,
   );
 
-  int _selectedTab = 0;
+  int _selectedTab = 1;
   bool _torchOn = false;
   bool _hasScanned = false;
   bool _isResolvingScan = false;
   String? _rawScannedCode;
   String? _scanError;
   QrScanResult? _scanResult;
+  late final AnimationController _scanLineController;
+  late final Animation<double> _scanLineAnimation;
 
   bool _isLoadingProfile = true;
   bool _isExportingIdCard = false;
@@ -47,6 +48,14 @@ class _QrScanScreenState extends State<QrScanScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _scanLineController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _scanLineAnimation = CurvedAnimation(
+      parent: _scanLineController,
+      curve: Curves.easeInOut,
+    );
     _loadProfile();
     final initialQrCode = widget.initialQrCode?.trim();
     if (initialQrCode != null && initialQrCode.isNotEmpty) {
@@ -75,6 +84,7 @@ class _QrScanScreenState extends State<QrScanScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _scanLineController.dispose();
     unawaited(_controller.dispose());
     super.dispose();
   }
@@ -124,7 +134,6 @@ class _QrScanScreenState extends State<QrScanScreen>
       _scanError = null;
     });
 
-    _controller.stop();
     _resolveScan(rawValue);
   }
 
@@ -192,16 +201,13 @@ class _QrScanScreenState extends State<QrScanScreen>
       return;
     }
 
-    final tableRows = await _showMinePermitReview(profile, qrCode, minePermit);
-    if (tableRows == null || !mounted) return;
-
     setState(() => _isExportingIdCard = true);
     try {
       await IdCardPdfService.exportMinePermit(
         profile: profile,
         qrCode: qrCode,
         minePermit: minePermit,
-        tableRows: tableRows,
+        tableRows: IdCardPdfService.buildMinePermitTableRows(profile),
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -317,25 +323,6 @@ class _QrScanScreenState extends State<QrScanScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Future<List<MinePermitTableRow>?> _showMinePermitReview(
-    ProfileData profile,
-    String qrCode,
-    UserLicense minePermit,
-  ) async {
-    final rows = IdCardPdfService.buildMinePermitTableRows(profile);
-    return showModalBottomSheet<List<MinePermitTableRow>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _MinePermitReviewSheet(
-        profile: profile,
-        qrCode: qrCode,
-        minePermit: minePermit,
-        initialRows: rows,
       ),
     );
   }
@@ -487,75 +474,116 @@ class _QrScanScreenState extends State<QrScanScreen>
   Widget _buildScannerTab() {
     return Container(
       key: const ValueKey('scan-tab'),
-      color: Colors.black,
+      color: Colors.white,
       child: Stack(
         children: [
-          if (!_hasScanned)
-            MobileScanner(
-              controller: _controller,
-              onDetect: _onDetect,
-            ),
-          if (_hasScanned) Container(color: const Color(0xFF111827)),
-          if (!_hasScanned)
-            CustomPaint(
-              size: Size.infinite,
-              painter: _ScannerOverlayPainter(),
-            ),
-          if (!_hasScanned)
-            Center(
-              child: SizedBox(
-                width: 260,
-                height: 260,
-                child: CustomPaint(painter: _CornerPainter()),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      MobileScanner(
+                        controller: _controller,
+                        onDetect: _onDetect,
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            width: 1.4,
+                          ),
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                      ),
+                      CustomPaint(
+                        painter: _ScannerFramePainter(),
+                      ),
+                      if (!_hasScanned)
+                        AnimatedBuilder(
+                          animation: _scanLineAnimation,
+                          builder: (context, _) {
+                            return CustomPaint(
+                              painter: _ScanLinePainter(
+                                progress: _scanLineAnimation.value,
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
+          ),
           if (!_hasScanned)
             Positioned(
-              bottom: 150,
+              top: MediaQuery.of(context).size.width + 42,
               left: 24,
               right: 24,
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.qr_code_scanner,
-                    color: Colors.white70,
-                    size: 28,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Arahkan kamera ke QR profil',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.qr_code_scanner,
                       color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                      size: 24,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Hasil scan akan dicek otomatis',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.55),
-                      fontSize: 12,
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Arahkan kamera ke QR profil',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Setelah terbaca, hasilnya muncul di bawah untuk dibuka',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           if (_hasScanned)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _ScanResultSheet(
-                rawCode: _rawScannedCode,
-                isLoading: _isResolvingScan,
-                result: _scanResult,
-                error: _scanError,
-                onReset: _resetScan,
-                onOpenUser: _openUser,
-                onClose: () => Navigator.pop(context),
+            DraggableScrollableSheet(
+              initialChildSize: 0.36,
+              minChildSize: 0.12,
+              maxChildSize: 0.72,
+              snap: true,
+              snapSizes: const [0.12, 0.36, 0.72],
+              builder: (context, scrollController) => SingleChildScrollView(
+                controller: scrollController,
+                child: _ScanResultSheet(
+                  rawCode: _rawScannedCode,
+                  isLoading: _isResolvingScan,
+                  result: _scanResult,
+                  error: _scanError,
+                  onReset: _resetScan,
+                  onOpenUser: _openUser,
+                  onClose: () => Navigator.pop(context),
+                ),
               ),
             ),
         ],
@@ -563,137 +591,6 @@ class _QrScanScreenState extends State<QrScanScreen>
     );
   }
 }
-
-class _MinePermitReviewSheet extends StatefulWidget {
-  final ProfileData profile;
-  final String qrCode;
-  final UserLicense minePermit;
-  final List<MinePermitTableRow> initialRows;
-
-  const _MinePermitReviewSheet({
-    required this.profile,
-    required this.qrCode,
-    required this.minePermit,
-    required this.initialRows,
-  });
-
-  @override
-  State<_MinePermitReviewSheet> createState() => _MinePermitReviewSheetState();
-}
-
-class _MinePermitReviewSheetState extends State<_MinePermitReviewSheet> {
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  const Row(
-                    children: [
-                      Icon(
-                        Icons.image_search_outlined,
-                        color: Color(0xFF1A56C4),
-                        size: 22,
-                      ),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Preview Mine Permit',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Divider(height: 1, color: Colors.grey.shade200),
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
-                child: MinePermitPreviewPair(
-                  profile: widget.profile,
-                  minePermit: widget.minePermit,
-                  rows: widget.initialRows,
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                14,
-                8,
-                14,
-                AppSafeInsets.sheetBottomPadding(context, base: 14),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.grey.shade700,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text('Batal'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => Navigator.pop(context, widget.initialRows),
-                      icon: const Icon(Icons.picture_as_pdf_outlined),
-                      label: const Text('Download PDF'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1A56C4),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 
 class _QrTabButton extends StatelessWidget {
   final IconData icon;
@@ -1280,6 +1177,127 @@ class _ScannerOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter _) => false;
+}
+
+class _ScannerFramePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cornerPaint = Paint()
+      ..color = const Color(0xFF3B82F6)
+      ..strokeWidth = 5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final guidePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.18)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    final inset = size.width * 0.12;
+    final scanRect = Rect.fromLTWH(
+      inset,
+      inset,
+      size.width - inset * 2,
+      size.height - inset * 2,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(scanRect, const Radius.circular(18)),
+      guidePaint,
+    );
+
+    const len = 36.0;
+    const radius = 16.0;
+    final left = scanRect.left;
+    final top = scanRect.top;
+    final right = scanRect.right;
+    final bottom = scanRect.bottom;
+
+    canvas.drawPath(
+      Path()
+        ..moveTo(left, top + len)
+        ..lineTo(left, top + radius)
+        ..arcToPoint(Offset(left + radius, top),
+            radius: const Radius.circular(radius))
+        ..lineTo(left + len, top),
+      cornerPaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(right - len, top)
+        ..lineTo(right - radius, top)
+        ..arcToPoint(Offset(right, top + radius),
+            radius: const Radius.circular(radius))
+        ..lineTo(right, top + len),
+      cornerPaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(left, bottom - len)
+        ..lineTo(left, bottom - radius)
+        ..arcToPoint(Offset(left + radius, bottom),
+            radius: const Radius.circular(radius), clockwise: false)
+        ..lineTo(left + len, bottom),
+      cornerPaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(right - len, bottom)
+        ..lineTo(right - radius, bottom)
+        ..arcToPoint(Offset(right, bottom - radius),
+            radius: const Radius.circular(radius), clockwise: false)
+        ..lineTo(right, bottom - len),
+      cornerPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _ScanLinePainter extends CustomPainter {
+  final double progress;
+
+  const _ScanLinePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final inset = size.width * 0.12;
+    final scanRect = Rect.fromLTWH(
+      inset,
+      inset,
+      size.width - inset * 2,
+      size.height - inset * 2,
+    );
+    final y = scanRect.top + scanRect.height * progress;
+    final linePaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [
+          Colors.transparent,
+          Color(0xFF60A5FA),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromLTWH(scanRect.left, y - 1, scanRect.width, 2))
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    final glowPaint = Paint()
+      ..color = const Color(0xFF60A5FA).withValues(alpha: 0.18)
+      ..strokeWidth = 12
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(scanRect.left + 10, y),
+      Offset(scanRect.right - 10, y),
+      glowPaint,
+    );
+    canvas.drawLine(
+      Offset(scanRect.left + 10, y),
+      Offset(scanRect.right - 10, y),
+      linePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScanLinePainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 class _CornerPainter extends CustomPainter {

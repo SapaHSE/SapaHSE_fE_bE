@@ -218,7 +218,7 @@ class _MinePermitFrontPreview extends StatelessWidget {
                   IdCardPdfService.formatExpiry(minePermit.expiredAt),
                   style: const TextStyle(
                     color: Colors.black,
-                    fontSize: 7.2,
+                    fontSize: 8.6,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -519,14 +519,14 @@ class _MinePermitBackPreview extends StatelessWidget {
   }
 
   static String _companyRadioText(ProfileData profile) {
+    final channel = profile.companyDetail?.radioChannel?.trim() ?? '';
     return [
       profile.companyDetail?.radioLabel,
-      profile.companyDetail?.radioChannel,
-      profile.companyDetail?.radioFrequency,
+      channel.isEmpty ? null : 'Channel $channel',
     ]
         .map((value) => value?.trim() ?? '')
         .where((value) => value.isNotEmpty)
-        .join('-');
+        .join(' ');
   }
 
   static Widget _previewTable(List<MinePermitTableRow> rows) {
@@ -904,7 +904,7 @@ class _PreviewCell extends StatelessWidget {
         textAlign: alignLeft ? TextAlign.left : TextAlign.center,
         style: TextStyle(
           fontSize: text.length > 14 ? 6 : 7,
-          fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
