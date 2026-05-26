@@ -737,7 +737,9 @@ class AuthController extends Controller
 
         $user->update([
             'is_active' => true,
-            'registration_status' => 'approved'
+            'registration_status' => 'approved',
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
         ]);
 
         $user->refresh();

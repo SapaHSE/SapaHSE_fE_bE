@@ -24,7 +24,7 @@ class ProfileController extends Controller
     public function getProfile()
     {
         /** @var \App\Models\User $user */
-        $user = User::with(['licenses', 'certifications', 'violations' => function ($q) {
+        $user = User::with(['licenses.reviewer', 'certifications.reviewer', 'violations' => function ($q) {
             $q->orderBy('date_of_violation', 'desc');
         }, 'medicals' => function ($q) {
             $q->orderBy('checkup_date', 'desc');
@@ -43,7 +43,7 @@ class ProfileController extends Controller
     // GET /api/users/{id}/profile  — view another user's full profile (read-only)
     public function getUserProfileById($id)
     {
-        $user = User::with(['licenses', 'certifications', 'violations' => function ($q) {
+        $user = User::with(['licenses.reviewer', 'certifications.reviewer', 'violations' => function ($q) {
             $q->orderBy('date_of_violation', 'desc');
         }, 'medicals' => function ($q) {
             $q->orderBy('checkup_date', 'desc');
@@ -951,7 +951,13 @@ class ProfileController extends Controller
                 'rejection_reason' => $l->rejection_reason,
                 'submitted_at'   => $l->submitted_at?->toIso8601String(),
                 'reviewed_at'    => $l->reviewed_at?->toIso8601String(),
-                'reviewed_by'    => $l->reviewed_by,
+                'reviewed_by'      => $l->reviewed_by,
+                'reviewed_by_name' => $l->reviewer?->full_name,
+                'reviewed_by_photo' => $l->reviewer?->profile_photo
+                    ? (\filter_var($l->reviewer->profile_photo, FILTER_VALIDATE_URL)
+                        ? $l->reviewer->profile_photo
+                        : \asset('storage/' . $l->reviewer->profile_photo))
+                    : null,
                 'file_url'       => $l->file_path
                     ? (\filter_var($l->file_path, FILTER_VALIDATE_URL)
                         ? $l->file_path
@@ -971,7 +977,13 @@ class ProfileController extends Controller
                 'rejection_reason' => $c->rejection_reason,
                 'submitted_at'   => $c->submitted_at?->toIso8601String(),
                 'reviewed_at'    => $c->reviewed_at?->toIso8601String(),
-                'reviewed_by'    => $c->reviewed_by,
+                'reviewed_by'      => $c->reviewed_by,
+                'reviewed_by_name' => $c->reviewer?->full_name,
+                'reviewed_by_photo' => $c->reviewer?->profile_photo
+                    ? (\filter_var($c->reviewer->profile_photo, FILTER_VALIDATE_URL)
+                        ? $c->reviewer->profile_photo
+                        : \asset('storage/' . $c->reviewer->profile_photo))
+                    : null,
                 'file_url'    => $c->file_path
                     ? (\filter_var($c->file_path, FILTER_VALIDATE_URL)
                         ? $c->file_path

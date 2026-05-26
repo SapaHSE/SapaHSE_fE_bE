@@ -372,9 +372,9 @@ class InboxController extends Controller
             ->where('item_type', 'approval_profile_change')
             ->pluck('item_id');
 
-        $licenseQuery = UserLicense::with('user');
-        $certificationQuery = UserCertification::with('user');
-        $profileChangeQuery = ProfileChangeRequest::with('user');
+        $licenseQuery = UserLicense::with('user', 'reviewer');
+        $certificationQuery = UserCertification::with('user', 'reviewer');
+        $profileChangeQuery = ProfileChangeRequest::with('user', 'reviewer');
 
         $statuses = null;
         switch ($status) {
@@ -470,7 +470,8 @@ class InboxController extends Controller
 
     private function pendingRegistrationItems(\Illuminate\Support\Collection $readIds)
     {
-        return User::where('registration_status', 'pending')
+        return User::with('reviewer')
+            ->where('registration_status', 'pending')
             ->latest('created_at')
             ->get()
             ->map(function (User $user) use ($readIds) {
@@ -480,7 +481,7 @@ class InboxController extends Controller
 
     private function pendingLicenseItems(\Illuminate\Support\Collection $readIds)
     {
-        return UserLicense::with('user')
+        return UserLicense::with('user', 'reviewer')
             ->whereIn('approval_status', ['pending', 'pending_changes'])
             ->latest('submitted_at')
             ->latest('created_at')
@@ -492,7 +493,7 @@ class InboxController extends Controller
 
     private function pendingCertificationItems(\Illuminate\Support\Collection $readIds)
     {
-        return UserCertification::with('user')
+        return UserCertification::with('user', 'reviewer')
             ->whereIn('approval_status', ['pending', 'pending_changes'])
             ->latest('submitted_at')
             ->latest('created_at')
@@ -504,7 +505,7 @@ class InboxController extends Controller
 
     private function pendingProfileChangeItems(\Illuminate\Support\Collection $readIds)
     {
-        return ProfileChangeRequest::with('user')
+        return ProfileChangeRequest::with('user', 'reviewer')
             ->where('approval_status', 'pending')
             ->latest('submitted_at')
             ->latest('created_at')
@@ -516,13 +517,16 @@ class InboxController extends Controller
 
     private function formatApprovalRegistration(User $user, bool $isRead): array
     {
+        $reviewer = $user->relationLoaded('reviewer') ? $user->reviewer : null;
+
         return [
             'id'              => $user->id,
             'item_type'       => 'approval_registration',
             'title'           => 'Registrasi Akun Baru',
             'description'     => 'Mengajukan pembuatan akun SapaHSE',
-            'approval_status' => 'pending',
+            'approval_status' => $user->registration_status ?? 'pending',
             'submitted_at'    => $user->created_at?->toIso8601String(),
+            'reviewed_at'     => $user->reviewed_at?->toIso8601String(),
             'is_read'         => $isRead,
             'submitter'       => [
                 'id'             => $user->id,
@@ -535,6 +539,12 @@ class InboxController extends Controller
                 'company'        => $user->company,
                 'profile_photo'  => $this->resolveFileUrl($user->profile_photo),
             ],
+            'reviewer'        => $reviewer ? [
+                'id'            => $reviewer->id,
+                'full_name'     => $reviewer->full_name,
+                'employee_id'   => $reviewer->employee_id,
+                'profile_photo' => $this->resolveFileUrl($reviewer->profile_photo),
+            ] : null,
             'created_at'      => $user->created_at?->toIso8601String(),
             'time_ago'        => $user->created_at?->diffForHumans(),
         ];
@@ -544,6 +554,7 @@ class InboxController extends Controller
     {
         $submittedAt = $license->submitted_at ?? $license->created_at;
         $submitter = $license->user;
+        $reviewer = $license->relationLoaded('reviewer') ? $license->reviewer : null;
 
         return [
             'id'              => $license->id,
@@ -568,6 +579,12 @@ class InboxController extends Controller
                 'company'        => $submitter->company,
                 'profile_photo'  => $this->resolveFileUrl($submitter->profile_photo),
             ] : null,
+            'reviewer'        => $reviewer ? [
+                'id'            => $reviewer->id,
+                'full_name'     => $reviewer->full_name,
+                'employee_id'   => $reviewer->employee_id,
+                'profile_photo' => $this->resolveFileUrl($reviewer->profile_photo),
+            ] : null,
             'item'            => [
                 'id'             => $license->id,
                 'name'           => $license->name,
@@ -591,6 +608,7 @@ class InboxController extends Controller
     {
         $submittedAt = $certification->submitted_at ?? $certification->created_at;
         $submitter = $certification->user;
+        $reviewer = $certification->relationLoaded('reviewer') ? $certification->reviewer : null;
 
         return [
             'id'              => $certification->id,
@@ -613,6 +631,12 @@ class InboxController extends Controller
                 'company'        => $submitter->company,
                 'profile_photo'  => $this->resolveFileUrl($submitter->profile_photo),
             ] : null,
+            'reviewer'        => $reviewer ? [
+                'id'            => $reviewer->id,
+                'full_name'     => $reviewer->full_name,
+                'employee_id'   => $reviewer->employee_id,
+                'profile_photo' => $this->resolveFileUrl($reviewer->profile_photo),
+            ] : null,
             'item'            => [
                 'id'                   => $certification->id,
                 'name'                 => $certification->name,
@@ -632,6 +656,7 @@ class InboxController extends Controller
     {
         $submittedAt = $request->submitted_at ?? $request->created_at;
         $submitter = $request->user;
+        $reviewer = $request->relationLoaded('reviewer') ? $request->reviewer : null;
 
         $fieldLabels = [
             'employee_id' => 'NIP / Employee ID',
@@ -680,6 +705,12 @@ class InboxController extends Controller
                 'company'        => $submitter->company,
                 'profile_photo'  => $this->resolveFileUrl($submitter->profile_photo),
             ] : null,
+            'reviewer'        => $reviewer ? [
+                'id'            => $reviewer->id,
+                'full_name'     => $reviewer->full_name,
+                'employee_id'   => $reviewer->employee_id,
+                'profile_photo' => $this->resolveFileUrl($reviewer->profile_photo),
+            ] : null,
             'item'            => [
                 'id'               => $request->id,
                 'requested_changes' => $request->requested_changes,
@@ -710,6 +741,7 @@ class InboxController extends Controller
         }
 
         $submitter = $item['submitter'] ?? [];
+        $reviewer = $item['reviewer'] ?? [];
         $approvalItem = $item['item'] ?? [];
 
         $haystack = [
@@ -719,6 +751,7 @@ class InboxController extends Controller
             (string) ($submitter['employee_id'] ?? ''),
             (string) ($submitter['department'] ?? ''),
             (string) ($submitter['company'] ?? ''),
+            (string) ($reviewer['full_name'] ?? ''),
             (string) ($approvalItem['name'] ?? ''),
             (string) ($approvalItem['license_number'] ?? ''),
             (string) ($approvalItem['issuer'] ?? ''),
