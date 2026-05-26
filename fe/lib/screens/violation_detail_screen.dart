@@ -79,7 +79,8 @@ class ViolationDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final expiry = _parseDate(violation.expiredAt);
-    final expired = expiry != null && expiry.isBefore(DateTime.now());
+    final expired =
+        !violation.isPermanent && expiry != null && expiry.isBefore(DateTime.now());
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F0),
@@ -167,7 +168,9 @@ class ViolationDetailScreen extends StatelessWidget {
                   ReportStyleDetailRow(
                     icon: Icons.event_busy_outlined,
                     label: 'Berlaku Sampai',
-                    value: _formatDateText(violation.expiredAt),
+                    value: violation.isPermanent
+                        ? 'Permanen'
+                        : _formatDateText(violation.expiredAt),
                     valueColor: expired ? _danger : null,
                   ),
                   const SizedBox(height: 12),

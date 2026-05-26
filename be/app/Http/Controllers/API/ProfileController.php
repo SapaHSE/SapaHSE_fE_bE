@@ -1011,6 +1011,7 @@ class ProfileController extends Controller
                 'location'          => $v->location,
                 'date_of_violation' => $v->date_of_violation?->format('Y-m-d'),
                 'expired_at'        => $v->expired_at?->format('Y-m-d'),
+                'is_permanent'      => (bool) ($v->is_permanent ?? false),
                 'status'            => $v->status,
                 'sanction'          => $v->sanction,
                 'file_url'          => $v->file_url,

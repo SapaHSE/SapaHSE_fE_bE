@@ -47,6 +47,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   String _status = 'Aktif';
   String _type = 'Violation';
   int? _level;
+  bool _isPermanentSanction = false;
   ViolationCategoryData? _selectedCategory;
   ViolationSubcategoryData? _selectedSubcategory;
   List<ViolationCategoryData> _categories = [];
@@ -70,6 +71,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
       _sanctionController.text = widget.item!.sanction ?? '';
       _status = widget.item!.status;
       _level = widget.item!.level.clamp(1, 3).toInt();
+      _isPermanentSanction = widget.item!.isPermanent;
       _selectedUser = widget.item!.user;
       _violationImage = null;
     }
@@ -191,7 +193,10 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
       'description': _descriptionController.text.trim(),
       'location': _locationController.text.trim(),
       'expired_at':
-          _expiredDateController.text.isEmpty ? null : _expiredDateController.text,
+          _isPermanentSanction || _expiredDateController.text.isEmpty
+              ? null
+              : _expiredDateController.text,
+      'is_permanent': _isPermanentSanction,
       'status': _status,
       'sanction': _sanctionController.text.trim(),
       'file_url': uploadedUrl,
@@ -314,17 +319,22 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                         ),
                         const SizedBox(height: 12),
                         InkWell(
-                          onTap: _selectExpiredDate,
+                          onTap: _isPermanentSanction ? null : _selectExpiredDate,
                           child: IgnorePointer(
                             child: _buildField(
                               'Masa Berlaku',
                               _expiredDateController,
-                              hint: 'YYYY-MM-DD',
+                              hint: _isPermanentSanction
+                                  ? 'Permanen'
+                                  : 'YYYY-MM-DD',
                               icon: Icons.event_available,
                               isRequired: false,
+                              enabled: !_isPermanentSanction,
                             ),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        _buildSanctionPeriodPicker(),
                         const SizedBox(height: 12),
                         _buildStatusPicker(),
                         const SizedBox(height: 12),
@@ -727,6 +737,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     IconData? icon,
     bool isRequired = true,
     int maxLines = 1,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -735,6 +746,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          enabled: enabled,
           maxLines: maxLines,
           validator:
               isRequired ? (v) => v == null || v.isEmpty ? 'Wajib diisi' : null : null,
@@ -743,6 +755,101 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             hintText: hint,
             prefixIcon: icon,
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSanctionPeriodPicker() {
+    Widget option({
+      required bool permanent,
+      required String title,
+      required String subtitle,
+      required IconData icon,
+    }) {
+      final selected = _isPermanentSanction == permanent;
+      final color = selected ? const Color(0xFF1A56C4) : Colors.grey.shade500;
+
+      return Expanded(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+          onTap: () => setState(() {
+            _isPermanentSanction = permanent;
+            if (permanent) _expiredDateController.clear();
+          }),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: selected
+                  ? const Color(0xFF1A56C4).withValues(alpha: 0.08)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+              border: Border.all(
+                color: selected
+                    ? const Color(0xFF1A56C4)
+                    : Colors.grey.shade300,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: selected
+                              ? const Color(0xFF1A56C4)
+                              : Colors.grey.shade800,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 11,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('Jenis Masa Sangsi'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            option(
+              permanent: false,
+              title: 'Tanggal',
+              subtitle: 'Berlaku sampai tanggal',
+              icon: Icons.event_available,
+            ),
+            const SizedBox(width: 10),
+            option(
+              permanent: true,
+              title: 'Permanen',
+              subtitle: 'Tetap aktif tanpa tanggal',
+              icon: Icons.all_inclusive,
+            ),
+          ],
         ),
       ],
     );

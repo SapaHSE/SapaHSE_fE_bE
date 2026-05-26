@@ -1,4 +1,5 @@
 import 'api_service.dart';
+import '../utils/value_parser.dart';
 
 class ViolationService {
   static Future<ViolationListResult> getViolations({
@@ -103,6 +104,7 @@ class ViolationItem {
   final String? location;
   final String dateOfViolation;
   final String? expiredAt;
+  final bool isPermanent;
   final String status;
   final String? sanction;
   final String? fileUrl;
@@ -119,6 +121,7 @@ class ViolationItem {
     this.location,
     required this.dateOfViolation,
     this.expiredAt,
+    this.isPermanent = false,
     required this.status,
     this.sanction,
     this.fileUrl,
@@ -137,6 +140,7 @@ class ViolationItem {
       location: json['location']?.toString(),
       dateOfViolation: json['date_of_violation']?.toString() ?? '',
       expiredAt: json['expired_at']?.toString(),
+      isPermanent: parseFlexibleBool(json['is_permanent']),
       status: json['status']?.toString() ?? 'Aktif',
       sanction: json['sanction']?.toString(),
       fileUrl: json['file_url']?.toString(),

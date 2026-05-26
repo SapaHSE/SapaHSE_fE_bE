@@ -435,6 +435,7 @@ class UserViolation {
   final String? location;
   final String? dateOfViolation;
   final String? expiredAt;
+  final bool isPermanent;
   final String status;
   final String? sanction;
   final String? fileUrl;
@@ -450,6 +451,7 @@ class UserViolation {
     this.location,
     this.dateOfViolation,
     this.expiredAt,
+    this.isPermanent = false,
     required this.status,
     this.sanction,
     this.fileUrl,
@@ -467,6 +469,7 @@ class UserViolation {
       location: json['location']?.toString(),
       dateOfViolation: json['date_of_violation']?.toString(),
       expiredAt: json['expired_at']?.toString(),
+      isPermanent: parseFlexibleBool(json['is_permanent']),
       status: json['status']?.toString() ?? 'Aktif',
       sanction: json['sanction']?.toString(),
       fileUrl: json['file_url']?.toString(),

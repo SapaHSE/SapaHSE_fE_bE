@@ -573,7 +573,13 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                         Icons.calendar_today_outlined,
                         _formatDate(item.dateOfViolation),
                       ),
-                      if ((item.expiredAt ?? '').isNotEmpty)
+                      if (item.isPermanent)
+                        _buildMetaItem(
+                          Icons.all_inclusive,
+                          'Permanen',
+                          color: Colors.blue.shade700,
+                        )
+                      else if ((item.expiredAt ?? '').isNotEmpty)
                         _buildMetaItem(
                           Icons.event_available_outlined,
                           'S/D ${_formatDate(item.expiredAt!)}',

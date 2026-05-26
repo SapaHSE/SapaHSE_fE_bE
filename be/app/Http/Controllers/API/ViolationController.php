@@ -108,7 +108,7 @@ class ViolationController extends Controller
 
     private function validatedData(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'title' => 'required|string|max:150',
             'violation_category' => 'nullable|string|max:100',
             'violation_subcategory' => 'nullable|string|max:100',
@@ -118,9 +118,16 @@ class ViolationController extends Controller
             'location' => 'nullable|string|max:150',
             'date_of_violation' => 'nullable|date',
             'expired_at' => 'nullable|date',
+            'is_permanent' => 'nullable|boolean',
             'status' => 'nullable|string|max:50',
             'sanction' => 'nullable|string|max:200',
             'file_url' => 'nullable|string|max:255',
         ]);
+
+        if (!empty($data['is_permanent'])) {
+            $data['expired_at'] = null;
+        }
+
+        return $data;
     }
 }

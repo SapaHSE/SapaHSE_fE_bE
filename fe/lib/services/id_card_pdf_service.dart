@@ -141,6 +141,8 @@ class IdCardPdfService {
   ) {
     final position = _display(profile.jabatan ?? profile.position);
     final department = _display(profile.department);
+    final violationLevel = activeSanctionLevel(profile, 'Violation');
+    final incidentLevel = activeSanctionLevel(profile, 'Incident');
 
     return _printPage(
       child: pw.Stack(
@@ -211,7 +213,7 @@ class IdCardPdfService {
             top: 76.2 * _mm,
             child: pw.SizedBox(
               width: 15.4 * _mm,
-              child: _counterBox('VIOLATION'),
+              child: _counterBox('VIOLATION', violationLevel),
             ),
           ),
           pw.Positioned(
@@ -219,7 +221,7 @@ class IdCardPdfService {
             top: 76.2 * _mm,
             child: pw.SizedBox(
               width: 15.4 * _mm,
-              child: _counterBox('INCIDENT'),
+              child: _counterBox('INCIDENT', incidentLevel),
             ),
           ),
           pw.Positioned(
@@ -605,7 +607,7 @@ class IdCardPdfService {
     );
   }
 
-  static pw.Widget _counterBox(String title) {
+  static pw.Widget _counterBox(String title, int activeLevel) {
     return pw.Column(
       children: [
         pw.Text(
@@ -627,18 +629,22 @@ class IdCardPdfService {
             pw.TableRow(
               children: [1, 2, 3]
                   .map(
-                    (n) => pw.Container(
-                      height: 3.7 * _mm,
-                      alignment: pw.Alignment.center,
-                      child: pw.Text(
-                        '$n',
-                        style: pw.TextStyle(
-                          fontSize: 5.6,
-                          fontWeight: pw.FontWeight.bold,
-                          color: _ink,
+                    (n) {
+                      final active = activeLevel == n;
+                      return pw.Container(
+                        height: 3.7 * _mm,
+                        alignment: pw.Alignment.center,
+                        color: active ? _red : PdfColors.white,
+                        child: pw.Text(
+                          '$n',
+                          style: pw.TextStyle(
+                            fontSize: 5.6,
+                            fontWeight: pw.FontWeight.bold,
+                            color: active ? PdfColors.white : _ink,
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   )
                   .toList(),
             ),
@@ -1139,6 +1145,33 @@ class IdCardPdfService {
         .join(' ');
   }
 
+  static int activeSanctionLevel(ProfileData profile, String type) {
+    final targetType = type.trim().toLowerCase();
+    var highest = 0;
+
+    for (final violation in profile.violations) {
+      if (violation.type.trim().toLowerCase() != targetType) continue;
+      if (!_isActiveSanction(violation)) continue;
+      final level = violation.level.clamp(1, 3).toInt();
+      if (level > highest) highest = level;
+    }
+
+    return highest;
+  }
+
+  static bool _isActiveSanction(UserViolation violation) {
+    if (violation.status.trim().toLowerCase() != 'aktif') return false;
+    if (violation.isPermanent) return true;
+
+    final expiredAt = _parseLooseDate(violation.expiredAt);
+    if (expiredAt == null) return true;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final expiryDate = DateTime(expiredAt.year, expiredAt.month, expiredAt.day);
+    return !expiryDate.isBefore(today);
+  }
+
   static String _display(String? value, {String fallback = '-'}) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? fallback : trimmed;
@@ -1165,7 +1198,7 @@ class IdCardPdfService {
   static String formatExpiry(String? rawIsoDate) {
     final raw = (rawIsoDate ?? '').trim();
     if (raw.isEmpty) return '-';
-    final parsed = DateTime.tryParse(raw);
+    final parsed = _parseLooseDate(raw);
     if (parsed == null) return raw;
     return _formatDate(parsed);
   }
@@ -1174,10 +1207,16 @@ class IdCardPdfService {
     final trimmed = value?.trim();
     if (trimmed == null || trimmed.isEmpty) return '';
 
-    final parsed = DateTime.tryParse(trimmed.replaceFirst(' ', 'T'));
+    final parsed = _parseLooseDate(trimmed);
     if (parsed == null) return trimmed;
 
     return _formatDate(parsed);
+  }
+
+  static DateTime? _parseLooseDate(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return DateTime.tryParse(trimmed.replaceFirst(' ', 'T'));
   }
 
   static String _initials(String name) {

@@ -5367,7 +5367,8 @@ class _ViolationDetailSheet extends StatelessWidget {
     final expiry =
         DateTime.tryParse((violation.expiredAt ?? '').replaceFirst(' ', 'T'))
             ?.toLocal();
-    final isExpired = expiry != null && expiry.isBefore(DateTime.now());
+    final isExpired =
+        !violation.isPermanent && expiry != null && expiry.isBefore(DateTime.now());
 
     return SizedBox(
       height: sheetHeight,
@@ -5465,7 +5466,9 @@ class _ViolationDetailSheet extends StatelessWidget {
                               ReportStyleDetailRow(
                                 icon: Icons.event_busy_outlined,
                                 label: 'Berlaku Sampai',
-                                value: _formatDateText(violation.expiredAt),
+                                value: violation.isPermanent
+                                    ? 'Permanen'
+                                    : _formatDateText(violation.expiredAt),
                                 valueColor: isExpired ? _accent : null,
                               ),
                               const SizedBox(height: 12),
@@ -6979,7 +6982,8 @@ class _ViolationDetailPage extends StatelessWidget {
     final expiry =
         DateTime.tryParse((violation.expiredAt ?? '').replaceFirst(' ', 'T'))
             ?.toLocal();
-    final isExpired = expiry != null && expiry.isBefore(DateTime.now());
+    final isExpired =
+        !violation.isPermanent && expiry != null && expiry.isBefore(DateTime.now());
     final imageUrl = normalizeStorageUrl(violation.fileUrl)?.trim() ?? '';
 
     return _ProfileDetailRouteScaffold(
@@ -7052,7 +7056,9 @@ class _ViolationDetailPage extends StatelessWidget {
                         ReportStyleDetailRow(
                           icon: Icons.event_busy_outlined,
                           label: 'Berlaku Sampai',
-                          value: _formatDetailDate(violation.expiredAt),
+                          value: violation.isPermanent
+                              ? 'Permanen'
+                              : _formatDetailDate(violation.expiredAt),
                           valueColor: isExpired ? color : null,
                         ),
                         const SizedBox(height: 12),

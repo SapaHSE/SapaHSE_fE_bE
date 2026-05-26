@@ -191,12 +191,20 @@ class _MinePermitFrontPreview extends StatelessWidget {
           Positioned(
             left: 29,
             bottom: 1,
-            child: const _MiniCounterPreview('VIOLATION'),
+            child: _MiniCounterPreview(
+              'VIOLATION',
+              activeLevel:
+                  IdCardPdfService.activeSanctionLevel(profile, 'Violation'),
+            ),
           ),
           Positioned(
             right: 19,
             bottom: 1,
-            child: const _MiniCounterPreview('INCIDENT'),
+            child: _MiniCounterPreview(
+              'INCIDENT',
+              activeLevel:
+                  IdCardPdfService.activeSanctionLevel(profile, 'Incident'),
+            ),
           ),
           Positioned(
             right: 18,
@@ -605,8 +613,9 @@ class _PreviewCardFrame extends StatelessWidget {
 
 class _MiniCounterPreview extends StatelessWidget {
   final String title;
+  final int activeLevel;
 
-  const _MiniCounterPreview(this.title);
+  const _MiniCounterPreview(this.title, {this.activeLevel = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -627,13 +636,22 @@ class _MiniCounterPreview extends StatelessWidget {
               color: Colors.black,
               width: 0.7,
             ),
-            children: const [
+            children: [
               TableRow(
-                children: [
-                  _PreviewCell('1', bold: true),
-                  _PreviewCell('2', bold: true),
-                  _PreviewCell('3', bold: true),
-                ],
+                children: [1, 2, 3]
+                    .map(
+                      (level) => _PreviewCell(
+                        '$level',
+                        bold: true,
+                        backgroundColor: activeLevel == level
+                            ? const Color(0xFFE31B23)
+                            : null,
+                        textColor: activeLevel == level
+                            ? Colors.white
+                            : Colors.black,
+                      ),
+                    )
+                    .toList(),
               ),
             ],
           ),
@@ -890,21 +908,33 @@ class _PreviewCell extends StatelessWidget {
   final String text;
   final bool bold;
   final bool alignLeft;
+  final Color? backgroundColor;
+  final Color? textColor;
 
-  const _PreviewCell(this.text, {this.bold = false, this.alignLeft = false});
+  const _PreviewCell(
+    this.text, {
+    this.bold = false,
+    this.alignLeft = false,
+    this.backgroundColor,
+    this.textColor,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(alignLeft ? 5 : 2, 3, 2, 3),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        textAlign: alignLeft ? TextAlign.left : TextAlign.center,
-        style: TextStyle(
-          fontSize: text.length > 14 ? 6 : 7,
-          fontWeight: FontWeight.bold,
+    return Container(
+      color: backgroundColor,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(alignLeft ? 5 : 2, 3, 2, 3),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignLeft ? TextAlign.left : TextAlign.center,
+          style: TextStyle(
+            color: textColor,
+            fontSize: text.length > 14 ? 6 : 7,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );

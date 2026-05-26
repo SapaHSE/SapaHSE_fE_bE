@@ -23,6 +23,7 @@ class UserViolation extends Model
         'location',
         'date_of_violation',
         'expired_at',
+        'is_permanent',
         'status',
         'sanction',
         'file_url',
@@ -33,6 +34,7 @@ class UserViolation extends Model
         return [
             'date_of_violation' => 'date',
             'expired_at' => 'date',
+            'is_permanent' => 'boolean',
             'level' => 'integer',
         ];
     }
@@ -42,6 +44,10 @@ class UserViolation extends Model
         parent::boot();
 
         static::saving(function ($model) {
+            if ($model->is_permanent) {
+                return;
+            }
+
             if ($model->expired_at) {
                 if ($model->expired_at->isPast()) {
                     $model->status = 'Selesai';
