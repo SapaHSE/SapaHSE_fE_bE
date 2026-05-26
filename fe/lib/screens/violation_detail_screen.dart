@@ -44,6 +44,12 @@ class ViolationDetailScreen extends StatelessWidget {
     return _formatDate(dt, withTime: withTime);
   }
 
+  String _formatExpiryText(String? raw) {
+    final value = raw?.trim();
+    if (value == null || value.isEmpty) return 'Permanen';
+    return _formatDateText(value);
+  }
+
   Widget _buildHeroArea() {
     return ReportStyleDetailHero(
       imageUrl: (violation.fileUrl ?? '').trim(),
@@ -142,12 +148,6 @@ class ViolationDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   ReportStyleDetailRow(
-                    icon: Icons.label_outline,
-                    label: 'Sub Tipe',
-                    value: _displayValue(violation.violationSubcategory),
-                  ),
-                  const SizedBox(height: 12),
-                  ReportStyleDetailRow(
                     icon: Icons.description_outlined,
                     label: 'Deskripsi',
                     value: _displayValue(violation.description),
@@ -170,7 +170,7 @@ class ViolationDetailScreen extends StatelessWidget {
                     label: 'Berlaku Sampai',
                     value: violation.isPermanent
                         ? 'Permanen'
-                        : _formatDateText(violation.expiredAt),
+                        : _formatExpiryText(violation.expiredAt),
                     valueColor: expired ? _danger : null,
                   ),
                   const SizedBox(height: 12),

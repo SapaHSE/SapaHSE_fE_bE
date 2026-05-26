@@ -6146,6 +6146,14 @@ class _LicenseDetailPage extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if ((license.reviewedByName ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.verified_user_outlined,
+                            label: 'Direview oleh',
+                            value: license.reviewedByName!,
+                          ),
+                        ],
                         if ((license.rejectionReason ?? '')
                             .trim()
                             .isNotEmpty) ...[
@@ -6535,6 +6543,14 @@ class _MinePermitDetailPage extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if ((lic.reviewedByName ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.verified_user_outlined,
+                            label: 'Direview oleh',
+                            value: lic.reviewedByName!,
+                          ),
+                        ],
                         if ((lic.rejectionReason ?? '').trim().isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Container(
@@ -6850,6 +6866,16 @@ class _CertificationDetailPage extends StatelessWidget {
                               certification.reviewedAt,
                               includeTime: true,
                             ),
+                          ),
+                        ],
+                        if ((certification.reviewedByName ?? '')
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ReportStyleDetailRow(
+                            icon: Icons.verified_user_outlined,
+                            label: 'Direview oleh',
+                            value: certification.reviewedByName!,
                           ),
                         ],
                         if ((certification.rejectionReason ?? '')

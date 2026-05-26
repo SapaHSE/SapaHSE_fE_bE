@@ -14,7 +14,6 @@ use App\Http\Controllers\API\InboxController;
 use App\Http\Controllers\API\ForgotPasswordController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\HazardCategoryController;
-use App\Http\Controllers\API\ViolationCategoryController;
 use App\Http\Controllers\API\ViolationController;
 use App\Http\Controllers\API\CompanyController;
 use App\Http\Controllers\API\AreaController;
@@ -112,23 +111,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'destroySubcategory'])
         ->middleware('role:superadmin');
 
-    // ── Violation Categories ─────────────────────────────────────────────────
-    Route::get('/violation-categories', [ViolationCategoryController::class, 'index']);
-    Route::post('/violation-categories', [ViolationCategoryController::class, 'store'])
-        ->middleware('role:superadmin');
-    Route::put('/violation-categories/{id}', [ViolationCategoryController::class, 'update'])
-        ->middleware('role:superadmin');
-    Route::delete('/violation-categories/{id}', [ViolationCategoryController::class, 'destroy'])
-        ->middleware('role:superadmin');
-    Route::post('/violation-categories/subcategories/{subId}/toggle', [ViolationCategoryController::class, 'toggleSubcategory'])
-        ->middleware('role:superadmin');
-    Route::post('/violation-categories/{categoryId}/subcategories', [ViolationCategoryController::class, 'storeSubcategory'])
-        ->middleware('role:superadmin');
-    Route::put('/violation-categories/{categoryId}/subcategories/{subId}', [ViolationCategoryController::class, 'updateSubcategory'])
-        ->middleware('role:superadmin');
-    Route::delete('/violation-categories/{categoryId}/subcategories/{subId}', [ViolationCategoryController::class, 'destroySubcategory'])
-        ->middleware('role:superadmin');
-    
     // ── Companies ─────────────────────────────────────────────────────────────
     // GET /companies is public (top of file) for registration dropdowns.
     Route::post('/companies', [CompanyController::class, 'store'])

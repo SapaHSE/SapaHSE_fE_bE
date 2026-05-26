@@ -551,15 +551,6 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                       color: Colors.black87,
                     ),
                   ),
-                  if ((item.violationSubcategory ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      item.violationSubcategory!.trim(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                    ),
-                  ],
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 12,
@@ -573,18 +564,15 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                         Icons.calendar_today_outlined,
                         _formatDate(item.dateOfViolation),
                       ),
-                      if (item.isPermanent)
-                        _buildMetaItem(
-                          Icons.all_inclusive,
-                          'Permanen',
-                          color: Colors.blue.shade700,
-                        )
-                      else if ((item.expiredAt ?? '').isNotEmpty)
-                        _buildMetaItem(
-                          Icons.event_available_outlined,
-                          'S/D ${_formatDate(item.expiredAt!)}',
-                          color: Colors.blue.shade700,
-                        ),
+                      _buildMetaItem(
+                        item.isPermanent
+                            ? Icons.all_inclusive
+                            : Icons.event_available_outlined,
+                        item.isPermanent || (item.expiredAt ?? '').isEmpty
+                            ? 'Permanen'
+                            : 'S/D ${_formatDate(item.expiredAt!)}',
+                        color: Colors.blue.shade700,
+                      ),
                     ],
                   ),
                   if ((item.sanction ?? '').trim().isNotEmpty) ...[

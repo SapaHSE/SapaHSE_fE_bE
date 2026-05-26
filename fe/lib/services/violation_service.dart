@@ -56,17 +56,6 @@ class ViolationService {
   static Future<ApiResponse> deleteViolation(String violationId) async {
     return await ApiService.delete('/admin/violations/$violationId');
   }
-
-  static Future<List<ViolationCategoryData>> getViolationCategories() async {
-    final response = await ApiService.get('/violation-categories');
-    if (!response.success) return [];
-
-    final raw = response.data['data'] as List<dynamic>? ?? [];
-    return raw
-        .map((item) =>
-            ViolationCategoryData.fromJson(Map<String, dynamic>.from(item)))
-        .toList();
-  }
 }
 
 class ViolationListResult {
@@ -145,64 +134,6 @@ class ViolationItem {
       sanction: json['sanction']?.toString(),
       fileUrl: json['file_url']?.toString(),
       user: Map<String, dynamic>.from(json['user'] as Map? ?? {}),
-    );
-  }
-}
-
-class ViolationCategoryData {
-  final int id;
-  final String name;
-  final String? code;
-  final List<ViolationSubcategoryData> subcategories;
-
-  ViolationCategoryData({
-    required this.id,
-    required this.name,
-    this.code,
-    this.subcategories = const [],
-  });
-
-  factory ViolationCategoryData.fromJson(Map<String, dynamic> json) {
-    final rawSubcategories = json['subcategories'] as List<dynamic>? ?? [];
-    return ViolationCategoryData(
-      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
-      name: json['name']?.toString() ?? '',
-      code: json['code']?.toString(),
-      subcategories: rawSubcategories
-          .map((item) => ViolationSubcategoryData.fromJson(
-              Map<String, dynamic>.from(item)))
-          .toList(),
-    );
-  }
-}
-
-class ViolationSubcategoryData {
-  final int id;
-  final int categoryId;
-  final String name;
-  final String? abbreviation;
-  final String? description;
-  final bool isActive;
-
-  ViolationSubcategoryData({
-    required this.id,
-    required this.categoryId,
-    required this.name,
-    this.abbreviation,
-    this.description,
-    this.isActive = true,
-  });
-
-  factory ViolationSubcategoryData.fromJson(Map<String, dynamic> json) {
-    final activeValue = json['is_active'];
-    final activeText = activeValue?.toString().toLowerCase();
-    return ViolationSubcategoryData(
-      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
-      categoryId: int.tryParse(json['category_id']?.toString() ?? '') ?? 0,
-      name: json['name']?.toString() ?? '',
-      abbreviation: json['abbreviation']?.toString(),
-      description: json['description']?.toString(),
-      isActive: activeValue == true || activeText == '1' || activeText == 'true',
     );
   }
 }

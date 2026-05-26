@@ -1114,9 +1114,7 @@ class _ViolationContent extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          (v.violationSubcategory ?? '').isNotEmpty
-                              ? v.violationSubcategory!
-                              : (v.location ?? '-'),
+                          v.location ?? '-',
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontSize: 13,
@@ -1130,17 +1128,14 @@ class _ViolationContent extends StatelessWidget {
                             fontSize: 12,
                           ),
                         ),
-                        if (v.expiredAt != null &&
-                            v.expiredAt!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Berlaku s/d: ${v.expiredAt}',
-                            style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 12,
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Berlaku s/d: ${((v.expiredAt ?? '').isEmpty) ? 'Permanen' : v.expiredAt}',
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 12,
                           ),
-                        ],
+                        ),
                         if (v.sanction != null && v.sanction!.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(

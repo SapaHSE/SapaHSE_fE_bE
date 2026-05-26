@@ -24,7 +24,6 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             HazardCategorySeeder::class,
-            ViolationCategorySeeder::class,
             CompanySeeder::class,
             AreaSeeder::class,
             DepartmentSeeder::class,            

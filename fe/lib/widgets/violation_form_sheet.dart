@@ -40,6 +40,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
+  final _categoryController = TextEditingController();
   final _expiredDateController = TextEditingController();
   final _sanctionController = TextEditingController();
   XFile? _violationImage;
@@ -47,16 +48,13 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   String _status = 'Aktif';
   String _type = 'Violation';
   int? _level;
-  bool _isPermanentSanction = false;
-  ViolationCategoryData? _selectedCategory;
-  ViolationSubcategoryData? _selectedSubcategory;
-  List<ViolationCategoryData> _categories = [];
 
   Map<String, dynamic>? _selectedUser;
   List<Map<String, dynamic>> _userResults = [];
   bool _isSearchingUser = false;
   bool _isSaving = false;
   bool _hasTriedSubmit = false;
+  bool _isPermanent = false;
 
   @override
   void initState() {
@@ -67,15 +65,16 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
       _titleController.text = widget.item!.title;
       _descriptionController.text = widget.item!.description ?? '';
       _locationController.text = widget.item!.location ?? '';
+      _categoryController.text = widget.item!.violationCategory ?? '';
       _expiredDateController.text = widget.item!.expiredAt ?? '';
       _sanctionController.text = widget.item!.sanction ?? '';
       _status = widget.item!.status;
       _level = widget.item!.level.clamp(1, 3).toInt();
-      _isPermanentSanction = widget.item!.isPermanent;
       _selectedUser = widget.item!.user;
       _violationImage = null;
+      _isPermanent =
+          widget.item!.isPermanent || (widget.item!.expiredAt ?? '').trim().isEmpty;
     }
-    _loadCategories();
   }
 
   @override
@@ -83,32 +82,11 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     _titleController.dispose();
     _descriptionController.dispose();
     _locationController.dispose();
+    _categoryController.dispose();
     _expiredDateController.dispose();
     _sanctionController.dispose();
     _debounce?.cancel();
     super.dispose();
-  }
-
-  Future<void> _loadCategories() async {
-    final categories = await ViolationService.getViolationCategories();
-    if (!mounted) return;
-    setState(() {
-      _categories = categories;
-      if (widget.item?.violationCategory != null) {
-        _selectedCategory = _categories.cast<ViolationCategoryData?>().firstWhere(
-              (c) => c?.code == widget.item!.violationCategory,
-              orElse: () => null,
-            );
-      }
-      if (_selectedCategory != null && widget.item?.violationSubcategory != null) {
-        _selectedSubcategory = _selectedCategory!.subcategories
-            .cast<ViolationSubcategoryData?>()
-            .firstWhere(
-              (s) => s?.name == widget.item!.violationSubcategory,
-              orElse: () => null,
-            );
-      }
-    });
   }
 
   Future<void> _searchUsers(String query) async {
@@ -131,6 +109,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   }
 
   Future<void> _selectExpiredDate() async {
+    if (_isPermanent) return;
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
@@ -143,6 +122,15 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
         _expiredDateController.text = DateFormat('yyyy-MM-dd').format(picked);
       });
     }
+  }
+
+  void _setPermanent(bool value) {
+    setState(() {
+      _isPermanent = value;
+      if (value) {
+        _expiredDateController.clear();
+      }
+    });
   }
 
   Future<void> _save() async {
@@ -184,19 +172,16 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
       uploadedUrl = widget.item?.fileUrl;
     }
 
+    final category = _categoryController.text.trim();
     final data = {
       'title': _titleController.text.trim(),
-      'violation_category': _selectedCategory?.code,
-      'violation_subcategory': _selectedSubcategory?.name,
+      'violation_category': category.isEmpty ? null : category,
       'type': _type,
       'level': _level,
       'description': _descriptionController.text.trim(),
       'location': _locationController.text.trim(),
-      'expired_at':
-          _isPermanentSanction || _expiredDateController.text.isEmpty
-              ? null
-              : _expiredDateController.text,
-      'is_permanent': _isPermanentSanction,
+      'expired_at': _isPermanent ? null : _expiredDateController.text.trim(),
+      'is_permanent': _isPermanent,
       'status': _status,
       'sanction': _sanctionController.text.trim(),
       'file_url': uploadedUrl,
@@ -291,9 +276,12 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                         const SizedBox(height: 12),
                         _buildTypeLevelRow(),
                         const SizedBox(height: 12),
-                        _buildCategoryPicker(),
-                        const SizedBox(height: 12),
-                        _buildSubcategoryPicker(),
+                        _buildField(
+                          'Kategori',
+                          _categoryController,
+                          hint: 'Contoh: APD / Prosedur Kerja',
+                          isRequired: false,
+                        ),
                         const SizedBox(height: 12),
                         _buildField(
                           _type == 'Incident'
@@ -318,23 +306,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                           isRequired: false,
                         ),
                         const SizedBox(height: 12),
-                        InkWell(
-                          onTap: _isPermanentSanction ? null : _selectExpiredDate,
-                          child: IgnorePointer(
-                            child: _buildField(
-                              'Masa Berlaku',
-                              _expiredDateController,
-                              hint: _isPermanentSanction
-                                  ? 'Permanen'
-                                  : 'YYYY-MM-DD',
-                              icon: Icons.event_available,
-                              isRequired: false,
-                              enabled: !_isPermanentSanction,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildSanctionPeriodPicker(),
+                        _buildExpirySection(),
                         const SizedBox(height: 12),
                         _buildStatusPicker(),
                         const SizedBox(height: 12),
@@ -596,37 +568,6 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     );
   }
 
-  Widget _buildCategoryPicker() {
-    return _buildDropdown<ViolationCategoryData>(
-      label: 'Tipe Pelanggaran',
-      value: _selectedCategory,
-      items: _categories,
-      itemLabel: (item) => item.code == null ? item.name : '${item.code} - ${item.name}',
-      isRequired: true,
-      onChanged: (value) => setState(() {
-        _selectedCategory = value;
-        _selectedSubcategory = null;
-      }),
-    );
-  }
-
-  Widget _buildSubcategoryPicker() {
-    final items = _selectedCategory?.subcategories
-            .where((item) => item.isActive)
-            .toList() ??
-        [];
-    return _buildDropdown<ViolationSubcategoryData>(
-      label: 'Sub Tipe',
-      value: _selectedSubcategory,
-      items: items,
-      itemLabel: (item) => item.name,
-      isRequired: true,
-      onChanged: _selectedCategory == null
-          ? null
-          : (value) => setState(() => _selectedSubcategory = value),
-    );
-  }
-
   Widget _buildDropdown<T>({
     required String label,
     required T? value,
@@ -736,8 +677,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     required String hint,
     IconData? icon,
     bool isRequired = true,
-    int maxLines = 1,
     bool enabled = true,
+    int maxLines = 1,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -760,96 +701,46 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
     );
   }
 
-  Widget _buildSanctionPeriodPicker() {
-    Widget option({
-      required bool permanent,
-      required String title,
-      required String subtitle,
-      required IconData icon,
-    }) {
-      final selected = _isPermanentSanction == permanent;
-      final color = selected ? const Color(0xFF1A56C4) : Colors.grey.shade500;
-
-      return Expanded(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-          onTap: () => setState(() {
-            _isPermanentSanction = permanent;
-            if (permanent) _expiredDateController.clear();
-          }),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: selected
-                  ? const Color(0xFF1A56C4).withValues(alpha: 0.08)
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-              border: Border.all(
-                color: selected
-                    ? const Color(0xFF1A56C4)
-                    : Colors.grey.shade300,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, color: color, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          color: selected
-                              ? const Color(0xFF1A56C4)
-                              : Colors.grey.shade800,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 11,
-                          height: 1.15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
+  Widget _buildExpirySection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel('Jenis Masa Sangsi'),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            option(
-              permanent: false,
-              title: 'Tanggal',
-              subtitle: 'Berlaku sampai tanggal',
+        InkWell(
+          onTap: _isPermanent ? null : _selectExpiredDate,
+          child: IgnorePointer(
+            child: _buildField(
+              'Masa Berlaku',
+              _expiredDateController,
+              hint: _isPermanent ? 'Permanen' : 'YYYY-MM-DD',
               icon: Icons.event_available,
+              isRequired: !_isPermanent,
+              enabled: !_isPermanent,
             ),
-            const SizedBox(width: 10),
-            option(
-              permanent: true,
-              title: 'Permanen',
-              subtitle: 'Tetap aktif tanpa tanggal',
-              icon: Icons.all_inclusive,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F8F8),
+            borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: SwitchListTile(
+            value: _isPermanent,
+            onChanged: _setPermanent,
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            activeThumbColor: const Color(0xFF1A56C4),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+            title: const Text(
+              'Permanen',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
-          ],
+            subtitle: Text(
+              'Tidak memiliki tanggal berakhir',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
         ),
       ],
     );
