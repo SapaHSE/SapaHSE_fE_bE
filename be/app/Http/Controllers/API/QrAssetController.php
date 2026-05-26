@@ -53,7 +53,7 @@ class QrAssetController extends Controller
 
         $employeeId = $this->employeeIdFromUserQrCode($qrCode);
         $user = User::where(function ($query) use ($qrCode, $employeeId) {
-            $query->where('qr_code', $qrCode);
+            $query->whereRaw('UPPER(qr_code) = ?', [strtoupper($qrCode)]);
             if ($employeeId !== null) {
                 $query->orWhereRaw('UPPER(employee_id) = ?', [$employeeId]);
             }
@@ -177,17 +177,25 @@ class QrAssetController extends Controller
             }
         }
 
-        return strtoupper(trim($value));
+        return trim($value);
     }
 
     private function employeeIdFromUserQrCode(string $qrCode): ?string
     {
-        $prefix = 'SAPA-HSE-USER-';
-        if (! str_starts_with($qrCode, $prefix)) {
+        $prefixes = ['SapaHSE-USER-', 'SAPA-HSE-USER-'];
+        $matchedPrefix = null;
+        foreach ($prefixes as $prefix) {
+            if (str_starts_with(strtoupper($qrCode), strtoupper($prefix))) {
+                $matchedPrefix = $prefix;
+                break;
+            }
+        }
+
+        if ($matchedPrefix === null) {
             return null;
         }
 
-        $employeeId = trim(substr($qrCode, strlen($prefix)));
-        return $employeeId === '' ? null : $employeeId;
+        $employeeId = trim(substr($qrCode, strlen($matchedPrefix)));
+        return $employeeId === '' ? null : strtoupper($employeeId);
     }
 }

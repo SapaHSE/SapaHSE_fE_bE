@@ -106,7 +106,7 @@ class User extends Authenticatable
             return null;
         }
 
-        $employeeQrCode = 'SAPA-HSE-USER-' . strtoupper($employeeId);
+        $employeeQrCode = 'SapaHSE-USER-' . strtoupper($employeeId);
 
         if ($this->qr_code === $employeeQrCode) {
             return $this->qr_code;
