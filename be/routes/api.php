@@ -14,6 +14,8 @@ use App\Http\Controllers\API\InboxController;
 use App\Http\Controllers\API\ForgotPasswordController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\HazardCategoryController;
+use App\Http\Controllers\API\ViolationCategoryController;
+use App\Http\Controllers\API\ViolationController;
 use App\Http\Controllers\API\CompanyController;
 use App\Http\Controllers\API\AreaController;
 use App\Http\Controllers\API\DepartmentController;
@@ -108,6 +110,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'updateSubcategory'])
         ->middleware('role:superadmin');
     Route::delete('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'destroySubcategory'])
+        ->middleware('role:superadmin');
+
+    // ── Violation Categories ─────────────────────────────────────────────────
+    Route::get('/violation-categories', [ViolationCategoryController::class, 'index']);
+    Route::post('/violation-categories', [ViolationCategoryController::class, 'store'])
+        ->middleware('role:superadmin');
+    Route::put('/violation-categories/{id}', [ViolationCategoryController::class, 'update'])
+        ->middleware('role:superadmin');
+    Route::delete('/violation-categories/{id}', [ViolationCategoryController::class, 'destroy'])
+        ->middleware('role:superadmin');
+    Route::post('/violation-categories/subcategories/{subId}/toggle', [ViolationCategoryController::class, 'toggleSubcategory'])
+        ->middleware('role:superadmin');
+    Route::post('/violation-categories/{categoryId}/subcategories', [ViolationCategoryController::class, 'storeSubcategory'])
+        ->middleware('role:superadmin');
+    Route::put('/violation-categories/{categoryId}/subcategories/{subId}', [ViolationCategoryController::class, 'updateSubcategory'])
+        ->middleware('role:superadmin');
+    Route::delete('/violation-categories/{categoryId}/subcategories/{subId}', [ViolationCategoryController::class, 'destroySubcategory'])
         ->middleware('role:superadmin');
     
     // ── Companies ─────────────────────────────────────────────────────────────
@@ -233,10 +252,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/users/{id}', [AuthController::class, 'adminDestroy'])->middleware('role:admin,superadmin');
 
     // Admin: Manage Violations
-    Route::get('/admin/violations', [AuthController::class, 'adminViolationsIndex'])->middleware('role:admin,superadmin');
-    Route::post('/admin/users/{id}/violations', [AuthController::class, 'adminStoreViolation'])->middleware('role:admin,superadmin');
-    Route::put('/admin/violations/{violationId}', [AuthController::class, 'adminUpdateViolation'])->middleware('role:admin,superadmin');
-    Route::delete('/admin/violations/{violationId}', [AuthController::class, 'adminDestroyViolation'])->middleware('role:admin,superadmin');
+    Route::get('/admin/violations', [ViolationController::class, 'index'])->middleware('role:admin,superadmin');
+    Route::post('/admin/users/{id}/violations', [ViolationController::class, 'store'])->middleware('role:admin,superadmin');
+    Route::get('/admin/violations/{violationId}', [ViolationController::class, 'show'])->middleware('role:admin,superadmin');
+    Route::put('/admin/violations/{violationId}', [ViolationController::class, 'update'])->middleware('role:admin,superadmin');
+    Route::delete('/admin/violations/{violationId}', [ViolationController::class, 'destroy'])->middleware('role:admin,superadmin');
 
     // Admin: Verification
     Route::get('/admin/document-approvals', [InboxController::class, 'documentApprovals'])->middleware('role:admin,superadmin');

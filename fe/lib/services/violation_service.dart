@@ -5,6 +5,7 @@ class ViolationService {
     int page = 1,
     String? search,
     String? status,
+    String? type,
   }) async {
     String url = '/admin/violations?page=$page';
     if (search != null && search.isNotEmpty) {
@@ -12,6 +13,9 @@ class ViolationService {
     }
     if (status != null && status.isNotEmpty && status != 'Semua') {
       url += '&status=${Uri.encodeComponent(status)}';
+    }
+    if (type != null && type.isNotEmpty && type != 'Semua') {
+      url += '&type=${Uri.encodeComponent(type)}';
     }
 
     final response = await ApiService.get(url);
@@ -51,6 +55,17 @@ class ViolationService {
   static Future<ApiResponse> deleteViolation(String violationId) async {
     return await ApiService.delete('/admin/violations/$violationId');
   }
+
+  static Future<List<ViolationCategoryData>> getViolationCategories() async {
+    final response = await ApiService.get('/violation-categories');
+    if (!response.success) return [];
+
+    final raw = response.data['data'] as List<dynamic>? ?? [];
+    return raw
+        .map((item) =>
+            ViolationCategoryData.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+  }
 }
 
 class ViolationListResult {
@@ -80,6 +95,10 @@ class ViolationListResult {
 class ViolationItem {
   final String id;
   final String title;
+  final String? violationCategory;
+  final String? violationSubcategory;
+  final String type;
+  final int level;
   final String? description;
   final String? location;
   final String dateOfViolation;
@@ -92,6 +111,10 @@ class ViolationItem {
   ViolationItem({
     required this.id,
     required this.title,
+    this.violationCategory,
+    this.violationSubcategory,
+    this.type = 'Violation',
+    this.level = 1,
     this.description,
     this.location,
     required this.dateOfViolation,
@@ -106,6 +129,10 @@ class ViolationItem {
     return ViolationItem(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
+      violationCategory: json['violation_category']?.toString(),
+      violationSubcategory: json['violation_subcategory']?.toString(),
+      type: json['type']?.toString() ?? 'Violation',
+      level: int.tryParse(json['level']?.toString() ?? '') ?? 1,
       description: json['description']?.toString(),
       location: json['location']?.toString(),
       dateOfViolation: json['date_of_violation']?.toString() ?? '',
@@ -114,6 +141,64 @@ class ViolationItem {
       sanction: json['sanction']?.toString(),
       fileUrl: json['file_url']?.toString(),
       user: Map<String, dynamic>.from(json['user'] as Map? ?? {}),
+    );
+  }
+}
+
+class ViolationCategoryData {
+  final int id;
+  final String name;
+  final String? code;
+  final List<ViolationSubcategoryData> subcategories;
+
+  ViolationCategoryData({
+    required this.id,
+    required this.name,
+    this.code,
+    this.subcategories = const [],
+  });
+
+  factory ViolationCategoryData.fromJson(Map<String, dynamic> json) {
+    final rawSubcategories = json['subcategories'] as List<dynamic>? ?? [];
+    return ViolationCategoryData(
+      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      name: json['name']?.toString() ?? '',
+      code: json['code']?.toString(),
+      subcategories: rawSubcategories
+          .map((item) => ViolationSubcategoryData.fromJson(
+              Map<String, dynamic>.from(item)))
+          .toList(),
+    );
+  }
+}
+
+class ViolationSubcategoryData {
+  final int id;
+  final int categoryId;
+  final String name;
+  final String? abbreviation;
+  final String? description;
+  final bool isActive;
+
+  ViolationSubcategoryData({
+    required this.id,
+    required this.categoryId,
+    required this.name,
+    this.abbreviation,
+    this.description,
+    this.isActive = true,
+  });
+
+  factory ViolationSubcategoryData.fromJson(Map<String, dynamic> json) {
+    final activeValue = json['is_active'];
+    final activeText = activeValue?.toString().toLowerCase();
+    return ViolationSubcategoryData(
+      id: int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      categoryId: int.tryParse(json['category_id']?.toString() ?? '') ?? 0,
+      name: json['name']?.toString() ?? '',
+      abbreviation: json['abbreviation']?.toString(),
+      description: json['description']?.toString(),
+      isActive: activeValue == true || activeText == '1' || activeText == 'true',
     );
   }
 }

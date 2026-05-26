@@ -14,6 +14,7 @@ class ViolationDetailScreen extends StatelessWidget {
   static const _danger = Color(0xFFD32F2F);
 
   bool get _isActive => violation.status.toLowerCase() == 'aktif';
+  bool get _isIncident => violation.type == 'Incident';
 
   String _displayValue(String? value) {
     final v = value?.trim();
@@ -55,12 +56,24 @@ class ViolationDetailScreen extends StatelessWidget {
           backgroundColor:
               _isActive ? const Color(0xFFFFEBEE) : const Color(0xFFF5F5F5),
         ),
-        const ReportStyleDetailBadge(
-          label: 'PELANGGARAN',
-          color: _danger,
+        ReportStyleDetailBadge(
+          label: violation.type.toUpperCase(),
+          color: _isIncident ? const Color(0xFFF57C00) : _danger,
+        ),
+        ReportStyleDetailBadge(
+          label: 'LEVEL ${violation.level}',
+          color: _levelColor(violation.level),
         ),
       ],
     );
+  }
+
+  Color _levelColor(int level) {
+    return switch (level) {
+      1 => const Color(0xFF2E7D32),
+      2 => const Color(0xFFF57C00),
+      _ => _danger,
+    };
   }
 
   @override
@@ -78,7 +91,7 @@ class ViolationDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Detail Pelanggaran',
+          'Detail Violation & Incident',
           style: TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.bold,
@@ -105,15 +118,34 @@ class ViolationDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'PELANGGARAN',
+                  Text(
+                    violation.type.toUpperCase(),
                     style: TextStyle(
                       fontSize: 13,
-                      color: _danger,
+                      color: _isIncident ? const Color(0xFFF57C00) : _danger,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const Divider(height: 24),
+                  ReportStyleDetailRow(
+                    icon: Icons.layers_outlined,
+                    label: 'Level',
+                    value: 'Level ${violation.level}',
+                    valueColor: _levelColor(violation.level),
+                  ),
+                  const SizedBox(height: 12),
+                  ReportStyleDetailRow(
+                    icon: Icons.category_outlined,
+                    label: 'Kategori',
+                    value: _displayValue(violation.violationCategory),
+                  ),
+                  const SizedBox(height: 12),
+                  ReportStyleDetailRow(
+                    icon: Icons.label_outline,
+                    label: 'Sub Tipe',
+                    value: _displayValue(violation.violationSubcategory),
+                  ),
+                  const SizedBox(height: 12),
                   ReportStyleDetailRow(
                     icon: Icons.description_outlined,
                     label: 'Deskripsi',

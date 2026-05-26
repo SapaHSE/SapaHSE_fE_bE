@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             HazardCategorySeeder::class,
+            ViolationCategorySeeder::class,
             CompanySeeder::class,
             AreaSeeder::class,
             DepartmentSeeder::class,            
@@ -385,6 +386,10 @@ class DatabaseSeeder extends Seeder
         UserViolation::create([
             'user_id'           => $faiz->id,
             'title'             => 'Kecepatan Berlebih — DT-007',
+            'violation_category' => 'LL',
+            'violation_subcategory' => 'Berkendara Berbahaya',
+            'type'              => 'Violation',
+            'level'             => 3,
             'description'       => 'Mengendarai Dump Truck DT-007 dengan kecepatan 75 km/jam di area hauling road KM 5 yang memiliki batas kecepatan maksimum 50 km/jam.',
             'location'          => 'Hauling Road KM 5',
             'date_of_violation' => now()->subDays(10)->toDateString(),
@@ -395,6 +400,10 @@ class DatabaseSeeder extends Seeder
         UserViolation::create([
             'user_id'           => $lintang->id,
             'title'             => 'Tidak Menggunakan Safety Glasses',
+            'violation_category' => 'K3',
+            'violation_subcategory' => 'Tidak Pakai APD',
+            'type'              => 'Violation',
+            'level'             => 2,
             'description'       => 'Tertangkap tangan tidak mengenakan kacamata keselamatan (safety glasses) saat melakukan aktivitas pengelasan di area workshop.',
             'location'          => 'Workshop Area',
             'date_of_violation' => now()->subMonths(2)->toDateString(),

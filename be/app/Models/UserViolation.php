@@ -15,6 +15,10 @@ class UserViolation extends Model
     protected $fillable = [
         'user_id',
         'title',
+        'violation_category',
+        'violation_subcategory',
+        'type',
+        'level',
         'description',
         'location',
         'date_of_violation',
@@ -29,6 +33,7 @@ class UserViolation extends Model
         return [
             'date_of_violation' => 'date',
             'expired_at' => 'date',
+            'level' => 'integer',
         ];
     }
 

@@ -985,17 +985,15 @@ class _ScanResultSheet extends StatelessWidget {
               background: const Color(0xFFEFF4FF),
             ),
             const SizedBox(height: 12),
-            Text(
-              user.fullName.isEmpty ? '-' : user.fullName,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+            _ResultInfoRow(
+              label: 'Nama Lengkap',
+              value: user.fullName.isEmpty ? '-' : user.fullName,
             ),
-            const SizedBox(height: 4),
-            Text(
-              user.employeeId.isEmpty ? '-' : user.employeeId,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            _ResultInfoRow(
+              label: 'NIP',
+              value: user.employeeId.isEmpty ? '-' : user.employeeId,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _ResultInfoRow(
               label: 'Departemen',
               value: user.department ?? '-',

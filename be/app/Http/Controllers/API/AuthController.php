@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Mail\VerifyEmailMail;
 use App\Models\User;
 use App\Models\RegistrationLog;
-use App\Models\UserViolation;
 use App\Models\UserLicense;
 use App\Models\UserCertification;
 use App\Mail\RegistrationRejectedMail;
@@ -516,114 +515,6 @@ class AuthController extends Controller
         return response()->json([
             'status'  => 'success',
             'message' => 'User deleted successfully',
-        ]);
-    }
-
-    // GET /api/admin/violations
-    public function adminViolationsIndex(Request $request)
-    {
-        UserViolation::where('status', 'Aktif')
-            ->whereNotNull('expired_at')
-            ->where('expired_at', '<', now()->toDateString())
-            ->update(['status' => 'Selesai']);
-
-        $search = $request->query('search');
-        $status = $request->query('status');
-        $perPage = $request->query('per_page', 10);
-
-        $query = UserViolation::with('user:id,full_name,employee_id,profile_photo')
-            ->orderBy('date_of_violation', 'desc');
-
-        if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                    ->orWhere('location', 'like', "%{$search}%")
-                    ->orWhereHas('user', function ($uq) use ($search) {
-                        $uq->where('full_name', 'like', "%{$search}%")
-                            ->orWhere('employee_id', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        if ($status && $status !== 'Semua') {
-            $query->where('status', $status);
-        }
-
-        $violations = $query->paginate($perPage);
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Violations retrieved successfully',
-            'data'    => $violations,
-        ]);
-    }
-
-    // POST /api/admin/users/{id}/violations
-    public function adminStoreViolation(Request $request, string $id)
-    {
-        $user = User::findOrFail($id);
-
-        $request->validate([
-            'title'             => 'required|string|max:150',
-            'description'       => 'nullable|string',
-            'location'          => 'nullable|string|max:150',
-            'date_of_violation' => 'nullable|date',
-            'expired_at'        => 'nullable|date',
-            'status'            => 'nullable|string|max:50',
-            'sanction'          => 'nullable|string|max:200',
-            'file_url'          => 'nullable|string|max:255',
-        ]);
-
-        $data = $request->only('title', 'description', 'location', 'date_of_violation', 'expired_at', 'status', 'sanction', 'file_url');
-        if (empty($data['date_of_violation'])) {
-            $data['date_of_violation'] = now()->toDateString();
-        }
-
-        $violation = $user->violations()->create($data);
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Violation recorded successfully.',
-            'data'    => $violation,
-        ], 201);
-    }
-
-    // PUT /api/admin/violations/{violationId}
-    public function adminUpdateViolation(Request $request, string $violationId)
-    {
-        $violation = UserViolation::findOrFail($violationId);
-
-        $request->validate([
-            'title'             => 'required|string|max:150',
-            'description'       => 'nullable|string',
-            'location'          => 'nullable|string|max:150',
-            'date_of_violation' => 'nullable|date',
-            'expired_at'        => 'nullable|date',
-            'status'            => 'nullable|string|max:50',
-            'sanction'          => 'nullable|string|max:200',
-            'file_url'          => 'nullable|string|max:255',
-        ]);
-
-        $violation->update($request->only(
-            'title', 'description', 'location', 'date_of_violation', 'expired_at', 'status', 'sanction', 'file_url'
-        ));
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Violation updated successfully.',
-            'data'    => $violation,
-        ]);
-    }
-
-    // DELETE /api/admin/violations/{violationId}
-    public function adminDestroyViolation(string $violationId)
-    {
-        $violation = UserViolation::findOrFail($violationId);
-        $violation->delete();
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Violation deleted successfully.',
         ]);
     }
 
