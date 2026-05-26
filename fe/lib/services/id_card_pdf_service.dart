@@ -289,9 +289,9 @@ class IdCardPdfService {
             ),
           ),
           pw.Positioned(
-            left: 0.8 * _mm,
-            right: 0.8 * _mm,
-            top: 47.3 * _mm,
+            left: 3.2 * _mm,
+            right: 3.2 * _mm,
+            top: 46.9 * _mm,
             child: pw.FittedBox(
               fit: pw.BoxFit.fitWidth,
               child: pw.Text(
@@ -300,7 +300,7 @@ class IdCardPdfService {
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                   color: PdfColors.black,
-                  fontSize: 4.1,
+                  fontSize: 3.05,
                   fontStyle: pw.FontStyle.italic,
                   fontWeight: pw.FontWeight.bold,
                 ),
@@ -310,7 +310,7 @@ class IdCardPdfService {
           pw.Positioned(
             left: 0.8 * _mm,
             right: 0.8 * _mm,
-            top: 50.8 * _mm,
+            top: 50.1 * _mm,
             child: pw.Container(height: 0.45, color: PdfColors.black),
           ),
           pw.Positioned(
@@ -356,7 +356,7 @@ class IdCardPdfService {
                       textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(
                         color: PdfColors.black,
-                        fontSize: 5.55,
+                        fontSize: 5.95,
                         fontWeight: pw.FontWeight.bold,
                         height: 1.1,
                       ),
@@ -370,7 +370,7 @@ class IdCardPdfService {
                       textAlign: pw.TextAlign.center,
                       style: pw.TextStyle(
                         color: PdfColors.black,
-                        fontSize: 5.35,
+                        fontSize: 5.05,
                         fontWeight: pw.FontWeight.bold,
                         height: 1.1,
                       ),
@@ -803,10 +803,9 @@ class IdCardPdfService {
           pw.Text(
             validUntil,
             style: pw.TextStyle(
-              fontSize: 3.35,
-              fontStyle: pw.FontStyle.italic,
+              fontSize: 3.65,
               fontWeight: pw.FontWeight.bold,
-              color: _blue,
+              color: PdfColors.black,
             ),
           ),
         ],
@@ -869,7 +868,7 @@ class IdCardPdfService {
 
   static double _tableHeaderFontSize(String value) {
     if (value == 'EXP DATE') return 3.4;
-    if (value == 'VEHICLE / EQUIPMENT') return 3.3;
+    if (value == 'VEHICLE / EQUIPMENT') return 3.75;
     return 3.8;
   }
 

@@ -217,10 +217,9 @@ class _MinePermitFrontPreview extends StatelessWidget {
                 Text(
                   IdCardPdfService.formatExpiry(minePermit.expiredAt),
                   style: const TextStyle(
-                    color: Color(0xFF2F73C8),
-                    fontSize: 6.8,
+                    color: Colors.black,
+                    fontSize: 7.2,
                     fontWeight: FontWeight.bold,
-                    fontStyle: FontStyle.italic,
                   ),
                 ),
               ],
@@ -381,9 +380,9 @@ class _MinePermitBackPreview extends StatelessWidget {
             child: _previewTable(rows),
           ),
           const Positioned(
-            left: 5,
-            right: 5,
-            top: 212,
+            left: 18,
+            right: 18,
+            top: 210,
             child: SizedBox(
               width: double.infinity,
               child: FittedBox(
@@ -394,7 +393,7 @@ class _MinePermitBackPreview extends StatelessWidget {
                   maxLines: 1,
                   style: TextStyle(
                     color: Colors.black,
-                    fontSize: 8.2,
+                    fontSize: 6.2,
                     fontWeight: FontWeight.bold,
                     fontStyle: FontStyle.italic,
                   ),
@@ -405,7 +404,7 @@ class _MinePermitBackPreview extends StatelessWidget {
           Positioned(
             left: 5,
             right: 5,
-            top: 226,
+            top: 223,
             child: Container(height: 1, color: Colors.black),
           ),
           Positioned(
@@ -468,7 +467,7 @@ class _MinePermitBackPreview extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.black,
-                      fontSize: 9.8,
+                      fontSize: 10.4,
                       fontWeight: FontWeight.bold,
                       height: 0.95,
                     ),
@@ -481,7 +480,7 @@ class _MinePermitBackPreview extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.black,
-                      fontSize: 9.4,
+                      fontSize: 8.8,
                       fontWeight: FontWeight.bold,
                       height: 0.95,
                     ),
@@ -869,16 +868,18 @@ class _PreviewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isVehicle = text == 'VEHICLE / EQUIPMENT';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
       child: Text(
         text,
         maxLines: 1,
         textAlign: TextAlign.center,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.white,
-          fontSize: 5.6,
+          fontSize: isVehicle ? 6.2 : 5.6,
           fontWeight: FontWeight.bold,
+          fontStyle: FontStyle.italic,
         ),
       ),
     );
