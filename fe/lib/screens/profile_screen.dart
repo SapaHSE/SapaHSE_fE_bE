@@ -791,8 +791,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.gavel_outlined,
               iconBg: const Color(0xFFFFEBEE),
               iconColor: const Color(0xFFD32F2F),
-              title: 'User Violations',
-              subtitle: 'Catat & kelola pelanggaran karyawan',
+              title: 'Violation & Incident',
+              subtitle: 'Catat & kelola violation dan incident',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(

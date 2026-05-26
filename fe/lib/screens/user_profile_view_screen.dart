@@ -8,6 +8,8 @@ import '../services/profile_service.dart';
 import '../utils/approval_status_ui.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 import '../widgets/app_safe_insets.dart';
+import '../widgets/violation_form_sheet.dart';
+import '../widgets/violation_type_picker.dart';
 import 'license_detail_screen.dart';
 import 'certification_detail_screen.dart';
 import 'violation_detail_screen.dart';
@@ -142,6 +144,33 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
     );
   }
 
+  void _openViolationForm(String type) {
+    final profile = _profile;
+    if (profile == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ViolationFormSheet(
+        initialType: type,
+        preSelectedUser: {
+          'id': profile.id,
+          'full_name': profile.fullName,
+          'employee_id': profile.employeeId,
+        },
+        onSuccess: _load,
+      ),
+    );
+  }
+
+  void _openViolationTypePicker() {
+    showViolationTypePicker(
+      context: context,
+      onSelected: _openViolationForm,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -158,12 +187,12 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.pop(context),
+        onPressed: _selectedSubTab == 3 ? _openViolationTypePicker : () => Navigator.pop(context),
         backgroundColor: const Color(0xFF1A56C4),
         foregroundColor: Colors.white,
         shape: const CircleBorder(),
         elevation: 4,
-        child: const Icon(Icons.arrow_back, size: 28),
+        child: Icon(_selectedSubTab == 3 ? Icons.add : Icons.arrow_back, size: 28),
       ),
       floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
       extendBody: true,
@@ -986,6 +1015,7 @@ class _ViolationContent extends StatelessWidget {
           final isAktif = v.status.toLowerCase() == 'aktif';
           final color = isAktif ? Colors.red.shade700 : Colors.grey.shade700;
           final bgColor = isAktif ? Colors.red.shade50 : Colors.grey.shade100;
+          final typeColor = v.type == 'Incident' ? Colors.orange.shade700 : Colors.red.shade700;
 
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -1060,8 +1090,33 @@ class _ViolationContent extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            _MiniBadge(
+                              label: v.type,
+                              fg: typeColor,
+                              bg: typeColor.withValues(alpha: 0.08),
+                            ),
+                            _MiniBadge(
+                              label: 'L${v.level}',
+                              fg: color,
+                              bg: bgColor,
+                            ),
+                            if ((v.violationCategory ?? '').isNotEmpty)
+                              _MiniBadge(
+                                label: v.violationCategory!,
+                                fg: Colors.blueGrey.shade700,
+                                bg: Colors.blueGrey.shade50,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
                         Text(
-                          v.location ?? '-',
+                          (v.violationSubcategory ?? '').isNotEmpty
+                              ? v.violationSubcategory!
+                              : (v.location ?? '-'),
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontSize: 13,
@@ -1130,6 +1185,38 @@ class _ViolationContent extends StatelessWidget {
           );
         }),
       ],
+    );
+  }
+}
+
+class _MiniBadge extends StatelessWidget {
+  final String label;
+  final Color fg;
+  final Color bg;
+
+  const _MiniBadge({
+    required this.label,
+    required this.fg,
+    required this.bg,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: fg.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: fg,
+          fontWeight: FontWeight.bold,
+          fontSize: 9,
+        ),
+      ),
     );
   }
 }

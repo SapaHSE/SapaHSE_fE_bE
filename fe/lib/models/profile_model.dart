@@ -427,6 +427,10 @@ class MedicalChecklistItem {
 class UserViolation {
   final String id;
   final String title;
+  final String? violationCategory;
+  final String? violationSubcategory;
+  final String type;
+  final int level;
   final String? description;
   final String? location;
   final String? dateOfViolation;
@@ -438,6 +442,10 @@ class UserViolation {
   UserViolation({
     required this.id,
     required this.title,
+    this.violationCategory,
+    this.violationSubcategory,
+    this.type = 'Violation',
+    this.level = 1,
     this.description,
     this.location,
     this.dateOfViolation,
@@ -451,6 +459,10 @@ class UserViolation {
     return UserViolation(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
+      violationCategory: json['violation_category']?.toString(),
+      violationSubcategory: json['violation_subcategory']?.toString(),
+      type: json['type']?.toString() ?? 'Violation',
+      level: int.tryParse(json['level']?.toString() ?? '') ?? 1,
       description: json['description']?.toString(),
       location: json['location']?.toString(),
       dateOfViolation: json['date_of_violation']?.toString(),

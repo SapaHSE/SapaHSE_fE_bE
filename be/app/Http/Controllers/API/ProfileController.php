@@ -1003,6 +1003,10 @@ class ProfileController extends Controller
             'violations'     => $user->relationLoaded('violations') ? $user->violations->map(fn($v) => [
                 'id'                => $v->id,
                 'title'             => $v->title,
+                'violation_category' => $v->violation_category,
+                'violation_subcategory' => $v->violation_subcategory,
+                'type'              => $v->type ?? 'Violation',
+                'level'             => $v->level ?? 1,
                 'description'       => $v->description,
                 'location'          => $v->location,
                 'date_of_violation' => $v->date_of_violation?->format('Y-m-d'),
