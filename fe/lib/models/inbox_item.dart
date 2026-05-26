@@ -134,6 +134,9 @@ class InboxItem {
   final String? submitterPosition;
   final String? submitterPhone;
   final String? submitterPhotoUrl;
+  final String? reviewerName;
+  final String? reviewerPhotoUrl;
+  final String? reviewerEmployeeId;
   final String? itemName;
   final String? itemNumber;
   final String? itemLicenseType;
@@ -194,6 +197,9 @@ class InboxItem {
     this.submitterPosition,
     this.submitterPhone,
     this.submitterPhotoUrl,
+    this.reviewerName,
+    this.reviewerPhotoUrl,
+    this.reviewerEmployeeId,
     this.itemName,
     this.itemNumber,
     this.itemLicenseType,
@@ -259,6 +265,10 @@ class InboxItem {
       final approvalItem = rawApprovalItem is Map
           ? Map<String, dynamic>.from(rawApprovalItem)
           : const <String, dynamic>{};
+      final rawReviewer = json['reviewer'];
+      final reviewer = rawReviewer is Map
+          ? Map<String, dynamic>.from(rawReviewer)
+          : null;
       final submitterPhotoUrl =
           normalizeStorageUrl(submitter['profile_photo']?.toString());
 
@@ -283,6 +293,9 @@ class InboxItem {
         submitterPosition: submitter['position']?.toString(),
         submitterPhone: submitter['phone_number']?.toString(),
         submitterPhotoUrl: submitterPhotoUrl,
+        reviewerName: reviewer?['full_name']?.toString(),
+        reviewerPhotoUrl: normalizeStorageUrl(reviewer?['profile_photo']?.toString()),
+        reviewerEmployeeId: reviewer?['employee_id']?.toString(),
         itemName: approvalItem['name']?.toString(),
         itemNumber: (approvalItem['license_number'] ?? approvalItem['certification_number'])?.toString(),
         itemLicenseType: approvalItem['license_type']?.toString(),

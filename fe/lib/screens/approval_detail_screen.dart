@@ -431,6 +431,60 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
               ),
             ),
 
+            // ── Card: Informasi Reviewer ────────────────────────────────────
+            if (!_isPending && widget.item.reviewerName != null &&
+                widget.item.reviewerName!.trim().isNotEmpty)
+              _card(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SectionHeader(
+                        icon: Icons.verified_user_outlined, title: 'Informasi Reviewer'),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 22,
+                          backgroundColor: _typeColor.withValues(alpha: 0.15),
+                          backgroundImage: _resolveReviewerPhoto(),
+                          child: _resolveReviewerPhoto() == null
+                              ? Text(
+                                  _initials(widget.item.reviewerName),
+                                  style: TextStyle(
+                                      color: _typeColor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _displayValue(widget.item.reviewerName),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 15),
+                              ),
+                              if ((widget.item.reviewerEmployeeId ?? '')
+                                      .trim()
+                                      .isNotEmpty)
+                                Text(
+                                  'NIP: ${_displayValue(widget.item.reviewerEmployeeId)}',
+                                  style: TextStyle(
+                                      color: Colors.black54, fontSize: 12),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
             // ── Card: Detail Item (type-specific) ──────────────────────────
             if (!_isRegistration)
               _card(
@@ -577,6 +631,12 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
 
   ImageProvider? _resolveSubmitterPhoto() {
     final url = (widget.item.submitterPhotoUrl ?? '').trim();
+    if (url.isEmpty) return null;
+    return CachedNetworkImageProvider(url);
+  }
+
+  ImageProvider? _resolveReviewerPhoto() {
+    final url = (widget.item.reviewerPhotoUrl ?? '').trim();
     if (url.isEmpty) return null;
     return CachedNetworkImageProvider(url);
   }
