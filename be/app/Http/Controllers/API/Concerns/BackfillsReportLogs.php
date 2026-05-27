@@ -40,9 +40,12 @@ trait BackfillsReportLogs
      * Sub-statuses that are allowed to be skipped over (auto-backfilled to
      * the log) when the user jumps to a later stage. Stages NOT listed here
      * are mandatory checkpoints that must be reached explicitly.
+     * Mandatory checkpoints: 'approved' and 'reviewing'.
      */
     private const SKIPPABLE_SUB_STATUSES = [
+        'assigned',
         'preparing',
+        'executing',
     ];
 
     /**

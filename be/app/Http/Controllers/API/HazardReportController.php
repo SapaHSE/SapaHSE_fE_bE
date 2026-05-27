@@ -276,12 +276,7 @@ class HazardReportController extends Controller
                  && stripos($report->reported_department, $user->department) !== false);
         $isSuperadmin = $user->role === 'superadmin';
         $isAdmin = $user->role === 'admin';
-        $isApprovedOrLater = $report->sub_status === null
-            ? in_array($report->status, ['in_progress', 'closed'], true)
-            : $report->sub_status !== 'validating';
-        $canPjaUpdate = $isPja && $isApprovedOrLater;
-
-        if (!$isSuperadmin && !$isAdmin && !$canPjaUpdate) {
+        if (!$isSuperadmin && !$isAdmin && !$isPja) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
         }
 
@@ -318,17 +313,6 @@ class HazardReportController extends Controller
             $normalizedSubStatus = 'rejected';
         }
 
-        // Additional restrictions for non-admins (admins and superadmin keep full powers).
-        if (!$isAdmin && !$isSuperadmin) {
-            // Cannot select 'validating' or 'approved'
-            if (in_array($normalizedSubStatus, ['validating', 'approved'])) {
-                return response()->json(['status' => 'error', 'message' => 'Izin ditolak untuk status ini.'], 403);
-            }
-            // Cannot select final closed status (including explicit rejected request)
-            if (in_array($requestedStatus, ['closed', 'rejected'])) {
-                return response()->json(['status' => 'error', 'message' => 'Hanya Admin yang dapat menutup laporan.'], 403);
-            }
-        }
 
         if ($normalizedSubStatus === 'reviewing'
             && !$request->hasFile('image')
@@ -343,7 +327,7 @@ class HazardReportController extends Controller
                 $report,
                 $normalizedStatus,
                 $normalizedSubStatus,
-                $isAdmin
+                $isAdmin || $isPja
             );
             if ($progressionError !== null) {
                 return response()->json([
