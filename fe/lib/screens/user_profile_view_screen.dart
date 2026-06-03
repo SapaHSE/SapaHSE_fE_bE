@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
 import '../models/profile_model.dart';
 import '../services/profile_service.dart';
+import '../services/storage_service.dart';
 import '../utils/approval_status_ui.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 import '../widgets/app_safe_insets.dart';
@@ -38,6 +39,17 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
   bool _isFetchingCompanies = false;
   Map<String, String> _ownerCodeByName = {};
   Map<String, String> _companyCodeLookup = {};
+  String? _userRole;
+  String? _userDept;
+
+  bool get _hasFullAccess {
+    if (_userRole == 'superadmin') return true;
+    if (_userRole == 'admin' &&
+        (_userDept?.toLowerCase().contains('hse') ?? false)) {
+      return true;
+    }
+    return false;
+  }
 
   final List<Map<String, dynamic>> _subTabs = [
     {
@@ -67,6 +79,17 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final user = await StorageService.getUser();
+    if (mounted) {
+      setState(() {
+        _userRole = user?['role']?.toString();
+        _userDept = user?['department']?.toString();
+      });
+    }
   }
 
   Future<void> _load() async {
@@ -187,12 +210,17 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _selectedSubTab == 3 ? _openViolationTypePicker : () => Navigator.pop(context),
+        onPressed: (_selectedSubTab == 3 && _hasFullAccess)
+            ? _openViolationTypePicker
+            : () => Navigator.pop(context),
         backgroundColor: const Color(0xFF1A56C4),
         foregroundColor: Colors.white,
         shape: const CircleBorder(),
         elevation: 4,
-        child: Icon(_selectedSubTab == 3 ? Icons.add : Icons.arrow_back, size: 28),
+        child: Icon(
+          (_selectedSubTab == 3 && _hasFullAccess) ? Icons.add : Icons.arrow_back,
+          size: 28,
+        ),
       ),
       floatingActionButtonAnimator: FloatingActionButtonAnimator.noAnimation,
       extendBody: true,

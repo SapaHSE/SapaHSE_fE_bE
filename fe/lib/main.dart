@@ -670,7 +670,7 @@ class _FabMenuSheet extends StatelessWidget {
               onTap: onAddAnnouncement,
             ),
           ],
-          if (currentIndex == 1) ...[
+          if (currentIndex == 1 && canAddAnnouncement) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
             _MenuTile(
               icon: Icons.article_outlined,

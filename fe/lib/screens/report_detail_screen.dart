@@ -241,20 +241,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
     return raw != null && raw.isNotEmpty && raw != '-';
   }
 
-  bool get _isApprovedOrLater {
-    final sub = _report.subStatus;
-    if (sub == null) {
-      return _report.status == ReportStatus.inProgress ||
-          _report.status == ReportStatus.closed;
-    }
-    return sub != ReportSubStatus.validating;
-  }
-
   bool get _canUpdate {
     if (_isReportedUser) return false;
-    return _isSuperadmin ||
-        _isAdmin ||
-        (_isTaggedUser && _isApprovedOrLater);
+    return _isSuperadmin || _isAdmin || _isTaggedUser;
   }
   // FAB selalu tampil di detail laporan; saat user tidak berwenang, ia greyed-out
   // dan tidak bisa dipencet (lihat _canTapUpdateFab).
@@ -857,7 +846,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
       backgroundColor: Colors.transparent,
       builder: (context) => _UpdateStatusSheet(
         report: _report,
-        isAdmin: _isAdmin || _isSuperadmin,
+        isAdmin: _isAdmin || _isSuperadmin || _isTaggedUser,
         isSuperadmin: _isSuperadmin,
         onShowSnackBar: _showTrackedSnackBar,
         onUpdate: (updatedReport) {
@@ -1310,16 +1299,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                         if (_report.departemen != null &&
                             _report.departemen!.isNotEmpty) ...[
                           _DetailRow(
-                              icon: Icons.manage_accounts_outlined,
-                              label: 'Petugas Utama (PIC)',
+                              icon: Icons.business_outlined,
+                              label: 'Departemen',
                               value: _report.departemen!),
                         ],
                         if (_report.picDepartment != null &&
                             _report.picDepartment!.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           _DetailRow(
-                              icon: Icons.group_outlined,
-                              label: 'Petugas Lainnya',
+                              icon: Icons.person_outline,
+                              label: 'PIC / PJA',
                               value: _report.picDepartment!,
                               onTap: () => _showUserProfileByName(
                                   context, _report.picDepartment!)),
@@ -3633,6 +3622,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   List<String> _departments = [];
   final List<XFile> _attachedPhotos = [];
   bool _isSaving = false;
+  bool _showPhotoError = false;
 
   final _blue = const Color(0xFF1A56C4);
   final _purple = const Color(0xFF9C27B0);
@@ -3653,7 +3643,9 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
   // Stages NOT listed here are mandatory checkpoints. Must mirror
   // BackfillsReportLogs::SKIPPABLE_SUB_STATUSES on the backend.
   static const Set<ReportSubStatus> _skippableSubStatuses = {
+    ReportSubStatus.assigned,
     ReportSubStatus.preparing,
+    ReportSubStatus.executing,
   };
 
   bool get _canAdminSkipApprovedToAssigned =>
@@ -3736,11 +3728,10 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     return _hseKeywords.any(normalized.contains);
   }
 
-  Set<String> get _lockedDepts => _departments.where(_isLockedDept).toSet();
 
   void _ensureLockedDeptsSelected() {
-    if (_lockedDepts.isEmpty) return;
-    _selectedDepts.addAll(_lockedDepts);
+    // Lock is enforced via _isLockedDept in the picker UI.
+    // Do not auto-add HSE depts that aren't already in the report.
   }
 
   @override
@@ -3812,12 +3803,12 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     if (source == ImageSource.gallery) {
       final picked = await picker.pickMultiImage(imageQuality: 70);
       if (picked.isNotEmpty) {
-        setState(() => _attachedPhotos.addAll(picked));
+        setState(() { _attachedPhotos.addAll(picked); _showPhotoError = false; });
       }
     } else {
       final picked = await picker.pickImage(source: source, imageQuality: 70);
       if (picked != null) {
-        setState(() => _attachedPhotos.add(picked));
+        setState(() { _attachedPhotos.add(picked); _showPhotoError = false; });
       }
     }
   }
@@ -4180,6 +4171,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
     }
 
     if (_selectedSub == ReportSubStatus.reviewing && _attachedPhotos.isEmpty) {
+      setState(() => _showPhotoError = true);
       widget.onShowSnackBar(
         const SnackBar(content: Text('Foto bukti wajib dilampirkan!')),
       );
@@ -4425,8 +4417,7 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
               }).toList(),
             ),
             const SizedBox(height: 24),
-            if (_selectedSub == ReportSubStatus.assigned ||
-                _selectedSub == ReportSubStatus.deferred) ...[
+            if (_selectedSub == ReportSubStatus.assigned) ...[
               const Text('TAG DEPARTEMEN / PJA',
                   style: TextStyle(
                       fontSize: 12,
@@ -4494,7 +4485,9 @@ class _UpdateStatusSheetState extends State<_UpdateStatusSheet> {
                 decoration:
                     BoxDecoration(borderRadius: BorderRadius.circular(12)),
                 child: CustomPaint(
-                  painter: _DashedRectPainter(color: Colors.grey.shade300),
+                  painter: _DashedRectPainter(
+                    color: _showPhotoError ? Colors.red : Colors.grey.shade300,
+                  ),
                   child: Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,

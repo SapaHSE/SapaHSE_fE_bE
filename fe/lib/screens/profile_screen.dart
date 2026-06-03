@@ -163,48 +163,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               MaterialPageRoute(
                   builder: (_) => const CreateInspectionScreen()));
         },
-        onAddCarousel: () {
-          Navigator.pop(context);
-        },
-        onAddNews: () {
-          Navigator.pop(context);
-        },
-        onEditBiodata: () {
-          Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    const MyProfileScreen(initialAction: 'edit_biodata')),
-          );
-        },
-        onAddLicense: () {
-          Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    const MyProfileScreen(initialAction: 'add_license')),
-          );
-        },
-        onAddCertification: () {
-          Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    const MyProfileScreen(initialAction: 'add_certification')),
-          );
-        },
-        onEditMedical: () {
-          Navigator.pop(context);
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    const MyProfileScreen(initialAction: 'edit_medical')),
-          );
-        },
       ),
     );
   }
@@ -1041,24 +999,12 @@ class _ProfileFabMenuSheet extends StatelessWidget {
   final VoidCallback onScanQr;
   final VoidCallback onCreateHazard;
   final VoidCallback onCreateInspection;
-  final VoidCallback onAddCarousel;
-  final VoidCallback onAddNews;
-  final VoidCallback onEditBiodata;
-  final VoidCallback onAddLicense;
-  final VoidCallback onAddCertification;
-  final VoidCallback onEditMedical;
 
   const _ProfileFabMenuSheet({
     required this.currentIndex,
     required this.onScanQr,
     required this.onCreateHazard,
     required this.onCreateInspection,
-    required this.onAddCarousel,
-    required this.onAddNews,
-    required this.onEditBiodata,
-    required this.onAddLicense,
-    required this.onAddCertification,
-    required this.onEditMedical,
   });
 
   @override
@@ -1129,42 +1075,6 @@ class _ProfileFabMenuSheet extends StatelessWidget {
             title: 'Buat Laporan Inspeksi',
             subtitle: 'Catat hasil inspeksi rutin area kerja',
             onTap: onCreateInspection,
-          ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _ProfileFabMenuTile(
-            icon: Icons.person_outline,
-            iconBgColor: const Color(0xFFF3E5F5),
-            iconColor: const Color(0xFF8E24AA),
-            title: 'Edit Biodata',
-            subtitle: 'Perbarui nomor telepon & email',
-            onTap: onEditBiodata,
-          ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _ProfileFabMenuTile(
-            icon: Icons.badge_outlined,
-            iconBgColor: const Color(0xFFE3F2FD),
-            iconColor: const Color(0xFF1E88E5),
-            title: 'Tambah Lisensi',
-            subtitle: 'Tambahkan SIM/SIO',
-            onTap: onAddLicense,
-          ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _ProfileFabMenuTile(
-            icon: Icons.workspace_premium_outlined,
-            iconBgColor: const Color(0xFFFFF3E0),
-            iconColor: const Color(0xFFEF6C00),
-            title: 'Tambah Sertifikat',
-            subtitle: 'Tambahkan sertifikasi keahlian',
-            onTap: onAddCertification,
-          ),
-          Divider(height: 1, indent: 72, color: Colors.grey.shade100),
-          _ProfileFabMenuTile(
-            icon: Icons.medical_services_outlined,
-            iconBgColor: const Color(0xFFFFEBEE),
-            iconColor: const Color(0xFFE53935),
-            title: 'Edit Data Medis',
-            subtitle: 'Perbarui info kesehatan & alergi',
-            onTap: onEditMedical,
           ),
           const SizedBox(height: 8),
           Padding(
