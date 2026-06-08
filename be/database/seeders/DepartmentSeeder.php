@@ -18,7 +18,7 @@ class DepartmentSeeder extends Seeder
             'Environmental',
             'Maintenance',
             'HSE',
-            'Human Resources',
+            'HRD',
             'Finance',
             'Engineering',
             'Security',
@@ -28,7 +28,10 @@ class DepartmentSeeder extends Seeder
         foreach ($departments as $dept) {
             Department::updateOrCreate(
                 ['name' => $dept],
-                ['name' => $dept]
+                [
+                    'name' => $dept,
+                    'is_hrd' => $dept === 'HRD',
+                ]
             );
         }
     }

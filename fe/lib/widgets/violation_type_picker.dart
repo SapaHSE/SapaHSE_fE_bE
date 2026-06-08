@@ -61,7 +61,7 @@ Future<void> showViolationTypePicker({
             icon: Icons.warning_amber_rounded,
             iconBgColor: const Color(0xFFFFEBEE),
             iconColor: const Color(0xFFD32F2F),
-            title: 'Beri Violation',
+            title: 'Add Violation',
             subtitle: 'Catat pelanggaran disiplin atau K3',
             onTap: () {
               Navigator.pop(sheetContext);
@@ -73,7 +73,7 @@ Future<void> showViolationTypePicker({
             icon: Icons.report_problem_outlined,
             iconBgColor: const Color(0xFFFFF3E0),
             iconColor: const Color(0xFFF57C00),
-            title: 'Beri Incident',
+            title: 'Add Incident',
             subtitle: 'Catat insiden atau kejadian kerja',
             onTap: () {
               Navigator.pop(sheetContext);

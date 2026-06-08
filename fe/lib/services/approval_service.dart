@@ -78,13 +78,16 @@ class ApprovalService {
   }
 
   static Future<ApiResponse> approveRegistration(String id) async {
-    final response = await ApiService.put('/admin/users/$id/approve', {});
+    final response =
+        await ApiService.put('/admin/registration-approvals/$id/approve', {});
     await _clearApprovalCachesIfSuccess(response);
     return response;
   }
 
-  static Future<ApiResponse> rejectRegistration(String id, String reason) async {
-    final response = await ApiService.post('/admin/users/$id/reject', {
+  static Future<ApiResponse> rejectRegistration(
+      String id, String reason) async {
+    final response =
+        await ApiService.post('/admin/registration-approvals/$id/reject', {
       'reason': reason.trim(),
     });
     await _clearApprovalCachesIfSuccess(response);
@@ -113,12 +116,14 @@ class ApprovalService {
   }
 
   static Future<ApiResponse> approveCertification(String id) async {
-    final response = await ApiService.put('/admin/certifications/$id/approve', {});
+    final response =
+        await ApiService.put('/admin/certifications/$id/approve', {});
     await _clearApprovalCachesIfSuccess(response);
     return response;
   }
 
-  static Future<ApiResponse> rejectCertification(String id, String reason) async {
+  static Future<ApiResponse> rejectCertification(
+      String id, String reason) async {
     final response = await ApiService.post('/admin/certifications/$id/reject', {
       'reason': reason.trim(),
     });
@@ -133,15 +138,18 @@ class ApprovalService {
     return response;
   }
 
-  static Future<ApiResponse> rejectProfileChange(String id, String reason) async {
-    final response = await ApiService.post('/admin/profile-change-requests/$id/reject', {
+  static Future<ApiResponse> rejectProfileChange(
+      String id, String reason) async {
+    final response =
+        await ApiService.post('/admin/profile-change-requests/$id/reject', {
       'reason': reason.trim(),
     });
     await _clearApprovalCachesIfSuccess(response);
     return response;
   }
 
-  static Future<void> _clearApprovalCachesIfSuccess(ApiResponse response) async {
+  static Future<void> _clearApprovalCachesIfSuccess(
+      ApiResponse response) async {
     if (!response.success) return;
     await Future.wait([
       OfflineCacheService.clearGroup(OfflineCacheGroups.inbox),

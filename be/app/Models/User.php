@@ -30,6 +30,10 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $role
  * @property string $registration_status
  * @property string|null $rejection_reason
+ * @property string|null $hrd_reviewed_by
+ * @property \Illuminate\Support\Carbon|null $hrd_reviewed_at
+ * @property string|null $admin_reviewed_by
+ * @property \Illuminate\Support\Carbon|null $admin_reviewed_at
  * @property string|null $email_verification_token
  * @property string|null $qr_code
  * @property string|null $fcm_token
@@ -69,6 +73,11 @@ class User extends Authenticatable
         'registration_status',
         'rejection_reason',
         'reviewed_by',
+        'reviewed_at',
+        'hrd_reviewed_by',
+        'hrd_reviewed_at',
+        'admin_reviewed_by',
+        'admin_reviewed_at',
         'fcm_token',
         'last_activity_at',
         'last_notification_sent_at',
@@ -91,6 +100,9 @@ class User extends Authenticatable
         return [
             'is_active'                 => 'boolean',
             'email_verified_at'         => 'datetime',
+            'reviewed_at'               => 'datetime',
+            'hrd_reviewed_at'           => 'datetime',
+            'admin_reviewed_at'         => 'datetime',
             'last_activity_at'          => 'datetime',
             'last_notification_sent_at' => 'datetime',
         ];
@@ -165,6 +177,28 @@ class User extends Authenticatable
     public function companyDetailPayload(): ?array
     {
         return $this->resolvedCompany()?->toApiArray();
+    }
+
+    public function isHrdReviewer(): bool
+    {
+        $departmentName = trim((string) $this->department);
+        if (! $this->is_active || ! $this->email_verified_at || $departmentName === '') {
+            return false;
+        }
+
+        return Department::where('is_hrd', true)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($departmentName)])
+            ->exists();
+    }
+
+    public static function hrdReviewers()
+    {
+        $departmentNames = Department::where('is_hrd', true)->pluck('name');
+
+        return self::where('is_active', true)
+            ->whereNotNull('email_verified_at')
+            ->whereIn('department', $departmentNames)
+            ->get();
     }
 
     public function ownerCompanyDetailPayload(): ?array
@@ -251,5 +285,15 @@ class User extends Authenticatable
     public function reviewer()
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function hrdReviewer()
+    {
+        return $this->belongsTo(User::class, 'hrd_reviewed_by');
+    }
+
+    public function adminReviewer()
+    {
+        return $this->belongsTo(User::class, 'admin_reviewed_by');
     }
 }

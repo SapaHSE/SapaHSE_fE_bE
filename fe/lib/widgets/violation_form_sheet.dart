@@ -359,7 +359,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             children: [
               Expanded(
                 child: Text(
-                  widget.item == null ? 'Tambah $_type' : 'Edit $_type',
+                  widget.item == null ? 'Add $_type' : 'Edit $_type',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

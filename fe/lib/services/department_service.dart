@@ -17,8 +17,12 @@ class DepartmentService {
     throw Exception(response.errorMessage ?? 'Gagal mengambil data departemen');
   }
 
-  static Future<DepartmentData?> createDepartment(String name) async {
-    final response = await ApiService.post('/departments', {'name': name});
+  static Future<DepartmentData?> createDepartment(String name,
+      {bool isHrd = false}) async {
+    final response = await ApiService.post('/departments', {
+      'name': name,
+      'is_hrd': isHrd,
+    });
     if (response.success && response.data['data'] != null) {
       await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
       return DepartmentData.fromJson(response.data['data']);
@@ -26,8 +30,12 @@ class DepartmentService {
     return null;
   }
 
-  static Future<DepartmentData?> updateDepartment(int id, String name) async {
-    final response = await ApiService.put('/departments/$id', {'name': name});
+  static Future<DepartmentData?> updateDepartment(int id, String name,
+      {bool? isHrd}) async {
+    final response = await ApiService.put('/departments/$id', {
+      'name': name,
+      if (isHrd != null) 'is_hrd': isHrd,
+    });
     if (response.success && response.data['data'] != null) {
       await OfflineCacheService.clearGroup(OfflineCacheGroups.references);
       return DepartmentData.fromJson(response.data['data']);

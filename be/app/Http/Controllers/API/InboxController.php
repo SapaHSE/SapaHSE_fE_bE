@@ -41,16 +41,21 @@ class InboxController extends Controller
 
         // Admin / Superadmin melihat queue validating.
         $isAdminOrSA = in_array($user->role, ['admin', 'superadmin'], true);
-        $isSuper = $user->role === 'superadmin';
+        $registrationApprovalStatuses = $this->registrationApprovalStatusesFor($user);
+        $canSeeRegistrationApprovals = ! empty($registrationApprovalStatuses);
 
         $readApprovalRegistrationIds = collect();
         $readApprovalLicenseIds = collect();
         $readApprovalCertificationIds = collect();
+        $readApprovalProfileChangeIds = collect();
 
-        if ($isAdminOrSA) {
+        if ($canSeeRegistrationApprovals) {
             $readApprovalRegistrationIds = ReadStatus::where('user_id', $userId)
                 ->where('item_type', 'approval_registration')
                 ->pluck('item_id');
+        }
+
+        if ($isAdminOrSA) {
             $readApprovalLicenseIds = ReadStatus::where('user_id', $userId)
                 ->where('item_type', 'approval_license')
                 ->pluck('item_id');
@@ -102,10 +107,12 @@ class InboxController extends Controller
         $pendingLicenseUnread = 0;
         $pendingCertificationUnread = 0;
         $pendingProfileChangeUnread = 0;
-        if ($isAdminOrSA) {
-            $pendingRegistrationUnread = User::where('registration_status', 'pending')
+        if ($canSeeRegistrationApprovals) {
+            $pendingRegistrationUnread = User::whereIn('registration_status', $registrationApprovalStatuses)
                 ->whereNotIn('id', $readApprovalRegistrationIds)
                 ->count();
+        }
+        if ($isAdminOrSA) {
             $pendingLicenseUnread = UserLicense::whereIn('approval_status', ['pending', 'pending_changes'])
                 ->whereNotIn('id', $readApprovalLicenseIds)
                 ->count();
@@ -196,11 +203,18 @@ class InboxController extends Controller
             });
 
             $approvalItems = collect();
-            if ($isAdminOrSA) {
-                $approvalItems = $this->pendingRegistrationItems($readApprovalRegistrationIds)
-                    ->concat($this->pendingLicenseItems($readApprovalLicenseIds))
-                    ->concat($this->pendingCertificationItems($readApprovalCertificationIds))
-                    ->concat($this->pendingProfileChangeItems($readApprovalProfileChangeIds));
+            if ($canSeeRegistrationApprovals || $isAdminOrSA) {
+                if ($canSeeRegistrationApprovals) {
+                    $approvalItems = $approvalItems
+                        ->concat($this->pendingRegistrationItems($readApprovalRegistrationIds, $registrationApprovalStatuses));
+                }
+
+                if ($isAdminOrSA) {
+                    $approvalItems = $approvalItems
+                        ->concat($this->pendingLicenseItems($readApprovalLicenseIds))
+                        ->concat($this->pendingCertificationItems($readApprovalCertificationIds))
+                        ->concat($this->pendingProfileChangeItems($readApprovalProfileChangeIds));
+                }
 
                 if ($isRead !== null) {
                     $approvalItems = $approvalItems
@@ -279,6 +293,7 @@ class InboxController extends Controller
         $user = Auth::user();
         $userId = $user->id;
         $isAdminOrSA = in_array($user->role, ['admin', 'superadmin'], true);
+        $registrationApprovalStatuses = $this->registrationApprovalStatusesFor($user);
 
         // Mark all hazards
         foreach (HazardReport::pluck('id') as $id) {
@@ -307,15 +322,17 @@ class InboxController extends Controller
             ], ['read_at' => now()]);
         }
 
-        if ($isAdminOrSA) {
-            foreach (User::where('registration_status', 'pending')->pluck('id') as $id) {
+        if (! empty($registrationApprovalStatuses)) {
+            foreach (User::whereIn('registration_status', $registrationApprovalStatuses)->pluck('id') as $id) {
                 ReadStatus::firstOrCreate([
                     'user_id'   => $userId,
                     'item_id'   => $id,
                     'item_type' => 'approval_registration',
                 ], ['read_at' => now()]);
             }
+        }
 
+        if ($isAdminOrSA) {
             foreach (UserLicense::whereIn('approval_status', ['pending', 'pending_changes'])->pluck('id') as $id) {
                 ReadStatus::firstOrCreate([
                     'user_id'   => $userId,
@@ -468,10 +485,25 @@ class InboxController extends Controller
         ]);
     }
 
-    private function pendingRegistrationItems(\Illuminate\Support\Collection $readIds)
+    private function registrationApprovalStatusesFor(User $user): array
     {
-        return User::with('reviewer')
-            ->where('registration_status', 'pending')
+        $statuses = [];
+
+        if ($user->role === 'superadmin' || $user->isHrdReviewer()) {
+            $statuses[] = 'pending_hrd';
+        }
+
+        if (in_array($user->role, ['admin', 'superadmin'], true)) {
+            $statuses[] = 'pending_admin';
+        }
+
+        return $statuses;
+    }
+
+    private function pendingRegistrationItems(\Illuminate\Support\Collection $readIds, array $statuses)
+    {
+        return User::with(['reviewer', 'hrdReviewer', 'adminReviewer'])
+            ->whereIn('registration_status', $statuses)
             ->latest('created_at')
             ->get()
             ->map(function (User $user) use ($readIds) {

@@ -215,8 +215,10 @@ class ApprovalTaskCard extends StatelessWidget {
     final submittedAt = item.submittedAt ?? item.createdAt;
     final status = _statusStyle(item.approvalStatus);
     final normalizedStatus = normalizeApprovalStatus(item.approvalStatus);
-    final statusPending =
-        normalizedStatus == 'pending' || normalizedStatus == 'pending_changes';
+    final statusPending = normalizedStatus == 'pending' ||
+        normalizedStatus == 'pending_hrd' ||
+        normalizedStatus == 'pending_admin' ||
+        normalizedStatus == 'pending_changes';
     final showActions = showActionButtons &&
         statusPending &&
         onApprove != null &&

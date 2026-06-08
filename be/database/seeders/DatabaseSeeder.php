@@ -86,6 +86,23 @@ class DatabaseSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
+        $hrd = User::create([
+            'employee_id'       => 'BBE-HRD-01',
+            'full_name'      => 'Rina HRD',
+            'personal_email' => 'hrd@bbe.com',
+            'work_email'     => 'rina.hrd@bbe.co.id',
+            'phone_number'   => '+62811000005',
+            'position'       => 'HRD Officer',
+            'jabatan'        => 'HRD Officer',
+            'department'     => 'HRD',
+            'company'        => 'PT Bukit Baiduri Energi',
+            'password_hash'  => Hash::make('password'),
+            'is_active'      => true,
+            'role'           => 'user',
+            'tipe_afiliasi'  => 'owner',
+            'email_verified_at' => now(),
+        ]);
+
         // Demo user — staff_id = "1", password = "123"
         $demo = User::create([
             'employee_id'       => '1',

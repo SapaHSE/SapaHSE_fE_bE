@@ -14,14 +14,16 @@ class RegistrationRejectedMail extends Mailable
 
     public $reason;
     public $name;
+    public $stage;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($name, $reason = null)
+    public function __construct($name, $reason = null, $stage = 'Admin')
     {
         $this->name = $name;
         $this->reason = $reason ?? 'Data profil tidak sesuai dengan standar perusahaan.';
+        $this->stage = $stage === 'HRD' ? 'HRD' : 'Admin';
     }
 
     /**

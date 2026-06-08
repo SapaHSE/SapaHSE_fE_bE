@@ -8,17 +8,18 @@ import 'package:sapahse/main.dart';
 import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
 
-
 class DepartmentManagementScreen extends StatefulWidget {
   const DepartmentManagementScreen({super.key});
 
   @override
-  State<DepartmentManagementScreen> createState() => _DepartmentManagementScreenState();
+  State<DepartmentManagementScreen> createState() =>
+      _DepartmentManagementScreenState();
 }
 
-class _DepartmentManagementScreenState extends State<DepartmentManagementScreen> {
+class _DepartmentManagementScreenState
+    extends State<DepartmentManagementScreen> {
   static const _blue = Color(0xFF1A56C4);
-  
+
   bool _isLoading = true;
   String? _error;
   List<DepartmentData> _departments = [];
@@ -75,58 +76,90 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
   void _showForm({DepartmentData? department}) {
     final isEdit = department != null;
     final ctrl = TextEditingController(text: department?.name ?? '');
+    bool isHrd = department?.isHrd ?? false;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(isEdit ? 'Edit Department' : 'Tambah Department', 
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('NAMA DEPARTMENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-            const SizedBox(height: 8),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Contoh: Maintenance',
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(isEdit ? 'Edit Department' : 'Tambah Department',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('NAMA DEPARTMENT',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: ctrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Contoh: Maintenance',
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
               ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                value: isHrd,
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                activeThumbColor: const Color(0xFF00695C),
+                title: const Text('Department HRD'),
+                subtitle:
+                    const Text('Memberi akses approval registrasi tahap HRD'),
+                onChanged: (value) => setDialogState(() => isHrd = value),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _blue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8))),
+              onPressed: () async {
+                final name = ctrl.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(context);
+                setState(() => _isLoading = true);
+                try {
+                  if (isEdit) {
+                    await DepartmentService.updateDepartment(
+                        department.id, name,
+                        isHrd: isHrd);
+                    _showSnack('Department berhasil diperbarui');
+                  } else {
+                    await DepartmentService.createDepartment(name,
+                        isHrd: isHrd);
+                    _showSnack('Department berhasil ditambahkan');
+                  }
+                  _loadInitialData();
+                } catch (e) {
+                  _showSnack(e.toString(), isError: true);
+                  setState(() => _isLoading = false);
+                }
+              },
+              child: const Text('Simpan'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _blue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            onPressed: () async {
-              final name = ctrl.text.trim();
-              if (name.isEmpty) return;
-              Navigator.pop(context);
-              setState(() => _isLoading = true);
-              try {
-                if (isEdit) {
-                  await DepartmentService.updateDepartment(department.id, name);
-                  _showSnack('Department berhasil diperbarui');
-                } else {
-                  await DepartmentService.createDepartment(name);
-                  _showSnack('Department berhasil ditambahkan');
-                }
-                _loadInitialData();
-              } catch (e) {
-                _showSnack(e.toString(), isError: true);
-                setState(() => _isLoading = false);
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
       ),
     );
   }
@@ -136,12 +169,20 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
+        title: const Text('Hapus Department',
+            style: TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
         content: Text('Yakin ingin menghapus ${department.name}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8))),
             onPressed: () async {
               Navigator.pop(context);
               try {
@@ -198,7 +239,8 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
-        title: const Text('Department Management', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text('Department Management',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -207,12 +249,15 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Column(
+              ? Center(
+                  child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(_error!, style: const TextStyle(color: Colors.red)),
                     const SizedBox(height: 16),
-                    ElevatedButton(onPressed: _loadInitialData, child: const Text('Coba Lagi')),
+                    ElevatedButton(
+                        onPressed: _loadInitialData,
+                        child: const Text('Coba Lagi')),
                   ],
                 ))
               : RefreshIndicator(
@@ -227,30 +272,70 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2))
+                          ],
                         ),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 4),
                           leading: Container(
                             width: 40,
                             height: 40,
-                            decoration: BoxDecoration(color: _blue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                            child: const Icon(Icons.corporate_fare, color: _blue, size: 20),
+                            decoration: BoxDecoration(
+                                color: _blue.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8)),
+                            child: const Icon(Icons.corporate_fare,
+                                color: _blue, size: 20),
                           ),
-                          title: Text(dept.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                          trailing: canEdit ? Row(
-                            mainAxisSize: MainAxisSize.min,
+                          title: Row(
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
-                                onPressed: () => _showForm(department: dept),
+                              Expanded(
+                                child: Text(dept.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14)),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                onPressed: () => _confirmDelete(dept),
-                              ),
+                              if (dept.isHrd)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE0F2F1),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: const Text(
+                                    'HRD',
+                                    style: TextStyle(
+                                      color: Color(0xFF00695C),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
                             ],
-                          ) : null,
+                          ),
+                          trailing: canEdit
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined,
+                                          color: Colors.blue, size: 20),
+                                      onPressed: () =>
+                                          _showForm(department: dept),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          color: Colors.red, size: 20),
+                                      onPressed: () => _confirmDelete(dept),
+                                    ),
+                                  ],
+                                )
+                              : null,
                         ),
                       );
                     },
@@ -270,11 +355,31 @@ class _DepartmentManagementScreenState extends State<DepartmentManagementScreen>
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _DeptNavItem(icon: Icons.home, label: 'Home', index: 0, currentIndex: 4, onTap: _onTabTapped),
-            _DeptNavItem(icon: Icons.article_outlined, label: 'News', index: 1, currentIndex: 4, onTap: _onTabTapped),
+            _DeptNavItem(
+                icon: Icons.home,
+                label: 'Home',
+                index: 0,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _DeptNavItem(
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                currentIndex: 4,
+                onTap: _onTabTapped),
             const SizedBox(width: 56),
-            _DeptNavItem(icon: Icons.inbox_outlined, label: 'Inbox', index: 3, currentIndex: 4, onTap: _onTabTapped),
-            _DeptNavItem(icon: Icons.menu, label: 'Menu', index: 4, currentIndex: 4, onTap: _onTabTapped),
+            _DeptNavItem(
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                currentIndex: 4,
+                onTap: _onTabTapped),
+            _DeptNavItem(
+                icon: Icons.menu,
+                label: 'Menu',
+                index: 4,
+                currentIndex: 4,
+                onTap: _onTabTapped),
           ],
         ),
       ),
@@ -322,12 +427,18 @@ class _DeptFabMenuSheet extends StatelessWidget {
             child: Container(
               width: 40,
               height: 4,
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
             ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('Manajemen Department', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.black87)),
+            child: Text('Manajemen Department',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    color: Colors.black87)),
           ),
           const SizedBox(height: 8),
           if (canEdit) ...[
@@ -359,9 +470,13 @@ class _DeptFabMenuSheet extends StatelessWidget {
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.grey.shade600,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.grey.shade200)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: BorderSide(color: Colors.grey.shade200)),
                 ),
-                child: const Text('Batal', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                child: const Text('Batal',
+                    style:
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               ),
             ),
           ),
@@ -400,7 +515,8 @@ class _DeptFabMenuTile extends StatelessWidget {
             Container(
               width: 48,
               height: 48,
-              decoration: BoxDecoration(color: iconBgColor, borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(
+                  color: iconBgColor, borderRadius: BorderRadius.circular(14)),
               child: Icon(icon, color: iconColor, size: 24),
             ),
             const SizedBox(width: 16),
@@ -408,13 +524,20 @@ class _DeptFabMenuTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87)),
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Colors.black87)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  Text(subtitle,
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: Colors.grey.shade300, size: 22),
+            Icon(Icons.chevron_right_rounded,
+                color: Colors.grey.shade300, size: 22),
           ],
         ),
       ),
@@ -449,7 +572,9 @@ class _DeptNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: isActive ? const Color(0xFF1A56C4) : Colors.grey, size: 24),
+            Icon(icon,
+                color: isActive ? const Color(0xFF1A56C4) : Colors.grey,
+                size: 24),
             const SizedBox(height: 2),
             Text(
               label,

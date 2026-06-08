@@ -18,7 +18,7 @@
         </div>
         <div class="content">
             <p>Halo <strong>{{ $name }}</strong>,</p>
-            <p>Mohon maaf, pendaftaran akun Anda di aplikasi <strong>SapaHSE</strong> saat ini belum dapat disetujui oleh administrator.</p>
+            <p>Mohon maaf, pendaftaran akun Anda di aplikasi <strong>SapaHSE</strong> saat ini belum dapat disetujui oleh {{ $stage }}.</p>
             
             <p><strong>Alasan Penolakan:</strong></p>
             <div class="reason">

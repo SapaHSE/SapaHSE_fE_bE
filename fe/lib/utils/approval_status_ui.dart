@@ -11,6 +11,8 @@ String normalizeApprovalStatus(String? rawStatus) {
   final status = (rawStatus ?? 'pending').trim().toLowerCase();
   if (status == 'approved' ||
       status == 'rejected' ||
+      status == 'pending_hrd' ||
+      status == 'pending_admin' ||
       status == 'pending_changes' ||
       status == 'draft') {
     return status;
@@ -41,6 +43,20 @@ ApprovalStatusStyle approvalStatusStyle(String? rawStatus) {
         bg: const Color(0xFFFFF8E1),
         fg: const Color(0xFFE65100),
         border: const Color(0xFFFFE082),
+      );
+    case 'pending_hrd':
+      return (
+        label: 'Pending HRD',
+        bg: const Color(0xFFE0F2F1),
+        fg: const Color(0xFF00695C),
+        border: const Color(0xFF80CBC4),
+      );
+    case 'pending_admin':
+      return (
+        label: 'Pending Admin',
+        bg: const Color(0xFFFFF3E0),
+        fg: const Color(0xFFE65100),
+        border: const Color(0xFFFFCC80),
       );
     case 'draft':
       return (

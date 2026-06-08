@@ -48,15 +48,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Auth ─────────────────────────────────────────────────────────────────
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // ── Admin User Management (CRUD) ──────────────────────────────────────────
-    Route::prefix('admin')->group(function () {
-        Route::get('/users',    [AuthController::class, 'adminIndex']);
-        Route::post('/users',   [AuthController::class, 'adminStore']);
-        Route::put('/users/{id}', [AuthController::class, 'adminUpdate']);
-        Route::delete('/users/{id}', [AuthController::class, 'adminDestroy']);
-    });
-
-
     // ── Profile ───────────────────────────────────────────────────────────────
     Route::get('/profile/statistics',       [StatisticsController::class, 'personalStatistics']);
     Route::get('/profile',                  [ProfileController::class, 'getProfile']);
@@ -225,6 +216,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
 
     // ── Users (admin/superadmin only) ────────────────────────────────────────
+    Route::get('/admin/registration-approvals', [AuthController::class, 'registrationApprovalsIndex']);
+    Route::put('/admin/registration-approvals/{id}/approve', [AuthController::class, 'adminApprove']);
+    Route::post('/admin/registration-approvals/{id}/reject', [AuthController::class, 'adminReject']);
     Route::get('/admin/users', [AuthController::class, 'adminIndex'])->middleware('role:admin,superadmin');
     Route::post('/admin/users', [AuthController::class, 'adminStore'])->middleware('role:admin,superadmin');
     Route::put('/admin/users/{id}', [AuthController::class, 'adminUpdate'])->middleware('role:admin,superadmin');

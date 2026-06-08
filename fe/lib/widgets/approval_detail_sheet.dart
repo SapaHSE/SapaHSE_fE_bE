@@ -94,7 +94,12 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
   ApprovalStatusStyle get _approvalStyle =>
       approvalStatusStyle(widget.item.approvalStatus);
 
-  bool get _isPending => normalizeApprovalStatus(widget.item.approvalStatus) == 'pending';
+  bool get _isPending {
+    final status = normalizeApprovalStatus(widget.item.approvalStatus);
+    return status == 'pending' ||
+        status == 'pending_hrd' ||
+        status == 'pending_admin';
+  }
 
   String _formatDate(DateTime dt) {
     final m = [
@@ -822,13 +827,16 @@ class _ApprovalDetailSheetState extends State<ApprovalDetailSheet> {
                                             shape: RoundedRectangleBorder(
                                                 borderRadius:
                                                     BorderRadius.circular(16)),
-                                            title: const Text(
-                                                'Setujui Pengajuan',
-                                                style: TextStyle(
+                                            title: Text(
+                                                _isRegistration
+                                                    ? 'Setujui Pendaftaran'
+                                                    : 'Setujui Pengajuan',
+                                                style: const TextStyle(
                                                     fontWeight:
                                                         FontWeight.bold)),
-                                            content: const Text(
-                                                'Apakah Anda yakin ingin menyetujui pengajuan dokumen ini?'),
+                                            content: Text(_isRegistration
+                                                ? 'Apakah Anda yakin ingin menyetujui pendaftaran akun ini?'
+                                                : 'Apakah Anda yakin ingin menyetujui pengajuan dokumen ini?'),
                                             actions: [
                                               TextButton(
                                                 onPressed: () =>

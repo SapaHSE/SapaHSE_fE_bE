@@ -76,12 +76,27 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
   ApprovalStatusStyle get _approvalStyle =>
       approvalStatusStyle(widget.item.approvalStatus);
 
-  bool get _isPending => normalizeApprovalStatus(widget.item.approvalStatus) == 'pending';
+  bool get _isPending {
+    final status = normalizeApprovalStatus(widget.item.approvalStatus);
+    return status == 'pending' ||
+        status == 'pending_hrd' ||
+        status == 'pending_admin';
+  }
 
   String _formatDate(DateTime dt) {
     final m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
     ];
     return '${dt.day} ${m[dt.month - 1]} ${dt.year}, '
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -89,8 +104,18 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
 
   String _formatDateShort(DateTime dt) {
     final m = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
     ];
     return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
   }
@@ -112,8 +137,7 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
   bool get _isRegistration =>
       widget.item.itemType == InboxItemType.approvalRegistration;
 
-  bool get _isLicense =>
-      widget.item.itemType == InboxItemType.approvalLicense;
+  bool get _isLicense => widget.item.itemType == InboxItemType.approvalLicense;
 
   Widget _buildHeroFallback() {
     final iconColor = _typeColor;
@@ -138,7 +162,8 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
     return Container(
       color: _typeColor.withValues(alpha: 0.08),
       alignment: Alignment.center,
-      child: Icon(_typeIcon, color: iconColor.withValues(alpha: 0.6), size: iconSize),
+      child: Icon(_typeIcon,
+          color: iconColor.withValues(alpha: 0.6), size: iconSize),
     );
   }
 
@@ -260,8 +285,7 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                 children: [
                   Text(
                     widget.item.title,
-                    style: TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -301,8 +325,7 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFEBEE),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: const Color(0xFFFFCDD2)),
+                        border: Border.all(color: const Color(0xFFFFCDD2)),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,7 +411,9 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  if ((widget.item.submitterEmployeeId ?? '').trim().isNotEmpty) ...[
+                  if ((widget.item.submitterEmployeeId ?? '')
+                      .trim()
+                      .isNotEmpty) ...[
                     _DetailRow(
                       icon: Icons.badge_outlined,
                       label: 'Employee ID',
@@ -412,7 +437,9 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                  if ((widget.item.submitterCompany ?? '').trim().isNotEmpty) ...[
+                  if ((widget.item.submitterCompany ?? '')
+                      .trim()
+                      .isNotEmpty) ...[
                     _DetailRow(
                       icon: Icons.business_outlined,
                       label: 'Perusahaan',
@@ -432,7 +459,8 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
             ),
 
             // ── Card: Informasi Reviewer ────────────────────────────────────
-            if (!_isPending && widget.item.reviewerName != null &&
+            if (!_isPending &&
+                widget.item.reviewerName != null &&
                 widget.item.reviewerName!.trim().isNotEmpty)
               _card(
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -440,7 +468,8 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _SectionHeader(
-                        icon: Icons.verified_user_outlined, title: 'Informasi Reviewer'),
+                        icon: Icons.verified_user_outlined,
+                        title: 'Informasi Reviewer'),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -469,8 +498,8 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                                     fontWeight: FontWeight.bold, fontSize: 15),
                               ),
                               if ((widget.item.reviewerEmployeeId ?? '')
-                                      .trim()
-                                      .isNotEmpty)
+                                  .trim()
+                                  .isNotEmpty)
                                 Text(
                                   'NIP: ${_displayValue(widget.item.reviewerEmployeeId)}',
                                   style: TextStyle(
@@ -493,7 +522,9 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _SectionHeader(
-                        icon: _typeIcon, title: 'Detail ${_isLicense ? 'Lisensi' : 'Sertifikat'}'),
+                        icon: _typeIcon,
+                        title:
+                            'Detail ${_isLicense ? 'Lisensi' : 'Sertifikat'}'),
                     const SizedBox(height: 12),
                     if ((widget.item.itemName ?? '').trim().isNotEmpty) ...[
                       _DetailRow(
@@ -534,9 +565,10 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                         icon: Icons.event_busy_outlined,
                         label: 'Berlaku Sampai',
                         value: _formatDateShort(widget.item.itemExpiredAt!),
-                        valueColor: widget.item.itemExpiredAt!.isBefore(DateTime.now())
-                            ? const Color(0xFFF44336)
-                            : null,
+                        valueColor:
+                            widget.item.itemExpiredAt!.isBefore(DateTime.now())
+                                ? const Color(0xFFF44336)
+                                : null,
                       ),
                     ],
                   ],
@@ -556,7 +588,8 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFFC62828),
                           side: BorderSide(
-                            color: const Color(0xFFC62828).withValues(alpha: 0.42),
+                            color:
+                                const Color(0xFFC62828).withValues(alpha: 0.42),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -567,10 +600,12 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Text('Tolak',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 15)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -592,11 +627,13 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                 ),
                               )
                             : const Text('Setujui',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 15)),
                       ),
                     ),
                   ],
@@ -617,10 +654,16 @@ class _ApprovalDetailScreenState extends State<ApprovalDetailScreen> {
             _NavItem(
                 icon: Icons.home, label: 'Home', index: 0, onTap: _onTabTapped),
             _NavItem(
-                icon: Icons.article_outlined, label: 'News', index: 1, onTap: _onTabTapped),
+                icon: Icons.article_outlined,
+                label: 'News',
+                index: 1,
+                onTap: _onTabTapped),
             const SizedBox(width: 56),
             _NavItem(
-                icon: Icons.inbox_outlined, label: 'Inbox', index: 3, onTap: _onTabTapped),
+                icon: Icons.inbox_outlined,
+                label: 'Inbox',
+                index: 3,
+                onTap: _onTabTapped),
             _NavItem(
                 icon: Icons.menu, label: 'Menu', index: 4, onTap: _onTabTapped),
           ],
@@ -697,8 +740,7 @@ class _SectionHeader extends StatelessWidget {
       Icon(icon, color: const Color(0xFF1A56C4), size: 20),
       const SizedBox(width: 8),
       Text(title,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 15)),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
     ]);
   }
 }
@@ -737,8 +779,9 @@ class _DetailRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     color: valueColor ?? Colors.black87,
-                    fontWeight:
-                        valueColor != null ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: valueColor != null
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   )),
             ],
           ),
@@ -771,9 +814,7 @@ class _NavItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon,
-                color: Colors.grey,
-                size: 24),
+            Icon(icon, color: Colors.grey, size: 24),
             const SizedBox(height: 2),
             Text(
               label,

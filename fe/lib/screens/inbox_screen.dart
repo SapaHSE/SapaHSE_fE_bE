@@ -111,7 +111,7 @@ class _InboxScreenState extends State<InboxScreen>
   _SubFilter _activeFilter = _SubFilter.unread;
   _MyPostFilter _activeMyPostFilter = _MyPostFilter.all;
   _TaskStatusFilter _activeTaskStatusFilter = _TaskStatusFilter.all;
-  bool _isSuperadmin = false;
+  bool _canReviewApprovalQueue = false;
   bool _isApprovalQueueExpanded = true;
   bool _isUrgentSectionExpanded = true;
   bool _isOtherSectionExpanded = true;
@@ -181,9 +181,12 @@ class _InboxScreenState extends State<InboxScreen>
     if (user != null) {
       setState(() {
         _currentUserId = user['id']?.toString();
-        _isSuperadmin =
-            (user['role']?.toString().toLowerCase() == 'superadmin') ||
-                (user['role']?.toString().toLowerCase() == 'admin');
+        final role = user['role']?.toString().toLowerCase();
+        final isAdminOrSuper = role == 'superadmin' || role == 'admin';
+        final isHrdReviewer = user['is_hrd_reviewer'] == true ||
+            user['is_hrd_reviewer'] == 1 ||
+            user['is_hrd_reviewer']?.toString() == '1';
+        _canReviewApprovalQueue = isAdminOrSuper || isHrdReviewer;
         _currentUserSnapshot = _buildCurrentUserSnapshot(user);
       });
       _loadMyReports();
@@ -475,11 +478,11 @@ class _InboxScreenState extends State<InboxScreen>
   List<InboxItem> get _personalReports =>
       _reports.where((i) => i.itemType == InboxItemType.report).toList();
 
-  List<InboxItem> get _pendingApprovalItems => _isSuperadmin
+  List<InboxItem> get _pendingApprovalItems => _canReviewApprovalQueue
       ? _reports
           .where((i) =>
               i.isApproval &&
-              ['pending', 'pending_changes']
+              ['pending', 'pending_hrd', 'pending_admin', 'pending_changes']
                   .contains(i.approvalStatus?.toLowerCase() ?? 'pending'))
           .toList()
       : const [];
@@ -538,9 +541,8 @@ class _InboxScreenState extends State<InboxScreen>
     return _isValidating(item) || _needsImmediateAction(item);
   }
 
-  List<InboxItem> get _urgentTaskReports => _filteredReports
-      .where(_shouldShowInUrgentTaskSection)
-      .toList();
+  List<InboxItem> get _urgentTaskReports =>
+      _filteredReports.where(_shouldShowInUrgentTaskSection).toList();
 
   List<InboxItem> get _otherTaskReports => _filteredReports
       .where((i) => !_shouldShowInUrgentTaskSection(i))
@@ -1157,7 +1159,8 @@ class _InboxScreenState extends State<InboxScreen>
                                             'rejected')
                                         .length;
                               } else if (f == _MyPostFilter.license) {
-                                count = licenseDraftCount + _myLicenseItems.length;
+                                count =
+                                    licenseDraftCount + _myLicenseItems.length;
                               } else if (f == _MyPostFilter.certificate) {
                                 count = certificationDraftCount +
                                     _myCertificationItems.length;
@@ -1275,7 +1278,7 @@ class _InboxScreenState extends State<InboxScreen>
           bottom: AppSafeInsets.bottomNavScrollPadding(context),
         ),
         children: [
-          if (_isSuperadmin) ...[
+          if (_canReviewApprovalQueue) ...[
             _buildTaskSectionHeader(
               title: 'Antrian Persetujuan',
               count: approvalItems.length,
@@ -1675,8 +1678,11 @@ class _InboxScreenState extends State<InboxScreen>
     if (!approve) {
       reason = await showRejectReasonDialog(
         context,
-        title: 'Tolak Pengajuan',
+        title: item.itemType == InboxItemType.approvalRegistration
+            ? 'Tolak Pendaftaran'
+            : 'Tolak Pengajuan',
         confirmLabel: 'Tolak',
+        requireReason: true,
       );
       if (reason == null) return;
     }
@@ -1741,9 +1747,8 @@ class _InboxScreenState extends State<InboxScreen>
     if (!mounted) return false;
 
     if (response.success) {
-      final isMinePermit =
-          item.itemType == InboxItemType.approvalLicense &&
-              item.itemLicenseType == 'mine_permit';
+      final isMinePermit = item.itemType == InboxItemType.approvalLicense &&
+          item.itemLicenseType == 'mine_permit';
       final successMessage = approve
           ? (isMinePermit
               ? 'Mine Permit berhasil disetujui dan diaktifkan.'
@@ -1793,8 +1798,7 @@ class _InboxScreenState extends State<InboxScreen>
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade300),
               borderRadius: BorderRadius.circular(12),
@@ -1802,8 +1806,7 @@ class _InboxScreenState extends State<InboxScreen>
             ),
             child: Row(
               children: [
-                Icon(leadingIcon,
-                    size: 20, color: const Color(0xFF1A56C4)),
+                Icon(leadingIcon, size: 20, color: const Color(0xFF1A56C4)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -1891,8 +1894,8 @@ class _InboxScreenState extends State<InboxScreen>
                   final picked = await pickDate(
                     ctx: context,
                     initialDate: releaseDate!,
-                    firstDate: DateTime.now()
-                        .subtract(const Duration(days: 365 * 5)),
+                    firstDate:
+                        DateTime.now().subtract(const Duration(days: 365 * 5)),
                     lastDate:
                         DateTime.now().add(const Duration(days: 365 * 10)),
                   );
@@ -1943,8 +1946,8 @@ class _InboxScreenState extends State<InboxScreen>
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
               child: const Text(
                 'Setujui',
@@ -1986,8 +1989,11 @@ class _InboxScreenState extends State<InboxScreen>
         onReject: () async {
           final reason = await showRejectReasonDialog(
             context,
-            title: 'Tolak Pengajuan',
+            title: item.itemType == InboxItemType.approvalRegistration
+                ? 'Tolak Pendaftaran'
+                : 'Tolak Pengajuan',
             confirmLabel: 'Tolak',
+            requireReason: true,
           );
           if (reason == null) return false;
           final ok = await _runApprovalAction(
@@ -2446,10 +2452,9 @@ class _InboxCard extends StatelessWidget {
           child: Column(
             children: [
               SizedBox(
-                height:
-                    item.reportType == ReportType.hazard && dueChip != null
-                        ? 124
-                        : 106,
+                height: item.reportType == ReportType.hazard && dueChip != null
+                    ? 124
+                    : 106,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -2564,11 +2569,11 @@ class _InboxCard extends StatelessWidget {
                                     Row(
                                       children: [
                                         Icon(Icons.access_time,
-                                            size: iconSize,
-                                            color: Colors.grey),
+                                            size: iconSize, color: Colors.grey),
                                         const SizedBox(width: 4),
                                         Flexible(
-                                          child: Text(formatDate(item.createdAt),
+                                          child: Text(
+                                              formatDate(item.createdAt),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
@@ -2577,8 +2582,7 @@ class _InboxCard extends StatelessWidget {
                                         ),
                                         SizedBox(width: dense ? 6 : 8),
                                         Icon(Icons.location_on_outlined,
-                                            size: iconSize,
-                                            color: Colors.grey),
+                                            size: iconSize, color: Colors.grey),
                                         const SizedBox(width: 4),
                                         Expanded(
                                           child: Text(
@@ -2620,8 +2624,9 @@ class _InboxCard extends StatelessWidget {
                                                 borderRadius:
                                                     BorderRadius.circular(4),
                                                 border: Border.all(
-                                                    color: badgeColor.withValues(
-                                                        alpha: 0.3)),
+                                                    color:
+                                                        badgeColor.withValues(
+                                                            alpha: 0.3)),
                                               ),
                                               child: Text(
                                                 badgeLabel,

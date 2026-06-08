@@ -18,6 +18,7 @@ class UserModel {
   final String? profilePhoto;
   final String role;
   final bool isActive;
+  final bool isHrdReviewer;
 
   const UserModel({
     required this.id,
@@ -35,6 +36,7 @@ class UserModel {
     this.profilePhoto,
     required this.role,
     required this.isActive,
+    this.isHrdReviewer = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -44,7 +46,8 @@ class UserModel {
       employeeId: json['employee_id']?.toString() ?? '',
       fullName: json['full_name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      personalEmail: json['personal_email']?.toString() ?? json['email']?.toString(),
+      personalEmail:
+          json['personal_email']?.toString() ?? json['email']?.toString(),
       workEmail: json['work_email']?.toString(),
       phoneNumber: json['phone_number']?.toString(),
       position: json['position']?.toString(),
@@ -54,6 +57,7 @@ class UserModel {
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
       role: json['role']?.toString() ?? 'user',
       isActive: parseFlexibleBool(json['is_active']),
+      isHrdReviewer: parseFlexibleBool(json['is_hrd_reviewer']),
     );
   }
 
@@ -73,12 +77,14 @@ class UserModel {
         'profile_photo': profilePhoto,
         'role': role,
         'is_active': isActive,
+        'is_hrd_reviewer': isHrdReviewer,
       };
 
-  bool get isAdmin      => role == 'admin';
+  bool get isAdmin => role == 'admin';
   bool get isSuperadmin => role == 'superadmin';
   bool get isSupervisor => role == 'supervisor';
-  bool get isUser       => role == 'user';
+  bool get isUser => role == 'user';
+  bool get isHrd => isHrdReviewer;
 
   /// Roles that have full read access across all reports (admin + superadmin).
   /// Note: ability to *update* status is gated separately — only `isAdmin` can update,

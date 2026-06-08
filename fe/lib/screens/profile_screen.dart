@@ -60,6 +60,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .toLowerCase();
   }
 
+  bool get _isHrdReviewer {
+    final raw = _cachedUser?['is_hrd_reviewer'];
+    return raw == true || raw == 1 || raw?.toString() == '1';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -710,6 +715,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final department = _effectiveDepartment;
     final isSuperAdmin = role == 'superadmin' || role == 'super admin';
     final isAdmin = role == 'admin' || isSuperAdmin;
+    final isHrdReviewer = _isHrdReviewer;
     final canManageViolations =
         isSuperAdmin || (role == 'admin' && department.contains('hse'));
 
@@ -755,6 +761,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const ViolationManagementScreen()),
+              ),
+            ),
+          ],
+          if (!isAdmin && isHrdReviewer) ...[
+            const SizedBox(height: 24),
+            _buildSectionHeader('ALAT HRD',
+                badge: 'HRD', badgeColor: const Color(0xFF00695C)),
+            _buildMenuItem(
+              icon: Icons.people,
+              iconBg: const Color(0xFFE0F2F1),
+              iconColor: const Color(0xFF00695C),
+              title: 'Approval Registrasi',
+              subtitle: 'Verifikasi pendaftaran akun tahap HRD',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserManagementScreen()),
               ),
             ),
           ],

@@ -933,6 +933,7 @@ class ProfileController extends Controller
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,
+            'is_hrd_reviewer' => $user->isHrdReviewer(),
             'status_text'    => ($user->is_active ? 'Aktif' : 'Non-Aktif') . ' atas nama ' . $user->full_name,
             'licenses'       => $user->relationLoaded('licenses') ? $user->licenses->map(fn($l) => [
                 'id'             => $l->id,

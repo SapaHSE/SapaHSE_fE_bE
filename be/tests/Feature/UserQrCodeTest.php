@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Department;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -11,22 +12,42 @@ class UserQrCodeTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_qr_is_created_after_admin_approval_and_email_verification(): void
+    public function test_qr_is_created_after_hrd_and_admin_approval_then_email_verification(): void
     {
+        Department::create([
+            'name' => 'HRD',
+            'is_hrd' => true,
+        ]);
+
+        $hrd = User::factory()->create([
+            'department' => 'HRD',
+        ]);
+
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
 
         $user = User::factory()->unverified()->create([
             'is_active' => false,
-            'registration_status' => 'pending',
+            'registration_status' => 'pending_hrd',
             'email_verification_token' => 'verify-token',
             'qr_code' => null,
         ]);
 
+        Sanctum::actingAs($hrd);
+
+        $this->putJson('/api/admin/registration-approvals/' . $user->id . '/approve')
+            ->assertOk();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'is_active' => false,
+            'registration_status' => 'pending_admin',
+        ]);
+
         Sanctum::actingAs($admin);
 
-        $this->putJson('/api/admin/users/' . $user->id . '/approve')
+        $this->putJson('/api/admin/registration-approvals/' . $user->id . '/approve')
             ->assertOk();
 
         $this->assertDatabaseHas('users', [

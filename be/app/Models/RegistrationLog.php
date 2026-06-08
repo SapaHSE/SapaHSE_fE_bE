@@ -18,5 +18,17 @@ class RegistrationLog extends Model
         'department',
         'rejection_reason',
         'rejected_at',
+        'registration_status',
+        'rejection_stage',
+        'rejected_by',
     ];
+
+    protected $casts = [
+        'rejected_at' => 'datetime',
+    ];
+
+    public function rejectedBy()
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
 }

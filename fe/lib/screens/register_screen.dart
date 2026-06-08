@@ -199,7 +199,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                 const SizedBox(height: 8),
                 const Text(
-                  'Registrasi berhasil. Akun Anda sedang menunggu persetujuan administrator. Anda akan menerima email verifikasi setelah akun disetujui.',
+                  'Registrasi berhasil. Akun Anda sedang menunggu persetujuan HRD dan Admin. Anda akan menerima email verifikasi setelah akun disetujui.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),

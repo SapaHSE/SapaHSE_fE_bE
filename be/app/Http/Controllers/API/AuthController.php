@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\VerifyEmailMail;
 use App\Models\User;
 use App\Models\RegistrationLog;
+use App\Models\ReadStatus;
 use App\Models\UserLicense;
 use App\Models\UserCertification;
 use App\Mail\RegistrationRejectedMail;
@@ -77,17 +78,19 @@ class AuthController extends Controller
             'simper'                    => $request->simper,
             'profile_photo'             => $request->profile_photo_url,
             'role'                      => 'user',
-            'is_active'                 => false, // Require admin approval
+            'is_active'                 => false, // Require HRD + admin approval
+            'registration_status'       => 'pending_hrd',
             'email_verification_token'  => $verificationToken,
         ]);
 
         // Email verifikasi akan dikirim nanti setelah admin melakukan Approve
         // $verificationUrl = url("/api/email/verify/{$user->id}/{$verificationToken}");
         // Mail::to($user->personal_email)->send(new VerifyEmailMail($verificationUrl, $user->full_name));
+        $this->notifyHrdAboutRegistration($user);
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Registrasi berhasil. Akun Anda sedang menunggu persetujuan administrator. Anda akan menerima email verifikasi setelah akun disetujui.',
+            'message' => 'Registrasi berhasil. Akun Anda sedang menunggu persetujuan HRD dan Admin. Anda akan menerima email verifikasi setelah akun disetujui.',
             'data'    => ['personal_email' => $user->personal_email],
         ], 201);
     }
@@ -191,9 +194,15 @@ class AuthController extends Controller
         }
 
         if (! $user->is_active) {
+            $pendingMessage = match ($user->registration_status) {
+                'pending_hrd' => 'Akun Anda sedang menunggu persetujuan HRD.',
+                'pending_admin' => 'Akun Anda sedang menunggu persetujuan Admin.',
+                default => 'Akun Anda tidak aktif. Silakan hubungi administrator.',
+            };
+
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Akun Anda tidak aktif. Silakan hubungi administrator.',
+                'message' => $pendingMessage,
             ], 403);
         }
 
@@ -370,6 +379,11 @@ class AuthController extends Controller
         $isActive = $request->query('is_active');
         $regStatus = $request->query('registration_status');
 
+        $registrationStatuses = null;
+        if ($regStatus === 'pending') {
+            $registrationStatuses = $this->registrationApprovalStatusesFor($request->user(), 'pending');
+        }
+
         $users = User::when($search, function ($q) use ($search) {
             $q->where(function ($sub) use ($search) {
                 $sub->where('full_name', 'like', "%{$search}%")
@@ -381,7 +395,8 @@ class AuthController extends Controller
         ->when($role, fn($q) => $q->where('role', $role))
         ->when($department, fn($q) => $q->where('department', $department))
         ->when($isActive !== null, fn($q) => $q->where('is_active', filter_var($isActive, FILTER_VALIDATE_BOOLEAN)))
-        ->when($regStatus, fn($q) => $q->where('registration_status', $regStatus))
+        ->when($registrationStatuses !== null, fn($q) => $q->whereIn('registration_status', $registrationStatuses))
+        ->when($regStatus && $registrationStatuses === null, fn($q) => $q->where('registration_status', $regStatus))
         ->orderBy('registration_status', 'desc') // Pending first usually if alphabetical
         ->orderBy('full_name')
         ->paginate($request->query('per_page', 10));
@@ -435,7 +450,7 @@ class AuthController extends Controller
             'role'           => $request->role,
             'password_hash'  => Hash::make($request->password),
             'is_active'      => $isActive,
-            'registration_status' => $isActive ? 'approved' : 'pending',
+            'registration_status' => $isActive ? 'approved' : 'pending_hrd',
             'email_verified_at' => now(),
         ]);
 
@@ -724,22 +739,82 @@ class AuthController extends Controller
         ]);
     }
 
-    public function adminApprove(string $id)
+    public function registrationApprovalsIndex(Request $request)
+    {
+        $statuses = $this->registrationApprovalStatusesFor($request->user(), $request->query('status'));
+
+        $users = User::with(['reviewer', 'hrdReviewer', 'adminReviewer'])
+            ->whereIn('registration_status', $statuses)
+            ->latest('created_at')
+            ->paginate($request->query('per_page', 10));
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $users,
+        ]);
+    }
+
+    public function adminApprove(Request $request, string $id)
     {
         $user = User::findOrFail($id);
-        
-        if ($user->is_active) {
+
+        $registrationStatus = $this->normalizeRegistrationStatus($user->registration_status);
+
+        if ($registrationStatus === 'pending_hrd') {
+            if (! $this->canReviewHrdRegistration($request->user())) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Hanya HRD atau Superadmin yang dapat menyetujui tahap HRD.',
+                ], 403);
+            }
+
+            $now = now();
+            $user->update([
+                'is_active' => false,
+                'registration_status' => 'pending_admin',
+                'rejection_reason' => null,
+                'hrd_reviewed_by' => Auth::id(),
+                'hrd_reviewed_at' => $now,
+                'reviewed_by' => Auth::id(),
+                'reviewed_at' => $now,
+            ]);
+
+            ReadStatus::where('item_type', 'approval_registration')
+                ->where('item_id', $user->id)
+                ->delete();
+
+            $this->notifyAdminsAboutRegistration($user->fresh());
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Pendaftaran berhasil disetujui HRD dan diteruskan ke Admin.',
+                'data'    => $user->fresh(),
+            ]);
+        }
+
+        if ($registrationStatus !== 'pending_admin') {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'User sudah aktif sebelumnya.',
+                'message' => 'Hanya pendaftaran pending HRD atau pending Admin yang dapat disetujui.',
             ], 422);
         }
 
+        if (! $this->canReviewAdminRegistration($request->user())) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya Admin atau Superadmin yang dapat menyetujui tahap Admin.',
+            ], 403);
+        }
+
+        $now = now();
         $user->update([
             'is_active' => true,
             'registration_status' => 'approved',
+            'rejection_reason' => null,
+            'admin_reviewed_by' => Auth::id(),
+            'admin_reviewed_at' => $now,
             'reviewed_by' => Auth::id(),
-            'reviewed_at' => now(),
+            'reviewed_at' => $now,
         ]);
 
         $user->refresh();
@@ -782,16 +857,36 @@ class AuthController extends Controller
     // POST /api/admin/users/{id}/reject
     public function adminReject(Request $request, string $id)
     {
-        $user = User::findOrFail($id);
+        $request->validate([
+            'reason' => 'required|string|max:2000',
+        ]);
 
-        if ($user->registration_status !== 'pending') {
+        $user = User::findOrFail($id);
+        $registrationStatus = $this->normalizeRegistrationStatus($user->registration_status);
+
+        if (! in_array($registrationStatus, ['pending_hrd', 'pending_admin'])) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Hanya pendaftaran pending yang dapat ditolak.',
+                'message' => 'Hanya pendaftaran pending HRD atau pending Admin yang dapat ditolak.',
             ], 422);
         }
 
-        $reason = $request->input('reason');
+        if ($registrationStatus === 'pending_hrd' && ! $this->canReviewHrdRegistration($request->user())) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya HRD atau Superadmin yang dapat menolak tahap HRD.',
+            ], 403);
+        }
+
+        if ($registrationStatus === 'pending_admin' && ! $this->canReviewAdminRegistration($request->user())) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Hanya Admin atau Superadmin yang dapat menolak tahap Admin.',
+            ], 403);
+        }
+
+        $reason = trim((string) $request->input('reason'));
+        $stage = $registrationStatus === 'pending_hrd' ? 'hrd' : 'admin';
         
         // Create registration log entry
         RegistrationLog::create([
@@ -802,11 +897,14 @@ class AuthController extends Controller
             'company'          => $user->company,
             'department'       => $user->department,
             'rejection_reason' => $reason,
+            'registration_status' => $registrationStatus,
+            'rejection_stage'  => $stage,
+            'rejected_by'      => Auth::id(),
             'rejected_at'      => now(),
         ]);
 
         // Kirim email penolakan SEBELUM di-delete (agar data email masih ada)
-        Mail::to($user->personal_email)->send(new RegistrationRejectedMail($user->full_name, $reason));
+        Mail::to($user->personal_email)->send(new RegistrationRejectedMail($user->full_name, $reason, strtoupper($stage)));
 
         // Delete the user record completely from users table
         $user->delete();
@@ -820,13 +918,105 @@ class AuthController extends Controller
     // GET /api/admin/registration-logs
     public function adminRejectedLogs(Request $request)
     {
-        $logs = RegistrationLog::orderBy('rejected_at', 'desc')->paginate($request->query('per_page', 10));
+        $logs = RegistrationLog::with('rejectedBy')
+            ->orderBy('rejected_at', 'desc')
+            ->paginate($request->query('per_page', 10));
 
         return response()->json([
             'status'  => 'success',
             'message' => 'Registration logs retrieved successfully',
             'data'    => $logs,
         ]);
+    }
+
+    private function normalizeRegistrationStatus(?string $status): string
+    {
+        return $status === 'pending' || $status === null || trim($status) === ''
+            ? 'pending_hrd'
+            : trim($status);
+    }
+
+    private function canReviewHrdRegistration(?User $user): bool
+    {
+        return $user !== null && ($user->role === 'superadmin' || $user->isHrdReviewer());
+    }
+
+    private function canReviewAdminRegistration(?User $user): bool
+    {
+        return $user !== null && in_array($user->role, ['admin', 'superadmin'], true);
+    }
+
+    private function registrationApprovalStatusesFor(?User $user, ?string $requestedStatus = null): array
+    {
+        $statuses = [];
+
+        if ($this->canReviewHrdRegistration($user)) {
+            $statuses[] = 'pending_hrd';
+        }
+
+        if ($this->canReviewAdminRegistration($user)) {
+            $statuses[] = 'pending_admin';
+        }
+
+        $rawRequestedStatus = $requestedStatus ? trim((string) $requestedStatus) : null;
+        if ($rawRequestedStatus === 'pending') {
+            return $statuses;
+        }
+
+        $requestedStatus = $rawRequestedStatus ? $this->normalizeRegistrationStatus($rawRequestedStatus) : null;
+        if ($requestedStatus === 'pending_hrd' || $requestedStatus === 'pending_admin') {
+            return in_array($requestedStatus, $statuses, true) ? [$requestedStatus] : [];
+        }
+
+        return $statuses;
+    }
+
+    private function notifyAdminsAboutRegistration(User $applicant): void
+    {
+        $admins = User::whereIn('role', ['admin', 'superadmin'])
+            ->where('is_active', true)
+            ->whereNotNull('email_verified_at')
+            ->get();
+
+        foreach ($admins as $admin) {
+            try {
+                $this->notificationService->createNotification(
+                    $admin,
+                    'registration_pending_admin',
+                    'Pendaftaran Menunggu Admin',
+                    "{$applicant->full_name} telah disetujui HRD dan menunggu persetujuan Admin.",
+                    ['type' => 'auth', 'registration_id' => $applicant->id]
+                );
+            } catch (\Exception $e) {
+                Log::error('Gagal mengirim notifikasi pending admin registration: ' . $e->getMessage());
+            }
+        }
+    }
+
+    private function notifyHrdAboutRegistration(User $applicant): void
+    {
+        $reviewers = User::hrdReviewers();
+
+        if ($reviewers->isEmpty()) {
+            $reviewers = User::where('role', 'superadmin')
+                ->where('is_active', true)
+                ->whereNotNull('email_verified_at')
+                ->get();
+        }
+
+        foreach ($reviewers as $reviewer) {
+            try {
+                $this->notificationService->createNotification(
+                    $reviewer,
+                    'registration_pending_hrd',
+                    'Pendaftaran Menunggu HRD',
+                    "{$applicant->full_name} mengajukan pendaftaran akun dan menunggu persetujuan HRD.",
+                    ['type' => 'auth', 'registration_id' => $applicant->id]
+                );
+            } catch (\Exception $e) {
+                Log::error('Gagal mengirim notifikasi pending HRD registration: ' . $e->getMessage());
+            }
+        }
     }
 
     private function formatUser(User $user): array
@@ -857,6 +1047,8 @@ class AuthController extends Controller
                 : null,
             'role'           => $user->role,
             'is_active'      => $user->is_active,
+            'registration_status' => $user->registration_status,
+            'is_hrd_reviewer' => $user->isHrdReviewer(),
         ];
     }
 }

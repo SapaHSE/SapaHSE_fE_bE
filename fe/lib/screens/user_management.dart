@@ -27,6 +27,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   String _searchQuery = '';
   String _selectedFilter = 'Semua';
   bool _isSuperadmin = false;
+  bool _isAdmin = false;
+  bool _isHrdReviewer = false;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
@@ -50,19 +52,36 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       final role = user?['role']?.toString().toLowerCase();
       final isSuper = role == 'superadmin';
       final isAdmin = role == 'admin' || isSuper;
+      final isHrdReviewer = user?['is_hrd_reviewer'] == true ||
+          user?['is_hrd_reviewer'] == 1 ||
+          user?['is_hrd_reviewer']?.toString() == '1';
 
-      if (user != null && isAdmin) {
-        setState(() => _isSuperadmin = isSuper);
-        _fetchUsers();
+      if (user != null && (isAdmin || isHrdReviewer)) {
+        setState(() {
+          _isSuperadmin = isSuper;
+          _isAdmin = isAdmin;
+          _isHrdReviewer = isHrdReviewer;
+        });
+        if (isAdmin) {
+          _fetchUsers();
+          _fetchRejectedUsers();
+        }
         _fetchUnapprovedUsers();
-        _fetchRejectedUsers();
       } else {
-        setState(() => _isSuperadmin = false);
+        setState(() {
+          _isSuperadmin = false;
+          _isAdmin = false;
+          _isHrdReviewer = false;
+        });
       }
     }
   }
 
+  bool get _isApprovalOnly => _isHrdReviewer && !_isAdmin;
+  bool get _canReviewRegistration => _isAdmin || _isHrdReviewer;
+
   Future<void> _fetchUsers({bool silent = false}) async {
+    if (!_isAdmin) return;
     if (!silent) {
       setState(() => _isLoading = true);
     }
@@ -96,7 +115,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       setState(() => _isLoadingUnapproved = true);
     }
     final response = await ApiService.get(
-      '/admin/users?registration_status=pending',
+      '/admin/registration-approvals?status=pending&per_page=100',
     );
     if (mounted) {
       setState(() {
@@ -116,6 +135,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _fetchRejectedUsers({bool silent = false}) async {
+    if (!_isAdmin) return;
     if (!silent) {
       setState(() => _isLoadingRejected = true);
     }
@@ -138,12 +158,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _approveUser(String id) async {
-    final response = await ApiService.put('/admin/users/$id/approve', {});
+    final response =
+        await ApiService.put('/admin/registration-approvals/$id/approve', {});
     if (mounted) {
       if (response.success) {
         UiUtils.showSuccessPopup(context, 'Pengguna berhasil disetujui!');
         _fetchUnapprovedUsers(silent: true);
-        _fetchUsers(silent: true);
+        if (_isAdmin) _fetchUsers(silent: true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -163,11 +184,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       description: 'Berikan alasan penolakan:',
       hintText: 'Contoh: NIP tidak ditemukan atau data tidak valid...',
       confirmLabel: 'Tolak Pendaftaran',
-      requireReason: false,
+      requireReason: true,
     );
     if (reason != null) {
       setState(() => _isLoadingUnapproved = true);
-      final response = await ApiService.post('/admin/users/$id/reject', {
+      final response =
+          await ApiService.post('/admin/registration-approvals/$id/reject', {
         'reason': reason,
       });
       if (mounted) {
@@ -175,8 +197,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         if (response.success) {
           UiUtils.showSuccessPopup(context, 'Pendaftaran ditolak');
           _fetchUnapprovedUsers(silent: true);
-          _fetchRejectedUsers(silent: true);
-          _fetchUsers(silent: true);
+          if (_isAdmin) {
+            _fetchRejectedUsers(silent: true);
+            _fetchUsers(silent: true);
+          }
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(response.errorMessage ?? 'Gagal menolak.')),
@@ -242,21 +266,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         final id = result['id'];
         _deleteUser(id);
       } else if (result == 'updated') {
-        _fetchUsers(silent: true);
+        if (_isAdmin) _fetchUsers(silent: true);
         _fetchUnapprovedUsers(silent: true);
-        _fetchRejectedUsers(silent: true);
+        if (_isAdmin) _fetchRejectedUsers(silent: true);
         if (!mounted) return;
         UiUtils.showSuccessPopup(context, 'Perubahan berhasil disimpan');
       } else if (result == 'approved') {
-        _fetchUsers(silent: true);
+        if (_isAdmin) _fetchUsers(silent: true);
         _fetchUnapprovedUsers(silent: true);
-        _fetchRejectedUsers(silent: true);
+        if (_isAdmin) _fetchRejectedUsers(silent: true);
         if (!mounted) return;
         UiUtils.showSuccessPopup(context, 'Pengguna berhasil disetujui!');
       } else if (result == 'rejected') {
-        _fetchUsers(silent: true);
+        if (_isAdmin) _fetchUsers(silent: true);
         _fetchUnapprovedUsers(silent: true);
-        _fetchRejectedUsers(silent: true);
+        if (_isAdmin) _fetchRejectedUsers(silent: true);
         if (!mounted) return;
         UiUtils.showSuccessPopup(context, 'Pendaftaran ditolak');
       }
@@ -308,9 +332,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         },
         onRefreshData: () {
           Navigator.pop(context);
-          _fetchUsers();
+          if (_isAdmin) _fetchUsers();
           _fetchUnapprovedUsers();
-          _fetchRejectedUsers();
+          if (_isAdmin) _fetchRejectedUsers();
         },
         onSearch: () {
           Navigator.pop(context);
@@ -332,7 +356,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     // We just need to make sure we don't show the blank screen if not superadmin.
 
     return DefaultTabController(
-      length: 3,
+      length: _isApprovalOnly ? 1 : 3,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F6FA),
         appBar: AppBar(
@@ -342,16 +366,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   focusNode: _searchFocusNode,
                   autofocus: true,
                   onChanged: (val) => setState(() => _searchQuery = val),
-                  decoration: const InputDecoration(
-                    hintText: 'Cari user...',
+                  decoration: InputDecoration(
+                    hintText: _isApprovalOnly
+                        ? 'Cari pendaftaran...'
+                        : 'Cari user...',
                     border: InputBorder.none,
-                    hintStyle: TextStyle(color: Colors.grey),
+                    hintStyle: const TextStyle(color: Colors.grey),
                   ),
                   style: const TextStyle(color: Colors.black87),
                 )
-              : const Text(
-                  'User Management',
-                  style: TextStyle(
+              : Text(
+                  _isApprovalOnly ? 'Approval Registrasi' : 'User Management',
+                  style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                     color: Colors.black87,
@@ -392,63 +418,70 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               },
             ),
           ],
-          bottom: TabBar(
-            labelColor: _blue,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: _blue,
-            indicatorWeight: 3,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-            tabs: [
-              const Tab(text: 'Daftar'),
-              Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Approval'),
-                    if (_unapprovedUsers.isNotEmpty) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          _unapprovedUsers.length.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                          ),
-                        ),
+          bottom: _isApprovalOnly
+              ? null
+              : TabBar(
+                  labelColor: _blue,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: _blue,
+                  indicatorWeight: 3,
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                  tabs: [
+                    const Tab(text: 'Daftar'),
+                    Tab(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Approval'),
+                          if (_unapprovedUsers.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                _unapprovedUsers.length.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
+                    ),
+                    const Tab(text: 'History Ditolak'),
                   ],
                 ),
+        ),
+        body: _isApprovalOnly
+            ? _buildApprovalTab()
+            : TabBarView(
+                children: [
+                  _buildUserListTab(),
+                  _buildApprovalTab(),
+                  _buildRejectedHistoryTab(),
+                ],
               ),
-              const Tab(text: 'History Ditolak'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildUserListTab(),
-            _buildApprovalTab(),
-            _buildRejectedHistoryTab(),
-          ],
-        ),
         floatingActionButton: FloatingActionButton(
-          onPressed: _openFabMenu,
+          onPressed: _isApprovalOnly
+              ? (_isLoadingUnapproved ? null : () => _fetchUnapprovedUsers())
+              : _openFabMenu,
+          tooltip: _isApprovalOnly ? 'Refresh' : 'Tambah',
           backgroundColor: const Color(0xFF1A56C4),
           foregroundColor: Colors.white,
           shape: const CircleBorder(),
           elevation: 4,
-          child: const Icon(Icons.add, size: 30),
+          child: Icon(_isApprovalOnly ? Icons.refresh : Icons.add, size: 30),
         ),
         extendBody: true,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -702,6 +735,40 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
+  String _registrationStatusLabel(String? rawStatus) {
+    switch ((rawStatus ?? '').toLowerCase()) {
+      case 'pending_admin':
+        return 'Pending Admin';
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+      case 'rejected_by_hrd':
+      case 'rejected_by_admin':
+        return 'Rejected';
+      case 'pending_hrd':
+      case 'pending':
+      default:
+        return 'Pending HRD';
+    }
+  }
+
+  Color _registrationStatusColor(String? rawStatus) {
+    switch ((rawStatus ?? '').toLowerCase()) {
+      case 'pending_admin':
+        return const Color(0xFFE65100);
+      case 'approved':
+        return const Color(0xFF2E7D32);
+      case 'rejected':
+      case 'rejected_by_hrd':
+      case 'rejected_by_admin':
+        return const Color(0xFFC62828);
+      case 'pending_hrd':
+      case 'pending':
+      default:
+        return const Color(0xFF00695C);
+    }
+  }
+
   Widget _buildApprovalTab() {
     if (_isLoadingUnapproved) {
       return const Center(child: CircularProgressIndicator());
@@ -733,6 +800,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       itemBuilder: (context, index) {
         final user = _unapprovedUsers[index];
         final name = user['full_name'] ?? 'Unknown';
+        final status = user['registration_status']?.toString() ?? 'pending_hrd';
         final initials = name.isNotEmpty
             ? name
                 .trim()
@@ -789,6 +857,24 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                 fontSize: 13,
                               ),
                             ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _registrationStatusColor(status)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                _registrationStatusLabel(status),
+                                style: TextStyle(
+                                  color: _registrationStatusColor(status),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -831,7 +917,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  if (_isSuperadmin) ...[
+                  if (_canReviewRegistration) ...[
                     const SizedBox(height: 16),
                     Row(
                       children: [
@@ -846,7 +932,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               ),
                             ),
                             child: const Text(
-                              'Reject',
+                              'Tolak Pendaftaran',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -863,7 +949,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               ),
                             ),
                             child: const Text(
-                              'Approve',
+                              'Setujui Pendaftaran',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
@@ -907,6 +993,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         final log = _rejectedUsers[index];
         final name = log['full_name'] ?? 'Unknown';
         final nik = log['employee_id'] ?? '-';
+        final stage = (log['rejection_stage'] ?? '').toString().toLowerCase();
+        final stageLabel = stage == 'hrd'
+            ? 'Ditolak HRD'
+            : stage == 'admin'
+                ? 'Ditolak Admin'
+                : 'Ditolak';
 
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
@@ -928,7 +1020,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 children: [
                   const SizedBox(height: 4),
                   Text(
-                    'NIP: $nik • ${log['company'] ?? '-'}',
+                    'NIP: $nik • ${log['company'] ?? '-'} • $stageLabel',
                     style: const TextStyle(fontSize: 12),
                   ),
                   if (log['rejection_reason'] != null) ...[
@@ -979,6 +1071,8 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   late bool _isActive;
   bool _isLoading = false;
   bool _isSuperadmin = false;
+  bool _isAdmin = false;
+  bool _isHrdReviewer = false;
 
   @override
   void initState() {
@@ -993,10 +1087,17 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     final user = await StorageService.getUser();
     if (mounted) {
       setState(() {
-        _isSuperadmin = user?['role']?.toString().toLowerCase() == 'superadmin';
+        final role = user?['role']?.toString().toLowerCase();
+        _isSuperadmin = role == 'superadmin';
+        _isAdmin = role == 'admin' || _isSuperadmin;
+        _isHrdReviewer = user?['is_hrd_reviewer'] == true ||
+            user?['is_hrd_reviewer'] == 1 ||
+            user?['is_hrd_reviewer']?.toString() == '1';
       });
     }
   }
+
+  bool get _canReviewRegistration => _isAdmin || _isHrdReviewer;
 
   Future<void> _showSuccessPopup(String message) async {
     await showDialog(
@@ -1042,7 +1143,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
   Future<void> _approveUser() async {
     setState(() => _isLoading = true);
     final response = await ApiService.put(
-      '/admin/users/${widget.user['id']}/approve',
+      '/admin/registration-approvals/${widget.user['id']}/approve',
       {},
     );
     if (mounted) {
@@ -1072,7 +1173,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Berikan alasan penolakan (opsional):',
+              'Berikan alasan penolakan:',
               style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 12),
@@ -1103,10 +1204,19 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     );
 
     if (confirm == true) {
+      final reason = reasonCtrl.text.trim();
+      if (reason.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Alasan penolakan wajib diisi.')),
+        );
+        return;
+      }
+
       setState(() => _isLoading = true);
       final response = await ApiService.post(
-        '/admin/users/${widget.user['id']}/reject',
-        {'reason': reasonCtrl.text.trim()},
+        '/admin/registration-approvals/${widget.user['id']}/reject',
+        {'reason': reason},
       );
       if (mounted) {
         setState(() => _isLoading = false);
@@ -1247,6 +1357,55 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
           _deleteUser();
         },
       ),
+    );
+  }
+
+  bool _isPendingRegistrationStatus(dynamic rawStatus) {
+    final status = rawStatus?.toString().toLowerCase() ?? 'pending_hrd';
+    return status == 'pending' ||
+        status == 'pending_hrd' ||
+        status == 'pending_admin';
+  }
+
+  Widget _buildRegistrationActionRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _isLoading ? null : _rejectUser,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Tolak Pendaftaran',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _approveUser,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Setujui Pendaftaran',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1447,7 +1606,16 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                   ),
                   const SizedBox(height: 24),
                   if (!isLogEntry) ...[
-                    if (widget.user['registration_status'] != 'rejected') ...[
+                    if (!_isAdmin &&
+                        _canReviewRegistration &&
+                        !_isActive &&
+                        _isPendingRegistrationStatus(
+                            widget.user['registration_status'])) ...[
+                      _buildRegistrationActionRow(),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_isAdmin &&
+                        widget.user['registration_status'] != 'rejected') ...[
                       _buildSectionTitle('PENGATURAN AKSES & ROLE'),
                       const SizedBox(height: 12),
                       Column(
@@ -1475,52 +1643,11 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
                         ],
                       ),
                       const SizedBox(height: 32),
-                      if (_isSuperadmin &&
+                      if (_canReviewRegistration &&
                           !_isActive &&
-                          widget.user['registration_status'] == 'pending') ...[
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: _isLoading ? null : _rejectUser,
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.red,
-                                  side: const BorderSide(color: Colors.red),
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Reject Registration',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _approveUser,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Approve User',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                          _isPendingRegistrationStatus(
+                              widget.user['registration_status'])) ...[
+                        _buildRegistrationActionRow(),
                         const SizedBox(height: 16),
                       ],
                       if (_isSuperadmin)
