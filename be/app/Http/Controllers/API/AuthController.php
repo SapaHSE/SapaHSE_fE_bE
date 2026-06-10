@@ -282,7 +282,7 @@ class AuthController extends Controller
             'id', 'full_name', 'employee_id', 'department', 'position',
             'jabatan', 'company', 'role', 'profile_photo', 'phone_number', 
             'personal_email', 'work_email', 'tipe_afiliasi', 'is_active',
-            'registration_status'
+            'registration_status', 'access_permissions'
         ])
         ->get()
         ->map(fn($u) => [
@@ -299,6 +299,7 @@ class AuthController extends Controller
             'work_email'     => $u->work_email,
             'email'          => $u->personal_email ?? $u->work_email,
             'role'           => $u->role,
+            'access_permissions' => $u->resolvedAccessPermissions(),
             'is_active'      => (bool) $u->is_active,
             'registration_status' => $u->registration_status,
             'photo_url'      => $u->profile_photo ? asset('storage/' . $u->profile_photo) : null,
@@ -426,6 +427,8 @@ class AuthController extends Controller
             'sub_kontraktor' => 'nullable|string|max:100',
             'simper'         => 'nullable|string|max:50',
             'role'           => 'required|string|in:user,admin,superadmin',
+            'access_permissions' => 'nullable|array',
+            'access_permissions.*' => 'boolean',
             'password'       => 'required|string|min:6',
             'is_active'      => 'boolean',
         ]);
@@ -448,6 +451,7 @@ class AuthController extends Controller
             'sub_kontraktor' => $request->sub_kontraktor,
             'simper'         => $request->simper,
             'role'           => $request->role,
+            'access_permissions' => User::normalizeAccessPermissions($request->input('access_permissions'), $request->role),
             'password_hash'  => Hash::make($request->password),
             'is_active'      => $isActive,
             'registration_status' => $isActive ? 'approved' : 'pending_hrd',
@@ -486,11 +490,16 @@ class AuthController extends Controller
             'sub_kontraktor' => 'nullable|string|max:100',
             'simper'         => 'nullable|string|max:50',
             'role'           => 'required|string|in:user,admin,superadmin',
+            'access_permissions' => 'nullable|array',
+            'access_permissions.*' => 'boolean',
             'password'       => 'nullable|string|min:6',
             'is_active'      => 'boolean',
         ]);
 
-        $data = $request->except(['password', 'profile_photo']);
+        $data = $request->except(['password', 'profile_photo', 'access_permissions']);
+        if ($request->has('access_permissions')) {
+            $data['access_permissions'] = User::normalizeAccessPermissions($request->input('access_permissions'), $request->role);
+        }
         if ($request->has('employee_id')) {
             $data['employee_id'] = $request->filled('employee_id') ? trim((string) $request->employee_id) : null;
         }
@@ -1046,6 +1055,7 @@ class AuthController extends Controller
                     : asset('storage/' . $user->profile_photo))
                 : null,
             'role'           => $user->role,
+            'access_permissions' => $user->resolvedAccessPermissions(),
             'is_active'      => $user->is_active,
             'registration_status' => $user->registration_status,
             'is_hrd_reviewer' => $user->isHrdReviewer(),

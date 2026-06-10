@@ -28,6 +28,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $profile_photo
  * @property bool $is_active
  * @property string $role
+ * @property array|null $access_permissions
  * @property string $registration_status
  * @property string|null $rejection_reason
  * @property string|null $hrd_reviewed_by
@@ -47,6 +48,18 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens, HasUuids;
+
+    public const ACCESS_PERMISSION_KEYS = [
+        'dashboard_overview',
+        'manage_hazard_reports',
+        'manage_inspection_reports',
+        'manage_news',
+        'manage_announcements',
+        'manage_users',
+        'document_approvals',
+        'manage_master_data',
+        'manage_violations',
+    ];
 
     protected $fillable = [
         'employee_id',
@@ -70,6 +83,7 @@ class User extends Authenticatable
         'profile_photo',
         'is_active',
         'role',
+        'access_permissions',
         'registration_status',
         'rejection_reason',
         'reviewed_by',
@@ -99,6 +113,7 @@ class User extends Authenticatable
     {
         return [
             'is_active'                 => 'boolean',
+            'access_permissions'        => 'array',
             'email_verified_at'         => 'datetime',
             'reviewed_at'               => 'datetime',
             'hrd_reviewed_at'           => 'datetime',
@@ -106,6 +121,65 @@ class User extends Authenticatable
             'last_activity_at'          => 'datetime',
             'last_notification_sent_at' => 'datetime',
         ];
+    }
+
+    public static function defaultAccessPermissionsForRole(?string $role): array
+    {
+        $permissions = array_fill_keys(self::ACCESS_PERMISSION_KEYS, false);
+        $role = strtolower(trim((string) $role));
+
+        if ($role === 'superadmin') {
+            return array_fill_keys(self::ACCESS_PERMISSION_KEYS, true);
+        }
+
+        if ($role === 'admin') {
+            foreach ([
+                'dashboard_overview',
+                'manage_hazard_reports',
+                'manage_inspection_reports',
+                'manage_news',
+                'manage_announcements',
+                'manage_users',
+                'document_approvals',
+                'manage_violations',
+            ] as $key) {
+                $permissions[$key] = true;
+            }
+        }
+
+        return $permissions;
+    }
+
+    public static function normalizeAccessPermissions(?array $permissions, ?string $role = null): array
+    {
+        $role = strtolower(trim((string) $role));
+        if ($role === 'superadmin') {
+            return array_fill_keys(self::ACCESS_PERMISSION_KEYS, true);
+        }
+
+        $normalized = self::defaultAccessPermissionsForRole($role);
+
+        foreach ($permissions ?? [] as $key => $value) {
+            if (in_array($key, self::ACCESS_PERMISSION_KEYS, true)) {
+                $normalized[$key] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            }
+        }
+
+        return $normalized;
+    }
+
+    public function resolvedAccessPermissions(): array
+    {
+        return self::normalizeAccessPermissions($this->access_permissions, $this->role);
+    }
+
+    public function hasAccessPermission(string $permission): bool
+    {
+        if ($this->role === 'superadmin') {
+            return true;
+        }
+
+        return $this->resolvedAccessPermissions()[$permission] ?? false;
     }
 
     public function ensureQrCode(): ?string

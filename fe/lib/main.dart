@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_quill/flutter_quill.dart' show FlutterQuillLocalizations;
+import 'package:flutter_quill/flutter_quill.dart'
+    show FlutterQuillLocalizations;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -15,6 +16,7 @@ import 'services/idle_timeout_service.dart';
 import 'services/offline_cache_service.dart';
 import 'services/qr_service.dart';
 import 'services/storage_service.dart';
+import 'utils/access_permissions.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/news_screen.dart';
@@ -44,14 +46,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   if (!kIsWeb) {
     // Initialize Firebase
     await Firebase.initializeApp();
-    
+
     // Set the background messaging handler early on, as a named top-level function
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    
+
     // Initialize Push Notifications
     await PushNotificationService.initialize();
   }
@@ -150,7 +152,8 @@ class _BBEAppState extends State<BBEApp> {
         FlutterQuillLocalizations.delegate,
       ],
       supportedLocales: const [Locale('en'), Locale('id')],
-      builder: (context, child) => IdleDetector(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) =>
+          IdleDetector(child: child ?? const SizedBox.shrink()),
       home: const SplashScreen(),
     );
   }
@@ -167,6 +170,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   late int _currentIndex;
   bool _canAddAnnouncement = false;
+  bool _canAddNews = false;
 
   @override
   void initState() {
@@ -178,11 +182,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   Future<void> _loadUserPermissions() async {
     final user = await StorageService.getUser();
-    final role = user?['role']?.toString().toLowerCase();
-    final canAdd = role == 'admin' || role == 'superadmin';
     if (!mounted) return;
     setState(() {
-      _canAddAnnouncement = canAdd;
+      _canAddAnnouncement = userHasAccess(user, 'manage_announcements');
+      _canAddNews = userHasAccess(user, 'manage_news');
     });
   }
 
@@ -262,6 +265,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
           _openCreateNewsScreen();
         },
         canAddAnnouncement: _canAddAnnouncement,
+        canAddNews: _canAddNews,
       ),
     );
   }
@@ -579,6 +583,7 @@ class _FabMenuSheet extends StatelessWidget {
   final VoidCallback onAddAnnouncement;
   final VoidCallback onAddNews;
   final bool canAddAnnouncement;
+  final bool canAddNews;
 
   const _FabMenuSheet({
     required this.currentIndex,
@@ -588,6 +593,7 @@ class _FabMenuSheet extends StatelessWidget {
     required this.onAddAnnouncement,
     required this.onAddNews,
     required this.canAddAnnouncement,
+    required this.canAddNews,
   });
 
   @override
@@ -670,7 +676,7 @@ class _FabMenuSheet extends StatelessWidget {
               onTap: onAddAnnouncement,
             ),
           ],
-          if (currentIndex == 1 && canAddAnnouncement) ...[
+          if (currentIndex == 1 && canAddNews) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
             _MenuTile(
               icon: Icons.article_outlined,
@@ -806,7 +812,3 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
-
-
-
-

@@ -9,6 +9,7 @@ import '../services/announcement_service.dart';
 import '../services/background_sync_service.dart';
 import '../services/offline_cache_service.dart';
 import '../services/push_notification_service.dart';
+import '../utils/access_permissions.dart';
 import 'login_screen.dart';
 import '../main.dart';
 import 'create_hazard_screen.dart';
@@ -32,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isPushEnabled = true;
   bool _isBiometricEnabled = false;
   bool _canAddAnnouncement = false;
+  bool _canAddNews = false;
   double? _localStorageMB = 0.45;
 
   @override
@@ -44,8 +46,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final bioEnabled = await StorageService.isBiometricEnabled();
     final pushEnabled = await StorageService.isNotificationEnabled();
     final user = await StorageService.getUser();
-    final role = user?['role']?.toString().toLowerCase();
-    final canAdd = role == 'admin' || role == 'superadmin';
 
     double storageSize = 0.45;
     if (!kIsWeb) {
@@ -56,7 +56,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _isBiometricEnabled = bioEnabled;
         _isPushEnabled = pushEnabled;
-        _canAddAnnouncement = canAdd;
+        _canAddAnnouncement = userHasAccess(user, 'manage_announcements');
+        _canAddNews = userHasAccess(user, 'manage_news');
         _localStorageMB = storageSize;
       });
     }
@@ -195,8 +196,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (context, setDialogState) {
           bool obscureBio = true;
           return AlertDialog(
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: const Text('Konfirmasi Password',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             content: Column(
@@ -220,11 +221,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         borderRadius: BorderRadius.circular(8)),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        obscureBio
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: Colors.grey,
-                        size: 20),
+                          obscureBio
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: Colors.grey,
+                          size: 20),
                       onPressed: () =>
                           setDialogState(() => obscureBio = !obscureBio),
                     ),
@@ -298,6 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _openCreateNewsScreen();
         },
         canAddAnnouncement: _canAddAnnouncement,
+        canAddNews: _canAddNews,
       ),
     );
   }
@@ -1068,11 +1070,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         obscureText: obscureOld,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            obscureOld
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.grey,
-                            size: 20),
+                              obscureOld
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.grey,
+                              size: 20),
                           onPressed: () =>
                               setModalState(() => obscureOld = !obscureOld),
                         )),
@@ -1082,11 +1084,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         obscureText: obscureNew,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            obscureNew
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.grey,
-                            size: 20),
+                              obscureNew
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.grey,
+                              size: 20),
                           onPressed: () =>
                               setModalState(() => obscureNew = !obscureNew),
                         )),
@@ -1096,11 +1098,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         obscureText: obscureConfirm,
                         suffixIcon: IconButton(
                           icon: Icon(
-                            obscureConfirm
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.grey,
-                            size: 20),
+                              obscureConfirm
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: Colors.grey,
+                              size: 20),
                           onPressed: () => setModalState(
                               () => obscureConfirm = !obscureConfirm),
                         )),
@@ -1261,6 +1263,7 @@ class _FabMenuSheet extends StatelessWidget {
   final VoidCallback onAddAnnouncement;
   final VoidCallback onAddNews;
   final bool canAddAnnouncement;
+  final bool canAddNews;
 
   const _FabMenuSheet({
     required this.currentIndex,
@@ -1270,6 +1273,7 @@ class _FabMenuSheet extends StatelessWidget {
     required this.onAddAnnouncement,
     required this.onAddNews,
     required this.canAddAnnouncement,
+    required this.canAddNews,
   });
 
   @override
@@ -1352,7 +1356,7 @@ class _FabMenuSheet extends StatelessWidget {
               onTap: onAddAnnouncement,
             ),
           ],
-          if (currentIndex == 1 || canAddAnnouncement) ...[
+          if (canAddNews) ...[
             Divider(height: 1, indent: 72, color: Colors.grey.shade100),
             _MenuTile(
               icon: Icons.article_outlined,

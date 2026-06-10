@@ -5,6 +5,7 @@ import '../data/news_data.dart';
 import '../services/api_service.dart';
 import '../services/news_service.dart';
 import '../services/storage_service.dart';
+import '../utils/access_permissions.dart';
 import 'news_detail_screen.dart';
 import '../widgets/sapa_hse_header.dart';
 import '../widgets/app_safe_insets.dart';
@@ -75,9 +76,8 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Future<void> _detectRole() async {
     final user = await StorageService.getUser();
-    final role = user?['role']?.toString().toLowerCase();
     if (mounted) {
-      setState(() => _isAdmin = role == 'admin' || role == 'superadmin');
+      setState(() => _isAdmin = userHasAccess(user, 'manage_news'));
     }
   }
 
@@ -770,8 +770,7 @@ class _CarouselItem extends StatelessWidget {
                 maxWidth: MediaQuery.of(context).size.width * 0.35,
               ),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: catColor.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(4),

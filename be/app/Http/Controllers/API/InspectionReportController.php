@@ -33,9 +33,10 @@ class InspectionReportController extends Controller
         $query  = InspectionReport::with(['user', 'checklistItems'])->latest();
         $user   = Auth::user();
         $userId = $user->id;
+        $canManageInspection = $user->hasAccessPermission('manage_inspection_reports');
 
         // Apply privacy filter: validating reports are visible only to the creator or admins.
-        if (!in_array($user->role, ['admin', 'superadmin'])) {
+        if (!$canManageInspection) {
             $query->where(function ($q) use ($user) {
                 $q->where(function ($v) {
                     $v->whereNull('sub_status')->orWhere('sub_status', '!=', 'validating');
@@ -203,7 +204,7 @@ class InspectionReportController extends Controller
         $report = InspectionReport::findOrFail($id);
         $user = Auth::user();
 
-        if ($report->user_id !== $user->id && !in_array($user->role, ['admin', 'superadmin'])) {
+        if ($report->user_id !== $user->id && ! $user->hasAccessPermission('manage_inspection_reports')) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
 
@@ -238,7 +239,7 @@ class InspectionReportController extends Controller
                     || (!empty($user->department) && $report->reported_department
                         && stripos($report->reported_department, $user->department) !== false);
         $isSuperadmin = $user->role === 'superadmin';
-        $isAdmin = $user->role === 'admin' && $isInspector;
+        $isAdmin = $user->hasAccessPermission('manage_inspection_reports');
         $isReporter = $report->user_id === $user->id;
 
         if (!$isSuperadmin && !$isAdmin && !$isReporter && !$isInspector) {
@@ -577,7 +578,7 @@ class InspectionReportController extends Controller
 
     private function canAccessReportThread(InspectionReport $report, User $user): bool
     {
-        if (in_array($user->role, ['admin', 'superadmin'])) return true;
+        if ($user->hasAccessPermission('manage_inspection_reports')) return true;
 
         if ($report->user_id === $user->id) return true;
 

@@ -26,7 +26,10 @@ class NewsController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $isAdmin = $user && in_array($user->role, ['admin', 'superadmin', 'supervisor']);
+        $isAdmin = $user && (
+            in_array($user->role, ['admin', 'superadmin', 'supervisor'], true)
+            || $user->hasAccessPermission('manage_news')
+        );
 
         $includeScheduled = $isAdmin && $request->boolean('include_scheduled');
         $onlyScheduled    = $isAdmin && $request->boolean('only_scheduled');
@@ -73,7 +76,10 @@ class NewsController extends Controller
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        $isAdmin = $user && in_array($user->role, ['admin', 'superadmin', 'supervisor']);
+        $isAdmin = $user && (
+            in_array($user->role, ['admin', 'superadmin', 'supervisor'], true)
+            || $user->hasAccessPermission('manage_news')
+        );
 
         $query = $isAdmin ? News::active() : News::published();
         $news  = $query->with('creator')->findOrFail($id);

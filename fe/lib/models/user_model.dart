@@ -1,4 +1,5 @@
 import '../utils/url_helper.dart';
+import '../utils/access_permissions.dart';
 import '../utils/value_parser.dart';
 
 /// Matches the formatUser() response from Laravel's AuthController
@@ -17,6 +18,7 @@ class UserModel {
   final String? company;
   final String? profilePhoto;
   final String role;
+  final Map<String, bool> accessPermissions;
   final bool isActive;
   final bool isHrdReviewer;
 
@@ -35,6 +37,7 @@ class UserModel {
     this.company,
     this.profilePhoto,
     required this.role,
+    this.accessPermissions = const {},
     required this.isActive,
     this.isHrdReviewer = false,
   });
@@ -56,6 +59,10 @@ class UserModel {
       company: json['company']?.toString(),
       profilePhoto: normalizeStorageUrl(json['profile_photo']?.toString()),
       role: json['role']?.toString() ?? 'user',
+      accessPermissions: normalizeAccessPermissions(
+        json['access_permissions'],
+        role: json['role']?.toString() ?? 'user',
+      ),
       isActive: parseFlexibleBool(json['is_active']),
       isHrdReviewer: parseFlexibleBool(json['is_hrd_reviewer']),
     );
@@ -76,6 +83,7 @@ class UserModel {
         'company': company,
         'profile_photo': profilePhoto,
         'role': role,
+        'access_permissions': accessPermissions,
         'is_active': isActive,
         'is_hrd_reviewer': isHrdReviewer,
       };
@@ -85,6 +93,8 @@ class UserModel {
   bool get isSupervisor => role == 'supervisor';
   bool get isUser => role == 'user';
   bool get isHrd => isHrdReviewer;
+  bool hasAccess(String permissionKey) =>
+      accessPermissions[permissionKey] ?? false;
 
   /// Roles that have full read access across all reports (admin + superadmin).
   /// Note: ability to *update* status is gated separately — only `isAdmin` can update,

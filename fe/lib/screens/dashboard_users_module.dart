@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
+import '../utils/access_permissions.dart';
 import 'dashboard_widgets.dart';
 import '../widgets/minimal_dropdown.dart';
 
@@ -101,6 +102,10 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
     }
 
     String currentRole = user?.role ?? 'user';
+    Map<String, bool> accessPermissions = normalizeAccessPermissions(
+      user?.accessPermissions,
+      role: currentRole,
+    );
     bool isActive = user?.isActive ?? true;
     bool isLoading = false;
 
@@ -173,7 +178,8 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                             prefixIcon: Icons.business_outlined,
                           ),
                           icon: kMinimalDropdownChevron,
-                          borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                          borderRadius:
+                              BorderRadius.circular(kMinimalDropdownRadius),
                           style: kMinimalDropdownTextStyle,
                           items: companies
                               .map((e) => DropdownMenuItem(
@@ -208,18 +214,19 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                         prefixIcon: Icons.groups_outlined,
                       ),
                       icon: kMinimalDropdownChevron,
-                      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                      borderRadius:
+                          BorderRadius.circular(kMinimalDropdownRadius),
                       style: kMinimalDropdownTextStyle,
                       items: departments
                           .map((e) => DropdownMenuItem(
                               value: e,
-                              child:
-                                  Text(e, overflow: TextOverflow.ellipsis)))
+                              child: Text(e, overflow: TextOverflow.ellipsis)))
                           .toList(),
                       onChanged: (v) => setModalState(() => selectedDept = v),
                     ),
                   ),
                   if (user == null) ...[
+                    const SizedBox(height: 12),
                     _formField(passwordCtrl, 'Password', Icons.lock_outline,
                         obscure: true),
                     const SizedBox(height: 12),
@@ -233,14 +240,27 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                         prefixIcon: Icons.security_outlined,
                       ),
                       icon: kMinimalDropdownChevron,
-                      borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
+                      borderRadius:
+                          BorderRadius.circular(kMinimalDropdownRadius),
                       style: kMinimalDropdownTextStyle,
                       items: ['admin', 'superadmin', 'user']
                           .map((e) => DropdownMenuItem(
                               value: e, child: Text(e.toUpperCase())))
                           .toList(),
-                      onChanged: (v) => setModalState(() => currentRole = v!),
+                      onChanged: (v) => setModalState(() {
+                        currentRole = v!;
+                        accessPermissions =
+                            defaultAccessPermissionsForRole(currentRole);
+                      }),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildAccessPermissionPanel(
+                    permissions: accessPermissions,
+                    locked: currentRole.toLowerCase() == 'superadmin',
+                    onChanged: (key, value) => setModalState(() {
+                      accessPermissions[key] = value;
+                    }),
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(
@@ -276,6 +296,7 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                         'company': selectedCompany,
                         'department': selectedDept,
                         'role': currentRole,
+                        'access_permissions': accessPermissions,
                         'is_active': isActive ? 1 : 0,
                       };
 
@@ -346,6 +367,183 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildAccessPermissionPanel({
+    required Map<String, bool> permissions,
+    required bool locked,
+    required void Function(String key, bool value) onChanged,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDBEAFE),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: Color(0xFF1D4ED8),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hak Akses Modul',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Aktifkan modul yang boleh dikelola akun ini.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (locked) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Superadmin otomatis memiliki semua akses.',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1D4ED8),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          ...accessPermissionOptions.map((option) {
+            final value = locked || (permissions[option.key] ?? false);
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          option.label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          option.description,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: value,
+                    activeThumbColor: const Color(0xFF1D4ED8),
+                    onChanged: locked
+                        ? null
+                        : (nextValue) => onChanged(option.key, nextValue),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccessSummary(Map<String, bool> permissions) {
+    final activeOptions = accessPermissionOptions
+        .where((option) => permissions[option.key] ?? false)
+        .toList();
+
+    if (activeOptions.isEmpty) {
+      return const Text(
+        'Tidak ada',
+        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+      );
+    }
+
+    final visibleOptions = activeOptions.take(3).toList();
+    final remainingCount = activeOptions.length - visibleOptions.length;
+
+    return SizedBox(
+      width: 260,
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          ...visibleOptions.map(
+            (option) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Text(
+                option.label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1D4ED8),
+                ),
+              ),
+            ),
+          ),
+          if (remainingCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '+$remainingCount',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF475569),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -443,6 +641,7 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
           columns: const [
             DataColumn(label: Text('User')),
             DataColumn(label: Text('Role')),
+            DataColumn(label: Text('Akses')),
             DataColumn(label: Text('Emp. ID')),
             DataColumn(label: Text('Email')),
             DataColumn(label: Text('Status')),
@@ -457,6 +656,7 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
                     style: const TextStyle(fontWeight: FontWeight.w600)),
               ])),
               DataCell(DashboardRoleBadge(u.role)),
+              DataCell(_buildAccessSummary(u.accessPermissions)),
               DataCell(Text(u.employeeId)),
               DataCell(Text(u.personalEmail ?? '')),
               DataCell(Text(u.isActive ? 'Aktif' : 'Nonaktif',

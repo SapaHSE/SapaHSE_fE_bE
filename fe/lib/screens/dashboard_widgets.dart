@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/report.dart';
 import '../models/user_model.dart';
 import '../models/news_model.dart';
+import '../utils/access_permissions.dart';
 
 BoxDecoration dashboardCardDecoration({double radius = 16, Color? color}) =>
     BoxDecoration(
@@ -19,7 +20,8 @@ BoxDecoration dashboardCardDecoration({double radius = 16, Color? color}) =>
 
 class DashboardSectionHeader extends StatelessWidget {
   final String title, subtitle;
-  const DashboardSectionHeader({super.key, required this.title, required this.subtitle});
+  const DashboardSectionHeader(
+      {super.key, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +90,8 @@ class DashboardStatCard extends StatelessWidget {
             Positioned(
               right: -12,
               top: -12,
-              child: Icon(icon, color: color.withValues(alpha: 0.04), size: 100),
+              child:
+                  Icon(icon, color: color.withValues(alpha: 0.04), size: 100),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -865,6 +868,63 @@ class DashboardUserCard extends StatefulWidget {
 class _DashboardUserCardState extends State<DashboardUserCard> {
   bool _hovering = false;
 
+  Widget _buildAccessChips(UserModel user) {
+    final activeOptions = accessPermissionOptions
+        .where((option) => user.accessPermissions[option.key] ?? false)
+        .toList();
+
+    if (activeOptions.isEmpty) {
+      return const Text(
+        'Akses: tidak ada modul aktif',
+        style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+      );
+    }
+
+    final visibleOptions = activeOptions.take(4).toList();
+    final remainingCount = activeOptions.length - visibleOptions.length;
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        ...visibleOptions.map(
+          (option) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Text(
+              option.label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1D4ED8),
+              ),
+            ),
+          ),
+        ),
+        if (remainingCount > 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '+$remainingCount',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF475569),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final u = widget.user;
@@ -990,6 +1050,8 @@ class _DashboardUserCardState extends State<DashboardUserCard> {
               value: u.personalEmail ?? u.email,
               icon: Icons.email_outlined,
             ),
+            const SizedBox(height: 10),
+            _buildAccessChips(u),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -1038,7 +1100,8 @@ class _DashboardUserCardState extends State<DashboardUserCard> {
 class DashboardPagerButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;
-  const DashboardPagerButton({super.key, required this.icon, required this.onPressed});
+  const DashboardPagerButton(
+      {super.key, required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -1143,6 +1206,7 @@ class DashboardActivityItem extends StatelessWidget {
     );
   }
 }
+
 class DashboardSuccessDialog extends StatelessWidget {
   final String title;
   final String message;
@@ -1211,8 +1275,8 @@ class DashboardSuccessDialog extends StatelessWidget {
                   ),
                   elevation: 0,
                 ),
-                child:
-                    const Text('Selesai', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text('Selesai',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
 import '../models/report.dart';
+import '../utils/access_permissions.dart';
 import 'dashboard_overview_module.dart';
 import 'dashboard_report_module.dart';
 import 'dashboard_news_module.dart';
@@ -14,9 +15,31 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
+class _DashboardNavSection {
+  final String title;
+  final IconData icon;
+  final Widget content;
+
+  const _DashboardNavSection({
+    required this.title,
+    required this.icon,
+    required this.content,
+  });
+}
+
 class _DashboardScreenState extends State<DashboardScreen> {
+  static const _dashboardPermissionKeys = [
+    'dashboard_overview',
+    'manage_hazard_reports',
+    'manage_inspection_reports',
+    'manage_news',
+    'manage_users',
+  ];
+
   int _selectedIndex = 0;
   String _userRole = 'Admin';
+  bool _isCheckingAccess = true;
+  Map<String, dynamic>? _currentUser;
 
   @override
   void initState() {
@@ -26,75 +49,122 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _checkAccess() async {
     final user = await StorageService.getUser();
-    if (user != null && mounted) {
-      final role = user['role'] ?? 'User';
-      if (role.toLowerCase() == 'user') {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Akses Ditolak: Anda tidak memiliki izin untuk membuka Dashboard Admin.')),
-        );
-      } else {
-        setState(() => _userRole = role);
-      }
+    if (!mounted) return;
+
+    final role = user?['role']?.toString() ?? 'User';
+    final canOpenDashboard = userHasAnyAccess(user, _dashboardPermissionKeys);
+
+    if (!canOpenDashboard) {
+      setState(() => _isCheckingAccess = false);
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Akses Ditolak: Anda tidak memiliki izin untuk membuka Dashboard Admin.')),
+      );
+      return;
     }
+
+    setState(() {
+      _currentUser = user;
+      _userRole = role;
+      _isCheckingAccess = false;
+      if (_selectedIndex >= _sections.length) {
+        _selectedIndex = 0;
+      }
+    });
   }
 
-  bool get _canSeeUsers =>
-      _userRole.toLowerCase() == 'super admin' ||
-      _userRole.toLowerCase() == 'superadmin';
+  bool _canAccess(String permissionKey) =>
+      userHasAccess(_currentUser, permissionKey);
 
-  List<String> get _sections {
-    final list = [
-      'Overview Sistem',
-      'Manajemen Hazard',
-      'Manajemen Inspection',
-      'Berita & Update',
-    ];
-    if (_canSeeUsers) list.add('Pengguna');
-    return list;
-  }
+  List<_DashboardNavSection> get _sections {
+    final sections = <_DashboardNavSection>[];
 
-  List<IconData> get _sectionIcons {
-    final list = [
-      Icons.dashboard_outlined,
-      Icons.warning_amber_rounded,
-      Icons.search_outlined,
-      Icons.article_outlined,
-    ];
-    if (_canSeeUsers) list.add(Icons.people_outline);
-    return list;
+    if (_canAccess('dashboard_overview')) {
+      sections.add(
+        const _DashboardNavSection(
+          title: 'Overview Sistem',
+          icon: Icons.dashboard_outlined,
+          content: DashboardOverviewModule(
+            hazardReports: [],
+            inspectionReports: [],
+          ),
+        ),
+      );
+    }
+
+    if (_canAccess('manage_hazard_reports')) {
+      sections.add(
+        const _DashboardNavSection(
+          title: 'Manajemen Hazard',
+          icon: Icons.warning_amber_rounded,
+          content: DashboardReportModule(
+            type: ReportType.hazard,
+            subtitle: 'Kelola seluruh laporan Hazard yang masuk dari lapangan.',
+          ),
+        ),
+      );
+    }
+
+    if (_canAccess('manage_inspection_reports')) {
+      sections.add(
+        const _DashboardNavSection(
+          title: 'Manajemen Inspection',
+          icon: Icons.search_outlined,
+          content: DashboardReportModule(
+            type: ReportType.inspection,
+            subtitle: 'Kelola seluruh laporan Inspeksi rutin dari tim.',
+          ),
+        ),
+      );
+    }
+
+    if (_canAccess('manage_news')) {
+      sections.add(
+        const _DashboardNavSection(
+          title: 'Berita & Update',
+          icon: Icons.article_outlined,
+          content: DashboardNewsModule(),
+        ),
+      );
+    }
+
+    if (_canAccess('manage_users')) {
+      sections.add(
+        const _DashboardNavSection(
+          title: 'Pengguna',
+          icon: Icons.people_outline,
+          content: DashboardUsersModule(),
+        ),
+      );
+    }
+
+    return sections;
   }
 
   Widget _buildContent() {
-    switch (_selectedIndex) {
-      case 0:
-        return const DashboardOverviewModule(
-            hazardReports: [], inspectionReports: []);
-      case 1:
-        return const DashboardReportModule(
-          type: ReportType.hazard,
-          subtitle: 'Kelola seluruh laporan Hazard yang masuk dari lapangan.',
-        );
-      case 2:
-        return const DashboardReportModule(
-          type: ReportType.inspection,
-          subtitle: 'Kelola seluruh laporan Inspeksi rutin dari tim.',
-        );
-      case 3:
-        return const DashboardNewsModule();
-      case 4:
-        if (_canSeeUsers) return const DashboardUsersModule();
-        return const SizedBox();
-      default:
-        return const SizedBox();
-    }
+    final sections = _sections;
+    if (sections.isEmpty) return const SizedBox();
+    final selectedIndex =
+        _selectedIndex >= sections.length ? 0 : _selectedIndex;
+    return sections[selectedIndex].content;
   }
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 800;
+    final sections = _sections;
+    final selectedIndex = sections.isEmpty || _selectedIndex >= sections.length
+        ? 0
+        : _selectedIndex;
+
+    if (_isCheckingAccess) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF3F4F6),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
@@ -106,7 +176,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           : AppBar(
               backgroundColor: Colors.white,
               elevation: 0.5,
-              title: Text(_sections[_selectedIndex],
+              title: Text(
+                  sections.isEmpty
+                      ? 'Dashboard'
+                      : sections[selectedIndex].title,
                   style: const TextStyle(
                       color: Colors.black87,
                       fontWeight: FontWeight.bold,
@@ -140,6 +213,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildNavigationMenu({required bool isDrawer}) {
+    final sections = _sections;
+
     return Container(
       width: isDrawer ? null : 280,
       color: Colors.white,
@@ -197,7 +272,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: Colors.grey,
                     letterSpacing: 1.5)),
           ),
-          ...List.generate(_sections.length, (index) {
+          ...List.generate(sections.length, (index) {
+            final section = sections[index];
             final isSelected = _selectedIndex == index;
             return Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -219,13 +295,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(_sectionIcons[index],
+                      Icon(section.icon,
                           color: isSelected
                               ? Colors.white
                               : const Color(0xFF64748B),
                           size: 20),
                       const SizedBox(width: 14),
-                      Text(_sections[index],
+                      Text(section.title,
                           style: TextStyle(
                               fontSize: 14,
                               fontWeight: isSelected

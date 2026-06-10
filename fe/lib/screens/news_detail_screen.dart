@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/news_data.dart';
 import '../services/news_service.dart';
 import '../services/storage_service.dart';
+import '../utils/access_permissions.dart';
 import 'package:sapahse/main.dart';
 import '../widgets/app_safe_insets.dart';
 import '../widgets/fab_notched_bottom_bar.dart';
@@ -46,9 +47,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
 
   Future<void> _detectRole() async {
     final user = await StorageService.getUser();
-    final role = user?['role']?.toString().toLowerCase();
     if (mounted) {
-      setState(() => _isAdmin = role == 'admin' || role == 'superadmin');
+      setState(() => _isAdmin = userHasAccess(user, 'manage_news'));
     }
   }
 
@@ -201,8 +201,9 @@ class _NewsDetailScreenState extends State<NewsDetailScreen> {
     final article = _fullArticle ?? widget.article;
     final catColor = _categoryColor(article.category);
     final categoryTag = article.category.replaceAll(RegExp(r'[\s/]+'), '');
-    final tags =
-        article.hashtags.isNotEmpty ? article.hashtags : [categoryTag.toLowerCase()];
+    final tags = article.hashtags.isNotEmpty
+        ? article.hashtags
+        : [categoryTag.toLowerCase()];
 
     return PopScope(
       canPop: false,

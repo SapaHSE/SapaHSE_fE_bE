@@ -932,6 +932,7 @@ class ProfileController extends Controller
                     : \asset('storage/' . $user->profile_photo))
                 : null,
             'role'           => $user->role,
+            'access_permissions' => $user->resolvedAccessPermissions(),
             'is_active'      => $user->is_active,
             'is_hrd_reviewer' => $user->isHrdReviewer(),
             'status_text'    => ($user->is_active ? 'Aktif' : 'Non-Aktif') . ' atas nama ' . $user->full_name,

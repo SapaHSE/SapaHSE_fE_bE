@@ -4,6 +4,7 @@ import '../models/profile_model.dart';
 import '../services/company_service.dart';
 import '../services/profile_service.dart';
 import '../services/storage_service.dart';
+import '../utils/access_permissions.dart';
 import '../utils/value_parser.dart';
 import 'dashboard_screen.dart';
 import 'my_profile.dart';
@@ -716,8 +717,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isSuperAdmin = role == 'superadmin' || role == 'super admin';
     final isAdmin = role == 'admin' || isSuperAdmin;
     final isHrdReviewer = _isHrdReviewer;
+    final canOpenDashboard = userHasAnyAccess(_cachedUser, const [
+      'dashboard_overview',
+      'manage_hazard_reports',
+      'manage_inspection_reports',
+      'manage_news',
+      'manage_users',
+    ]);
     final canManageViolations =
-        isSuperAdmin || (role == 'admin' && department.contains('hse'));
+        userHasAccess(_cachedUser, 'manage_violations') ||
+            (role == 'admin' && department.contains('hse'));
+    final canManageUsers = userHasAccess(_cachedUser, 'manage_users');
+    final canApproveDocuments =
+        userHasAccess(_cachedUser, 'document_approvals');
+    final canManageMasterData =
+        userHasAccess(_cachedUser, 'manage_master_data');
+    final canShowAdminTools =
+        canManageUsers || canApproveDocuments || canManageMasterData;
 
     return SingleChildScrollView(
       padding: EdgeInsets.only(
@@ -727,18 +743,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader('APLIKASI'),
-          _buildMenuItem(
-            icon: Icons.dashboard_outlined,
-            iconBg: const Color(0xFFE3F2FD),
-            iconColor: const Color(0xFF1A56C4),
-            title: 'Dashboard Laporan',
-            subtitle: 'Visualisasi data, grafik & ringkasan insiden',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          if (canOpenDashboard) ...[
+            _buildMenuItem(
+              icon: Icons.dashboard_outlined,
+              iconBg: const Color(0xFFE3F2FD),
+              iconColor: const Color(0xFF1A56C4),
+              title: 'Dashboard Laporan',
+              subtitle: 'Visualisasi data, grafik & ringkasan insiden',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DashboardScreen()),
+              ),
             ),
-          ),
-          Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+          ],
           _buildMenuItem(
             icon: Icons.health_and_safety_outlined,
             iconBg: const Color(0xFFE8F5E9),
@@ -780,85 +798,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ],
-          if (isAdmin) ...[
+          if (canShowAdminTools) ...[
             const SizedBox(height: 24),
             _buildSectionHeader('ALAT ADMIN',
                 badge: 'CHIEF', badgeColor: const Color(0xFFE65100)),
-            _buildMenuItem(
-              icon: Icons.people,
-              iconBg: const Color(0xFFE3F2FD),
-              iconColor: const Color(0xFF1565C0),
-              title: 'User Management',
-              subtitle: 'Roles, access, approvals',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const UserManagementScreen()),
+            if (canManageUsers) ...[
+              _buildMenuItem(
+                icon: Icons.people,
+                iconBg: const Color(0xFFE3F2FD),
+                iconColor: const Color(0xFF1565C0),
+                title: 'User Management',
+                subtitle: 'Roles, access, approvals',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const UserManagementScreen()),
+                ),
               ),
-            ),
-            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-            _buildMenuItem(
-              icon: Icons.assignment_turned_in_outlined,
-              iconBg: const Color(0xFFE8F5E9),
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Approval of Submissions',
-              subtitle: 'Kelola persetujuan karyawan',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const DocumentApprovalScreen()),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+            ],
+            if (canApproveDocuments) ...[
+              _buildMenuItem(
+                icon: Icons.assignment_turned_in_outlined,
+                iconBg: const Color(0xFFE8F5E9),
+                iconColor: const Color(0xFF2E7D32),
+                title: 'Approval of Submissions',
+                subtitle: 'Kelola persetujuan karyawan',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const DocumentApprovalScreen()),
+                ),
               ),
-            ),
-            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-            _buildMenuItem(
-              icon: Icons.folder_special,
-              iconBg: const Color(0xFFFBE9E7),
-              iconColor: const Color(0xFFD84315),
-              title: 'Category & Subcategory Report',
-              subtitle: 'Daftar TTA, KTA & subkategori',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const KategoriLaporanScreen()),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+            ],
+            if (canManageMasterData) ...[
+              _buildMenuItem(
+                icon: Icons.folder_special,
+                iconBg: const Color(0xFFFBE9E7),
+                iconColor: const Color(0xFFD84315),
+                title: 'Category & Subcategory Report',
+                subtitle: 'Daftar TTA, KTA & subkategori',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const KategoriLaporanScreen()),
+                ),
               ),
-            ),
-            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-            _buildMenuItem(
-              icon: Icons.business,
-              iconBg: const Color(0xFFE8F5E9),
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Company Management',
-              subtitle: 'Owner, kontraktor & sub kontraktor',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const CompanyManagementScreen()),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+              _buildMenuItem(
+                icon: Icons.business,
+                iconBg: const Color(0xFFE8F5E9),
+                iconColor: const Color(0xFF2E7D32),
+                title: 'Company Management',
+                subtitle: 'Owner, kontraktor & sub kontraktor',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const CompanyManagementScreen()),
+                ),
               ),
-            ),
-            _buildMenuItem(
-              icon: Icons.corporate_fare,
-              iconBg: const Color(0xFFE8EAF6),
-              iconColor: const Color(0xFF3F51B5),
-              title: 'Department Management',
-              subtitle: 'Daftar departemen perusahaan',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const DepartmentManagementScreen()),
+              _buildMenuItem(
+                icon: Icons.corporate_fare,
+                iconBg: const Color(0xFFE8EAF6),
+                iconColor: const Color(0xFF3F51B5),
+                title: 'Department Management',
+                subtitle: 'Daftar departemen perusahaan',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const DepartmentManagementScreen()),
+                ),
               ),
-            ),
-            Divider(height: 1, color: Colors.grey.shade100, indent: 70),
-            _buildMenuItem(
-              icon: Icons.location_on,
-              iconBg: const Color(0xFFFFF3E0),
-              iconColor: const Color(0xFFEF6C00),
-              title: 'Location Management',
-              subtitle: 'Lokasi kerja tiap perusahaan owner',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const LocationManagementScreen()),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 70),
+              _buildMenuItem(
+                icon: Icons.location_on,
+                iconBg: const Color(0xFFFFF3E0),
+                iconColor: const Color(0xFFEF6C00),
+                title: 'Location Management',
+                subtitle: 'Lokasi kerja tiap perusahaan owner',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const LocationManagementScreen()),
+                ),
               ),
-            ),
+            ],
           ],
           if (isSuperAdmin) ...[
             const SizedBox(height: 24),

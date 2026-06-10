@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/access_permissions.dart';
 import '../utils/ui_utils.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -51,7 +52,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     if (mounted) {
       final role = user?['role']?.toString().toLowerCase();
       final isSuper = role == 'superadmin';
-      final isAdmin = role == 'admin' || isSuper;
+      final isAdmin =
+          role == 'admin' || isSuper || userHasAccess(user, 'manage_users');
       final isHrdReviewer = user?['is_hrd_reviewer'] == true ||
           user?['is_hrd_reviewer'] == 1 ||
           user?['is_hrd_reviewer']?.toString() == '1';
@@ -1089,7 +1091,9 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
       setState(() {
         final role = user?['role']?.toString().toLowerCase();
         _isSuperadmin = role == 'superadmin';
-        _isAdmin = role == 'admin' || _isSuperadmin;
+        _isAdmin = role == 'admin' ||
+            _isSuperadmin ||
+            userHasAccess(user, 'manage_users');
         _isHrdReviewer = user?['is_hrd_reviewer'] == true ||
             user?['is_hrd_reviewer'] == 1 ||
             user?['is_hrd_reviewer']?.toString() == '1';
@@ -2081,12 +2085,12 @@ class _UserFormScreenState extends State<UserFormScreen> {
   Future<void> _checkFormAccess() async {
     final user = await StorageService.getUser();
     final role = user?['role']?.toString().toLowerCase();
-    if (role != 'superadmin') {
+    if (role != 'superadmin' && !userHasAccess(user, 'manage_users')) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Akses Ditolak. Hanya Superadmin yang dapat mengubah data user.',
+              'Akses Ditolak. Permission User Management belum aktif.',
             ),
           ),
         );

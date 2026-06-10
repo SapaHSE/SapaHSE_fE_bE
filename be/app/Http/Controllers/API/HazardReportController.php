@@ -33,9 +33,10 @@ class HazardReportController extends Controller
         $query  = HazardReport::with(['user'])->latest();
         $user   = Auth::user();
         $userId = $user->id;
+        $canManageHazard = $user->hasAccessPermission('manage_hazard_reports');
 
         // Apply privacy filter: validating reports are private to creator/admin queue.
-        if (!in_array($user->role, ['admin', 'superadmin'])) {
+        if (!$canManageHazard) {
             $query->where(function ($q) use ($user) {
                 $q->where(function ($sq) {
                     $sq->where('is_public', true)
@@ -233,7 +234,7 @@ class HazardReportController extends Controller
         $report = HazardReport::findOrFail($id);
         $user = Auth::user();
 
-        if ($report->user_id !== $user->id && !in_array($user->role, ['admin', 'superadmin'])) {
+        if ($report->user_id !== $user->id && ! $user->hasAccessPermission('manage_hazard_reports')) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak.'], 403);
         }
         $report->delete();
@@ -275,7 +276,7 @@ class HazardReportController extends Controller
              || (!empty($user->department) && $report->reported_department
                  && stripos($report->reported_department, $user->department) !== false);
         $isSuperadmin = $user->role === 'superadmin';
-        $isAdmin = $user->role === 'admin';
+        $isAdmin = $user->hasAccessPermission('manage_hazard_reports');
         if (!$isSuperadmin && !$isAdmin && !$isPja) {
             return response()->json(['status' => 'error', 'message' => 'Akses ditolak. Anda tidak memiliki izin.'], 403);
         }
@@ -592,7 +593,7 @@ class HazardReportController extends Controller
 
     private function canAccessReportThread(HazardReport $report, User $user): bool
     {
-        if (in_array($user->role, ['admin', 'superadmin'])) return true;
+        if ($user->hasAccessPermission('manage_hazard_reports')) return true;
 
         if ($report->user_id === $user->id) return true;
 

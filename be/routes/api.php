@@ -85,44 +85,44 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Hazard Categories ─────────────────────────────────────────────────────
     Route::get('/hazard-categories', [HazardCategoryController::class, 'index']);
     Route::post('/hazard-categories', [HazardCategoryController::class, 'store'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::put('/hazard-categories/{id}', [HazardCategoryController::class, 'update'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::delete('/hazard-categories/{id}', [HazardCategoryController::class, 'destroy'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
 
     // Subcategories
     Route::post('/hazard-categories/subcategories/{subId}/toggle', [HazardCategoryController::class, 'toggleSubcategory'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
 
     Route::post('/hazard-categories/{categoryId}/subcategories', [HazardCategoryController::class, 'storeSubcategory'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::put('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'updateSubcategory'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::delete('/hazard-categories/{categoryId}/subcategories/{subId}', [HazardCategoryController::class, 'destroySubcategory'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
 
     // ── Companies ─────────────────────────────────────────────────────────────
     // GET /companies is public (top of file) for registration dropdowns.
     Route::post('/companies', [CompanyController::class, 'store'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::put('/companies/{id}', [CompanyController::class, 'update'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::delete('/companies/{id}', [CompanyController::class, 'destroy'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::post('/companies/{id}/toggle', [CompanyController::class, 'toggle'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
 
     // ── Areas ─────────────────────────────────────────────────────────────────
     // GET /areas is public (top of file) for registration / reference.
     Route::post('/areas', [AreaController::class, 'store'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::put('/areas/{id}', [AreaController::class, 'update'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::delete('/areas/{id}', [AreaController::class, 'destroy'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::post('/areas/{id}/toggle', [AreaController::class, 'toggle'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
 
 
     // ── Inspection Reports ────────────────────────────────────────────────────
@@ -141,19 +141,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // GET /api/departments  — daftar departemen unik (semua role yang login)
     // ── Departments Management ────────────────────────────────────────────────
     Route::post('/departments', [DepartmentController::class, 'store'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::put('/departments/{id}', [DepartmentController::class, 'update'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
     Route::delete('/departments/{id}', [DepartmentController::class, 'destroy'])
-        ->middleware('role:superadmin');
+        ->middleware('permission:manage_master_data');
         
     // Inspections merged into /api/reports    // ==========================================
     // News & Articles
     // ==========================================
     Route::get('/news',                  [NewsController::class, 'index']);
     Route::get('/news/{id}',             [NewsController::class, 'show']);
-    Route::post('/news',                 [NewsController::class, 'store']);
-    Route::delete('/news/{id}',          [NewsController::class, 'destroy']);
+    Route::post('/news',                 [NewsController::class, 'store'])->middleware('permission:manage_news');
+    Route::delete('/news/{id}',          [NewsController::class, 'destroy'])->middleware('permission:manage_news');
 
     // ==========================================
     // Inbox / Announcements (Inbox) ─────────────────────────────────────────────────
@@ -166,9 +166,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/announcements/{id}',         [AnnouncementController::class, 'show']);
     Route::patch('/announcements/read-all',   [AnnouncementController::class, 'markAllAsRead']);
     Route::post('/announcements',             [AnnouncementController::class, 'store'])
-        ->middleware('role:admin,superadmin');
+        ->middleware('permission:manage_announcements');
     Route::delete('/announcements/{id}',      [AnnouncementController::class, 'destroy'])
-        ->middleware('role:admin');
+        ->middleware('permission:manage_announcements');
             // Inbox — gabungan reports + announcements
     Route::get('/inbox',           [InboxController::class, 'index']);
     Route::post('/inbox/read',     [InboxController::class, 'markAsRead']);
@@ -176,15 +176,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── News (admin/supervisor manage) ────────────────────────────────────────
     Route::post('/news',        [NewsController::class, 'store'])
-        ->middleware('role:admin,superadmin');
+        ->middleware('permission:manage_news');
     Route::post('/news/{id}/publish-now', [NewsController::class, 'publishNow'])
-        ->middleware('role:admin,superadmin');
+        ->middleware('permission:manage_news');
     Route::delete('/news/{id}', [NewsController::class, 'destroy'])
-        ->middleware('role:admin');
+        ->middleware('permission:manage_news');
 
     // ── Dashboard Statistics ──────────────────────────────────────────────────
     Route::get('/dashboard/statistics', [DashboardController::class, 'statistics'])
-        ->middleware('role:admin,superadmin');
+        ->middleware('permission:dashboard_overview');
 
     // GET /api/users  — daftar user untuk fitur Tag Orang
     Route::get('/users', [AuthController::class, 'listUsers']);
@@ -219,32 +219,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/registration-approvals', [AuthController::class, 'registrationApprovalsIndex']);
     Route::put('/admin/registration-approvals/{id}/approve', [AuthController::class, 'adminApprove']);
     Route::post('/admin/registration-approvals/{id}/reject', [AuthController::class, 'adminReject']);
-    Route::get('/admin/users', [AuthController::class, 'adminIndex'])->middleware('role:admin,superadmin');
-    Route::post('/admin/users', [AuthController::class, 'adminStore'])->middleware('role:admin,superadmin');
-    Route::put('/admin/users/{id}', [AuthController::class, 'adminUpdate'])->middleware('role:admin,superadmin');
-    Route::put('/admin/users/{id}/approve', [AuthController::class, 'adminApprove'])->middleware('role:admin,superadmin');
-    Route::post('/admin/users/{id}/reject', [AuthController::class, 'adminReject'])->middleware('role:admin,superadmin');
-    Route::get('/admin/registration-logs', [AuthController::class, 'adminRejectedLogs'])->middleware('role:admin,superadmin');    
-    Route::delete('/admin/users/{id}', [AuthController::class, 'adminDestroy'])->middleware('role:admin,superadmin');
+    Route::get('/admin/users', [AuthController::class, 'adminIndex'])->middleware('permission:manage_users');
+    Route::post('/admin/users', [AuthController::class, 'adminStore'])->middleware('permission:manage_users');
+    Route::put('/admin/users/{id}', [AuthController::class, 'adminUpdate'])->middleware('permission:manage_users');
+    Route::put('/admin/users/{id}/approve', [AuthController::class, 'adminApprove'])->middleware('permission:manage_users');
+    Route::post('/admin/users/{id}/reject', [AuthController::class, 'adminReject'])->middleware('permission:manage_users');
+    Route::get('/admin/registration-logs', [AuthController::class, 'adminRejectedLogs'])->middleware('permission:manage_users');    
+    Route::delete('/admin/users/{id}', [AuthController::class, 'adminDestroy'])->middleware('permission:manage_users');
 
     // Admin: Manage Violations
-    Route::get('/admin/violations', [ViolationController::class, 'index'])->middleware('role:admin,superadmin');
-    Route::post('/admin/users/{id}/violations', [ViolationController::class, 'store'])->middleware('role:admin,superadmin');
-    Route::get('/admin/violations/{violationId}', [ViolationController::class, 'show'])->middleware('role:admin,superadmin');
-    Route::put('/admin/violations/{violationId}', [ViolationController::class, 'update'])->middleware('role:admin,superadmin');
-    Route::delete('/admin/violations/{violationId}', [ViolationController::class, 'destroy'])->middleware('role:admin,superadmin');
+    Route::get('/admin/violations', [ViolationController::class, 'index'])->middleware('permission:manage_violations');
+    Route::post('/admin/users/{id}/violations', [ViolationController::class, 'store'])->middleware('permission:manage_violations');
+    Route::get('/admin/violations/{violationId}', [ViolationController::class, 'show'])->middleware('permission:manage_violations');
+    Route::put('/admin/violations/{violationId}', [ViolationController::class, 'update'])->middleware('permission:manage_violations');
+    Route::delete('/admin/violations/{violationId}', [ViolationController::class, 'destroy'])->middleware('permission:manage_violations');
 
     // Admin: Verification
-    Route::get('/admin/document-approvals', [InboxController::class, 'documentApprovals'])->middleware('role:admin,superadmin');
-    Route::put('/admin/licenses/{id}/verify', [AuthController::class, 'adminVerifyLicense'])->middleware('role:admin,superadmin');
-    Route::put('/admin/certifications/{id}/verify', [AuthController::class, 'adminVerifyCertification'])->middleware('role:admin,superadmin');
-    Route::put('/admin/licenses/{id}/approve', [AuthController::class, 'adminApproveLicense'])->middleware('role:admin,superadmin');
-    Route::post('/admin/licenses/{id}/reject', [AuthController::class, 'adminRejectLicense'])->middleware('role:admin,superadmin');
-    Route::put('/admin/certifications/{id}/approve', [AuthController::class, 'adminApproveCertification'])->middleware('role:admin,superadmin');
-    Route::post('/admin/certifications/{id}/reject', [AuthController::class, 'adminRejectCertification'])->middleware('role:admin,superadmin');
+    Route::get('/admin/document-approvals', [InboxController::class, 'documentApprovals'])->middleware('permission:document_approvals');
+    Route::put('/admin/licenses/{id}/verify', [AuthController::class, 'adminVerifyLicense'])->middleware('permission:document_approvals');
+    Route::put('/admin/certifications/{id}/verify', [AuthController::class, 'adminVerifyCertification'])->middleware('permission:document_approvals');
+    Route::put('/admin/licenses/{id}/approve', [AuthController::class, 'adminApproveLicense'])->middleware('permission:document_approvals');
+    Route::post('/admin/licenses/{id}/reject', [AuthController::class, 'adminRejectLicense'])->middleware('permission:document_approvals');
+    Route::put('/admin/certifications/{id}/approve', [AuthController::class, 'adminApproveCertification'])->middleware('permission:document_approvals');
+    Route::post('/admin/certifications/{id}/reject', [AuthController::class, 'adminRejectCertification'])->middleware('permission:document_approvals');
 
     // Admin: Profile Change Requests
-    Route::put('/admin/profile-change-requests/{id}/approve', [ProfileController::class, 'adminApproveProfileChange'])->middleware('role:admin,superadmin');
-    Route::post('/admin/profile-change-requests/{id}/reject', [ProfileController::class, 'adminRejectProfileChange'])->middleware('role:admin,superadmin');
+    Route::put('/admin/profile-change-requests/{id}/approve', [ProfileController::class, 'adminApproveProfileChange'])->middleware('permission:document_approvals');
+    Route::post('/admin/profile-change-requests/{id}/reject', [ProfileController::class, 'adminRejectProfileChange'])->middleware('permission:document_approvals');
 
 });

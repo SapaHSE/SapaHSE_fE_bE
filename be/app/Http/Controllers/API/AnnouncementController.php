@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\Storage;
 
 class AnnouncementController extends Controller
 {
+    protected $notificationService;
+
+    public function __construct(\App\Services\NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     public function index(Request $request)
     {
         $userId        = Auth::id();
