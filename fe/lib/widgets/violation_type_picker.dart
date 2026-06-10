@@ -7,7 +7,7 @@ Future<void> showViolationTypePicker({
   required BuildContext context,
   required ValueChanged<String> onSelected,
   VoidCallback? onDeleteMode,
-  String title = 'Aksi Violation & Incident',
+  String title = 'Aksi Violation & Accident',
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -61,7 +61,7 @@ Future<void> showViolationTypePicker({
             icon: Icons.warning_amber_rounded,
             iconBgColor: const Color(0xFFFFEBEE),
             iconColor: const Color(0xFFD32F2F),
-            title: 'Add Violation',
+            title: 'Tambah Violation',
             subtitle: 'Catat pelanggaran disiplin atau K3',
             onTap: () {
               Navigator.pop(sheetContext);
@@ -73,8 +73,8 @@ Future<void> showViolationTypePicker({
             icon: Icons.report_problem_outlined,
             iconBgColor: const Color(0xFFFFF3E0),
             iconColor: const Color(0xFFF57C00),
-            title: 'Add Incident',
-            subtitle: 'Catat insiden atau kejadian kerja',
+            title: 'Tambah Accident',
+            subtitle: 'Catat accident atau kejadian kerja',
             onTap: () {
               Navigator.pop(sheetContext);
               onSelected('Incident');

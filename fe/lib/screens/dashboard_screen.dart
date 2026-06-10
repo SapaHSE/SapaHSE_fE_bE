@@ -301,15 +301,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               : const Color(0xFF64748B),
                           size: 20),
                       const SizedBox(width: 14),
-                      Text(section.title,
+                      Expanded(
+                        child: Text(
+                          section.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: isSelected
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? Colors.white
-                                  : const Color(0xFF334155))),
+                            fontSize: 14,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xFF334155),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

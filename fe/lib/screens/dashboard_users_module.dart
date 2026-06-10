@@ -3,7 +3,6 @@ import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../utils/access_permissions.dart';
 import 'dashboard_widgets.dart';
-import '../widgets/minimal_dropdown.dart';
 
 class DashboardUsersModule extends StatefulWidget {
   const DashboardUsersModule({super.key});
@@ -136,222 +135,235 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(user == null ? 'Tambah Akun Pengguna' : 'Edit Pengguna',
-              style: const TextStyle(fontWeight: FontWeight.bold)),
-          content: SizedBox(
-            width: 500,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _formField(nameCtrl, 'Nama Lengkap', Icons.person_outline),
-                  const SizedBox(height: 12),
-                  _formField(
-                      empIdCtrl, 'NIK / ID Karyawan', Icons.badge_outlined),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                        child: _formField(personalEmailCtrl, 'Email Pribadi',
-                            Icons.email_outlined)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: _formField(
-                            workEmailCtrl, 'Email Kerja', Icons.work_outline)),
-                  ]),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                        child: _formField(phoneCtrl, 'No. Telepon',
-                            Icons.phone_android_outlined)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Container(
-                        decoration: kMinimalFieldContainerDecoration,
-                        child: DropdownButtonFormField<String>(
-                          isExpanded: true,
-                          initialValue: selectedCompany,
-                          decoration: minimalFieldDecoration(
-                            hintText: 'Perusahaan',
-                            prefixIcon: Icons.business_outlined,
+        builder: (context, setModalState) {
+          final dialogWidth = _dialogWidth(context);
+          final isCompact = dialogWidth < 640;
+
+          return AlertDialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              user == null ? 'Tambah Akun Pengguna' : 'Edit Pengguna',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+                letterSpacing: 0,
+              ),
+            ),
+            content: SizedBox(
+              width: dialogWidth,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildFormSection(
+                      title: 'Identitas',
+                      icon: Icons.badge_outlined,
+                      child: Column(
+                        children: [
+                          _buildResponsiveFieldRow(
+                            isCompact: isCompact,
+                            children: [
+                              _formField(nameCtrl, 'Nama Lengkap',
+                                  Icons.person_outline),
+                              _formField(empIdCtrl, 'NIK / ID Karyawan',
+                                  Icons.badge_outlined),
+                            ],
                           ),
-                          icon: kMinimalDropdownChevron,
-                          borderRadius:
-                              BorderRadius.circular(kMinimalDropdownRadius),
-                          style: kMinimalDropdownTextStyle,
-                          items: companies
-                              .map((e) => DropdownMenuItem(
-                                  value: e,
-                                  child:
-                                      Text(e, overflow: TextOverflow.ellipsis)))
-                              .toList(),
-                          onChanged: (v) =>
-                              setModalState(() => selectedCompany = v),
-                        ),
+                          const SizedBox(height: 12),
+                          _buildResponsiveFieldRow(
+                            isCompact: isCompact,
+                            children: [
+                              _formField(personalEmailCtrl, 'Email Pribadi',
+                                  Icons.email_outlined),
+                              _formField(workEmailCtrl, 'Email Kerja',
+                                  Icons.work_outline),
+                            ],
+                          ),
+                          if (user == null) ...[
+                            const SizedBox(height: 12),
+                            _formField(
+                                passwordCtrl, 'Password', Icons.lock_outline,
+                                obscure: true),
+                          ],
+                        ],
                       ),
                     ),
-                  ]),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                        child: _formField(
-                            jabCtrl, 'Jabatan', Icons.work_history_outlined)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: _formField(
-                            posCtrl, 'Posisi', Icons.work_history_outlined)),
-                  ]),
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: kMinimalFieldContainerDecoration,
-                    child: DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      initialValue: selectedDept,
-                      decoration: minimalFieldDecoration(
-                        hintText: 'Departemen',
-                        prefixIcon: Icons.groups_outlined,
+                    const SizedBox(height: 12),
+                    _buildFormSection(
+                      title: 'Afiliasi Kerja',
+                      icon: Icons.business_center_outlined,
+                      child: Column(
+                        children: [
+                          _buildResponsiveFieldRow(
+                            isCompact: isCompact,
+                            children: [
+                              _formField(phoneCtrl, 'No. Telepon',
+                                  Icons.phone_android_outlined),
+                              _companyDropdown(
+                                selectedCompany: selectedCompany,
+                                companies: companies,
+                                onChanged: (v) =>
+                                    setModalState(() => selectedCompany = v),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _buildResponsiveFieldRow(
+                            isCompact: isCompact,
+                            children: [
+                              _departmentDropdown(
+                                selectedDept: selectedDept,
+                                departments: departments,
+                                onChanged: (v) =>
+                                    setModalState(() => selectedDept = v),
+                              ),
+                              _formField(jabCtrl, 'Jabatan',
+                                  Icons.work_history_outlined),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _formField(
+                              posCtrl, 'Posisi', Icons.assignment_ind_outlined),
+                        ],
                       ),
-                      icon: kMinimalDropdownChevron,
-                      borderRadius:
-                          BorderRadius.circular(kMinimalDropdownRadius),
-                      style: kMinimalDropdownTextStyle,
-                      items: departments
-                          .map((e) => DropdownMenuItem(
-                              value: e,
-                              child: Text(e, overflow: TextOverflow.ellipsis)))
-                          .toList(),
-                      onChanged: (v) => setModalState(() => selectedDept = v),
                     ),
-                  ),
-                  if (user == null) ...[
                     const SizedBox(height: 12),
-                    _formField(passwordCtrl, 'Password', Icons.lock_outline,
-                        obscure: true),
-                    const SizedBox(height: 12),
-                  ],
-                  Container(
-                    decoration: kMinimalFieldContainerDecoration,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: currentRole,
-                      decoration: minimalFieldDecoration(
-                        hintText: 'Role',
-                        prefixIcon: Icons.security_outlined,
+                    _buildFormSection(
+                      title: 'Role & Status',
+                      icon: Icons.admin_panel_settings_outlined,
+                      child: _buildResponsiveFieldRow(
+                        isCompact: isCompact,
+                        children: [
+                          _roleDropdown(
+                            currentRole: currentRole,
+                            onChanged: (v) => setModalState(() {
+                              currentRole = v!;
+                              accessPermissions =
+                                  defaultAccessPermissionsForRole(currentRole);
+                            }),
+                          ),
+                          _buildActiveStatusTile(
+                            isActive: isActive,
+                            onChanged: (v) => setModalState(() => isActive = v),
+                          ),
+                        ],
                       ),
-                      icon: kMinimalDropdownChevron,
-                      borderRadius:
-                          BorderRadius.circular(kMinimalDropdownRadius),
-                      style: kMinimalDropdownTextStyle,
-                      items: ['admin', 'superadmin', 'user']
-                          .map((e) => DropdownMenuItem(
-                              value: e, child: Text(e.toUpperCase())))
-                          .toList(),
-                      onChanged: (v) => setModalState(() {
-                        currentRole = v!;
-                        accessPermissions =
-                            defaultAccessPermissionsForRole(currentRole);
+                    ),
+                    const SizedBox(height: 12),
+                    _buildAccessPermissionPanel(
+                      permissions: accessPermissions,
+                      locked: currentRole.toLowerCase() == 'superadmin',
+                      onChanged: (key, value) => setModalState(() {
+                        accessPermissions[key] = value;
                       }),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildAccessPermissionPanel(
-                    permissions: accessPermissions,
-                    locked: currentRole.toLowerCase() == 'superadmin',
-                    onChanged: (key, value) => setModalState(() {
-                      accessPermissions[key] = value;
-                    }),
-                  ),
-                  const SizedBox(height: 12),
-                  SwitchListTile(
-                    title: const Text('Status Aktif',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                    value: isActive,
-                    activeThumbColor: const Color(0xFF1D4ED8),
-                    onChanged: (v) => setModalState(() => isActive = v),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
+            actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+            actions: [
+              OutlinedButton(
                 onPressed: isLoading ? null : () => Navigator.pop(ctx),
-                child:
-                    const Text('Batal', style: TextStyle(color: Colors.grey))),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      setModalState(() => isLoading = true);
-                      ApiResponse res;
-                      final data = {
-                        'full_name': nameCtrl.text,
-                        'employee_id': empIdCtrl.text,
-                        'personal_email': personalEmailCtrl.text,
-                        'work_email': workEmailCtrl.text,
-                        'phone_number': phoneCtrl.text,
-                        'position': posCtrl.text,
-                        'jabatan': jabCtrl.text,
-                        'company': selectedCompany,
-                        'department': selectedDept,
-                        'role': currentRole,
-                        'access_permissions': accessPermissions,
-                        'is_active': isActive ? 1 : 0,
-                      };
-
-                      if (user == null) {
-                        data['password'] = passwordCtrl.text;
-                        res = await ApiService.post('/admin/users', data);
-                      } else {
-                        res = await ApiService.put(
-                            '/admin/users/${user.id}', data);
-                      }
-
-                      if (res.success && context.mounted) {
-                        Navigator.pop(ctx);
-                        _fetchUsers(page: _currentUserPage);
-                        if (context.mounted) {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => DashboardSuccessDialog(
-                              title: 'Berhasil!',
-                              message: user == null
-                                  ? 'Akun pengguna baru telah berhasil didaftarkan.'
-                                  : 'Data profil pengguna telah berhasil diperbarui.',
-                            ),
-                          );
-                        }
-                      } else if (context.mounted) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(
-                                    res.errorMessage ?? 'Gagal menyimpan data'),
-                                backgroundColor: Colors.red),
-                          );
-                        }
-                        setModalState(() => isLoading = false);
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1D4ED8),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF64748B),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Text('Simpan'),
-            ),
-          ],
-        ),
+              ElevatedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        setModalState(() => isLoading = true);
+                        ApiResponse res;
+                        final data = {
+                          'full_name': nameCtrl.text,
+                          'employee_id': empIdCtrl.text,
+                          'personal_email': personalEmailCtrl.text,
+                          'work_email': workEmailCtrl.text,
+                          'phone_number': phoneCtrl.text,
+                          'position': posCtrl.text,
+                          'jabatan': jabCtrl.text,
+                          'company': selectedCompany,
+                          'department': selectedDept,
+                          'role': currentRole,
+                          'access_permissions': accessPermissions,
+                          'is_active': isActive ? 1 : 0,
+                        };
+
+                        if (user == null) {
+                          data['password'] = passwordCtrl.text;
+                          res = await ApiService.post('/admin/users', data);
+                        } else {
+                          res = await ApiService.put(
+                              '/admin/users/${user.id}', data);
+                        }
+
+                        if (res.success && context.mounted) {
+                          Navigator.pop(ctx);
+                          _fetchUsers(page: _currentUserPage);
+                          if (context.mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => DashboardSuccessDialog(
+                                title: 'Berhasil!',
+                                message: user == null
+                                    ? 'Akun pengguna baru telah berhasil didaftarkan.'
+                                    : 'Data profil pengguna telah berhasil diperbarui.',
+                              ),
+                            );
+                          }
+                        } else if (context.mounted) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(res.errorMessage ??
+                                      'Gagal menyimpan data'),
+                                  backgroundColor: Colors.red),
+                            );
+                          }
+                          setModalState(() => isLoading = false);
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1D4ED8),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
+                  elevation: 0,
+                ),
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.save_outlined, size: 18),
+                label: const Text(
+                  'Simpan',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -363,10 +375,264 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
       obscureText: obscure,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        labelStyle: const TextStyle(
+          color: Color(0xFF64748B),
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: Color(0xFF1D4ED8),
+          fontWeight: FontWeight.w700,
+        ),
+        prefixIcon: Icon(icon, size: 20, color: const Color(0xFF64748B)),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF1D4ED8), width: 1.5),
+        ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildFormSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: const Color(0xFF1D4ED8), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  double _dialogWidth(BuildContext context) {
+    final availableWidth = MediaQuery.of(context).size.width - 40;
+    return availableWidth.clamp(300.0, 820.0).toDouble();
+  }
+
+  Widget _buildResponsiveFieldRow({
+    required bool isCompact,
+    required List<Widget> children,
+  }) {
+    if (isCompact) {
+      return Column(
+        children: [
+          for (int i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i != children.length - 1) const SizedBox(height: 12),
+          ],
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < children.length; i++) ...[
+          Expanded(child: children[i]),
+          if (i != children.length - 1) const SizedBox(width: 12),
+        ],
+      ],
+    );
+  }
+
+  Widget _companyDropdown({
+    required String? selectedCompany,
+    required List<String> companies,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return _dropdownField(
+      label: 'Perusahaan',
+      icon: Icons.business_outlined,
+      value: selectedCompany,
+      items: companies,
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _departmentDropdown({
+    required String? selectedDept,
+    required List<String> departments,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return _dropdownField(
+      label: 'Departemen',
+      icon: Icons.groups_outlined,
+      value: selectedDept,
+      items: departments,
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _roleDropdown({
+    required String currentRole,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return _dropdownField(
+      label: 'Role',
+      icon: Icons.security_outlined,
+      value: currentRole,
+      items: const ['admin', 'superadmin', 'user'],
+      itemLabelBuilder: (value) => value.toUpperCase(),
+      onChanged: onChanged,
+    );
+  }
+
+  Widget _dropdownField({
+    required String label,
+    required IconData icon,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+    String Function(String value)? itemLabelBuilder,
+  }) {
+    return DropdownButtonFormField<String>(
+      isExpanded: true,
+      initialValue: value,
+      decoration: _fieldDecoration(label: label, icon: icon),
+      icon: const Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: Color(0xFF64748B),
+        size: 22,
+      ),
+      borderRadius: BorderRadius.circular(14),
+      dropdownColor: Colors.white,
+      menuMaxHeight: 320,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF0F172A),
+      ),
+      selectedItemBuilder: (context) => items
+          .map(
+            (item) => Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                itemLabelBuilder?.call(item) ?? item,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          )
+          .toList(),
+      items: items
+          .map((item) => DropdownMenuItem(
+                value: item,
+                child: Text(
+                  itemLabelBuilder?.call(item) ?? item,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ))
+          .toList(),
+      onChanged: onChanged,
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    required String label,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(
+        color: Color(0xFF64748B),
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
+      floatingLabelStyle: const TextStyle(
+        color: Color(0xFF1D4ED8),
+        fontWeight: FontWeight.w700,
+      ),
+      prefixIcon: Icon(icon, size: 20, color: const Color(0xFF64748B)),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF1D4ED8), width: 1.5),
+      ),
+    );
+  }
+
+  Widget _buildActiveStatusTile({
+    required bool isActive,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: SwitchListTile(
+        title: const Text(
+          'Status Aktif',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          isActive
+              ? 'Akun dapat login dan menggunakan aplikasi.'
+              : 'Akun tidak dapat login.',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
+        value: isActive,
+        activeThumbColor: const Color(0xFF1D4ED8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        onChanged: onChanged,
       ),
     );
   }
@@ -437,53 +703,92 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
             ),
           ],
           const SizedBox(height: 12),
-          ...accessPermissionOptions.map((option) {
-            final value = locked || (permissions[option.key] ?? false);
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 10.0;
+              final useGrid = constraints.maxWidth >= 640;
+              final itemWidth = useGrid
+                  ? (constraints.maxWidth - spacing) / 2
+                  : constraints.maxWidth;
+
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: accessPermissionOptions.map((option) {
+                  final value = locked || (permissions[option.key] ?? false);
+                  return SizedBox(
+                    width: itemWidth,
+                    child: _buildAccessPermissionTile(
+                      option: option,
+                      value: value,
+                      locked: locked,
+                      onChanged: (nextValue) =>
+                          onChanged(option.key, nextValue),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccessPermissionTile({
+    required AccessPermissionOption option,
+    required bool value,
+    required bool locked,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 82),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          option.label,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          option.description,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
+                  Text(
+                    option.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
-                  Switch(
-                    value: value,
-                    activeThumbColor: const Color(0xFF1D4ED8),
-                    onChanged: locked
-                        ? null
-                        : (nextValue) => onChanged(option.key, nextValue),
+                  const SizedBox(height: 3),
+                  Text(
+                    option.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      height: 1.25,
+                      color: Color(0xFF64748B),
+                    ),
                   ),
                 ],
               ),
-            );
-          }),
-        ],
+            ),
+            const SizedBox(width: 8),
+            Switch(
+              value: value,
+              activeThumbColor: const Color(0xFF1D4ED8),
+              onChanged: locked ? null : onChanged,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -577,30 +882,47 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: dashboardCardDecoration(radius: 20),
-      child: Row(children: [
-        Expanded(
-          child: TextField(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 560;
+          final searchField = TextField(
             controller: _searchCtrl,
             decoration: const InputDecoration(
                 hintText: 'Search users...',
                 prefixIcon: Icon(Icons.search),
                 border: InputBorder.none),
-          ),
-        ),
-        const SizedBox(width: 16),
-        ElevatedButton.icon(
-          onPressed: () => _showUserForm(),
-          icon: const Icon(Icons.person_add),
-          label: const Text('Tambah Akun'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0F172A),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      ]),
+          );
+          final addButton = ElevatedButton.icon(
+            onPressed: () => _showUserForm(),
+            icon: const Icon(Icons.person_add),
+            label: const Text('Tambah Akun'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F172A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+
+          if (isCompact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                searchField,
+                const SizedBox(height: 12),
+                addButton,
+              ],
+            );
+          }
+
+          return Row(children: [
+            Expanded(child: searchField),
+            const SizedBox(width: 16),
+            addButton,
+          ]);
+        },
+      ),
     );
   }
 
@@ -632,48 +954,54 @@ class _DashboardUsersModuleState extends State<DashboardUsersModule> {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: const Color(0xFFF1F5F9)),
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-          columns: const [
-            DataColumn(label: Text('User')),
-            DataColumn(label: Text('Role')),
-            DataColumn(label: Text('Akses')),
-            DataColumn(label: Text('Emp. ID')),
-            DataColumn(label: Text('Email')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Aksi')),
-          ],
-          rows: _users.map((u) {
-            return DataRow(cells: [
-              DataCell(Row(children: [
-                DashboardUserAvatar(name: u.fullName, size: 32),
-                const SizedBox(width: 10),
-                Text(u.fullName,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-              ])),
-              DataCell(DashboardRoleBadge(u.role)),
-              DataCell(_buildAccessSummary(u.accessPermissions)),
-              DataCell(Text(u.employeeId)),
-              DataCell(Text(u.personalEmail ?? '')),
-              DataCell(Text(u.isActive ? 'Aktif' : 'Nonaktif',
-                  style: TextStyle(
-                      color: u.isActive ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold))),
-              DataCell(Row(children: [
-                IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20),
-                    onPressed: () => _showUserForm(user: u)),
-                IconButton(
-                    icon: const Icon(Icons.delete_outline,
-                        size: 20, color: Colors.red),
-                    onPressed: () => _confirmDelete(u)),
-              ])),
-            ]);
-          }).toList(),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+          child: Theme(
+            data: Theme.of(context)
+                .copyWith(dividerColor: const Color(0xFFF1F5F9)),
+            child: DataTable(
+              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              columns: const [
+                DataColumn(label: Text('User')),
+                DataColumn(label: Text('Role')),
+                DataColumn(label: Text('Akses')),
+                DataColumn(label: Text('Emp. ID')),
+                DataColumn(label: Text('Email')),
+                DataColumn(label: Text('Status')),
+                DataColumn(label: Text('Aksi')),
+              ],
+              rows: _users.map((u) {
+                return DataRow(cells: [
+                  DataCell(Row(children: [
+                    DashboardUserAvatar(name: u.fullName, size: 32),
+                    const SizedBox(width: 10),
+                    Text(u.fullName,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ])),
+                  DataCell(DashboardRoleBadge(u.role)),
+                  DataCell(_buildAccessSummary(u.accessPermissions)),
+                  DataCell(Text(u.employeeId)),
+                  DataCell(Text(u.personalEmail ?? '')),
+                  DataCell(Text(u.isActive ? 'Aktif' : 'Nonaktif',
+                      style: TextStyle(
+                          color: u.isActive ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold))),
+                  DataCell(Row(children: [
+                    IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        onPressed: () => _showUserForm(user: u)),
+                    IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            size: 20, color: Colors.red),
+                        onPressed: () => _confirmDelete(u)),
+                  ])),
+                ]);
+              }).toList(),
+            ),
+          ),
         ),
       ),
     );

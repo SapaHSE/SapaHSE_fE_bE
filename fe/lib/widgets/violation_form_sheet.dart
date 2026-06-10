@@ -56,6 +56,11 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   bool _hasTriedSubmit = false;
   bool _isPermanent = false;
 
+  String _typeLabel([String? value]) {
+    final type = value ?? _type;
+    return type == 'Incident' ? 'Accident' : type;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -72,8 +77,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
       _level = widget.item!.level.clamp(1, 3).toInt();
       _selectedUser = widget.item!.user;
       _violationImage = null;
-      _isPermanent =
-          widget.item!.isPermanent || (widget.item!.expiredAt ?? '').trim().isEmpty;
+      _isPermanent = widget.item!.isPermanent ||
+          (widget.item!.expiredAt ?? '').trim().isEmpty;
     }
   }
 
@@ -285,7 +290,7 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                         const SizedBox(height: 12),
                         _buildField(
                           _type == 'Incident'
-                              ? 'Judul Incident'
+                              ? 'Judul Accident'
                               : 'Judul Pelanggaran',
                           _titleController,
                           hint: 'Contoh: Tidak memakai helm',
@@ -359,7 +364,9 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             children: [
               Expanded(
                 child: Text(
-                  widget.item == null ? 'Add $_type' : 'Edit $_type',
+                  widget.item == null
+                      ? 'Tambah ${_typeLabel()}'
+                      : 'Edit ${_typeLabel()}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -400,7 +407,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             ),
             child: Row(
               children: [
-                CircleAvatar(child: Text(_userInitial(_selectedUser!['full_name']))),
+                CircleAvatar(
+                    child: Text(_userInitial(_selectedUser!['full_name']))),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -412,7 +420,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                       ),
                       Text(
                         _selectedUser!['employee_id'] ?? '',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -494,8 +503,9 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
       label: 'Tipe',
       value: _type,
       items: const ['Violation', 'Incident'],
-      itemLabel: (item) => item,
-      onChanged: widget.item == null ? (value) => setState(() => _type = value) : null,
+      itemLabel: _typeLabel,
+      onChanged:
+          widget.item == null ? (value) => setState(() => _type = value) : null,
     );
   }
 
@@ -537,11 +547,9 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(kMinimalDropdownRadius),
+                    borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
                     side: BorderSide(
-                      color:
-                          selected ? color : color.withValues(alpha: 0.25),
+                      color: selected ? color : color.withValues(alpha: 0.25),
                     ),
                   ),
                   showCheckmark: false,
@@ -589,8 +597,9 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
             style: kMinimalDropdownTextStyle,
             decoration: minimalFieldDecoration(hintText: 'Pilih $label'),
-            validator:
-                isRequired ? (value) => value == null ? 'Wajib dipilih' : null : null,
+            validator: isRequired
+                ? (value) => value == null ? 'Wajib dipilih' : null
+                : null,
             items: items
                 .map((item) => DropdownMenuItem<T>(
                       value: item,
@@ -613,7 +622,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
   }
 
   Widget _buildImagePicker() {
-    final hasRemoteUrl = widget.item?.fileUrl != null && widget.item!.fileUrl!.isNotEmpty;
+    final hasRemoteUrl =
+        widget.item?.fileUrl != null && widget.item!.fileUrl!.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,13 +655,15 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
             child: _violationImage != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(kMinimalDropdownRadius),
-                    child: Image.file(File(_violationImage!.path), fit: BoxFit.cover),
+                    child: Image.file(File(_violationImage!.path),
+                        fit: BoxFit.cover),
                   )
                 : (hasRemoteUrl
                     ? ClipRRect(
                         borderRadius:
                             BorderRadius.circular(kMinimalDropdownRadius),
-                        child: Image.network(widget.item!.fileUrl!, fit: BoxFit.cover),
+                        child: Image.network(widget.item!.fileUrl!,
+                            fit: BoxFit.cover),
                       )
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -661,7 +673,8 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
                           const SizedBox(height: 8),
                           Text(
                             'Ambil atau Pilih Foto',
-                            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                            style: TextStyle(
+                                color: Colors.grey.shade500, fontSize: 13),
                           ),
                         ],
                       )),
@@ -689,8 +702,9 @@ class _ViolationFormSheetState extends State<ViolationFormSheet> {
           controller: controller,
           enabled: enabled,
           maxLines: maxLines,
-          validator:
-              isRequired ? (v) => v == null || v.isEmpty ? 'Wajib diisi' : null : null,
+          validator: isRequired
+              ? (v) => v == null || v.isEmpty ? 'Wajib diisi' : null
+              : null,
           style: const TextStyle(fontSize: 14),
           decoration: minimalFieldDecoration(
             hintText: hint,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/ui_utils.dart';
+import '../utils/access_permissions.dart';
 import '../services/violation_service.dart';
 import '../services/storage_service.dart';
 import '../main.dart';
@@ -35,13 +36,15 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   String? _userRole;
   String? _userDept;
+  bool _canManageViolations = false;
   String _selectedStatus = 'Semua';
   String _selectedType = 'Semua';
   bool _isSearching = false;
 
   bool get _hasFullAccess {
-    if (_userRole == 'superadmin') return true;
-    if (_userRole == 'admin' &&
+    if (_canManageViolations) return true;
+    if (_userRole?.toLowerCase() == 'superadmin') return true;
+    if (_userRole?.toLowerCase() == 'admin' &&
         (_userDept?.toLowerCase().contains('hse') ?? false)) {
       return true;
     }
@@ -76,6 +79,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
       setState(() {
         _userRole = user?['role']?.toString();
         _userDept = user?['department']?.toString();
+        _canManageViolations = userHasAccess(user, 'manage_violations');
       });
     }
   }
@@ -100,7 +104,8 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
     );
   }
 
-  Future<void> _fetchViolations({bool refresh = false, bool silent = false}) async {
+  Future<void> _fetchViolations(
+      {bool refresh = false, bool silent = false}) async {
     if (refresh) {
       setState(() {
         _currentPage = 1;
@@ -131,7 +136,8 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
     }
   }
 
-  void _showViolationForm({ViolationItem? item, String initialType = 'Violation'}) {
+  void _showViolationForm(
+      {ViolationItem? item, String initialType = 'Violation'}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -165,7 +171,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                 style: const TextStyle(color: Colors.black87, fontSize: 16),
               )
             : const Text(
-                'Violation & Incident',
+                'Violation & Accident',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
         backgroundColor: Colors.white,
@@ -245,25 +251,26 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
                     : _violations.isEmpty
                         ? _buildMessageState(
                             icon: Icons.fact_check_outlined,
-                            message: 'Tidak ada data violation atau incident',
+                            message: 'Tidak ada data violation atau accident',
                           )
-                    : RefreshIndicator(
-                        onRefresh: () => _fetchViolations(refresh: true),
-                        child: ListView.builder(
-                          padding: AppSafeInsets.bottomNavListPadding(context),
-                          itemCount: _violations.length +
-                              (_currentPage < _lastPage ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == _violations.length) {
-                              _currentPage++;
-                              _fetchViolations();
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
-                            return _buildViolationCard(_violations[index]);
-                          },
-                        ),
-                      ),
+                        : RefreshIndicator(
+                            onRefresh: () => _fetchViolations(refresh: true),
+                            child: ListView.builder(
+                              padding:
+                                  AppSafeInsets.bottomNavListPadding(context),
+                              itemCount: _violations.length +
+                                  (_currentPage < _lastPage ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == _violations.length) {
+                                  _currentPage++;
+                                  _fetchViolations();
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                }
+                                return _buildViolationCard(_violations[index]);
+                              },
+                            ),
+                          ),
           ),
         ],
       ),
@@ -315,7 +322,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
   }
 
   Widget _buildFilterRow() {
-    final filters = ['Semua', 'Violation', 'Incident', 'Aktif', 'Selesai'];
+    final filters = ['Semua', 'Violation', 'Accident', 'Aktif', 'Selesai'];
     return Container(
       height: 56,
       color: Colors.white,
@@ -359,6 +366,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
   }
 
   String get _activeFilter {
+    if (_selectedType == 'Incident') return 'Accident';
     if (_selectedType != 'Semua') return _selectedType;
     if (_selectedStatus != 'Semua') return _selectedStatus;
     return 'Semua';
@@ -366,15 +374,15 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
 
   Color _filterColor(String filter) {
     if (filter == 'Violation' || filter == 'Aktif') return Colors.red;
-    if (filter == 'Incident') return Colors.orange;
+    if (filter == 'Accident') return Colors.orange;
     if (filter == 'Selesai') return Colors.green;
     return const Color(0xFF1A56C4);
   }
 
   void _applyFilter(String filter) {
     setState(() {
-      if (filter == 'Violation' || filter == 'Incident') {
-        _selectedType = filter;
+      if (filter == 'Violation' || filter == 'Accident') {
+        _selectedType = filter == 'Accident' ? 'Incident' : filter;
         _selectedStatus = 'Semua';
       } else if (filter == 'Aktif' || filter == 'Selesai') {
         _selectedStatus = filter;
@@ -705,6 +713,7 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
 
   Widget _buildTypeBadge(String type) {
     final color = type == 'Incident' ? Colors.orange : Colors.red;
+    final label = type == 'Incident' ? 'Accident' : type;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -712,8 +721,9 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        type,
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        label,
+        style:
+            TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -732,7 +742,8 @@ class _ViolationManagementScreenState extends State<ViolationManagementScreen> {
       ),
       child: Text(
         'L$level',
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        style:
+            TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
       ),
     );
   }
